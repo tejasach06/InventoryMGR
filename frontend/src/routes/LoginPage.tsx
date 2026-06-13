@@ -1,11 +1,13 @@
-import { FormEvent, useState } from 'react';
+'use client';
+
+import { FormEvent, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Navigate, useNavigate } from 'react-router-dom';
-import { api, detailMessage } from '../api/client';
-import { Alert, FieldError } from '../components/ui';
+import { useRouter } from 'next/navigation';
+import { api, detailMessage, User } from '../api/client';
+import { Alert, FieldError, inputClass, primaryButtonClass } from '../components/ui';
 
 export function LoginPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +22,7 @@ export function LoginPage() {
     mutationFn: () => api.login(email.trim(), password),
     onSuccess: ({ user }) => {
       queryClient.setQueryData(['me'], user);
-      navigate('/inventory', { replace: true });
+      router.replace('/inventory');
     },
   });
   const setupAdmin = useMutation({
@@ -28,9 +30,14 @@ export function LoginPage() {
     onSuccess: ({ user }) => {
       queryClient.setQueryData(['me'], user);
       queryClient.setQueryData(['setup-status'], { setup_required: false });
-      navigate('/inventory', { replace: true });
+      router.replace('/inventory');
     },
   });
+
+  const cachedUser = queryClient.getQueryData<User>(['me']);
+  useEffect(() => {
+    if (cachedUser) router.replace('/inventory');
+  }, [cachedUser, router]);
 
   const emailError = submitted && email.trim().length === 0 ? 'Email is required.' : undefined;
   const passwordError = submitted && password.length === 0 ? 'Password is required.' : undefined;
@@ -52,66 +59,70 @@ export function LoginPage() {
     setupAdmin.mutate();
   }
 
-  if (queryClient.getQueryData(['me'])) {
-    return <Navigate to="/inventory" replace />;
+  if (cachedUser) {
+    return <div className="p-6" role="status">Redirecting…</div>;
   }
 
   if (setup.isLoading) {
-    return <div className="loading" role="status">Checking setup status…</div>;
+    return <div className="p-6" role="status">Checking setup status…</div>;
   }
 
   if (setup.data?.setup_required) {
     return (
-      <main className="login-page">
-        <form className="login-card" onSubmit={submitSetup} noValidate>
-          <div>
-            <p className="eyebrow">InventoryMGR</p>
-            <h1>Create admin account</h1>
-            <p className="muted">Create the first administrator for this deployment.</p>
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_30rem),radial-gradient(circle_at_bottom_right,rgba(79,70,229,0.14),transparent_28rem)] px-4 py-12">
+        <form className="w-full max-w-md rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-xl shadow-slate-200/60 backdrop-blur" onSubmit={submitSetup} noValidate>
+          <div className="mb-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">InventoryMGR</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Create admin account</h1>
+            <p className="mt-2 text-sm text-slate-600">Create the first administrator for this deployment.</p>
           </div>
           {setupAdmin.isError ? <Alert>{detailMessage(setupAdmin.error)}</Alert> : null}
-          <div className="field">
-            <label htmlFor="setup-email">Email</label>
-            <input id="setup-email" name="email" type="email" value={setupEmail} onChange={(event) => setSetupEmail(event.target.value)} aria-describedby={setupEmailError ? 'setup-email-error' : undefined} autoComplete="email" />
-            <FieldError id="setup-email-error" message={setupEmailError} />
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-email">Email</label>
+              <input className={inputClass} id="setup-email" name="email" type="email" value={setupEmail} onChange={(event) => setSetupEmail(event.target.value)} aria-describedby={setupEmailError ? 'setup-email-error' : undefined} autoComplete="email" />
+              <FieldError id="setup-email-error" message={setupEmailError} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-password">Password</label>
+              <input className={inputClass} id="setup-password" name="password" type="password" value={setupPassword} onChange={(event) => setSetupPassword(event.target.value)} aria-describedby={setupPasswordError ? 'setup-password-error' : undefined} autoComplete="new-password" />
+              <FieldError id="setup-password-error" message={setupPasswordError} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-confirm-password">Confirm password</label>
+              <input className={inputClass} id="setup-confirm-password" name="confirm-password" type="password" value={setupConfirmPassword} onChange={(event) => setSetupConfirmPassword(event.target.value)} aria-describedby={setupConfirmPasswordError ? 'setup-confirm-password-error' : undefined} autoComplete="new-password" />
+              <FieldError id="setup-confirm-password-error" message={setupConfirmPasswordError} />
+            </div>
           </div>
-          <div className="field">
-            <label htmlFor="setup-password">Password</label>
-            <input id="setup-password" name="password" type="password" value={setupPassword} onChange={(event) => setSetupPassword(event.target.value)} aria-describedby={setupPasswordError ? 'setup-password-error' : undefined} autoComplete="new-password" />
-            <FieldError id="setup-password-error" message={setupPasswordError} />
-          </div>
-          <div className="field">
-            <label htmlFor="setup-confirm-password">Confirm password</label>
-            <input id="setup-confirm-password" name="confirm-password" type="password" value={setupConfirmPassword} onChange={(event) => setSetupConfirmPassword(event.target.value)} aria-describedby={setupConfirmPasswordError ? 'setup-confirm-password-error' : undefined} autoComplete="new-password" />
-            <FieldError id="setup-confirm-password-error" message={setupConfirmPasswordError} />
-          </div>
-          <button type="submit" disabled={setupAdmin.isPending}>{setupAdmin.isPending ? 'Creating account…' : 'Create admin account'}</button>
+          <button className={primaryButtonClass + ' mt-6 w-full'} type="submit" disabled={setupAdmin.isPending}>{setupAdmin.isPending ? 'Creating account…' : 'Create admin account'}</button>
         </form>
       </main>
     );
   }
 
   return (
-    <main className="login-page">
-      <form className="login-card" onSubmit={submitLogin} noValidate>
-        <div>
-          <p className="eyebrow">InventoryMGR</p>
-          <h1>Sign in</h1>
-          <p className="muted">Use your administrator-provided account.</p>
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_30rem),radial-gradient(circle_at_bottom_right,rgba(79,70,229,0.14),transparent_28rem)] px-4 py-12">
+      <form className="w-full max-w-md rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-xl shadow-slate-200/60 backdrop-blur" onSubmit={submitLogin} noValidate>
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">InventoryMGR</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Sign in</h1>
+          <p className="mt-2 text-sm text-slate-600">Use your administrator-provided account.</p>
         </div>
         {setup.isError ? <Alert>{detailMessage(setup.error)}</Alert> : null}
         {login.isError ? <Alert>{detailMessage(login.error)}</Alert> : null}
-        <div className="field">
-          <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-describedby={emailError ? 'email-error' : undefined} autoComplete="email" />
-          <FieldError id="email-error" message={emailError} />
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="email">Email</label>
+            <input className={inputClass} id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-describedby={emailError ? 'email-error' : undefined} autoComplete="email" />
+            <FieldError id="email-error" message={emailError} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="password">Password</label>
+            <input className={inputClass} id="password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby={passwordError ? 'password-error' : undefined} autoComplete="current-password" />
+            <FieldError id="password-error" message={passwordError} />
+          </div>
         </div>
-        <div className="field">
-          <label htmlFor="password">Password</label>
-          <input id="password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby={passwordError ? 'password-error' : undefined} autoComplete="current-password" />
-          <FieldError id="password-error" message={passwordError} />
-        </div>
-        <button type="submit" disabled={login.isPending}>{login.isPending ? 'Signing in…' : 'Sign in'}</button>
+        <button className={primaryButtonClass + ' mt-6 w-full'} type="submit" disabled={login.isPending}>{login.isPending ? 'Signing in…' : 'Sign in'}</button>
       </form>
     </main>
   );

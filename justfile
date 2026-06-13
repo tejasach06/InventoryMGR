@@ -10,7 +10,7 @@ api-dev:
 	cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 web-dev:
-	cd frontend && bun run dev --host 127.0.0.1 --port 5173
+	cd frontend && bun run dev
 
 api-test:
 	cd backend && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest

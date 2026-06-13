@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(default="replace-with-32-byte-random-secret", alias="JWT_SECRET")
     session_cookie_name: str = Field(default="inventorymgr_session", alias="SESSION_COOKIE_NAME")
     csrf_cookie_name: str = Field(default="inventorymgr_csrf", alias="CSRF_COOKIE_NAME")
-    app_cors_origins: str = Field(default="http://localhost:5173", alias="APP_CORS_ORIGINS")
+    app_cors_origins: str = Field(
+        default="http://localhost:3000,http://127.0.0.1:3000",
+        alias="APP_CORS_ORIGINS",
+    )
 
     @computed_field  # type: ignore[prop-decorator]
     @property

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultVmFormValues, validateVmFormInput } from '../routes/VmFormPage';
+import { createDefaultVmFormValues, validateVmFormInput } from '../lib/vmForm';
 
 describe('vmFormSchema', () => {
   it('normalizes valid form values into the API payload shape', () => {

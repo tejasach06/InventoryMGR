@@ -1,21 +1,25 @@
 /* @vitest-environment jsdom */
 import '@testing-library/jest-dom/vitest';
 import { render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import { AppNav, buildNavItems, canSeeUsers } from '../components/AppNav';
 import { ImportBatch } from '../api/client';
 import { summarizePreview } from '../routes/ImportCsvPage';
 
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/users',
+}));
+
 function SummaryFixture({ batch }: { batch: Pick<ImportBatch, 'summary' | 'rows'> }) {
   const summary = summarizePreview(batch);
-  return (
-    <dl aria-label="Preview summary">
-      <div><dt>create</dt><dd>{summary.create}</dd></div>
-      <div><dt>update</dt><dd>{summary.update}</dd></div>
-      <div><dt>conflict</dt><dd>{summary.conflict}</dd></div>
-      <div><dt>invalid</dt><dd>{summary.invalid}</dd></div>
-    </dl>
+  return createElement(
+    'dl',
+    { 'aria-label': 'Preview summary' },
+    createElement('div', null, createElement('dt', null, 'create'), createElement('dd', null, summary.create)),
+    createElement('div', null, createElement('dt', null, 'update'), createElement('dd', null, summary.update)),
+    createElement('div', null, createElement('dt', null, 'conflict'), createElement('dd', null, summary.conflict)),
+    createElement('div', null, createElement('dt', null, 'invalid'), createElement('dd', null, summary.invalid)),
   );
 }
 
@@ -29,7 +33,7 @@ describe('CSV preview summary rendering', () => {
       ],
     } satisfies Pick<ImportBatch, 'summary' | 'rows'>;
 
-    render(<SummaryFixture batch={batch} />);
+    render(createElement(SummaryFixture, { batch }));
 
     const summary = screen.getByLabelText('Preview summary');
     expect(within(summary).getByText('create').nextSibling).toHaveTextContent('1');
@@ -63,11 +67,11 @@ describe('role-based navigation', () => {
   });
 
   it('renders Users only for admins', () => {
-    const { rerender } = render(<MemoryRouter><AppNav user={{ role: 'viewer' }} /></MemoryRouter>);
+    const { rerender } = render(createElement(AppNav, { user: { role: 'viewer' } }));
     expect(screen.getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
 
-    rerender(<MemoryRouter><AppNav user={{ role: 'admin' }} /></MemoryRouter>);
+    rerender(createElement(AppNav, { user: { role: 'admin' } }));
     expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/users');
   });
 });

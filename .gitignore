@@ -1,0 +1,13 @@
+.env
+.venv/
+node_modules/
+.devbox/postgres/
+backend/.mypy_cache/
+backend/.pytest_cache/
+backend/htmlcov/
+frontend/dist/
+frontend/coverage/
+playwright-report/
+test-results/
+graphify-out/
+.claude

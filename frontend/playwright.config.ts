@@ -18,7 +18,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: false,
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://127.0.0.1:3000',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -30,8 +30,8 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: 'bun run dev --host 127.0.0.1 --port 5173',
-      url: 'http://127.0.0.1:5173/login',
+      command: 'bun run dev',
+      url: 'http://127.0.0.1:3000/login',
       reuseExistingServer: false,
       timeout: 60_000,
     },

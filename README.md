@@ -1,11 +1,11 @@
 # InventoryMGR
 
-InventoryMGR is a small full-stack inventory manager for virtual machines. It provides a FastAPI backend, a React/Vite frontend, PostgreSQL persistence, cookie-based login, role-based access control, VM inventory CRUD, user administration, and CSV preview/commit imports.
+InventoryMGR is a small full-stack inventory manager for virtual machines. It provides a FastAPI backend, a Next.js/Tailwind frontend, PostgreSQL persistence, cookie-based login, role-based access control, VM inventory CRUD, user administration, and CSV preview/commit imports.
 
 ## Stack
 
 - Backend: Python 3.12+, FastAPI, SQLAlchemy, Alembic, PostgreSQL, PyJWT
-- Frontend: React, TypeScript, Vite, TanStack Query, React Router
+- Frontend: Next.js, React, TypeScript, Tailwind CSS, TanStack Query
 - Tooling: devbox, uv, bun, just, pytest, Vitest, Playwright
 
 ## Main features
@@ -59,7 +59,7 @@ just web-dev
 Open the app at:
 
 ```text
-http://127.0.0.1:5173
+http://127.0.0.1:3000
 ```
 
 On a fresh database, `/login` shows `Create admin account`. Create the first admin there; later visits show the normal sign-in form.
@@ -88,7 +88,7 @@ just verify
 
 ## Simple deployment
 
-This repository does not include Docker or platform-specific deployment files. A straightforward deployment uses PostgreSQL, one backend process, one static frontend build, and a reverse proxy.
+This repository does not include Docker or platform-specific deployment files. A straightforward deployment uses PostgreSQL, one backend process, one Next.js frontend process, and a reverse proxy.
 
 ### 1. Provision PostgreSQL
 
@@ -133,19 +133,20 @@ Run this under a process manager such as systemd, Supervisor, or your hosting pl
 ```bash
 cd frontend
 bun install
-bun run build
+INVENTORYMGR_API_URL=http://127.0.0.1:8000 bun run build
+INVENTORYMGR_API_URL=http://127.0.0.1:8000 bun run start
 ```
 
-Serve `frontend/dist/` with Nginx, Caddy, or your static hosting provider.
+Run this under a process manager such as systemd, Supervisor, or your hosting platform's service runner.
 
 ### 6. Reverse proxy rules
 
 Route browser traffic like this:
 
 - `/api/*` -> backend at `http://127.0.0.1:8000`
-- everything else -> `frontend/dist/index.html`
+- everything else -> Next frontend at `http://127.0.0.1:3000`
 
-The frontend uses `/api` as its API prefix, so the frontend and reverse proxy should share the same public origin in production.
+The frontend uses `/api` as its API prefix, so browser traffic remains same-origin in production.
 
 ### 7. First login
 
@@ -157,6 +158,6 @@ Open `/login` after the backend and frontend are running. If no users exist, the
 just setup      # install dependencies, initialize DB, run migrations
 just db-up      # start PostgreSQL and create local DBs
 just api-dev    # run FastAPI with reload on 127.0.0.1:8000
-just web-dev    # run Vite on 127.0.0.1:5173
+just web-dev    # run Next.js on 127.0.0.1:3000
 just verify     # backend lint/tests + frontend typecheck/tests + Playwright
 ```
