@@ -4,3 +4,5 @@
 {"timestamp":"00:00:06.360","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
 {"timestamp":"00:00:06.442","source":"Server","level":"ERROR","message":"Failed to proxy http://127.0.0.1:8000/api/auth/setup Error: connect ECONNREFUSED 127.0.0.1:8000"}
 {"timestamp":"00:00:06.443","source":"Server","level":"ERROR","message":"Error: connect ECONNREFUSED 127.0.0.1:8000"}
+{"timestamp":"00:02:11.122","source":"Server","level":"ERROR","message":"Failed to proxy http://127.0.0.1:8000/api/auth/setup Error: connect ECONNREFUSED 127.0.0.1:8000"}
+{"timestamp":"00:02:11.124","source":"Server","level":"ERROR","message":"Error: connect ECONNREFUSED 127.0.0.1:8000"}
