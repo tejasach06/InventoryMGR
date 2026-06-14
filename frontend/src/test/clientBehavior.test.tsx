@@ -1,15 +1,21 @@
 /* @vitest-environment jsdom */
 import '@testing-library/jest-dom/vitest';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createElement } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppNav, buildNavItems, canSeeUsers } from '../components/AppNav';
 import { ImportBatch } from '../api/client';
 import { summarizePreview } from '../routes/ImportCsvPage';
+import { canSearchMempalace } from '../routes/MempalacePage';
+import { ThemeProvider, ThemeSelect, THEME_STORAGE_KEY, resolveThemePreference } from '../components/ThemeProvider';
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/users',
 }));
+
+afterEach(() => {
+  cleanup();
+});
 
 function SummaryFixture({ batch }: { batch: Pick<ImportBatch, 'summary' | 'rows'> }) {
   const summary = summarizePreview(batch);
@@ -21,6 +27,28 @@ function SummaryFixture({ batch }: { batch: Pick<ImportBatch, 'summary' | 'rows'
     createElement('div', null, createElement('dt', null, 'conflict'), createElement('dd', null, summary.conflict)),
     createElement('div', null, createElement('dt', null, 'invalid'), createElement('dd', null, summary.invalid)),
   );
+}
+
+function mockMatchMedia(matches: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
+function resetThemeDom() {
+  window.localStorage.clear();
+  document.documentElement.className = '';
+  document.documentElement.style.colorScheme = '';
 }
 
 describe('CSV preview summary rendering', () => {
@@ -61,9 +89,9 @@ describe('role-based navigation', () => {
     expect(canSeeUsers('editor')).toBe(false);
     expect(canSeeUsers('viewer')).toBe(false);
 
-    expect(buildNavItems({ role: 'viewer' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory']);
-    expect(buildNavItems({ role: 'editor' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'CSV Import']);
-    expect(buildNavItems({ role: 'admin' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'CSV Import', 'Users']);
+    expect(buildNavItems({ role: 'viewer' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'MemPalace']);
+    expect(buildNavItems({ role: 'editor' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'CSV Import', 'MemPalace']);
+    expect(buildNavItems({ role: 'admin' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'CSV Import', 'MemPalace', 'Users']);
   });
 
   it('renders Users only for admins', () => {
@@ -73,5 +101,57 @@ describe('role-based navigation', () => {
 
     rerender(createElement(AppNav, { user: { role: 'admin' } }));
     expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/users');
+  });
+});
+
+describe('theme controls', () => {
+  beforeEach(() => {
+    resetThemeDom();
+  });
+
+  it('resolves explicit and system theme preferences', () => {
+    expect(resolveThemePreference('dark', false)).toBe('dark');
+    expect(resolveThemePreference('light', true)).toBe('light');
+    expect(resolveThemePreference('system', true)).toBe('dark');
+    expect(resolveThemePreference('system', false)).toBe('light');
+  });
+
+  it('applies persisted dark theme on mount', async () => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+    mockMatchMedia(false);
+
+    render(createElement(ThemeProvider, null, createElement(ThemeSelect)));
+
+    await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(screen.getByLabelText('Theme')).toHaveValue('dark');
+  });
+
+  it('stores explicit light theme and removes storage for system theme', async () => {
+    mockMatchMedia(true);
+    render(createElement(ThemeProvider, null, createElement(ThemeSelect)));
+
+    await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
+    const select = screen.getByLabelText('Theme') as HTMLSelectElement;
+
+    fireEvent.change(select, { target: { value: 'light' } });
+
+    await waitFor(() => expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('light'));
+    await waitFor(() => expect(document.documentElement).not.toHaveClass('dark'));
+    expect(document.documentElement.style.colorScheme).toBe('light');
+
+    fireEvent.change(select, { target: { value: 'system' } });
+
+    await waitFor(() => expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull());
+    await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+  });
+});
+
+describe('mempalace search controls', () => {
+  it('enables search only for non-empty queries', () => {
+    expect(canSearchMempalace('')).toBe(false);
+    expect(canSearchMempalace('   ')).toBe(false);
+    expect(canSearchMempalace('local memory')).toBe(true);
   });
 });

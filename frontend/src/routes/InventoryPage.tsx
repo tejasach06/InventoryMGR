@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api, detailMessage, Vm } from '../api/client';
 import { useCurrentUser } from '../components/AuthContext';
-import { Alert, Badge, EmptyState, PageHeader, cardClass, inputClass, primaryButtonClass, selectClass, tableWrapClass } from '../components/ui';
+import { Alert, Badge, EmptyState, PageHeader, cardClass, inputClass, labelClass, primaryButtonClass, selectClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
 
 const filterNames = ['q', 'platform', 'environment', 'status', 'criticality', 'lifecycle'] as const;
 
@@ -40,8 +40,8 @@ function filtersFromParams(params: ParamReader): Filters {
 function VmTable({ vms }: { vms: Vm[] }) {
   return (
     <div className={tableWrapClass}>
-      <table className="min-w-full divide-y divide-slate-200 text-sm">
-        <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <table className={tableClass}>
+        <thead className={tableHeadClass}>
           <tr>
             <th className="px-4 py-3" scope="col">Name</th>
             <th className="px-4 py-3" scope="col">Platform</th>
@@ -60,24 +60,24 @@ function VmTable({ vms }: { vms: Vm[] }) {
             <th className="px-4 py-3" scope="col">Updated</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 bg-white">
+        <tbody className={tableBodyClass}>
           {vms.map((vm) => (
-            <tr key={vm.id} className="transition hover:bg-slate-50/80">
-              <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-blue-700" scope="row"><Link className="hover:text-blue-900 hover:underline" href={`/inventory/${vm.id}`}>{vm.name}</Link></th>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.platform}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.environment}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.cluster}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.host}</td>
+            <tr key={vm.id} className={tableRowClass}>
+              <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-blue-700 dark:text-blue-300" scope="row"><Link className="hover:text-blue-900 hover:underline dark:hover:text-blue-200" href={`/inventory/${vm.id}`}>{vm.name}</Link></th>
+              <td className={tableCellClass}>{vm.platform}</td>
+              <td className={tableCellClass}>{vm.environment}</td>
+              <td className={tableCellClass}>{vm.cluster}</td>
+              <td className={tableCellClass}>{vm.host}</td>
               <td className="whitespace-nowrap px-4 py-3"><Badge value={vm.status} /></td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.cpu_cores}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.memory_mb} MB</td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.disk_gb} GB</td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.backup_status ?? '—'}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.ha_enabled ? 'Yes' : 'No'}</td>
+              <td className={tableCellClass}>{vm.cpu_cores}</td>
+              <td className={tableCellClass}>{vm.memory_mb} MB</td>
+              <td className={tableCellClass}>{vm.disk_gb} GB</td>
+              <td className={tableCellClass}>{vm.backup_status ?? '—'}</td>
+              <td className={tableCellClass}>{vm.ha_enabled ? 'Yes' : 'No'}</td>
               <td className="whitespace-nowrap px-4 py-3"><Badge value={vm.criticality} /></td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.lifecycle}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{vm.owner ?? '—'}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700">{new Date(vm.updated_at).toLocaleString()}</td>
+              <td className={tableCellClass}>{vm.lifecycle}</td>
+              <td className={tableCellClass}>{vm.owner ?? '—'}</td>
+              <td className={tableCellClass}>{new Date(vm.updated_at).toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
@@ -111,33 +111,33 @@ export function InventoryPage() {
       <PageHeader title="Inventory" actions={canCreateVm ? <Link className={primaryButtonClass} href="/inventory/new">New VM</Link> : undefined} />
       <form className={cardClass + ' mb-6 grid gap-4 lg:grid-cols-6'} onSubmit={submit}>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="q">Search</label>
+          <label className={labelClass} htmlFor="q">Search</label>
           <input className={inputClass} id="q" name="q" value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} placeholder="Name, owner, host" />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="platform">Platform</label>
+          <label className={labelClass} htmlFor="platform">Platform</label>
           <select className={selectClass} id="platform" name="platform" value={filters.platform} onChange={(event) => setFilters({ ...filters, platform: event.target.value })}>
             <option value="">All platforms</option><option value="proxmox">proxmox</option><option value="vmware">vmware</option>
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="environment">Environment</label>
+          <label className={labelClass} htmlFor="environment">Environment</label>
           <input className={inputClass} id="environment" name="environment" value={filters.environment} onChange={(event) => setFilters({ ...filters, environment: event.target.value })} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="status">Status</label>
+          <label className={labelClass} htmlFor="status">Status</label>
           <select className={selectClass} id="status" name="status" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
             <option value="">All statuses</option><option value="running">running</option><option value="stopped">stopped</option><option value="suspended">suspended</option><option value="unknown">unknown</option>
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="criticality">Criticality</label>
+          <label className={labelClass} htmlFor="criticality">Criticality</label>
           <select className={selectClass} id="criticality" name="criticality" value={filters.criticality} onChange={(event) => setFilters({ ...filters, criticality: event.target.value })}>
             <option value="">All criticalities</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="critical">critical</option>
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="lifecycle">Lifecycle</label>
+          <label className={labelClass} htmlFor="lifecycle">Lifecycle</label>
           <select className={selectClass} id="lifecycle" name="lifecycle" value={filters.lifecycle} onChange={(event) => setFilters({ ...filters, lifecycle: event.target.value })}>
             <option value="">All lifecycles</option><option value="planned">planned</option><option value="active">active</option><option value="retiring">retiring</option><option value="retired">retired</option>
           </select>

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 html {
   scroll-behavior: smooth;
@@ -9,6 +10,15 @@ body {
   min-height: 100vh;
   background: #f8fafc;
   color: #0f172a;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background: #020617;
+  color: #e2e8f0;
 }
 
 * {

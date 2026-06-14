@@ -3,7 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, User, UserRole } from '../api/client';
-import { Alert, EmptyState, FieldError, PageHeader, cardClass, inputClass, primaryButtonClass, secondaryButtonClass, selectClass, tableWrapClass } from '../components/ui';
+import { Alert, EmptyState, FieldError, PageHeader, cardClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
 
 const roles: UserRole[] = ['viewer', 'editor', 'admin'];
 
@@ -36,15 +36,15 @@ function UserRow({ user }: { user: User }) {
   });
 
   return (
-    <tr className="transition hover:bg-slate-50/80">
-      <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-900" scope="row">{user.email}</th>
+    <tr className={tableRowClass}>
+      <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-900 dark:text-slate-100" scope="row">{user.email}</th>
       <td className="whitespace-nowrap px-4 py-3">
         <label className="sr-only" htmlFor={`role-${user.id}`}>Role for {user.email}</label>
         <select className={selectClass} id={`role-${user.id}`} value={role} onChange={(event) => setRole(event.target.value as UserRole)}>{roles.map((item) => <option key={item} value={item}>{item}</option>)}</select>
       </td>
       <td className="whitespace-nowrap px-4 py-3">
-        <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700" htmlFor={`active-${user.id}`}>
-          <input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" id={`active-${user.id}`} type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> Active
+        <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={`active-${user.id}`}>
+          <input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950 dark:focus:ring-blue-400" id={`active-${user.id}`} type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> Active
         </label>
       </td>
       <td className="whitespace-nowrap px-4 py-3">
@@ -52,7 +52,7 @@ function UserRow({ user }: { user: User }) {
         <input className={inputClass} id={`password-${user.id}`} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Leave unchanged" />
       </td>
       <td className="whitespace-nowrap px-4 py-3"><button type="button" className={secondaryButtonClass} onClick={() => update.mutate()} disabled={update.isPending}>{update.isPending ? 'Saving…' : 'Save'}</button></td>
-      <td className="min-w-60 px-4 py-3">{update.isError ? <span className="text-sm font-medium text-red-700" role="alert">{detailMessage(update.error)}</span> : null}</td>
+      <td className="min-w-60 px-4 py-3">{update.isError ? <span className="text-sm font-medium text-red-700 dark:text-red-300" role="alert">{detailMessage(update.error)}</span> : null}</td>
     </tr>
   );
 }
@@ -85,20 +85,20 @@ export function UsersPage() {
       <PageHeader title="Users" eyebrow="Admin only" />
       <form className={cardClass + ' mb-6 grid gap-4 lg:grid-cols-5 lg:items-end'} onSubmit={submit} noValidate>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="new-email">Email</label>
+          <label className={labelClass} htmlFor="new-email">Email</label>
           <input className={inputClass} id="new-email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} aria-describedby={emailError ? 'new-email-error' : undefined} />
           <FieldError id="new-email-error" message={emailError} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="new-password">Password</label>
+          <label className={labelClass} htmlFor="new-password">Password</label>
           <input className={inputClass} id="new-password" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} aria-describedby={passwordError ? 'new-password-error' : undefined} />
           <FieldError id="new-password-error" message={passwordError} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="new-role">Role</label>
+          <label className={labelClass} htmlFor="new-role">Role</label>
           <select className={selectClass} id="new-role" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as UserRole })}>{roles.map((role) => <option key={role} value={role}>{role}</option>)}</select>
         </div>
-        <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700" htmlFor="new-active"><input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" id="new-active" type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> Active</label>
+        <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300" htmlFor="new-active"><input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950 dark:focus:ring-blue-400" id="new-active" type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> Active</label>
         <button className={primaryButtonClass} type="submit" disabled={create.isPending}>{create.isPending ? 'Creating…' : 'Create user'}</button>
       </form>
       {create.isError ? <Alert>{detailMessage(create.error)}</Alert> : null}
@@ -107,8 +107,8 @@ export function UsersPage() {
       {users.data && users.data.length === 0 ? <EmptyState title="No users" body="Create the first managed user account." /> : null}
       {users.data && users.data.length > 0 ? (
         <div className={tableWrapClass}>
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <table className={tableClass}>
+            <thead className={tableHeadClass}>
               <tr>
                 <th className="px-4 py-3" scope="col">Email</th>
                 <th className="px-4 py-3" scope="col">Role</th>
@@ -118,7 +118,7 @@ export function UsersPage() {
                 <th className="px-4 py-3" scope="col">Message</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">{users.data.map((user) => <UserRow key={user.id} user={user} />)}</tbody>
+            <tbody className={tableBodyClass}>{users.data.map((user) => <UserRow key={user.id} user={user} />)}</tbody>
           </table>
         </div>
       ) : null}

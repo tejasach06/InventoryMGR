@@ -9,9 +9,9 @@ import { Alert, Badge, PageHeader, cardClass, dangerButtonClass, primaryButtonCl
 
 function DetailItem({ label, value }: { label: string; value: string | number | boolean | null | undefined }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="mt-1 break-words text-sm font-medium text-slate-900">{value === null || value === undefined || value === '' ? '—' : String(value)}</dd>
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-medium text-slate-900 dark:text-slate-100">{value === null || value === undefined || value === '' ? '—' : String(value)}</dd>
     </div>
   );
 }
@@ -78,9 +78,9 @@ export function VmDetailPage() {
           <DetailItem label="Last verified" value={vm.data.last_verified_at} />
           <DetailItem label="Updated" value={new Date(vm.data.updated_at).toLocaleString()} />
         </dl>
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-          <h2 className="text-lg font-semibold text-slate-950">Notes</h2>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{vm.data.notes ?? 'No notes recorded.'}</p>
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-lg font-semibold text-slate-950 dark:text-slate-100">Notes</h2>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">{vm.data.notes ?? 'No notes recorded.'}</p>
         </div>
       </div>
     </section>

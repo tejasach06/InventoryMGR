@@ -23,6 +23,7 @@ class Settings(BaseSettings):
         default="http://localhost:3000,http://127.0.0.1:3000",
         alias="APP_CORS_ORIGINS",
     )
+    mempalace_vault_path: str = Field(default="/mnt/d/LL_wiki", alias="MEMPALACE_VAULT_PATH")
 
     @computed_field  # type: ignore[prop-decorator]
     @property

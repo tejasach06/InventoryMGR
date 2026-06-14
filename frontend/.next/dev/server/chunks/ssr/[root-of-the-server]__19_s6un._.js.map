@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":["file:///home/tejas_acharya/Projects/InventoryMGR/frontend/src/app/providers.tsx"],"sourcesContent":["'use client';\n\nimport { QueryClient, QueryClientProvider } from '@tanstack/react-query';\nimport { ReactNode, useState } from 'react';\n\nexport function Providers({ children }: { children: ReactNode }) {\n  const [queryClient] = useState(\n    () =>\n      new QueryClient({\n        defaultOptions: {\n          queries: {\n            retry: false,\n            staleTime: 30_000,\n          },\n        },\n      }),\n  );\n\n  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;\n}\n"],"names":["Providers","children","queryClient","defaultOptions","queries","retry","staleTime","client"],"mappings":";;;;;AAEA;AAAA;AACA;AAHA;;;;AAKO,SAASA,UAAU,EAAEC,QAAQ,EAA2B;IAC7D,MAAM,CAACC,YAAY,GAAG,IAAA,iNAAQ,EAC5B,IACE,IAAI,4LAAW,CAAC;YACdC,gBAAgB;gBACdC,SAAS;oBACPC,OAAO;oBACPC,WAAW;gBACb;YACF;QACF;IAGJ,qBAAO,8OAAC,6MAAmB;QAACC,QAAQL;kBAAcD;;;;;;AACpD"}}]
-}
