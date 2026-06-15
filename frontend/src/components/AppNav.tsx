@@ -19,7 +19,6 @@ export function buildNavItems(user: Pick<User, 'role'>): NavItem[] {
   return [
     { to: '/inventory', label: 'Inventory', visible: true },
     { to: '/imports/new', label: 'CSV Import', visible: user.role === 'admin' || user.role === 'editor' },
-    { to: '/mempalace', label: 'MemPalace', visible: true },
     { to: '/users', label: 'Users', visible: canSeeUsers(user.role) },
   ];
 }

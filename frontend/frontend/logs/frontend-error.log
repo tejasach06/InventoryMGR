@@ -1,0 +1,4 @@
+2026-06-15 05:36:55 +00:00: $ next start --hostname 127.0.0.1 --port 3000
+2026-06-15 05:44:14 +00:00: error: script "start" exited with code 130
+2026-06-15 05:49:19 +00:00: $ next start --hostname 127.0.0.1 --port 3000
+2026-06-15 05:49:35 +00:00: error: script "start" exited with code 130

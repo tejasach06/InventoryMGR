@@ -87,19 +87,6 @@ export interface CommitResult {
   updated: number;
 }
 
-export interface MempalaceSearchHit {
-  title: string;
-  path: string;
-  page_type: string | null;
-  line: number;
-  snippet: string;
-}
-
-export interface MempalaceSearchResult {
-  query: string;
-  total: number;
-  items: MempalaceSearchHit[];
-}
 
 const API_PREFIX = '/api';
 const CSRF_COOKIE = 'inventorymgr_csrf';
@@ -217,5 +204,4 @@ export const api = {
   },
   getImport: (id: string) => apiRequest<ImportBatch>(`/imports/${id}`),
   commitImport: (id: string) => apiRequest<CommitResult>(`/imports/${id}/commit`, { method: 'POST' }),
-  searchMempalace: (params: URLSearchParams) => apiRequest<MempalaceSearchResult>(`/mempalace/search?${params.toString()}`),
 };

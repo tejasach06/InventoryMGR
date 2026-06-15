@@ -86,9 +86,9 @@ Full verification:
 just verify
 ```
 
-## Simple deployment
+## Deployment with PM2
 
-This repository does not include Docker or platform-specific deployment files. A straightforward deployment uses PostgreSQL, one backend process, one Next.js frontend process, and a reverse proxy.
+This repository uses PM2 for process management in production.
 
 ### 1. Provision PostgreSQL
 
@@ -109,6 +109,8 @@ JWT_SECRET=<long-random-secret>
 SESSION_COOKIE_NAME=inventorymgr_session
 CSRF_COOKIE_NAME=inventorymgr_csrf
 APP_CORS_ORIGINS=https://your-domain.example
+INVENTORYMGR_API_URL=http://127.0.0.1:8000
+NODE_ENV=production
 ```
 
 ### 3. Install backend dependencies and migrate
@@ -119,27 +121,36 @@ uv sync
 uv run alembic upgrade head
 ```
 
-### 4. Start the backend
-
-```bash
-cd backend
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
-
-Run this under a process manager such as systemd, Supervisor, or your hosting platform's service runner.
-
-### 5. Build and serve the frontend
+### 4. Build frontend
 
 ```bash
 cd frontend
 bun install
-INVENTORYMGR_API_URL=http://127.0.0.1:8000 bun run build
-INVENTORYMGR_API_URL=http://127.0.0.1:8000 bun run start
+bun run build
 ```
 
-Run this under a process manager such as systemd, Supervisor, or your hosting platform's service runner.
+### 5. Start with PM2
 
-### 6. Reverse proxy rules
+```bash
+# From repo root
+pm2 start ecosystem.config.js
+pm2 save          # Persist process list across reboots
+pm2 startup       # Generate init script (run as root)
+```
+
+### 6. PM2 management commands
+
+```bash
+pm2 status         # Show process status
+pm2 logs           # View combined logs
+pm2 logs inventorymgr-backend --lines 100  # Backend logs
+pm2 logs inventorymgr-frontend --lines 100  # Frontend logs
+pm2 restart all    # Restart both services
+pm2 stop all       # Stop all services
+pm2 kill           # Kill PM2 daemon
+```
+
+### 7. Reverse proxy rules
 
 Route browser traffic like this:
 
@@ -148,7 +159,7 @@ Route browser traffic like this:
 
 The frontend uses `/api` as its API prefix, so browser traffic remains same-origin in production.
 
-### 7. First login
+### 8. First login
 
 Open `/login` after the backend and frontend are running. If no users exist, the page shows `Create admin account`; create the first admin there. After that, `/login` shows the normal sign-in form.
 

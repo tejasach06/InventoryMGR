@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppNav, buildNavItems, canSeeUsers } from '../components/AppNav';
 import { ImportBatch } from '../api/client';
 import { summarizePreview } from '../routes/ImportCsvPage';
-import { canSearchMempalace } from '../routes/MempalacePage';
 import { ThemeProvider, ThemeSelect, THEME_STORAGE_KEY, resolveThemePreference } from '../components/ThemeProvider';
 
 vi.mock('next/navigation', () => ({
@@ -148,10 +147,3 @@ describe('theme controls', () => {
   });
 });
 
-describe('mempalace search controls', () => {
-  it('enables search only for non-empty queries', () => {
-    expect(canSearchMempalace('')).toBe(false);
-    expect(canSearchMempalace('   ')).toBe(false);
-    expect(canSearchMempalace('local memory')).toBe(true);
-  });
-});
