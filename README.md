@@ -166,9 +166,66 @@ Open `/login` after the backend and frontend are running. If no users exist, the
 ## Useful commands
 
 ```bash
-just setup      # install dependencies, initialize DB, run migrations
-just db-up      # start PostgreSQL and create local DBs
-just api-dev    # run FastAPI with reload on 127.0.0.1:8000
-just web-dev    # run Next.js on 127.0.0.1:3000
-just verify     # backend lint/tests + frontend typecheck/tests + Playwright
+just setup         # install dependencies, initialize DB, run migrations
+just db-up         # start PostgreSQL and create local DBs
+just api-dev       # run FastAPI with reload on 127.0.0.1:8000
+just web-dev       # run Next.js on 127.0.0.1:3000
+just verify        # backend lint/tests + frontend typecheck/tests + Playwright
+
+# PM2 production commands (also available via justfile)
+just pm2-start     # pm2 start ecosystem.config.js
+just pm2-stop      # pm2 stop all
+just pm2-restart   # pm2 restart all
+just pm2-logs      # pm2 logs
+just pm2-status    # pm2 status
+just pm2-save      # pm2 save (persist across reboots)
+just pm2-startup   # pm2 startup (generate init script)
+just pm2-kill      # pm2 kill
 ```
+
+## API Reference
+
+All endpoints are prefixed with `/api`.
+
+### Authentication
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/auth/setup` | Check if admin setup is needed |
+| POST | `/auth/setup` | Create first admin account |
+| POST | `/auth/login` | Login (sets session cookie) |
+| POST | `/auth/logout` | Logout (clears session cookie) |
+| GET | `/auth/me` | Get current authenticated user |
+
+### Virtual Machines
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/vms` | List VMs (supports `q`, `page`, `page_size`) |
+| POST | `/vms` | Create VM |
+| GET | `/vms/{vm_id}` | Get VM by ID |
+| PATCH | `/vms/{vm_id}` | Update VM |
+| DELETE | `/vms/{vm_id}` | Delete VM |
+
+### CSV Imports
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/imports/preview` | Preview CSV import (multipart/form-data) |
+| GET | `/imports/{batch_id}` | Get import batch status |
+| POST | `/imports/{batch_id}/commit` | Commit previewed import |
+
+### Users (admin only)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/users` | List all users |
+| POST | `/users` | Create user |
+| PATCH | `/users/{user_id}` | Update user (role, active status) |
+
+### Health
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check returns `{"status":"ok"}` |
+
