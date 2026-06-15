@@ -1,0 +1,21 @@
+# Docker ignore file
+.git
+**/node_modules
+frontend/.next
+frontend/.next/**
+frontend/.env
+frontend/.env.*
+backend/__pycache__
+backend/__pycache__/**
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/*.egg-info
+*.egg
+*.whl
+*.gitignore
+*.md
+*.log
+*.tmp
+backend/.venv/**

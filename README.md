@@ -123,7 +123,18 @@ uv run alembic upgrade head
 
 ### 4. Build frontend
 
+## Docker
 ```bash
+# Build images
+docker compose build
+
+# Run services
+docker compose up -d
+```
+# Use Docker
+Dockerfile for backend at `backend/Dockerfile`, for frontend at `frontend/Dockerfile`.
+docker-compose.yml defines services: db (Postgres), backend, frontend.
+```
 cd frontend
 bun install
 bun run build
