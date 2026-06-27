@@ -1,27 +1,37 @@
 # InventoryMGR
 
-InventoryMGR is a small full-stack inventory manager for virtual machines. It provides a FastAPI backend, a Next.js/Tailwind frontend, PostgreSQL persistence, cookie-based login, role-based access control, VM inventory CRUD, user administration, and CSV preview/commit imports.
+InventoryMGR is a full-stack virtual machine inventory application for small and medium businesses managing 50–500 VMs. It provides a FastAPI backend, a Next.js/Tailwind frontend, PostgreSQL persistence, cookie-based authentication, role-based access control, and a complete VM lifecycle documentation workflow — without connecting to any hypervisor.
 
 ## Stack
 
-- Backend: Python 3.12+, FastAPI, SQLAlchemy, Alembic, PostgreSQL, PyJWT
-- Frontend: Next.js, React, TypeScript, Tailwind CSS, TanStack Query
-- Tooling: devbox, uv, bun, just, pytest, Vitest, Playwright
+- **Backend**: Python 3.12+, FastAPI, SQLAlchemy, Alembic, PostgreSQL, PyJWT
+- **Frontend**: Next.js 15, React, TypeScript, Tailwind CSS, TanStack Query
+- **Tooling**: devbox, uv, bun, just, pytest, Vitest, Playwright
 
 ## Main features
 
 - First-deployment admin account creation from the login page.
 - Session-cookie authentication with CSRF protection for state-changing requests.
 - Roles: `admin`, `editor`, and `viewer`.
-- VM inventory list/detail/create/edit/delete.
-- CSV import preview and commit flow.
+- VM inventory with full CRUD — create, edit, clone, archive, delete.
+- Per-VM sub-resources managed inline on the detail page:
+  - Unlimited disks (name, storage, size, type)
+  - Unlimited network interfaces (IPv4, VLAN, gateway)
+  - Multiple applications per VM (name, owner, description)
+  - File attachments (PDF, DOCX, XLSX, PNG, JPG, ZIP — up to 50 MB each)
+- Documentation health score (0–100) based on completeness of key fields.
+- Audit log recording every field change with old/new values and the acting user.
+- Dashboard with 9 infrastructure summary cards and recently added VMs.
+- 8 predefined downloadable CSV reports (Linux, Windows, Production, Monitoring, etc.).
+- CSV export of all VMs or filtered results.
+- CSV import with preview, column mapping, duplicate detection, and error report.
 - Admin-only user management.
 
 ## Project layout
 
 ```text
 backend/   FastAPI app, database models, Alembic migrations, pytest tests
-frontend/  React app, API client, UI routes, unit and E2E tests
+frontend/  Next.js app, API client, UI routes, unit and E2E tests
 justfile   Common local commands
 devbox.json Development runtime and PostgreSQL scripts
 ```
@@ -43,6 +53,7 @@ Important variables:
 | `TEST_DATABASE_URL` | PostgreSQL URL used by backend tests |
 | `JWT_SECRET` | Secret used to sign session tokens |
 | `APP_CORS_ORIGINS` | Comma-separated frontend origins allowed by the API |
+| `UPLOAD_DIR` | Directory where VM file attachments are stored (default: `/data/uploads`) |
 
 For production, set a strong `JWT_SECRET`. The first admin account is created from the `/login` setup page when the users table is empty.
 
@@ -86,6 +97,15 @@ Full verification:
 just verify
 ```
 
+## Docker
+
+Dockerfile for the backend is at `backend/Dockerfile`, for the frontend at `frontend/Dockerfile`. `docker-compose.yml` defines three services: `db` (Postgres 16), `backend`, and `frontend`.
+
+```bash
+docker compose build
+docker compose up -d
+```
+
 ## Deployment with PM2
 
 This repository uses PM2 for process management in production.
@@ -110,6 +130,7 @@ SESSION_COOKIE_NAME=inventorymgr_session
 CSRF_COOKIE_NAME=inventorymgr_csrf
 APP_CORS_ORIGINS=https://your-domain.example
 INVENTORYMGR_API_URL=http://127.0.0.1:8000
+UPLOAD_DIR=/data/uploads
 NODE_ENV=production
 ```
 
@@ -123,18 +144,7 @@ uv run alembic upgrade head
 
 ### 4. Build frontend
 
-## Docker
 ```bash
-# Build images
-docker compose build
-
-# Run services
-docker compose up -d
-```
-# Use Docker
-Dockerfile for backend at `backend/Dockerfile`, for frontend at `frontend/Dockerfile`.
-docker-compose.yml defines services: db (Postgres), backend, frontend.
-```
 cd frontend
 bun install
 bun run build
@@ -143,55 +153,48 @@ bun run build
 ### 5. Start with PM2
 
 ```bash
-# From repo root
 pm2 start ecosystem.config.js
-pm2 save          # Persist process list across reboots
-pm2 startup       # Generate init script (run as root)
+pm2 save
+pm2 startup
 ```
 
-### 6. PM2 management commands
+### 6. PM2 management
 
 ```bash
-pm2 status         # Show process status
-pm2 logs           # View combined logs
-pm2 logs inventorymgr-backend --lines 100  # Backend logs
-pm2 logs inventorymgr-frontend --lines 100  # Frontend logs
-pm2 restart all    # Restart both services
-pm2 stop all       # Stop all services
-pm2 kill           # Kill PM2 daemon
+pm2 status
+pm2 logs
+pm2 restart all
+pm2 stop all
 ```
 
 ### 7. Reverse proxy rules
 
-Route browser traffic like this:
+Route traffic like this:
 
-- `/api/*` -> backend at `http://127.0.0.1:8000`
-- everything else -> Next frontend at `http://127.0.0.1:3000`
-
-The frontend uses `/api` as its API prefix, so browser traffic remains same-origin in production.
+- `/api/*` → backend at `http://127.0.0.1:8000`
+- everything else → Next.js frontend at `http://127.0.0.1:3000`
 
 ### 8. First login
 
-Open `/login` after the backend and frontend are running. If no users exist, the page shows `Create admin account`; create the first admin there. After that, `/login` shows the normal sign-in form.
+Open `/login` after services are running. If no users exist, the page shows `Create admin account`.
 
 ## Useful commands
 
 ```bash
 just setup         # install dependencies, initialize DB, run migrations
-just db-up         # start PostgreSQL and create local DBs
-just api-dev       # run FastAPI with reload on 127.0.0.1:8000
-just web-dev       # run Next.js on 127.0.0.1:3000
-just verify        # backend lint/tests + frontend typecheck/tests + Playwright
+just db-up         # start PostgreSQL
+just api-dev       # FastAPI dev server on :8000
+just web-dev       # Next.js dev server on :3000
+just verify        # lint, typecheck, unit tests, Playwright
 
-# PM2 production commands (also available via justfile)
-just pm2-start     # pm2 start ecosystem.config.js
-just pm2-stop      # pm2 stop all
-just pm2-restart   # pm2 restart all
-just pm2-logs      # pm2 logs
-just pm2-status    # pm2 status
-just pm2-save      # pm2 save (persist across reboots)
-just pm2-startup   # pm2 startup (generate init script)
-just pm2-kill      # pm2 kill
+just pm2-start
+just pm2-stop
+just pm2-restart
+just pm2-logs
+just pm2-status
+just pm2-save
+just pm2-startup
+just pm2-kill
 ```
 
 ## API Reference
@@ -205,38 +208,94 @@ All endpoints are prefixed with `/api`.
 | GET | `/auth/setup` | Check if admin setup is needed |
 | POST | `/auth/setup` | Create first admin account |
 | POST | `/auth/login` | Login (sets session cookie) |
-| POST | `/auth/logout` | Logout (clears session cookie) |
-| GET | `/auth/me` | Get current authenticated user |
+| POST | `/auth/logout` | Logout |
+| GET | `/auth/me` | Current user |
 
 ### Virtual Machines
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/vms` | List VMs (supports `q`, `page`, `page_size`) |
+| GET | `/vms` | List VMs (`q`, `platform`, `status`, `environment`, `criticality`, `lifecycle`, `monitoring_enabled`) |
 | POST | `/vms` | Create VM |
-| GET | `/vms/{vm_id}` | Get VM by ID |
+| GET | `/vms/{vm_id}` | Get VM with all sub-resources |
 | PATCH | `/vms/{vm_id}` | Update VM |
 | DELETE | `/vms/{vm_id}` | Delete VM |
+| POST | `/vms/{vm_id}/clone` | Clone VM record |
+| GET | `/vms/export` | Stream all VMs as CSV |
+
+### Disks
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/vms/{vm_id}/disks` | List disks |
+| POST | `/vms/{vm_id}/disks` | Add disk |
+| PATCH | `/vms/{vm_id}/disks/{disk_id}` | Update disk |
+| DELETE | `/vms/{vm_id}/disks/{disk_id}` | Delete disk |
+
+### Network Interfaces
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/vms/{vm_id}/networks` | List interfaces |
+| POST | `/vms/{vm_id}/networks` | Add interface |
+| PATCH | `/vms/{vm_id}/networks/{network_id}` | Update interface |
+| DELETE | `/vms/{vm_id}/networks/{network_id}` | Delete interface |
+
+### Applications
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/vms/{vm_id}/applications` | List applications |
+| POST | `/vms/{vm_id}/applications` | Add application |
+| PATCH | `/vms/{vm_id}/applications/{app_id}` | Update application |
+| DELETE | `/vms/{vm_id}/applications/{app_id}` | Delete application |
+
+### Attachments
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/vms/{vm_id}/attachments` | List attachments |
+| POST | `/vms/{vm_id}/attachments` | Upload file (max 50 MB) |
+| GET | `/vms/{vm_id}/attachments/{attachment_id}/download` | Download file |
+| DELETE | `/vms/{vm_id}/attachments/{attachment_id}` | Delete attachment |
+
+### Audit Log
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/vms/{vm_id}/audit` | Audit log entries (`limit`, `offset`) |
+
+### Dashboard
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/dashboard` | Infrastructure summary and recently added VMs |
+
+### Reports
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/reports` | List predefined reports |
+| GET | `/reports/{report_name}` | Download report as CSV |
 
 ### CSV Imports
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/imports/preview` | Preview CSV import (multipart/form-data) |
-| GET | `/imports/{batch_id}` | Get import batch status |
-| POST | `/imports/{batch_id}/commit` | Commit previewed import |
+| POST | `/imports/preview` | Preview CSV (multipart/form-data) |
+| GET | `/imports/{batch_id}` | Import batch status |
+| POST | `/imports/{batch_id}/commit` | Commit import |
 
 ### Users (admin only)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/users` | List all users |
+| GET | `/users` | List users |
 | POST | `/users` | Create user |
-| PATCH | `/users/{user_id}` | Update user (role, active status) |
+| PATCH | `/users/{user_id}` | Update user |
 
 ### Health
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/health` | Health check returns `{"status":"ok"}` |
-
+| GET | `/health` | Returns `{"status":"ok"}` |

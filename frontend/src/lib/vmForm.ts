@@ -2,113 +2,159 @@ import { z } from 'zod';
 import { Vm, VmPayload } from '../api/client';
 
 export const platforms = ['proxmox', 'vmware'] as const;
-export const statuses = ['running', 'stopped', 'suspended', 'unknown'] as const;
+export const statuses = ['running', 'powered_off', 'suspended', 'archived', 'decommissioned', 'unknown'] as const;
 export const criticalities = ['low', 'medium', 'high', 'critical'] as const;
 export const lifecycles = ['planned', 'active', 'retiring', 'retired'] as const;
+export const environments = ['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'] as const;
 
-const optionalText = z.string().transform((value) => {
-  const trimmed = value.trim();
-  return trimmed.length === 0 ? null : trimmed;
+const optionalText = z.string().transform((v) => {
+  const t = v.trim();
+  return t.length === 0 ? null : t;
 });
 
-const requiredText = (label: string) => z.string().transform((value) => value.trim()).pipe(z.string().min(1, `${label} is required.`));
-const nonNegativeInteger = (label: string) => z.coerce.number().int(`${label} must be a whole number.`).min(0, `${label} must be 0 or greater.`);
+const requiredText = (label: string) =>
+  z.string().transform((v) => v.trim()).pipe(z.string().min(1, `${label} is required.`));
+
+const nonNegativeInteger = (label: string) =>
+  z.coerce.number().int(`${label} must be a whole number.`).min(0, `${label} must be 0 or greater.`);
+
+const optionalDate = z.string().transform((v, ctx) => {
+  const t = v.trim();
+  if (t.length === 0) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Date must use YYYY-MM-DD.' });
+    return z.NEVER;
+  }
+  return t;
+});
 
 export const vmFormSchema = z.object({
   name: requiredText('Name'),
+  fqdn: optionalText,
   platform: z.enum(platforms),
-  environment: requiredText('Environment'),
   datacenter: optionalText,
   cluster: requiredText('Cluster'),
-  host: requiredText('Host'),
+  node: optionalText,
   external_id: optionalText,
+  sr_id: optionalText,
   status: z.enum(statuses),
-  cpu_cores: nonNegativeInteger('CPU cores'),
-  memory_mb: nonNegativeInteger('Memory MB'),
-  disk_gb: nonNegativeInteger('Disk GB'),
-  os_name: optionalText,
-  ip_addresses: z.string().transform(splitList),
-  owner: optionalText,
-  notes: optionalText,
-  backup_status: optionalText,
-  ha_enabled: z.boolean(),
-  dr_tier: optionalText,
+  environment: z.enum(environments),
   criticality: z.enum(criticalities),
   lifecycle: z.enum(lifecycles),
+  cpu_cores: nonNegativeInteger('CPU cores'),
+  memory_mb: z.coerce.number().min(0, 'Memory must be 0 or greater.').transform((gb) => Math.round(gb * 1024)),
+  os_family: z.union([z.literal(''), z.enum(['linux', 'windows'])]).transform((v) => (v === '' ? null : v)),
+  os_name: optionalText,
+  os_distribution: optionalText,
+  os_version: optionalText,
+  owner: optionalText,
+  business_owner: optionalText,
+  technical_owner: optionalText,
+  department: optionalText,
+  monitoring_enabled: z.boolean(),
+  backup_enabled: z.boolean(),
+  ha_enabled: z.boolean(),
+  description: optionalText,
   tags: z.string().transform(splitList),
-  last_verified_at: z.string().transform((value, context) => {
-    const trimmed = value.trim();
-    if (trimmed.length === 0) return null;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Last verified date must use YYYY-MM-DD.' });
-      return z.NEVER;
-    }
-    return trimmed;
-  }),
+  last_patch_date: optionalDate,
+  last_vuln_scan_date: optionalDate,
+  security_remarks: optionalText,
+  decommission_date: optionalDate,
+  last_verified_at: optionalDate,
 });
 
 export interface VmFormValues {
   name: string;
+  fqdn: string;
   platform: 'proxmox' | 'vmware';
-  environment: string;
   datacenter: string;
   cluster: string;
-  host: string;
+  node: string;
   external_id: string;
-  status: 'running' | 'stopped' | 'suspended' | 'unknown';
+  sr_id: string;
+  status: typeof statuses[number];
+  environment: typeof environments[number];
+  criticality: typeof criticalities[number];
+  lifecycle: typeof lifecycles[number];
   cpu_cores: number | string;
   memory_mb: number | string;
-  disk_gb: number | string;
+  os_family: string;
   os_name: string;
-  ip_addresses: string;
+  os_distribution: string;
+  os_version: string;
   owner: string;
-  notes: string;
-  backup_status: string;
+  business_owner: string;
+  technical_owner: string;
+  department: string;
+  monitoring_enabled: boolean;
+  backup_enabled: boolean;
   ha_enabled: boolean;
-  dr_tier: string;
-  criticality: 'low' | 'medium' | 'high' | 'critical';
-  lifecycle: 'planned' | 'active' | 'retiring' | 'retired';
+  description: string;
   tags: string;
+  last_patch_date: string;
+  last_vuln_scan_date: string;
+  security_remarks: string;
+  decommission_date: string;
   last_verified_at: string;
 }
 
 export type VmFormErrors = Partial<Record<keyof VmFormValues, string>>;
 
 function splitList(value: string): string[] {
-  return value
-    .split(';')
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
+  return value.split(';').map((s) => s.trim()).filter((s) => s.length > 0);
 }
 
 export function emptyVmFormValues(): VmFormValues {
   return {
-    name: '',
-    platform: 'proxmox',
-    environment: '',
-    datacenter: '',
-    cluster: '',
-    host: '',
-    external_id: '',
-    status: 'unknown',
-    cpu_cores: 0,
-    memory_mb: 0,
-    disk_gb: 0,
-    os_name: '',
-    ip_addresses: '',
-    owner: '',
-    notes: '',
-    backup_status: '',
-    ha_enabled: false,
-    dr_tier: '',
-    criticality: 'medium',
-    lifecycle: 'active',
-    tags: '',
-    last_verified_at: '',
+    name: '', fqdn: '', platform: 'proxmox', datacenter: '', cluster: '',
+    node: '', external_id: '', sr_id: '', status: 'unknown', environment: 'production',
+    criticality: 'medium', lifecycle: 'active', cpu_cores: 0, memory_mb: 0,
+    os_family: '', os_name: '', os_distribution: '', os_version: '',
+    owner: '', business_owner: '', technical_owner: '', department: '',
+    monitoring_enabled: false, backup_enabled: false, ha_enabled: false,
+    description: '', tags: '', last_patch_date: '', last_vuln_scan_date: '',
+    security_remarks: '', decommission_date: '', last_verified_at: '',
   };
 }
 
 export const createDefaultVmFormValues = emptyVmFormValues;
+
+export function vmToFormValues(vm: Vm): VmFormValues {
+  return {
+    name: vm.name,
+    fqdn: vm.fqdn ?? '',
+    platform: vm.platform,
+    datacenter: vm.datacenter ?? '',
+    cluster: vm.cluster,
+    node: vm.node ?? '',
+    external_id: vm.external_id ?? '',
+    sr_id: vm.sr_id ?? '',
+    status: vm.status,
+    environment: vm.environment,
+    criticality: vm.criticality,
+    lifecycle: vm.lifecycle,
+    cpu_cores: vm.cpu_cores,
+    memory_mb: vm.memory_mb / 1024,
+    os_family: vm.os_family ?? '',
+    os_name: vm.os_name ?? '',
+    os_distribution: vm.os_distribution ?? '',
+    os_version: vm.os_version ?? '',
+    owner: vm.owner ?? '',
+    business_owner: vm.business_owner ?? '',
+    technical_owner: vm.technical_owner ?? '',
+    department: vm.department ?? '',
+    monitoring_enabled: vm.monitoring_enabled,
+    backup_enabled: vm.backup_enabled,
+    ha_enabled: vm.ha_enabled,
+    description: vm.description ?? '',
+    tags: vm.tags.join('; '),
+    last_patch_date: vm.last_patch_date ?? '',
+    last_vuln_scan_date: vm.last_vuln_scan_date ?? '',
+    security_remarks: vm.security_remarks ?? '',
+    decommission_date: vm.decommission_date ?? '',
+    last_verified_at: vm.last_verified_at ?? '',
+  };
+}
 
 export interface VmFormValidation {
   ok: boolean;
@@ -118,37 +164,8 @@ export interface VmFormValidation {
 
 export function validateVmFormInput(values: VmFormValues): VmFormValidation {
   const parsed = vmFormSchema.safeParse(values);
-  if (!parsed.success) {
-    return { ok: false, errors: collectErrors(parsed.error) };
-  }
-  return { ok: true, data: parsed.data, errors: {} };
-}
-
-export function vmToFormValues(vm: Vm): VmFormValues {
-  return {
-    name: vm.name,
-    platform: vm.platform,
-    environment: vm.environment,
-    datacenter: vm.datacenter ?? '',
-    cluster: vm.cluster,
-    host: vm.host,
-    external_id: vm.external_id ?? '',
-    status: vm.status,
-    cpu_cores: vm.cpu_cores,
-    memory_mb: vm.memory_mb,
-    disk_gb: vm.disk_gb,
-    os_name: vm.os_name ?? '',
-    ip_addresses: vm.ip_addresses.join('; '),
-    owner: vm.owner ?? '',
-    notes: vm.notes ?? '',
-    backup_status: vm.backup_status ?? '',
-    ha_enabled: vm.ha_enabled,
-    dr_tier: vm.dr_tier ?? '',
-    criticality: vm.criticality,
-    lifecycle: vm.lifecycle,
-    tags: vm.tags.join('; '),
-    last_verified_at: vm.last_verified_at ?? '',
-  };
+  if (!parsed.success) return { ok: false, errors: collectErrors(parsed.error) };
+  return { ok: true, data: parsed.data as unknown as VmPayload, errors: {} };
 }
 
 export function collectErrors(error: z.ZodError): VmFormErrors {

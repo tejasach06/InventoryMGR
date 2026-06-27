@@ -1,88 +1,421 @@
 'use client';
 
+import { ChangeEvent, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { api, detailMessage } from '../api/client';
-import { useCurrentUser } from '../components/AuthContext';
-import { Alert, Badge, PageHeader, cardClass, dangerButtonClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
+import { api, detailMessage, Vm } from '../api/client';
+import {
+  Alert, Badge, PageHeader, PageTransition, Skeleton, Spinner,
+  cardClass, dangerButtonClass, secondaryButtonClass, sectionTitleClass,
+} from '../components/ui';
+// cardClass used in skeleton
 
-function DetailItem({ label, value }: { label: string; value: string | number | boolean | null | undefined }) {
+function Field({ label, value }: { label: string; value: string | number | boolean | null | undefined }) {
+  const display = value === null || value === undefined || value === ''
+    ? '—' : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
-      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</dt>
-      <dd className="mt-1 break-words text-sm font-medium text-slate-900 dark:text-slate-100">{value === null || value === undefined || value === '' ? '—' : String(value)}</dd>
+    <div className="py-2">
+      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="mt-1 text-slate-900 dark:text-slate-100">{display}</dd>
+    </div>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-sm shadow-slate-900/[0.04] dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
+      <h2 className={sectionTitleClass}>{title}</h2>
+      <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">{children}</div>
+    </section>
+  );
+}
+
+function HealthScore({ score }: { score: number }) {
+  const color = score >= 75 ? 'bg-green-500' : score >= 50 ? 'bg-yellow-400' : 'bg-red-500';
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${score}%` }} />
+      </div>
+      <span className="w-10 text-right text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-300">{score}%</span>
+    </div>
+  );
+}
+
+function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label}
+      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-red-700 dark:hover:bg-red-500/10 dark:hover:text-red-400">
+      ×
+    </button>
+  );
+}
+
+function AddRowForm({ fields, onSubmit, pending }: {
+  fields: Array<{ name: string; placeholder: string; type?: string }>;
+  onSubmit: (values: Record<string, string>) => void;
+  pending: boolean;
+}) {
+  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.name, ''])));
+  function submit() {
+    onSubmit(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()])));
+    setValues(Object.fromEntries(fields.map((f) => [f.name, ''])));
+  }
+  return (
+    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+      {fields.map((f) => (
+        <input key={f.name} type={f.type ?? 'text'} placeholder={f.placeholder} value={values[f.name]}
+          onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
+          className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-400" />
+      ))}
+      <button type="button" onClick={submit} disabled={pending}
+        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+        {pending ? <Spinner /> : null}+ Add
+      </button>
+    </div>
+  );
+}
+
+function DisksPanel({ vm }: { vm: Vm }) {
+  const qc = useQueryClient();
+  const addMut = useMutation({
+    mutationFn: (v: Record<string, string>) => api.addDisk(vm.id, {
+      disk_name: v.disk_name || `disk${vm.disks.length}`,
+      storage_name: v.storage_name || null,
+      size_gb: Number(v.size_gb) || 0,
+      storage_type: v.storage_type || null,
+      sort_order: vm.disks.length,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
+  });
+  const delMut = useMutation({
+    mutationFn: (id: string) => api.deleteDisk(vm.id, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
+  });
+  return (
+    <div>
+      {vm.disks.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No disks configured.</p> : (
+        <table className="w-full text-sm"><thead>
+          <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
+            <th className="pb-1 pr-4">Name</th><th className="pb-1 pr-4">Storage</th><th className="pb-1 pr-4">Size (GB)</th><th className="pb-1 pr-4">Type</th><th />
+          </tr></thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {vm.disks.map((d) => (
+              <tr key={d.id}>
+                <td className="py-1.5 pr-4 font-mono text-slate-700 dark:text-slate-300">{d.disk_name}</td>
+                <td className="py-1.5 pr-4 text-slate-600 dark:text-slate-400">{d.storage_name ?? '—'}</td>
+                <td className="py-1.5 pr-4 tabular-nums">{d.size_gb}</td>
+                <td className="py-1.5 pr-4 text-slate-600 dark:text-slate-400">{d.storage_type ?? '—'}</td>
+                <td className="py-1.5"><RemoveButton onClick={() => delMut.mutate(d.id)} label={`Remove ${d.disk_name}`} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <AddRowForm fields={[
+        { name: 'disk_name', placeholder: 'Disk name (e.g. scsi0)' },
+        { name: 'storage_name', placeholder: 'Storage' },
+        { name: 'size_gb', placeholder: 'Size GB', type: 'number' },
+        { name: 'storage_type', placeholder: 'Type' },
+      ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
+      {addMut.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addMut.error)}</p>}
+    </div>
+  );
+}
+
+function NetworksPanel({ vm }: { vm: Vm }) {
+  const qc = useQueryClient();
+  const addMut = useMutation({
+    mutationFn: (v: Record<string, string>) => api.addNetwork(vm.id, {
+      ip_address: v.ip_address, vlan: v.vlan ? Number(v.vlan) : null,
+      gateway: v.gateway || null, sort_order: vm.networks.length,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
+  });
+  const delMut = useMutation({
+    mutationFn: (id: string) => api.deleteNetwork(vm.id, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
+  });
+  return (
+    <div>
+      {vm.networks.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No network entries configured.</p> : (
+        <table className="w-full text-sm"><thead>
+          <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
+            <th className="pb-1 pr-4">IP Address</th><th className="pb-1 pr-4">VLAN</th><th className="pb-1 pr-4">Gateway</th><th />
+          </tr></thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {vm.networks.map((n) => (
+              <tr key={n.id}>
+                <td className="py-1.5 pr-4 font-mono">{n.ip_address}</td>
+                <td className="py-1.5 pr-4 tabular-nums text-slate-600 dark:text-slate-400">{n.vlan ?? '—'}</td>
+                <td className="py-1.5 pr-4 font-mono text-slate-600 dark:text-slate-400">{n.gateway ?? '—'}</td>
+                <td className="py-1.5"><RemoveButton onClick={() => delMut.mutate(n.id)} label={`Remove ${n.ip_address}`} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <AddRowForm fields={[
+        { name: 'ip_address', placeholder: 'IP address' },
+        { name: 'vlan', placeholder: 'VLAN', type: 'number' },
+        { name: 'gateway', placeholder: 'Gateway' },
+      ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
+      {addMut.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addMut.error)}</p>}
+    </div>
+  );
+}
+
+function ApplicationsPanel({ vm }: { vm: Vm }) {
+  const qc = useQueryClient();
+  const addMut = useMutation({
+    mutationFn: (v: Record<string, string>) => api.addApplication(vm.id, {
+      app_name: v.app_name, app_owner: v.app_owner || null, description: v.description || null,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
+  });
+  const delMut = useMutation({
+    mutationFn: (id: string) => api.deleteApplication(vm.id, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
+  });
+  return (
+    <div>
+      {vm.applications.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No applications linked.</p> : (
+        <ul className="space-y-1">
+          {vm.applications.map((a) => (
+            <li key={a.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/60">
+              <div>
+                <span className="font-medium text-slate-900 dark:text-slate-100">{a.app_name}</span>
+                {a.app_owner && <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">{a.app_owner}</span>}
+                {a.description && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{a.description}</p>}
+              </div>
+              <RemoveButton onClick={() => delMut.mutate(a.id)} label={`Remove ${a.app_name}`} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <AddRowForm fields={[
+        { name: 'app_name', placeholder: 'Application name' },
+        { name: 'app_owner', placeholder: 'Owner' },
+        { name: 'description', placeholder: 'Description' },
+      ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
+      {addMut.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addMut.error)}</p>}
+    </div>
+  );
+}
+
+function AttachmentsPanel({ vm }: { vm: Vm }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const uploadMut = useMutation({
+    mutationFn: (file: File) => api.uploadAttachment(vm.id, file),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vm', vm.id] }); if (fileRef.current) fileRef.current.value = ''; },
+  });
+  const delMut = useMutation({
+    mutationFn: (id: string) => api.deleteAttachment(vm.id, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
+  });
+  function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) uploadMut.mutate(file);
+  }
+  function fmt(b: number) { return b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`; }
+  return (
+    <div>
+      {vm.attachments.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No attachments.</p> : (
+        <ul className="space-y-1">
+          {vm.attachments.map((a) => (
+            <li key={a.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/60">
+              <div>
+                <a href={api.downloadAttachmentUrl(vm.id, a.id)} target="_blank" rel="noopener noreferrer"
+                  className="font-medium text-blue-600 hover:underline dark:text-blue-400">{a.filename}</a>
+                <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">{fmt(a.file_size)}</span>
+              </div>
+              <RemoveButton onClick={() => delMut.mutate(a.id)} label={`Remove ${a.filename}`} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700">
+          {uploadMut.isPending ? <><Spinner /> Uploading…</> : '+ Upload file (PDF, DOCX, XLSX, PNG, JPG, ZIP — max 50 MB)'}
+          <input ref={fileRef} type="file" className="sr-only" accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg,.zip" onChange={handleFile} disabled={uploadMut.isPending} />
+        </label>
+        {uploadMut.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(uploadMut.error)}</p>}
+      </div>
+    </div>
+  );
+}
+
+function AuditPanel({ vmId }: { vmId: string }) {
+  const auditQ = useQuery({ queryKey: ['audit', vmId], queryFn: () => api.getAuditLog(vmId) });
+  if (auditQ.isLoading) return <Skeleton className="h-24" />;
+  if (!auditQ.data?.length) return <p className="text-sm text-slate-500 dark:text-slate-400">No changes recorded yet.</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm"><thead>
+        <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
+          <th className="pb-1 pr-4">Date</th><th className="pb-1 pr-4">Field</th><th className="pb-1 pr-4">Old</th><th className="pb-1">New</th>
+        </tr></thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {auditQ.data.map((e) => (
+            <tr key={e.id}>
+              <td className="py-1.5 pr-4 whitespace-nowrap tabular-nums text-slate-500 dark:text-slate-400">{new Date(e.changed_at).toLocaleString()}</td>
+              <td className="py-1.5 pr-4 font-mono text-slate-700 dark:text-slate-300">{e.field_name}</td>
+              <td className="max-w-xs truncate py-1.5 pr-4 text-slate-500 dark:text-slate-400">{e.old_value ?? '—'}</td>
+              <td className="max-w-xs truncate py-1.5 text-slate-700 dark:text-slate-300">{e.new_value ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 export function VmDetailPage() {
-  const user = useCurrentUser();
-  const canEdit = user.role === 'editor' || user.role === 'admin';
-  const canDelete = user.role === 'admin';
   const params = useParams<{ id: string }>();
   const id = params.id;
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const vm = useQuery({ queryKey: ['vm', id], queryFn: () => api.getVm(id), enabled: Boolean(id) });
-  const remove = useMutation({
+  const qc = useQueryClient();
+
+  const vmQ = useQuery({ queryKey: ['vm', id], queryFn: () => api.getVm(id) });
+  const vm = vmQ.data;
+
+  const cloneMut = useMutation({
+    mutationFn: () => api.cloneVm(id),
+    onSuccess: (cloned) => { qc.setQueryData(['vm', cloned.id], cloned); router.push(`/inventory/${cloned.id}`); },
+  });
+  const deleteMut = useMutation({
     mutationFn: () => api.deleteVm(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vms'] });
-      router.push('/inventory');
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vms'] }); router.push('/inventory'); },
   });
 
-  function confirmDelete() {
-    if (!vm.data) return;
-    if (window.confirm(`Delete VM ${vm.data.name}? This cannot be undone.`)) {
-      remove.mutate();
-    }
-  }
-
-  if (vm.isLoading) return <div className="p-6" role="status">Loading VM…</div>;
-  if (vm.isError) return <Alert>{detailMessage(vm.error)}</Alert>;
-  if (!vm.data) return <Alert>VM not found.</Alert>;
+  if (vmQ.isLoading) return (
+    <PageTransition>
+      <div className="space-y-5" role="status">
+        <div className="flex items-center gap-3"><Skeleton className="h-7 w-48" /><Skeleton className="h-5 w-16" /></div>
+        {[1, 2, 3, 4].map((s) => (
+          <div key={s} className={cardClass + ' space-y-3'}>
+            <Skeleton className="h-4 w-32" />
+            <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((f) => <div key={f}><Skeleton className="mb-2 h-3 w-20" /><Skeleton className="h-4 w-32" /></div>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </PageTransition>
+  );
+  if (vmQ.isError) return <PageTransition><Alert>{detailMessage(vmQ.error)}</Alert></PageTransition>;
+  if (!vm) return null;
 
   return (
-    <section>
-      <PageHeader
-        title={vm.data.name}
-        eyebrow={`${vm.data.platform} / ${vm.data.environment}`}
-        actions={(
-          <div className="flex flex-wrap gap-2">
-            <Link className={secondaryButtonClass} href="/inventory">Back</Link>
-            {canEdit ? <Link className={primaryButtonClass} href={`/inventory/${vm.data.id}/edit`}>Edit</Link> : null}
-            {canDelete ? <button type="button" className={dangerButtonClass} onClick={confirmDelete} disabled={remove.isPending}>Delete</button> : null}
-          </div>
-        )}
-      />
-      {remove.isError ? <Alert>{detailMessage(remove.error)}</Alert> : null}
-      <div className={cardClass}>
-        <div className="mb-5 flex flex-wrap gap-2"><Badge value={vm.data.status} /><Badge value={vm.data.criticality} /><Badge value={vm.data.lifecycle} /></div>
-        <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <DetailItem label="External ID" value={vm.data.external_id} />
-          <DetailItem label="Datacenter" value={vm.data.datacenter} />
-          <DetailItem label="Cluster" value={vm.data.cluster} />
-          <DetailItem label="Host" value={vm.data.host} />
-          <DetailItem label="CPU cores" value={vm.data.cpu_cores} />
-          <DetailItem label="Memory" value={`${vm.data.memory_mb} MB`} />
-          <DetailItem label="Disk" value={`${vm.data.disk_gb} GB`} />
-          <DetailItem label="Operating system" value={vm.data.os_name} />
-          <DetailItem label="IP addresses" value={vm.data.ip_addresses.join(', ')} />
-          <DetailItem label="Owner" value={vm.data.owner} />
-          <DetailItem label="Backup status" value={vm.data.backup_status} />
-          <DetailItem label="HA enabled" value={vm.data.ha_enabled ? 'Yes' : 'No'} />
-          <DetailItem label="DR tier" value={vm.data.dr_tier} />
-          <DetailItem label="Tags" value={vm.data.tags.join(', ')} />
-          <DetailItem label="Last verified" value={vm.data.last_verified_at} />
-          <DetailItem label="Updated" value={new Date(vm.data.updated_at).toLocaleString()} />
-        </dl>
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-semibold text-slate-950 dark:text-slate-100">Notes</h2>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">{vm.data.notes ?? 'No notes recorded.'}</p>
-        </div>
-      </div>
-    </section>
+    <PageTransition>
+      <section className="mx-auto w-full max-w-5xl space-y-5 2xl:max-w-6xl">
+        <PageHeader title={vm.name} eyebrow={vm.environment} actions={
+          <>
+            <Badge value={vm.status} />
+            <Badge value={vm.platform} />
+            <Link className={secondaryButtonClass} href={`/inventory/${id}/edit`}>Edit</Link>
+            <button className={secondaryButtonClass} onClick={() => cloneMut.mutate()} disabled={cloneMut.isPending}>
+              {cloneMut.isPending && <Spinner />} Clone
+            </button>
+            <button className={dangerButtonClass} onClick={() => { if (confirm(`Delete "${vm.name}"?`)) deleteMut.mutate(); }} disabled={deleteMut.isPending}>
+              {deleteMut.isPending && <Spinner />} Delete
+            </button>
+          </>
+        } />
+
+        {(cloneMut.isError || deleteMut.isError) && <Alert>{detailMessage(cloneMut.error ?? deleteMut.error)}</Alert>}
+
+        <DetailSection title="Documentation Health Score">
+          <HealthScore score={vm.health_score} />
+        </DetailSection>
+
+        <DetailSection title="General Information">
+          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="Hostname" value={vm.name} />
+            <Field label="FQDN" value={vm.fqdn} />
+            <Field label="Environment" value={vm.environment} />
+            <Field label="Status" value={vm.status} />
+            <Field label="Criticality" value={vm.criticality} />
+            <Field label="Lifecycle" value={vm.lifecycle} />
+            <Field label="Tags" value={vm.tags.join(', ') || null} />
+            {vm.description && <div className="sm:col-span-2 xl:col-span-3 py-2">
+              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Description</dt>
+              <dd className="mt-1 text-slate-900 dark:text-slate-100">{vm.description}</dd>
+            </div>}
+          </dl>
+        </DetailSection>
+
+        <DetailSection title="Location">
+          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="Platform" value={vm.platform} />
+            <Field label="Datacenter" value={vm.datacenter} />
+            <Field label="Cluster" value={vm.cluster} />
+            <Field label="Node" value={vm.node} />
+            <Field label="VM ID" value={vm.external_id} />
+            <Field label="SR-ID" value={vm.sr_id} />
+          </dl>
+        </DetailSection>
+
+        <DetailSection title="Hardware">
+          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="vCPU" value={vm.cpu_cores} />
+            <Field label="Memory" value={vm.memory_mb ? `${(vm.memory_mb / 1024).toFixed(1)} GB` : null} />
+          </dl>
+        </DetailSection>
+
+        <DetailSection title="Storage"><DisksPanel vm={vm} /></DetailSection>
+        <DetailSection title="Network"><NetworksPanel vm={vm} /></DetailSection>
+
+        <DetailSection title="Operating System">
+          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="OS Family" value={vm.os_family} />
+            <Field label="OS Name" value={vm.os_name} />
+            <Field label="Distribution" value={vm.os_distribution} />
+            <Field label="Version" value={vm.os_version} />
+          </dl>
+        </DetailSection>
+
+        <DetailSection title="Ownership">
+          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="Owner" value={vm.owner} />
+            <Field label="Business Owner" value={vm.business_owner} />
+            <Field label="Technical Owner" value={vm.technical_owner} />
+            <Field label="Department" value={vm.department} />
+          </dl>
+        </DetailSection>
+
+        <DetailSection title="Applications"><ApplicationsPanel vm={vm} /></DetailSection>
+
+        <DetailSection title="Monitoring">
+          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="Monitoring Enabled" value={vm.monitoring_enabled} />
+            <Field label="Backup Enabled" value={vm.backup_enabled} />
+            <Field label="HA Enabled" value={vm.ha_enabled} />
+          </dl>
+        </DetailSection>
+
+        <DetailSection title="Security">
+          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="Last Patch Date" value={vm.last_patch_date} />
+            <Field label="Last Vuln Scan" value={vm.last_vuln_scan_date} />
+            <Field label="Remarks" value={vm.security_remarks} />
+          </dl>
+        </DetailSection>
+
+        <DetailSection title="Lifecycle">
+          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="Last Verified" value={vm.last_verified_at} />
+            <Field label="Decommission Date" value={vm.decommission_date} />
+            <Field label="Created" value={new Date(vm.created_at).toLocaleDateString()} />
+            <Field label="Last Updated" value={new Date(vm.updated_at).toLocaleDateString()} />
+          </dl>
+        </DetailSection>
+
+        <DetailSection title="Attachments"><AttachmentsPanel vm={vm} /></DetailSection>
+        <DetailSection title="Audit Log"><AuditPanel vmId={vm.id} /></DetailSection>
+      </section>
+    </PageTransition>
   );
 }

@@ -22,24 +22,36 @@ from app.services.vms import create_vm, update_vm
 
 MAX_CSV_BYTES = 5 * 1024 * 1024
 MAX_CSV_ROWS = 5000
-REQUIRED_HEADERS = {"name", "platform", "environment", "cluster", "host"}
+REQUIRED_HEADERS = {"name", "platform", "cluster"}
 OPTIONAL_HEADERS = {
     "external_id",
+    "fqdn",
+    "description",
     "datacenter",
+    "node",
     "status",
+    "environment",
     "cpu_cores",
     "memory_mb",
-    "disk_gb",
     "os_name",
-    "ip_addresses",
+    "os_distribution",
+    "os_version",
     "owner",
-    "notes",
-    "backup_status",
+    "business_owner",
+    "technical_owner",
+    "department",
+    "sr_id",
+    "os_family",
+    "monitoring_enabled",
+    "backup_enabled",
     "ha_enabled",
-    "dr_tier",
     "criticality",
     "lifecycle",
     "tags",
+    "last_patch_date",
+    "last_vuln_scan_date",
+    "security_remarks",
+    "decommission_date",
     "last_verified_at",
 }
 ALL_HEADERS = REQUIRED_HEADERS | OPTIONAL_HEADERS
@@ -52,19 +64,22 @@ PLATFORM_ALIASES = {
     "vcenter": "vmware",
 }
 ENUM_VALUES = {
-    "status": {"running", "stopped", "suspended", "unknown"},
+    "status": {"running", "powered_off", "suspended", "archived", "decommissioned", "unknown"},
+    "environment": {"production", "development", "testing", "uat", "dr", "staging", "sandbox"},
     "criticality": {"low", "medium", "high", "critical"},
     "lifecycle": {"planned", "active", "retiring", "retired"},
+    "os_family": {"linux", "windows"},
 }
 DEFAULTS: dict[str, Any] = {
     "status": "unknown",
+    "environment": "production",
     "cpu_cores": 0,
     "memory_mb": 0,
-    "disk_gb": 0,
     "criticality": "medium",
     "lifecycle": "active",
+    "monitoring_enabled": False,
     "ha_enabled": False,
-    "ip_addresses": [],
+    "backup_enabled": False,
     "tags": [],
 }
 
@@ -116,6 +131,27 @@ def _parse_list(row: dict[str, str], field: str) -> list[str]:
     return [part.strip() for part in raw.split(";") if part.strip()]
 
 
+def _parse_int_list(row: dict[str, str], field: str, errors: list[dict[str, str]]) -> list[int]:
+    raw = row.get(field, "")
+    if raw == "":
+        return []
+    result: list[int] = []
+    for part in raw.split(";"):
+        cleaned = part.strip()
+        if not cleaned:
+            continue
+        try:
+            value = int(cleaned)
+        except ValueError:
+            errors.append(_error(field, "must be integers >= 0 separated by ;"))
+            return []
+        if value < 0:
+            errors.append(_error(field, "must be integers >= 0 separated by ;"))
+            return []
+        result.append(value)
+    return result
+
+
 def _parse_date(row: dict[str, str], field: str, errors: list[dict[str, str]]) -> str | None:
     raw = row.get(field, "")
     if raw == "":
@@ -150,60 +186,76 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
 
     for field in (
         "external_id",
+        "fqdn",
+        "description",
         "datacenter",
+        "node",
+        "sr_id",
         "os_name",
+        "os_distribution",
+        "os_version",
         "owner",
-        "notes",
-        "backup_status",
-        "dr_tier",
+        "business_owner",
+        "technical_owner",
+        "department",
+        "security_remarks",
     ):
         value = clean.get(field, "")
         normalized[field] = value or None
 
-    for field in ("status", "criticality", "lifecycle"):
+    for field in ("status", "environment", "criticality", "lifecycle"):
         value = clean.get(field, "").lower() or DEFAULTS[field]
         if value not in ENUM_VALUES[field]:
             errors.append(_error(field, f"must be one of {', '.join(sorted(ENUM_VALUES[field]))}"))
         normalized[field] = value
 
-    for field in ("cpu_cores", "memory_mb", "disk_gb"):
+    for field in ("cpu_cores", "memory_mb"):
         normalized[field] = _parse_int(clean, field, errors)
 
+    normalized["monitoring_enabled"] = _parse_bool(clean, "monitoring_enabled", errors)
     normalized["ha_enabled"] = _parse_bool(clean, "ha_enabled", errors)
-    normalized["ip_addresses"] = _parse_list(clean, "ip_addresses")
+    normalized["backup_enabled"] = _parse_bool(clean, "backup_enabled", errors)
+
+    os_family = clean.get("os_family", "").lower()
+    if os_family == "":
+        normalized["os_family"] = None
+    elif os_family not in ENUM_VALUES["os_family"]:
+        errors.append(
+            _error("os_family", f"must be one of {', '.join(sorted(ENUM_VALUES['os_family']))}")
+        )
+    else:
+        normalized["os_family"] = os_family
+
     normalized["tags"] = _parse_list(clean, "tags")
-    normalized["last_verified_at"] = _parse_date(clean, "last_verified_at", errors)
+    for field in ("last_patch_date", "last_vuln_scan_date", "decommission_date", "last_verified_at"):
+        normalized[field] = _parse_date(clean, field, errors)
 
     if errors:
         return None, errors
     return normalized, []
 
 
-def identity_key(normalized: dict[str, Any]) -> tuple[str, str, str, str]:
+def identity_key(normalized: dict[str, Any]) -> tuple[str, str, str]:
     platform = normalized["platform"]
-    environment = normalized["environment"]
     external_id = normalized.get("external_id")
     if external_id:
-        return ("external_id", platform, environment, external_id)
-    return ("name", platform, environment, normalized["name"].lower())
+        return ("external_id", platform, external_id)
+    return ("name", platform, normalized["name"].lower())
 
 
 def find_matching_vm(db: Session, normalized: dict[str, Any]) -> Vm | None:
     platform = Platform(normalized["platform"])
-    environment = normalized["environment"]
     external_id = normalized.get("external_id")
     if external_id:
         return db.scalar(
             select(Vm).where(
                 Vm.platform == platform,
-                Vm.environment == environment,
                 Vm.external_id == external_id,
             )
         )
     return db.scalar(
         select(Vm).where(
             Vm.platform == platform,
-            Vm.environment == environment,
             Vm.external_id.is_(None),
             func.lower(Vm.name) == normalized["name"].lower(),
         )
@@ -330,8 +382,9 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
         for row in batch.rows:
             assert row.normalized is not None
             normalized = row.normalized.copy()
-            if normalized.get("last_verified_at"):
-                normalized["last_verified_at"] = date.fromisoformat(normalized["last_verified_at"])
+            for date_field in ("last_patch_date", "last_vuln_scan_date", "decommission_date", "last_verified_at"):
+                if normalized.get(date_field):
+                    normalized[date_field] = date.fromisoformat(normalized[date_field])
             if row.action == ImportAction.create:
                 create_vm(db, VmCreate.model_validate(normalized), user, commit=False)
                 created += 1

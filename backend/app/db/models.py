@@ -38,9 +38,21 @@ class Platform(StrEnum):
 
 class VmStatus(StrEnum):
     running = "running"
-    stopped = "stopped"
+    powered_off = "powered_off"
     suspended = "suspended"
+    archived = "archived"
+    decommissioned = "decommissioned"
     unknown = "unknown"
+
+
+class Environment(StrEnum):
+    production = "production"
+    development = "development"
+    testing = "testing"
+    uat = "uat"
+    dr = "dr"
+    staging = "staging"
+    sandbox = "sandbox"
 
 
 class Criticality(StrEnum):
@@ -57,6 +69,14 @@ class Lifecycle(StrEnum):
     retired = "retired"
 
 
+class OsFamily(StrEnum):
+    linux = "linux"
+    windows = "windows"
+
+
+os_family_enum = Enum(OsFamily, name="os_family")
+
+
 class ImportStatus(StrEnum):
     previewed = "previewed"
     committed = "committed"
@@ -68,6 +88,13 @@ class ImportAction(StrEnum):
     update = "update"
     conflict = "conflict"
     invalid = "invalid"
+
+
+class DropdownCategory(StrEnum):
+    cpu = "cpu"
+    datacenter = "datacenter"
+    disk = "disk"
+    os = "os"
 
 
 def now_utc() -> datetime:
@@ -97,38 +124,47 @@ class Vm(Base, TimestampMixin):
     __tablename__ = "vms"
     __table_args__ = (
         CheckConstraint("length(btrim(name)) > 0", name="ck_vms_name_nonempty"),
-        CheckConstraint("length(btrim(environment)) > 0", name="ck_vms_environment_nonempty"),
         CheckConstraint("length(btrim(cluster)) > 0", name="ck_vms_cluster_nonempty"),
-        CheckConstraint("length(btrim(host)) > 0", name="ck_vms_host_nonempty"),
         CheckConstraint("cpu_cores >= 0", name="ck_vms_cpu_cores_nonnegative"),
         CheckConstraint("memory_mb >= 0", name="ck_vms_memory_mb_nonnegative"),
-        CheckConstraint("disk_gb >= 0", name="ck_vms_disk_gb_nonnegative"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    fqdn: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform"), nullable=False)
-    environment: Mapped[str] = mapped_column(String(100), nullable=False)
     datacenter: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    sr_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     cluster: Mapped[str] = mapped_column(String(255), nullable=False)
-    host: Mapped[str] = mapped_column(String(255), nullable=False)
+    node: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[VmStatus] = mapped_column(Enum(VmStatus, name="vm_status"), nullable=False)
-    cpu_cores: Mapped[int] = mapped_column(Integer, nullable=False)
-    memory_mb: Mapped[int] = mapped_column(Integer, nullable=False)
-    disk_gb: Mapped[int] = mapped_column(Integer, nullable=False)
-    os_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    ip_addresses: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
-    owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    backup_status: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    ha_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    dr_tier: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    environment: Mapped[Environment] = mapped_column(
+        Enum(Environment, name="environment"), nullable=False, default=Environment.production
+    )
     criticality: Mapped[Criticality] = mapped_column(
         Enum(Criticality, name="criticality"), nullable=False
     )
     lifecycle: Mapped[Lifecycle] = mapped_column(Enum(Lifecycle, name="lifecycle"), nullable=False)
+    cpu_cores: Mapped[int] = mapped_column(Integer, nullable=False)
+    memory_mb: Mapped[int] = mapped_column(Integer, nullable=False)
+    os_family: Mapped[OsFamily | None] = mapped_column(os_family_enum, nullable=True)
+    os_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    os_distribution: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    os_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    business_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    technical_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    department: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    monitoring_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    backup_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    ha_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    last_patch_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    last_vuln_scan_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    security_remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decommission_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     last_verified_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
@@ -139,31 +175,173 @@ class Vm(Base, TimestampMixin):
 
     created_by: Mapped[User] = relationship(foreign_keys=[created_by_id])
     updated_by: Mapped[User] = relationship(foreign_keys=[updated_by_id])
+    disks: Mapped[list["VmDisk"]] = relationship(
+        back_populates="vm", cascade="all, delete-orphan", order_by="VmDisk.sort_order"
+    )
+    networks: Mapped[list["VmNetwork"]] = relationship(
+        back_populates="vm", cascade="all, delete-orphan", order_by="VmNetwork.sort_order"
+    )
+    applications: Mapped[list["VmApplication"]] = relationship(
+        back_populates="vm", cascade="all, delete-orphan", order_by="VmApplication.app_name"
+    )
+    attachments: Mapped[list["VmAttachment"]] = relationship(
+        back_populates="vm", cascade="all, delete-orphan", order_by="VmAttachment.created_at"
+    )
+    audit_entries: Mapped[list["AuditLog"]] = relationship(
+        back_populates="vm", cascade="all, delete-orphan"
+    )
+
+    @property
+    def health_score(self) -> int:
+        score = 0
+        if self.description:
+            score += 10
+        if self.business_owner or self.technical_owner or self.owner:
+            score += 15
+        # Only count relationship data if already loaded (avoids N+1 in list view)
+        state = self.__dict__
+        if state.get("applications"):
+            score += 20
+        if state.get("networks"):
+            score += 15
+        if state.get("disks"):
+            score += 15
+        if self.monitoring_enabled:
+            score += 10
+        if self.decommission_date:
+            score += 15
+        return score
 
 
 Index(
-    "uq_vms_platform_environment_external_id",
+    "uq_vms_platform_external_id",
     Vm.platform,
-    Vm.environment,
     Vm.external_id,
     unique=True,
     postgresql_where=Vm.external_id.is_not(None),
 )
 Index(
-    "uq_vms_platform_environment_name_without_external_id",
+    "uq_vms_platform_name_without_external_id",
     Vm.platform,
-    Vm.environment,
     func.lower(Vm.name),
     unique=True,
     postgresql_where=Vm.external_id.is_(None),
 )
 Index("ix_vms_platform", Vm.platform)
-Index("ix_vms_environment", Vm.environment)
 Index("ix_vms_cluster", Vm.cluster)
-Index("ix_vms_host", Vm.host)
 Index("ix_vms_status", Vm.status)
 Index("ix_vms_criticality", Vm.criticality)
 Index("ix_vms_lifecycle", Vm.lifecycle)
+Index("ix_vms_environment", Vm.environment)
+Index("ix_vms_monitoring_enabled", Vm.monitoring_enabled)
+
+
+class VmDisk(Base):
+    __tablename__ = "vm_disks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vms.id", ondelete="CASCADE"), nullable=False
+    )
+    disk_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    storage_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    size_gb: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    storage_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    vm: Mapped[Vm] = relationship(back_populates="disks")
+
+
+class VmNetwork(Base):
+    __tablename__ = "vm_networks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vms.id", ondelete="CASCADE"), nullable=False
+    )
+    ip_address: Mapped[str] = mapped_column(String(50), nullable=False)
+    vlan: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    gateway: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    vm: Mapped[Vm] = relationship(back_populates="networks")
+
+
+class VmApplication(Base):
+    __tablename__ = "vm_applications"
+    __table_args__ = (
+        UniqueConstraint("vm_id", "app_name", name="uq_vm_applications_vm_app"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vms.id", ondelete="CASCADE"), nullable=False
+    )
+    app_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    app_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    vm: Mapped[Vm] = relationship(back_populates="applications")
+
+
+class VmAttachment(Base):
+    __tablename__ = "vm_attachments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vms.id", ondelete="CASCADE"), nullable=False
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    uploaded_by_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=now_utc, nullable=False
+    )
+
+    vm: Mapped[Vm] = relationship(back_populates="attachments")
+    uploaded_by: Mapped[User] = relationship()
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vms.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    field_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=now_utc, nullable=False
+    )
+
+    vm: Mapped[Vm] = relationship(back_populates="audit_entries")
+    user: Mapped[User] = relationship()
+
+
+Index("ix_audit_log_vm_id_changed_at", AuditLog.vm_id, AuditLog.changed_at)
+
+
+class DropdownOption(Base, TimestampMixin):
+    __tablename__ = "dropdown_options"
+    __table_args__ = (
+        UniqueConstraint("category", "value", name="uq_dropdown_category_value"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    category: Mapped[DropdownCategory] = mapped_column(
+        Enum(DropdownCategory, name="dropdown_category"), nullable=False
+    )
+    value: Mapped[str] = mapped_column(String(255), nullable=False)
+    family: Mapped[OsFamily | None] = mapped_column(os_family_enum, nullable=True)
 
 
 class CsvImportBatch(Base):

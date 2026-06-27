@@ -1,14 +1,15 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api, detailMessage, Vm } from '../api/client';
 import { useCurrentUser } from '../components/AuthContext';
-import { Alert, Badge, EmptyState, PageHeader, cardClass, inputClass, labelClass, primaryButtonClass, selectClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
+import { Alert, Badge, EmptyState, PageHeader, PageTransition, TableSkeleton, cardClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
+import { formatMemory } from '../lib/units';
 
-const filterNames = ['q', 'platform', 'environment', 'status', 'criticality', 'lifecycle'] as const;
+const filterNames = ['q', 'platform', 'status', 'criticality', 'lifecycle', 'environment', 'monitoring_enabled'] as const;
 
 type FilterName = (typeof filterNames)[number];
 type Filters = Record<FilterName, string>;
@@ -30,14 +31,39 @@ function filtersFromParams(params: ParamReader): Filters {
   return {
     q: params.get('q') ?? '',
     platform: params.get('platform') ?? '',
-    environment: params.get('environment') ?? '',
     status: params.get('status') ?? '',
     criticality: params.get('criticality') ?? '',
     lifecycle: params.get('lifecycle') ?? '',
+    environment: params.get('environment') ?? '',
+    monitoring_enabled: params.get('monitoring_enabled') ?? '',
   };
 }
 
+function hasActiveFilters(filters: Filters): boolean {
+  return filterNames.some((name) => filters[name].trim().length > 0);
+}
+
+function VmCard({ vm }: { vm: Vm }) {
+  return (
+    <Link href={`/inventory/${vm.id}`} className={cardClass + ' block transition-colors duration-150 hover:border-slate-300 dark:hover:border-slate-600'}>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="font-semibold text-slate-950 dark:text-slate-100">{vm.name}</span>
+        <Badge value={vm.status} />
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
+        <span>{vm.platform}</span>
+        <span>{vm.cluster}</span>
+        <Badge value={vm.criticality} />
+      </div>
+      <div className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+        {vm.cpu_cores} CPU / {formatMemory(vm.memory_mb)} / {`${vm.disks.length} disk(s)`}
+      </div>
+    </Link>
+  );
+}
+
 function VmTable({ vms }: { vms: Vm[] }) {
+  const router = useRouter();
   return (
     <div className={tableWrapClass}>
       <table className={tableClass}>
@@ -45,38 +71,22 @@ function VmTable({ vms }: { vms: Vm[] }) {
           <tr>
             <th className="px-4 py-3" scope="col">Name</th>
             <th className="px-4 py-3" scope="col">Platform</th>
-            <th className="px-4 py-3" scope="col">Environment</th>
             <th className="px-4 py-3" scope="col">Cluster</th>
-            <th className="px-4 py-3" scope="col">Host</th>
             <th className="px-4 py-3" scope="col">Status</th>
-            <th className="px-4 py-3" scope="col">CPU</th>
-            <th className="px-4 py-3" scope="col">Memory</th>
-            <th className="px-4 py-3" scope="col">Disk</th>
-            <th className="px-4 py-3" scope="col">Backup</th>
-            <th className="px-4 py-3" scope="col">HA</th>
+            <th className="px-4 py-3" scope="col">Resources</th>
             <th className="px-4 py-3" scope="col">Criticality</th>
-            <th className="px-4 py-3" scope="col">Lifecycle</th>
-            <th className="px-4 py-3" scope="col">Owner</th>
             <th className="px-4 py-3" scope="col">Updated</th>
           </tr>
         </thead>
         <tbody className={tableBodyClass}>
           {vms.map((vm) => (
-            <tr key={vm.id} className={tableRowClass}>
+            <tr key={vm.id} className={tableRowClass + ' cursor-pointer'} onClick={() => router.push(`/inventory/${vm.id}`)}>
               <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-blue-700 dark:text-blue-300" scope="row"><Link className="hover:text-blue-900 hover:underline dark:hover:text-blue-200" href={`/inventory/${vm.id}`}>{vm.name}</Link></th>
               <td className={tableCellClass}>{vm.platform}</td>
-              <td className={tableCellClass}>{vm.environment}</td>
               <td className={tableCellClass}>{vm.cluster}</td>
-              <td className={tableCellClass}>{vm.host}</td>
               <td className="whitespace-nowrap px-4 py-3"><Badge value={vm.status} /></td>
-              <td className={tableCellClass}>{vm.cpu_cores}</td>
-              <td className={tableCellClass}>{vm.memory_mb} MB</td>
-              <td className={tableCellClass}>{vm.disk_gb} GB</td>
-              <td className={tableCellClass}>{vm.backup_status ?? '—'}</td>
-              <td className={tableCellClass}>{vm.ha_enabled ? 'Yes' : 'No'}</td>
+              <td className={tableCellClass}>{vm.cpu_cores} CPU / {formatMemory(vm.memory_mb)} / {`${vm.disks.length} disk(s)`}</td>
               <td className="whitespace-nowrap px-4 py-3"><Badge value={vm.criticality} /></td>
-              <td className={tableCellClass}>{vm.lifecycle}</td>
-              <td className={tableCellClass}>{vm.owner ?? '—'}</td>
               <td className={tableCellClass}>{new Date(vm.updated_at).toLocaleString()}</td>
             </tr>
           ))}
@@ -95,59 +105,97 @@ export function InventoryPage() {
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const queryParams = useMemo(() => paramsFromFilters(filtersFromParams(searchParams)), [searchParams]);
   const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => api.listVms(queryParams) });
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setFilters(filtersFromParams(searchParams));
   }, [searchParams]);
 
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const params = paramsFromFilters(filters);
+      const current = paramsFromFilters(filtersFromParams(searchParams));
+      if (params.toString() !== current.toString()) {
+        router.push(`${pathname}?${params.toString()}`);
+      }
+    }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [filters, pathname, router, searchParams]);
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     const params = paramsFromFilters(filters);
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  function clearFilters() {
+    const empty: Filters = { q: '', platform: '', status: '', criticality: '', lifecycle: '', environment: '', monitoring_enabled: '' };
+    setFilters(empty);
+    router.push(pathname);
+  }
+
   return (
-    <section>
-      <PageHeader title="Inventory" actions={canCreateVm ? <Link className={primaryButtonClass} href="/inventory/new">New VM</Link> : undefined} />
-      <form className={cardClass + ' mb-6 grid gap-4 lg:grid-cols-6'} onSubmit={submit}>
-        <div>
-          <label className={labelClass} htmlFor="q">Search</label>
-          <input className={inputClass} id="q" name="q" value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} placeholder="Name, owner, host" />
-        </div>
-        <div>
-          <label className={labelClass} htmlFor="platform">Platform</label>
-          <select className={selectClass} id="platform" name="platform" value={filters.platform} onChange={(event) => setFilters({ ...filters, platform: event.target.value })}>
-            <option value="">All platforms</option><option value="proxmox">proxmox</option><option value="vmware">vmware</option>
-          </select>
-        </div>
-        <div>
-          <label className={labelClass} htmlFor="environment">Environment</label>
-          <input className={inputClass} id="environment" name="environment" value={filters.environment} onChange={(event) => setFilters({ ...filters, environment: event.target.value })} />
-        </div>
-        <div>
-          <label className={labelClass} htmlFor="status">Status</label>
-          <select className={selectClass} id="status" name="status" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
-            <option value="">All statuses</option><option value="running">running</option><option value="stopped">stopped</option><option value="suspended">suspended</option><option value="unknown">unknown</option>
-          </select>
-        </div>
-        <div>
-          <label className={labelClass} htmlFor="criticality">Criticality</label>
-          <select className={selectClass} id="criticality" name="criticality" value={filters.criticality} onChange={(event) => setFilters({ ...filters, criticality: event.target.value })}>
-            <option value="">All criticalities</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="critical">critical</option>
-          </select>
-        </div>
-        <div>
-          <label className={labelClass} htmlFor="lifecycle">Lifecycle</label>
-          <select className={selectClass} id="lifecycle" name="lifecycle" value={filters.lifecycle} onChange={(event) => setFilters({ ...filters, lifecycle: event.target.value })}>
-            <option value="">All lifecycles</option><option value="planned">planned</option><option value="active">active</option><option value="retiring">retiring</option><option value="retired">retired</option>
-          </select>
-        </div>
-        <div className="lg:col-span-6"><button className={primaryButtonClass} type="submit">Apply filters</button></div>
-      </form>
-      {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
-      {vms.isLoading ? <div className="p-6" role="status">Loading inventory…</div> : null}
-      {vms.data && vms.data.items.length > 0 ? <VmTable vms={vms.data.items} /> : null}
-      {vms.data && vms.data.items.length === 0 ? <EmptyState title="No VMs found" body="Create a VM or adjust the filters to see inventory." /> : null}
-    </section>
+    <PageTransition>
+      <section>
+        <PageHeader title="Inventory" actions={canCreateVm ? <Link className={primaryButtonClass} href="/inventory/new">New VM</Link> : undefined} />
+        <form className={cardClass + ' mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5'} onSubmit={submit}>
+          <div className="sm:col-span-2 lg:col-span-2">
+            <label className={labelClass} htmlFor="q">Search</label>
+            <input className={inputClass} id="q" name="q" value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} placeholder="Name, owner, cluster" />
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="platform">Platform</label>
+            <select className={selectClass} id="platform" name="platform" value={filters.platform} onChange={(event) => setFilters({ ...filters, platform: event.target.value })}>
+              <option value="">All platforms</option><option value="proxmox">proxmox</option><option value="vmware">vmware</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="status">Status</label>
+            <select className={selectClass} id="status" name="status" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
+              <option value="">All statuses</option><option value="running">running</option><option value="powered_off">powered_off</option><option value="suspended">suspended</option><option value="archived">archived</option><option value="decommissioned">decommissioned</option><option value="unknown">unknown</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="criticality">Criticality</label>
+            <select className={selectClass} id="criticality" name="criticality" value={filters.criticality} onChange={(event) => setFilters({ ...filters, criticality: event.target.value })}>
+              <option value="">All criticalities</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="critical">critical</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="lifecycle">Lifecycle</label>
+            <select className={selectClass} id="lifecycle" name="lifecycle" value={filters.lifecycle} onChange={(event) => setFilters({ ...filters, lifecycle: event.target.value })}>
+              <option value="">All lifecycles</option><option value="planned">planned</option><option value="active">active</option><option value="retiring">retiring</option><option value="retired">retired</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="environment">Environment</label>
+            <select className={selectClass} id="environment" name="environment" value={filters.environment} onChange={(event) => setFilters({ ...filters, environment: event.target.value })}>
+              <option value="">All environments</option><option value="production">production</option><option value="development">development</option><option value="testing">testing</option><option value="uat">uat</option><option value="dr">dr</option><option value="staging">staging</option><option value="sandbox">sandbox</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="monitoring_enabled">Monitoring</label>
+            <select className={selectClass} id="monitoring_enabled" name="monitoring_enabled" value={filters.monitoring_enabled} onChange={(event) => setFilters({ ...filters, monitoring_enabled: event.target.value })}>
+              <option value="">All</option><option value="true">Enabled</option><option value="false">Disabled</option>
+            </select>
+          </div>
+          <div className="flex items-end gap-3 sm:col-span-2 lg:col-span-5">
+            {hasActiveFilters(filters) ? <button type="button" className="text-sm font-medium text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" onClick={clearFilters}>Clear filters</button> : null}
+          </div>
+        </form>
+        {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
+        {vms.isLoading ? <TableSkeleton rows={8} cols={7} /> : null}
+        {vms.data && vms.data.items.length > 0 ? (
+          <>
+            <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">{vms.data.items.length} VM{vms.data.items.length !== 1 ? 's' : ''}</p>
+            <div className="hidden lg:block"><VmTable vms={vms.data.items} /></div>
+            <div className="grid gap-3 lg:hidden">{vms.data.items.map((vm) => <VmCard key={vm.id} vm={vm} />)}</div>
+          </>
+        ) : null}
+        {vms.data && vms.data.items.length === 0 ? <EmptyState title="No VMs found" body="Create a VM or adjust the filters to see inventory." /> : null}
+      </section>
+    </PageTransition>
   );
 }

@@ -1,9 +1,27 @@
 export type UserRole = 'admin' | 'editor' | 'viewer';
 export type Platform = 'proxmox' | 'vmware';
-export type VmStatus = 'running' | 'stopped' | 'suspended' | 'unknown';
+export type VmStatus = 'running' | 'powered_off' | 'suspended' | 'archived' | 'decommissioned' | 'unknown';
 export type Criticality = 'low' | 'medium' | 'high' | 'critical';
 export type Lifecycle = 'planned' | 'active' | 'retiring' | 'retired';
+export type Environment = 'production' | 'development' | 'testing' | 'uat' | 'dr' | 'staging' | 'sandbox';
 export type ImportAction = 'create' | 'update' | 'conflict' | 'invalid';
+export type DropdownCategory = 'cpu' | 'datacenter' | 'disk' | 'os';
+export type OsFamily = 'linux' | 'windows';
+
+export interface DropdownOption {
+  id: string;
+  category: DropdownCategory;
+  value: string;
+  family: OsFamily | null;
+}
+
+export interface DropdownOptions {
+  cpu: string[];
+  datacenter: string[];
+  disk: string[];
+  os: string[];
+  os_by_family: Record<OsFamily, string[]>;
+}
 
 export interface User {
   id: string;
@@ -18,43 +36,126 @@ export interface SetupStatus {
   setup_required: boolean;
 }
 
+export interface Disk {
+  id: string;
+  vm_id: string;
+  disk_name: string;
+  storage_name: string | null;
+  size_gb: number;
+  storage_type: string | null;
+  sort_order: number;
+}
+
+export interface Network {
+  id: string;
+  vm_id: string;
+  ip_address: string;
+  vlan: number | null;
+  gateway: string | null;
+  sort_order: number;
+}
+
+export interface Application {
+  id: string;
+  vm_id: string;
+  app_name: string;
+  app_owner: string | null;
+  description: string | null;
+}
+
+export interface Attachment {
+  id: string;
+  vm_id: string;
+  filename: string;
+  file_size: number;
+  mime_type: string;
+  uploaded_by_id: string;
+  created_at: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  vm_id: string;
+  user_id: string;
+  field_name: string;
+  old_value: string | null;
+  new_value: string | null;
+  changed_at: string;
+}
+
 export interface Vm {
   id: string;
   external_id: string | null;
   name: string;
+  fqdn: string | null;
+  description: string | null;
   platform: Platform;
-  environment: string;
   datacenter: string | null;
+  sr_id: string | null;
   cluster: string;
-  host: string;
+  node: string | null;
   status: VmStatus;
-  cpu_cores: number;
-  memory_mb: number;
-  disk_gb: number;
-  os_name: string | null;
-  ip_addresses: string[];
-  owner: string | null;
-  notes: string | null;
-  backup_status: string | null;
-  ha_enabled: boolean;
-  dr_tier: string | null;
+  environment: Environment;
   criticality: Criticality;
   lifecycle: Lifecycle;
+  cpu_cores: number;
+  memory_mb: number;
+  os_family: OsFamily | null;
+  os_name: string | null;
+  os_distribution: string | null;
+  os_version: string | null;
+  owner: string | null;
+  business_owner: string | null;
+  technical_owner: string | null;
+  department: string | null;
+  monitoring_enabled: boolean;
+  backup_enabled: boolean;
+  ha_enabled: boolean;
   tags: string[];
+  last_patch_date: string | null;
+  last_vuln_scan_date: string | null;
+  security_remarks: string | null;
+  decommission_date: string | null;
   last_verified_at: string | null;
-  created_by_id?: string;
-  updated_by_id?: string;
+  disks: Disk[];
+  networks: Network[];
+  applications: Application[];
+  attachments: Attachment[];
+  health_score: number;
+  created_by_id: string;
+  updated_by_id: string;
   created_at: string;
   updated_at: string;
 }
 
-export type VmPayload = Omit<Vm, 'id' | 'created_by_id' | 'updated_by_id' | 'created_at' | 'updated_at'>;
+export type VmPayload = Omit<Vm, 'id' | 'disks' | 'networks' | 'applications' | 'attachments' | 'health_score' | 'created_by_id' | 'updated_by_id' | 'created_at' | 'updated_at'>;
 
 export interface VmList {
   items: Vm[];
   total: number;
   limit: number;
   offset: number;
+}
+
+export interface DashboardVmSummary {
+  id: string;
+  name: string;
+  environment: Environment;
+  status: VmStatus;
+  created_at: string;
+}
+
+export interface DashboardStats {
+  total: number;
+  linux: number;
+  windows: number;
+  production: number;
+  development: number;
+  test_uat: number;
+  powered_off: number;
+  without_monitoring: number;
+  without_applications: number;
+  recently_added: DashboardVmSummary[];
 }
 
 export interface ImportRowError {
@@ -87,7 +188,6 @@ export interface CommitResult {
   updated: number;
 }
 
-
 const API_PREFIX = '/api';
 const CSRF_COOKIE = 'inventorymgr_csrf';
 
@@ -95,9 +195,7 @@ function readCookie(name: string): string | null {
   const prefix = `${encodeURIComponent(name)}=`;
   for (const part of document.cookie.split(';')) {
     const value = part.trim();
-    if (value.startsWith(prefix)) {
-      return decodeURIComponent(value.slice(prefix.length));
-    }
+    if (value.startsWith(prefix)) return decodeURIComponent(value.slice(prefix.length));
   }
   return null;
 }
@@ -119,18 +217,10 @@ export class ApiError extends Error {
 }
 
 async function parseResponse(response: Response): Promise<unknown> {
-  if (response.status === 204) {
-    return null;
-  }
+  if (response.status === 204) return null;
   const text = await response.text();
-  if (!text) {
-    return null;
-  }
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
+  if (!text) return null;
+  try { return JSON.parse(text); } catch { return text; }
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -143,21 +233,15 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   if (isStateChanging(method)) {
     const token = readCookie(CSRF_COOKIE);
-    if (token) {
-      headers.set('X-CSRF-Token', token);
-    }
+    if (token) headers.set('X-CSRF-Token', token);
   }
 
-  const response = await fetch(`${API_PREFIX}${path}`, {
-    ...options,
-    method,
-    headers,
-    credentials: 'include',
-  });
+  const response = await fetch(`${API_PREFIX}${path}`, { ...options, method, headers, credentials: 'include' });
   const data = await parseResponse(response);
 
   if (!response.ok) {
-    const detail = typeof data === 'object' && data !== null && 'detail' in data ? (data as { detail: unknown }).detail : data;
+    const detail = typeof data === 'object' && data !== null && 'detail' in data
+      ? (data as { detail: unknown }).detail : data;
     throw new ApiError(response.status, detail);
   }
 
@@ -168,13 +252,11 @@ export function detailMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (typeof error.detail === 'string') return error.detail;
     if (Array.isArray(error.detail)) {
-      return error.detail
-        .map((item) => {
-          if (typeof item === 'string') return item;
-          if (item && typeof item === 'object' && 'msg' in item) return String((item as { msg: unknown }).msg);
-          return 'Request validation failed';
-        })
-        .join('; ');
+      return error.detail.map((item) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && 'msg' in item) return String((item as { msg: unknown }).msg);
+        return 'Request validation failed';
+      }).join('; ');
     }
   }
   return error instanceof Error ? error.message : 'Unexpected error';
@@ -184,19 +266,62 @@ export const api = {
   setupStatus: () => apiRequest<SetupStatus>('/auth/setup'),
   setupAdmin: (email: string, password: string) =>
     apiRequest<{ user: User }>('/auth/setup', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  login: (email: string, password: string) => apiRequest<{ user: User }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  login: (email: string, password: string) =>
+    apiRequest<{ user: User }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => apiRequest<null>('/auth/logout', { method: 'POST' }),
   me: () => apiRequest<User>('/auth/me'),
+
   listUsers: () => apiRequest<User[]>('/users'),
   createUser: (payload: { email: string; password: string; role: UserRole; is_active: boolean }) =>
     apiRequest<User>('/users', { method: 'POST', body: JSON.stringify(payload) }),
   updateUser: (id: string, payload: Partial<{ password: string; role: UserRole; is_active: boolean }>) =>
     apiRequest<User>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+
   listVms: (params: URLSearchParams) => apiRequest<VmList>(`/vms?${params.toString()}`),
   getVm: (id: string) => apiRequest<Vm>(`/vms/${id}`),
   createVm: (payload: VmPayload) => apiRequest<Vm>('/vms', { method: 'POST', body: JSON.stringify(payload) }),
-  updateVm: (id: string, payload: Partial<VmPayload>) => apiRequest<Vm>(`/vms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  updateVm: (id: string, payload: Partial<VmPayload>) =>
+    apiRequest<Vm>(`/vms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteVm: (id: string) => apiRequest<null>(`/vms/${id}`, { method: 'DELETE' }),
+  cloneVm: (id: string) => apiRequest<Vm>(`/vms/${id}/clone`, { method: 'POST' }),
+  exportVmsUrl: () => `${API_PREFIX}/vms/export`,
+  listVmOwners: () => apiRequest<string[]>('/vms/owners'),
+
+  listDisks: (vmId: string) => apiRequest<Disk[]>(`/vms/${vmId}/disks`),
+  addDisk: (vmId: string, payload: Omit<Disk, 'id' | 'vm_id'>) =>
+    apiRequest<Disk>(`/vms/${vmId}/disks`, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteDisk: (vmId: string, diskId: string) =>
+    apiRequest<null>(`/vms/${vmId}/disks/${diskId}`, { method: 'DELETE' }),
+
+  listNetworks: (vmId: string) => apiRequest<Network[]>(`/vms/${vmId}/networks`),
+  addNetwork: (vmId: string, payload: Omit<Network, 'id' | 'vm_id'>) =>
+    apiRequest<Network>(`/vms/${vmId}/networks`, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteNetwork: (vmId: string, networkId: string) =>
+    apiRequest<null>(`/vms/${vmId}/networks/${networkId}`, { method: 'DELETE' }),
+
+  listApplications: (vmId: string) => apiRequest<Application[]>(`/vms/${vmId}/applications`),
+  addApplication: (vmId: string, payload: Omit<Application, 'id' | 'vm_id'>) =>
+    apiRequest<Application>(`/vms/${vmId}/applications`, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteApplication: (vmId: string, appId: string) =>
+    apiRequest<null>(`/vms/${vmId}/applications/${appId}`, { method: 'DELETE' }),
+
+  listAttachments: (vmId: string) => apiRequest<Attachment[]>(`/vms/${vmId}/attachments`),
+  uploadAttachment: (vmId: string, file: File) => {
+    const body = new FormData();
+    body.set('file', file);
+    return apiRequest<Attachment>(`/vms/${vmId}/attachments`, { method: 'POST', body });
+  },
+  downloadAttachmentUrl: (vmId: string, attachmentId: string) =>
+    `${API_PREFIX}/vms/${vmId}/attachments/${attachmentId}/download`,
+  deleteAttachment: (vmId: string, attachmentId: string) =>
+    apiRequest<null>(`/vms/${vmId}/attachments/${attachmentId}`, { method: 'DELETE' }),
+
+  getAuditLog: (vmId: string, limit = 50) =>
+    apiRequest<AuditLogEntry[]>(`/vms/${vmId}/audit?limit=${limit}`),
+
+  getDashboard: () => apiRequest<DashboardStats>('/dashboard'),
+  reportUrl: (name: string) => `${API_PREFIX}/reports/${name}?format=csv`,
+
   previewImport: (file: File) => {
     const body = new FormData();
     body.set('file', file);
@@ -204,4 +329,12 @@ export const api = {
   },
   getImport: (id: string) => apiRequest<ImportBatch>(`/imports/${id}`),
   commitImport: (id: string) => apiRequest<CommitResult>(`/imports/${id}/commit`, { method: 'POST' }),
+
+  getDropdownOptions: () => apiRequest<DropdownOptions>('/settings/options'),
+  getAllDropdownOptions: () => apiRequest<DropdownOption[]>('/settings/options/all'),
+  createDropdownOption: (category: DropdownCategory, value: string, family: OsFamily | null = null) =>
+    apiRequest<DropdownOption>('/settings/options', { method: 'POST', body: JSON.stringify({ category, value, family }) }),
+  updateDropdownOption: (id: string, value: string, family: OsFamily | null = null) =>
+    apiRequest<DropdownOption>(`/settings/options/${id}`, { method: 'PATCH', body: JSON.stringify({ value, family }) }),
+  deleteDropdownOption: (id: string) => apiRequest<null>(`/settings/options/${id}`, { method: 'DELETE' }),
 };

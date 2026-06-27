@@ -73,7 +73,7 @@ describe('CSV preview summary rendering', () => {
     const summary = summarizePreview({
       summary: {},
       rows: [
-        { id: 'row-1', row_number: 2, raw: {}, normalized: null, action: 'invalid', target_vm_id: null, errors: [{ field: 'host', message: 'host is required' }] },
+        { id: 'row-1', row_number: 2, raw: {}, normalized: null, action: 'invalid', target_vm_id: null, errors: [{ field: 'name', message: 'name is required' }] },
         { id: 'row-2', row_number: 3, raw: {}, normalized: null, action: 'conflict', target_vm_id: null, errors: [{ field: 'identity', message: 'duplicate CSV identity' }] },
       ],
     } as unknown as Pick<ImportBatch, 'summary' | 'rows'>);
@@ -88,18 +88,20 @@ describe('role-based navigation', () => {
     expect(canSeeUsers('editor')).toBe(false);
     expect(canSeeUsers('viewer')).toBe(false);
 
-    expect(buildNavItems({ role: 'viewer' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'MemPalace']);
-    expect(buildNavItems({ role: 'editor' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'CSV Import', 'MemPalace']);
-    expect(buildNavItems({ role: 'admin' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'CSV Import', 'MemPalace', 'Users']);
+    expect(buildNavItems({ role: 'viewer' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory']);
+    expect(buildNavItems({ role: 'editor' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Import']);
+    expect(buildNavItems({ role: 'admin' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Import', 'Settings']);
   });
 
-  it('renders Users only for admins', () => {
+  it('renders Settings only for admins and never shows Users in nav', () => {
     const { rerender } = render(createElement(AppNav, { user: { role: 'viewer' } }));
     expect(screen.getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
 
     rerender(createElement(AppNav, { user: { role: 'admin' } }));
-    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/users');
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings');
+    expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
   });
 });
 

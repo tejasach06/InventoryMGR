@@ -7,17 +7,17 @@ describe('vmFormSchema', () => {
       ...createDefaultVmFormValues(),
       name: '  pve-app-01  ',
       platform: 'proxmox',
-      environment: ' lab ',
       cluster: ' pve-cluster-a ',
-      host: ' pve01 ',
       status: 'running',
       cpu_cores: '4',
-      memory_mb: '8192',
+      memory_mb: '8',
       disk_gb: '120',
       external_id: ' ',
       ip_addresses: '10.0.0.10; 10.0.0.11; ',
       tags: 'web; critical ;',
       ha_enabled: true,
+      backup_enabled: true,
+      os_family: 'linux',
       criticality: 'high',
       lifecycle: 'active',
       last_verified_at: '2026-06-13',
@@ -26,27 +26,82 @@ describe('vmFormSchema', () => {
     expect(parsed.ok).toBe(true);
     expect(parsed.data).toMatchObject({
       name: 'pve-app-01',
-      environment: 'lab',
       cluster: 'pve-cluster-a',
-      host: 'pve01',
       external_id: null,
       cpu_cores: 4,
       memory_mb: 8192,
-      disk_gb: 120,
+      disk_gb: [120],
       ip_addresses: ['10.0.0.10', '10.0.0.11'],
       tags: ['web', 'critical'],
       ha_enabled: true,
+      backup_enabled: true,
+      os_family: 'linux',
       last_verified_at: '2026-06-13',
     });
+  });
+
+  it('maps an empty os_family to null and keeps a selected family', () => {
+    const base = {
+      ...createDefaultVmFormValues(),
+      name: 'osfam',
+      cluster: 'c1',
+      status: 'running' as const,
+      cpu_cores: '2',
+      memory_mb: '4',
+      disk_gb: '40',
+      criticality: 'medium' as const,
+      lifecycle: 'active' as const,
+    };
+
+    const blank = validateVmFormInput({ ...base, os_family: '' });
+    expect(blank.ok).toBe(true);
+    expect(blank.data?.os_family).toBeNull();
+
+    const linux = validateVmFormInput({ ...base, os_family: 'linux' });
+    expect(linux.ok).toBe(true);
+    expect(linux.data?.os_family).toBe('linux');
+  });
+
+  it('parses multiple disks and trims the SR-ID', () => {
+    const parsed = validateVmFormInput({
+      ...createDefaultVmFormValues(),
+      name: 'multi',
+      cluster: 'c1',
+      status: 'running',
+      cpu_cores: '4',
+      memory_mb: '8',
+      disk_gb: '50; 100; 150',
+      sr_id: ' SR-2048 ',
+      criticality: 'high',
+      lifecycle: 'active',
+    });
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.data).toMatchObject({ disk_gb: [50, 100, 150], sr_id: 'SR-2048' });
+  });
+
+  it('rejects a VM with no disks', () => {
+    const parsed = validateVmFormInput({
+      ...createDefaultVmFormValues(),
+      name: 'nodisk',
+      cluster: 'c1',
+      status: 'running',
+      cpu_cores: '4',
+      memory_mb: '8',
+      disk_gb: '',
+      criticality: 'high',
+      lifecycle: 'active',
+    });
+
+    expect(parsed.ok).toBe(false);
+    expect(parsed.errors.disk_gb).toBeTruthy();
   });
 
   it('reports actionable validation errors for blank required fields, negative numbers, and bad dates', () => {
     const parsed = validateVmFormInput({
       ...createDefaultVmFormValues(),
       name: '   ',
-      environment: '',
       cluster: '',
-      host: '',
       cpu_cores: '-1',
       memory_mb: 'not-a-number',
       disk_gb: '10',
@@ -56,9 +111,7 @@ describe('vmFormSchema', () => {
     expect(parsed.ok).toBe(false);
     expect(parsed.errors).toMatchObject({
       name: 'Name is required.',
-      environment: 'Environment is required.',
       cluster: 'Cluster is required.',
-      host: 'Host is required.',
       cpu_cores: 'CPU cores must be 0 or greater.',
       last_verified_at: 'Last verified date must use YYYY-MM-DD.',
     });

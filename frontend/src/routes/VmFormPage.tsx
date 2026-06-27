@@ -1,37 +1,107 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, VmPayload } from '../api/client';
-import { Alert, FieldError, PageHeader, cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass, selectClass, textareaClass } from '../components/ui';
-import { collectErrors, criticalities, emptyVmFormValues, lifecycles, platforms, statuses, VmFormErrors, VmFormValues, vmFormSchema, vmToFormValues } from '../lib/vmForm';
+import {
+  Alert, FieldError, PageHeader, PageTransition, Skeleton, Spinner,
+  cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass,
+  secondaryButtonClass, sectionTitleClass, selectClass, textareaClass,
+} from '../components/ui';
+import {
+  collectErrors, criticalities, emptyVmFormValues, environments, lifecycles,
+  platforms, statuses, VmFormErrors, VmFormValues, vmFormSchema, vmToFormValues,
+} from '../lib/vmForm';
 
-function TextInput({ name, label, values, errors, onChange, required = false, type = 'text' }: { name: keyof VmFormValues; label: string; values: VmFormValues; errors: VmFormErrors; onChange: (name: keyof VmFormValues, value: string | boolean) => void; required?: boolean; type?: string }) {
+type FieldChange = (name: keyof VmFormValues, value: string | boolean) => void;
+
+interface BaseFieldProps {
+  name: keyof VmFormValues;
+  label: string;
+  values: VmFormValues;
+  errors: VmFormErrors;
+  onChange: FieldChange;
+  required?: boolean;
+}
+
+function TextInput({ name, label, values, errors, onChange, required = false, type = 'text' }: BaseFieldProps & { type?: string }) {
   const errorId = `${String(name)}-error`;
   const value = values[name];
   return (
     <div>
-      <label className={labelClass} htmlFor={String(name)}>{label}{required ? <span aria-hidden="true"> *</span> : null}</label>
-      <input className={inputClass} id={String(name)} name={String(name)} type={type} value={typeof value === 'boolean' ? '' : value} onChange={(event) => onChange(name, event.target.value)} aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])} />
+      <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
+      <input className={inputClass} id={String(name)} name={String(name)} type={type}
+        value={typeof value === 'boolean' ? '' : value}
+        onChange={(e) => onChange(name, e.target.value)}
+        aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])} />
       <FieldError id={errorId} message={errors[name]} />
     </div>
   );
 }
 
-function SelectInput({ name, label, values, errors, onChange, options, required = false }: { name: keyof VmFormValues; label: string; values: VmFormValues; errors: VmFormErrors; onChange: (name: keyof VmFormValues, value: string | boolean) => void; options: readonly string[]; required?: boolean }) {
+function SelectInput({ name, label, values, errors, onChange, options, required = false }: BaseFieldProps & { options: readonly string[] }) {
   const errorId = `${String(name)}-error`;
   return (
     <div>
-      <label className={labelClass} htmlFor={String(name)}>{label}{required ? <span aria-hidden="true"> *</span> : null}</label>
-      <select className={selectClass} id={String(name)} name={String(name)} value={String(values[name])} onChange={(event) => onChange(name, event.target.value)} aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])}>
-        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
+      <select className={selectClass} id={String(name)} name={String(name)} value={String(values[name])}
+        onChange={(e) => onChange(name, e.target.value)}
+        aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])}>
+        {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
       </select>
       <FieldError id={errorId} message={errors[name]} />
     </div>
   );
 }
+
+function ComboInput({ name, label, values, errors, onChange, options, required = false, type = 'text' }: BaseFieldProps & { options: string[]; type?: string }) {
+  const errorId = `${String(name)}-error`;
+  const value = values[name];
+  const raw = typeof value === 'boolean' ? '' : String(value ?? '');
+  const query = raw.trim().toLowerCase();
+  const matches = query.length > 0 ? options.filter((o) => o.toLowerCase().includes(query) && o.toLowerCase() !== query).slice(0, 8) : [];
+  return (
+    <div>
+      <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
+      <input className={inputClass} id={String(name)} name={String(name)} type={type} autoComplete="off" value={raw}
+        onChange={(e) => onChange(name, e.target.value)}
+        aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])} />
+      {matches.length > 0 && (
+        <ul className="mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+          {matches.map((m) => (
+            <li key={m}><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onChange(name, m)}
+              className="block w-full px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">{m}</button></li>
+          ))}
+        </ul>
+      )}
+      <FieldError id={errorId} message={errors[name]} />
+    </div>
+  );
+}
+
+function CheckboxInput({ name, label, values, onChange }: BaseFieldProps) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900 lg:self-end">
+      <input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950 dark:focus:ring-blue-400"
+        id={String(name)} name={String(name)} type="checkbox" checked={values[name] as boolean}
+        onChange={(e) => onChange(name, e.target.checked)} />
+      <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={String(name)}>{label}</label>
+    </div>
+  );
+}
+
+function FormSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-sm shadow-slate-900/[0.04] dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
+      <h2 className={sectionTitleClass}>{title}</h2>
+      <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">{children}</div>
+    </section>
+  );
+}
+
+const EMPTY_OPTIONS = { cpu: [], datacenter: [], disk: [], os: [], os_by_family: { linux: [], windows: [] } };
 
 export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const params = useParams<{ id?: string }>();
@@ -40,16 +110,22 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const queryClient = useQueryClient();
   const [values, setValues] = useState<VmFormValues>(() => emptyVmFormValues());
   const [errors, setErrors] = useState<VmFormErrors>({});
-  const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => api.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
 
-  useEffect(() => {
-    if (vmQuery.data) setValues(vmToFormValues(vmQuery.data));
-  }, [vmQuery.data]);
+  const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => api.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
+  const optionsQuery = useQuery({ queryKey: ['settings', 'options'], queryFn: api.getDropdownOptions });
+  const ownersQuery = useQuery({ queryKey: ['vm-owners'], queryFn: api.listVmOwners });
+
+  const options = optionsQuery.data ?? EMPTY_OPTIONS;
+  const owners = ownersQuery.data ?? [];
+  const osOptions = values.os_family ? (options.os_by_family[values.os_family as 'linux' | 'windows'] ?? []) : options.os;
+
+  useEffect(() => { if (vmQuery.data) setValues(vmToFormValues(vmQuery.data)); }, [vmQuery.data]);
 
   const save = useMutation({
     mutationFn: (payload: VmPayload) => (mode === 'create' ? api.createVm(payload) : api.updateVm(id ?? '', payload)),
     onSuccess: (vm) => {
       queryClient.invalidateQueries({ queryKey: ['vms'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
       queryClient.setQueryData(['vm', vm.id], vm);
       router.push(`/inventory/${vm.id}`);
     },
@@ -58,87 +134,136 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const title = useMemo(() => (mode === 'create' ? 'New VM' : `Edit ${vmQuery.data?.name ?? 'VM'}`), [mode, vmQuery.data]);
 
   function setField(name: keyof VmFormValues, value: string | boolean) {
-    setValues((current) => ({ ...current, [name]: value }));
-    setErrors((current) => ({ ...current, [name]: undefined }));
+    setValues((c) => ({ ...c, [name]: value }));
+    setErrors((c) => ({ ...c, [name]: undefined }));
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsed = vmFormSchema.safeParse(values);
     if (!parsed.success) {
-      setErrors(collectErrors(parsed.error));
+      const fieldErrors = collectErrors(parsed.error);
+      setErrors(fieldErrors);
+      const firstKey = Object.keys(fieldErrors)[0];
+      if (firstKey) { document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById(firstKey)?.focus(); }
       return;
     }
     setErrors({});
-    save.mutate(parsed.data);
+    save.mutate(parsed.data as unknown as VmPayload);
   }
 
-  if (vmQuery.isLoading) return <div className="p-6" role="status">Loading VM…</div>;
+  if (vmQuery.isLoading) return (
+    <div className={cardClass + ' space-y-8'} role="status" aria-label="Loading form">
+      {[1, 2, 3].map((s) => (<div key={s} className="space-y-4"><Skeleton className="h-5 w-32" /><div className="grid gap-4 lg:grid-cols-3"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div></div>))}
+    </div>
+  );
   if (vmQuery.isError) return <Alert>{detailMessage(vmQuery.error)}</Alert>;
 
   return (
-    <section>
-      <PageHeader title={title} actions={<Link className={secondaryButtonClass} href={id ? `/inventory/${id}` : '/inventory'}>Cancel</Link>} />
-      {save.isError ? <Alert>{detailMessage(save.error)}</Alert> : null}
-      <form className={cardClass + ' space-y-8'} onSubmit={submit} noValidate>
-        <fieldset className="space-y-4">
-          <legend className={sectionTitleClass}>Identity</legend>
-          <div className="grid gap-4 lg:grid-cols-4">
-            <TextInput name="name" label="Name" values={values} errors={errors} onChange={setField} required />
-            <SelectInput name="platform" label="Platform" values={values} errors={errors} onChange={setField} options={platforms} required />
-            <TextInput name="external_id" label="External ID" values={values} errors={errors} onChange={setField} />
-            <SelectInput name="status" label="Status" values={values} errors={errors} onChange={setField} options={statuses} required />
-          </div>
-        </fieldset>
-        <fieldset className="space-y-4">
-          <legend className={sectionTitleClass}>Placement</legend>
-          <div className="grid gap-4 lg:grid-cols-4">
-            <TextInput name="environment" label="Environment" values={values} errors={errors} onChange={setField} required />
-            <TextInput name="datacenter" label="Datacenter" values={values} errors={errors} onChange={setField} />
-            <TextInput name="cluster" label="Cluster" values={values} errors={errors} onChange={setField} required />
-            <TextInput name="host" label="Host" values={values} errors={errors} onChange={setField} required />
-          </div>
-        </fieldset>
-        <fieldset className="space-y-4">
-          <legend className={sectionTitleClass}>Capacity</legend>
-          <div className="grid gap-4 lg:grid-cols-4">
-            <TextInput name="cpu_cores" label="CPU cores" values={values} errors={errors} onChange={setField} type="number" required />
-            <TextInput name="memory_mb" label="Memory MB" values={values} errors={errors} onChange={setField} type="number" required />
-            <TextInput name="disk_gb" label="Disk GB" values={values} errors={errors} onChange={setField} type="number" required />
-            <TextInput name="os_name" label="Operating system" values={values} errors={errors} onChange={setField} />
-          </div>
-        </fieldset>
-        <fieldset className="space-y-4">
-          <legend className={sectionTitleClass}>Operations</legend>
-          <div className="grid gap-4 lg:grid-cols-4">
-            <TextInput name="owner" label="Owner" values={values} errors={errors} onChange={setField} />
-            <TextInput name="backup_status" label="Backup status" values={values} errors={errors} onChange={setField} />
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900 lg:self-end">
-              <input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950 dark:focus:ring-blue-400" id="ha_enabled" name="ha_enabled" type="checkbox" checked={values.ha_enabled} onChange={(event) => setField('ha_enabled', event.target.checked)} />
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="ha_enabled">HA enabled</label>
+    <PageTransition>
+      <section className="mx-auto w-full max-w-5xl 2xl:max-w-6xl">
+        <PageHeader title={title} />
+        {save.isError ? <Alert>{detailMessage(save.error)}</Alert> : null}
+        <form className="space-y-5" onSubmit={submit} noValidate>
+          <FormSection title="Identity">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <TextInput name="name" label="Hostname" values={values} errors={errors} onChange={setField} required />
+              <TextInput name="fqdn" label="FQDN" values={values} errors={errors} onChange={setField} />
+              <SelectInput name="platform" label="Platform" values={values} errors={errors} onChange={setField} options={platforms} required />
+              <TextInput name="external_id" label="VM-ID" values={values} errors={errors} onChange={setField} />
+              <TextInput name="sr_id" label="SR-ID" values={values} errors={errors} onChange={setField} />
+              <SelectInput name="status" label="Status" values={values} errors={errors} onChange={setField} options={statuses} required />
+              <SelectInput name="environment" label="Environment" values={values} errors={errors} onChange={setField} options={environments} required />
+              <SelectInput name="criticality" label="Criticality" values={values} errors={errors} onChange={setField} options={criticalities} required />
+              <SelectInput name="lifecycle" label="Lifecycle" values={values} errors={errors} onChange={setField} options={lifecycles} required />
             </div>
-            <TextInput name="dr_tier" label="DR tier" values={values} errors={errors} onChange={setField} />
-            <SelectInput name="criticality" label="Criticality" values={values} errors={errors} onChange={setField} options={criticalities} required />
-            <SelectInput name="lifecycle" label="Lifecycle" values={values} errors={errors} onChange={setField} options={lifecycles} required />
-          </div>
-        </fieldset>
-        <fieldset className="space-y-4">
-          <legend className={sectionTitleClass}>Metadata</legend>
-          <div className="grid gap-4 lg:grid-cols-4">
-            <TextInput name="ip_addresses" label="IP addresses" values={values} errors={errors} onChange={setField} />
-            <TextInput name="tags" label="Tags" values={values} errors={errors} onChange={setField} />
-            <TextInput name="last_verified_at" label="Last verified date" values={values} errors={errors} onChange={setField} type="date" />
-            <div className="lg:col-span-4">
-              <label className={labelClass} htmlFor="notes">Notes</label>
-              <textarea className={textareaClass} id="notes" name="notes" value={values.notes} onChange={(event) => setField('notes', event.target.value)} rows={4} />
+          </FormSection>
+
+          <FormSection title="Location">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <ComboInput name="datacenter" label="Datacenter" values={values} errors={errors} onChange={setField} options={options.datacenter} />
+              <TextInput name="cluster" label="Cluster" values={values} errors={errors} onChange={setField} required />
+              <TextInput name="node" label="Node" values={values} errors={errors} onChange={setField} />
             </div>
+          </FormSection>
+
+          <FormSection title="Hardware">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <ComboInput name="cpu_cores" label="vCPU" values={values} errors={errors} onChange={setField} options={options.cpu} type="number" required />
+              <TextInput name="memory_mb" label="Memory (GB)" values={values} errors={errors} onChange={setField} type="number" required />
+            </div>
+          </FormSection>
+
+          <FormSection title="Operating System">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <label className={labelClass} htmlFor="os_family">OS Family</label>
+                <select className={selectClass} id="os_family" name="os_family" value={values.os_family} onChange={(e) => setField('os_family', e.target.value)}>
+                  <option value="">—</option>
+                  <option value="linux">Linux</option>
+                  <option value="windows">Windows</option>
+                </select>
+              </div>
+              <ComboInput name="os_name" label="OS Name" values={values} errors={errors} onChange={setField} options={osOptions} />
+              <TextInput name="os_distribution" label="Distribution" values={values} errors={errors} onChange={setField} />
+              <TextInput name="os_version" label="Version" values={values} errors={errors} onChange={setField} />
+            </div>
+          </FormSection>
+
+          <FormSection title="Ownership">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <ComboInput name="owner" label="Owner" values={values} errors={errors} onChange={setField} options={owners} />
+              <TextInput name="business_owner" label="Business Owner" values={values} errors={errors} onChange={setField} />
+              <TextInput name="technical_owner" label="Technical Owner" values={values} errors={errors} onChange={setField} />
+              <TextInput name="department" label="Department" values={values} errors={errors} onChange={setField} />
+            </div>
+          </FormSection>
+
+          <FormSection title="Operations">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <CheckboxInput name="monitoring_enabled" label="Monitoring enabled" values={values} errors={errors} onChange={setField} />
+              <CheckboxInput name="backup_enabled" label="Backup enabled" values={values} errors={errors} onChange={setField} />
+              <CheckboxInput name="ha_enabled" label="HA enabled" values={values} errors={errors} onChange={setField} />
+            </div>
+          </FormSection>
+
+          <FormSection title="Security">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <TextInput name="last_patch_date" label="Last Patch Date" values={values} errors={errors} onChange={setField} type="date" />
+              <TextInput name="last_vuln_scan_date" label="Last Vuln Scan" values={values} errors={errors} onChange={setField} type="date" />
+              <div className="lg:col-span-3">
+                <label className={labelClass} htmlFor="security_remarks">Security Remarks</label>
+                <textarea className={textareaClass} id="security_remarks" name="security_remarks" value={values.security_remarks} onChange={(e) => setField('security_remarks', e.target.value)} rows={2} />
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection title="Lifecycle">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <TextInput name="decommission_date" label="Decommission Date" values={values} errors={errors} onChange={setField} type="date" />
+              <TextInput name="last_verified_at" label="Last Verified" values={values} errors={errors} onChange={setField} type="date" />
+            </div>
+          </FormSection>
+
+          <FormSection title="Notes & Tags">
+            <div className="grid gap-4">
+              <TextInput name="tags" label="Tags (semicolon-separated)" values={values} errors={errors} onChange={setField} />
+              <div>
+                <label className={labelClass} htmlFor="description">Description</label>
+                <textarea className={textareaClass} id="description" name="description" value={values.description} onChange={(e) => setField('description', e.target.value)} rows={3} />
+              </div>
+            </div>
+            <p className={helpTextClass}>Disks, networks, and applications are managed on the VM detail page after saving.</p>
+          </FormSection>
+
+          <div className="sticky bottom-0 flex items-center gap-3 rounded-xl border border-slate-200/70 bg-white/85 px-5 py-3 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/85">
+            <button className={primaryButtonClass} type="submit" disabled={save.isPending}>
+              {save.isPending ? <><Spinner /> Saving…</> : 'Save VM'}
+            </button>
+            <Link className={secondaryButtonClass} href={id ? `/inventory/${id}` : '/inventory'}>Cancel</Link>
           </div>
-          <p className={helpTextClass}>Separate IP addresses and tags with semicolons. Required fields are marked with an asterisk.</p>
-        </fieldset>
-        <div>
-          <button className={primaryButtonClass} type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save VM'}</button>
-        </div>
-      </form>
-    </section>
+        </form>
+      </section>
+    </PageTransition>
   );
 }

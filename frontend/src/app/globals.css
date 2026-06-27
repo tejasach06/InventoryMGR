@@ -1,6 +1,44 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+
+  --color-surface: #ffffff;
+  --color-surface-secondary: #f6f7fb;
+  --color-surface-tertiary: #eef0f7;
+  --color-border: #e3e6ef;
+  --color-border-subtle: #eef0f7;
+  --color-text-primary: #0f1222;
+  --color-text-secondary: #4a4f63;
+  --color-text-tertiary: #9aa0b4;
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+
+  --animate-fade-in: fadeIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
+  --animate-rise: rise 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  --text-fluid-h1: clamp(1.5rem, 1.25rem + 1vw, 2rem);
+  --text-fluid-h2: clamp(1rem, 0.95rem + 0.3vw, 1.25rem);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -8,8 +46,11 @@ html {
 body {
   min-width: 320px;
   min-height: 100vh;
-  background: #f8fafc;
-  color: #0f172a;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
 }
 
 html.dark {
@@ -17,10 +58,48 @@ html.dark {
 }
 
 html.dark body {
-  background: #020617;
-  color: #e2e8f0;
+  background: #0a0c16;
+  color: #e6e8f0;
 }
 
 * {
   box-sizing: border-box;
 }
+
+/* Display typeface for headings / brand */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+/* Custom select chevron (replaces native control) */
+.app-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%239aa0b4' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  padding-right: 2.25rem;
+}
+
+/* Accessible focus ring for keyboard users */
+:focus-visible {
+  outline: none;
+}
+
+/* Refined selection + scrollbar for product polish */
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: inherit;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c8ccdc transparent;
+}
+html.dark * {
+  scrollbar-color: #2a2f44 transparent;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #c8ccdc; border-radius: 9999px; border: 3px solid transparent; background-clip: content-box; }
+html.dark ::-webkit-scrollbar-thumb { background: #2a2f44; border: 3px solid transparent; background-clip: content-box; }

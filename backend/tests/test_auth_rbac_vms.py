@@ -210,3 +210,37 @@ def test_cannot_deactivate_or_demote_last_active_admin(client, db_session: Sessi
     )
     assert demote_after_second_admin.status_code == 200
     assert demote_after_second_admin.json()["role"] == "editor"
+
+
+def test_create_vm_with_multiple_disks_and_sr_id(client, db_session: Session) -> None:
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+
+    created = client.post(
+        "/api/vms",
+        json=vm_payload(name="multi-disk", disk_gb=[50, 100, 150], sr_id="SR-2048"),
+        headers=auth_headers(csrf),
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["disk_gb"] == [50, 100, 150]
+    assert body["sr_id"] == "SR-2048"
+
+    fetched = client.get(f"/api/vms/{body['id']}")
+    assert fetched.status_code == 200, fetched.text
+    assert fetched.json()["disk_gb"] == [50, 100, 150]
+    assert fetched.json()["sr_id"] == "SR-2048"
+
+
+def test_list_owners_returns_distinct_sorted_non_null(client, db_session: Session) -> None:
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    create_vm_row(db_session, editor, name="vm-a", owner="alice")
+    create_vm_row(db_session, editor, name="vm-b", owner="bob", external_id="x1")
+    create_vm_row(db_session, editor, name="vm-c", owner="alice", external_id="x2")
+    create_vm_row(db_session, editor, name="vm-d", owner=None, external_id="x3")
+    login(client, "editor@example.local")
+
+    response = client.get("/api/vms/owners")
+
+    assert response.status_code == 200, response.text
+    assert response.json() == ["alice", "bob"]

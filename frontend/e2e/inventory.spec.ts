@@ -35,28 +35,25 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
   await expect(page.getByRole('heading', { name: 'New VM' })).toBeVisible();
   await page.getByLabel('Name').fill(proxmoxName);
   await page.getByLabel('Platform').selectOption('proxmox');
-  await page.getByLabel('Environment').fill('lab');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
-  await page.getByLabel('Host').fill('pve01');
   await page.locator('#status').selectOption('running');
   await page.getByLabel('CPU cores').fill('4');
-  await page.getByLabel('Memory MB').fill('8192');
-  await page.getByLabel('Disk GB').fill('120');
+  await page.getByLabel('Memory GB').fill('8');
+  await page.getByLabel('Disk 1 size').fill('120');
   await page.locator('#criticality').selectOption('high');
-  await page.locator('#lifecycle').selectOption('active');
   await page.getByRole('button', { name: 'Save VM' }).click();
 
   await expect(page.getByRole('heading', { name: proxmoxName })).toBeVisible();
   await page.getByRole('link', { name: 'Back' }).click();
   await expect(page.getByRole('link', { name: proxmoxName })).toBeVisible();
 
-  await page.getByRole('link', { name: 'CSV Import' }).click();
+  await page.getByRole('link', { name: 'Import' }).click();
   const csv = [
-    'name,platform,environment,cluster,host,status,cpu_cores,memory_mb,disk_gb,criticality,lifecycle,external_id,owner',
-    `${vmwareName},vmware,prod,vc-cluster,esx01,running,2,4096,80,medium,active,vmw-${runId},platform-team`,
-    `${proxmoxName},proxmox,lab,pve-cluster-a,pve01,stopped,6,12288,150,critical,active,,ops-team`,
+    'name,platform,cluster,status,cpu_cores,memory_mb,disk_gb,criticality,lifecycle,external_id,owner',
+    `${vmwareName},vmware,vc-cluster,running,2,4096,80,medium,active,vmw-${runId},platform-team`,
+    `${proxmoxName},proxmox,pve-cluster-a,stopped,6,12288,150,critical,active,,ops-team`,
   ].join('\n');
-  await page.getByLabel('CSV file').setInputFiles({
+  await page.getByLabel('CSV file', { exact: true }).setInputFiles({
     name: `inventory-${runId}.csv`,
     mimeType: 'text/csv',
     buffer: Buffer.from(csv),
@@ -78,6 +75,6 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
   await page.getByRole('button', { name: 'Apply filters' }).click();
   const proxmoxRow = page.getByRole('row').filter({ hasText: proxmoxName });
   await expect(proxmoxRow).toContainText('stopped');
-  await expect(proxmoxRow).toContainText('12288 MB');
+  await expect(proxmoxRow).toContainText('12 GB');
   await expect(proxmoxRow).toContainText('150 GB');
 });

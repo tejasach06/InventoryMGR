@@ -63,10 +63,8 @@ def upgrade() -> None:
         sa.Column("external_id", sa.String(length=255), nullable=True),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("platform", platform, nullable=False),
-        sa.Column("environment", sa.String(length=100), nullable=False),
         sa.Column("datacenter", sa.String(length=255), nullable=True),
         sa.Column("cluster", sa.String(length=255), nullable=False),
-        sa.Column("host", sa.String(length=255), nullable=False),
         sa.Column("status", vm_status, nullable=False),
         sa.Column("cpu_cores", sa.Integer(), nullable=False),
         sa.Column("memory_mb", sa.Integer(), nullable=False),
@@ -77,7 +75,6 @@ def upgrade() -> None:
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("backup_status", sa.String(length=255), nullable=True),
         sa.Column("ha_enabled", sa.Boolean(), nullable=False),
-        sa.Column("dr_tier", sa.String(length=100), nullable=True),
         sa.Column("criticality", criticality, nullable=False),
         sa.Column("lifecycle", lifecycle, nullable=False),
         sa.Column("tags", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
@@ -87,9 +84,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("length(btrim(name)) > 0", name="ck_vms_name_nonempty"),
-        sa.CheckConstraint("length(btrim(environment)) > 0", name="ck_vms_environment_nonempty"),
         sa.CheckConstraint("length(btrim(cluster)) > 0", name="ck_vms_cluster_nonempty"),
-        sa.CheckConstraint("length(btrim(host)) > 0", name="ck_vms_host_nonempty"),
         sa.CheckConstraint("cpu_cores >= 0", name="ck_vms_cpu_cores_nonnegative"),
         sa.CheckConstraint("memory_mb >= 0", name="ck_vms_memory_mb_nonnegative"),
         sa.CheckConstraint("disk_gb >= 0", name="ck_vms_disk_gb_nonnegative"),
@@ -98,23 +93,21 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_vms_platform", "vms", ["platform"])
-    op.create_index("ix_vms_environment", "vms", ["environment"])
     op.create_index("ix_vms_cluster", "vms", ["cluster"])
-    op.create_index("ix_vms_host", "vms", ["host"])
     op.create_index("ix_vms_status", "vms", ["status"])
     op.create_index("ix_vms_criticality", "vms", ["criticality"])
     op.create_index("ix_vms_lifecycle", "vms", ["lifecycle"])
     op.create_index(
-        "uq_vms_platform_environment_external_id",
+        "uq_vms_platform_external_id",
         "vms",
-        ["platform", "environment", "external_id"],
+        ["platform", "external_id"],
         unique=True,
         postgresql_where=sa.text("external_id IS NOT NULL"),
     )
     op.create_index(
-        "uq_vms_platform_environment_name_without_external_id",
+        "uq_vms_platform_name_without_external_id",
         "vms",
-        ["platform", "environment", sa.text("lower(name)")],
+        ["platform", sa.text("lower(name)")],
         unique=True,
         postgresql_where=sa.text("external_id IS NULL"),
     )
@@ -153,14 +146,12 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("csv_import_rows")
     op.drop_table("csv_import_batches")
-    op.drop_index("uq_vms_platform_environment_name_without_external_id", table_name="vms")
-    op.drop_index("uq_vms_platform_environment_external_id", table_name="vms")
+    op.drop_index("uq_vms_platform_name_without_external_id", table_name="vms")
+    op.drop_index("uq_vms_platform_external_id", table_name="vms")
     op.drop_index("ix_vms_lifecycle", table_name="vms")
     op.drop_index("ix_vms_criticality", table_name="vms")
     op.drop_index("ix_vms_status", table_name="vms")
-    op.drop_index("ix_vms_host", table_name="vms")
     op.drop_index("ix_vms_cluster", table_name="vms")
-    op.drop_index("ix_vms_environment", table_name="vms")
     op.drop_index("ix_vms_platform", table_name="vms")
     op.drop_table("vms")
     op.drop_index("ix_users_email", table_name="users")
