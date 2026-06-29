@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.api.deps import Csrf, DbSession, EditorUser, ViewerUser
 from app.db.models import VmNetwork
 from app.schemas.vms import NetworkCreate, NetworkRead
-from app.services.vms import get_vm_or_404
+from app.services.vms import get_vm_or_404, recompute_health
 
 router = APIRouter()
 
@@ -26,6 +26,7 @@ def add_network(
     db.add(net)
     db.commit()
     db.refresh(net)
+    recompute_health(db, vm_id)
     return net
 
 
@@ -57,3 +58,4 @@ def remove_network(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Network entry not found")
     db.delete(net)
     db.commit()
+    recompute_health(db, vm_id)

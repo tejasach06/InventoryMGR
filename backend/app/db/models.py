@@ -165,6 +165,7 @@ class Vm(Base, TimestampMixin):
     last_vuln_scan_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     security_remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
     decommission_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    health_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_verified_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
@@ -191,26 +192,24 @@ class Vm(Base, TimestampMixin):
         back_populates="vm", cascade="all, delete-orphan"
     )
 
-    @property
-    def health_score(self) -> int:
-        score = 0
-        if self.description:
-            score += 10
-        if self.business_owner or self.technical_owner or self.owner:
-            score += 15
-        # Only count relationship data if already loaded (avoids N+1 in list view)
-        state = self.__dict__
-        if state.get("applications"):
-            score += 20
-        if state.get("networks"):
-            score += 15
-        if state.get("disks"):
-            score += 15
-        if self.monitoring_enabled:
-            score += 10
-        if self.decommission_date:
-            score += 15
-        return score
+def compute_health_score(vm: "Vm") -> int:
+    score = 0
+    if vm.description:
+        score += 10
+    if vm.business_owner or vm.technical_owner or vm.owner:
+        score += 15
+    if vm.applications:
+        score += 20
+    if vm.networks:
+        score += 15
+    if vm.disks:
+        score += 15
+    if vm.monitoring_enabled:
+        score += 10
+    if vm.decommission_date:
+        score += 15
+    return score
+
 
 
 Index(

@@ -19,3 +19,10 @@ graphify-out/
 CLAUDE.md
 data/
 *.log
+.DS_Store
+Thumbs.db
+frontend/.env.local
+frontend/.env*.local
+frontend/playwright-report/
+*.sqlite
+*.db

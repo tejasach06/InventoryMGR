@@ -9,13 +9,35 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import AdminUser, Csrf, DbSession, EditorUser, ViewerUser
-from app.db.models import Criticality, Environment, Lifecycle, Platform, Vm, VmApplication, VmStatus
+from app.db.models import (
+    Criticality,
+    Environment,
+    Lifecycle,
+    OsFamily,
+    Platform,
+    Vm,
+    VmStatus,
+)
 from app.schemas.vms import VmCreate, VmList, VmRead, VmUpdate
-from app.services.vms import clone_vm as clone_vm_service
-from app.services.vms import create_vm as create_vm_service
-from app.services.vms import delete_vm as delete_vm_service
-from app.services.vms import get_vm_detail_or_404, get_vm_or_404, list_vms, to_vm_read
-from app.services.vms import update_vm as update_vm_service
+from app.services.vms import (
+    apply_vm_filters,
+    get_vm_detail_or_404,
+    get_vm_or_404,
+    list_vms,
+    to_vm_read,
+)
+from app.services.vms import (
+    clone_vm as clone_vm_service,
+)
+from app.services.vms import (
+    create_vm as create_vm_service,
+)
+from app.services.vms import (
+    delete_vm as delete_vm_service,
+)
+from app.services.vms import (
+    update_vm as update_vm_service,
+)
 
 router = APIRouter()
 
@@ -32,29 +54,31 @@ def list_inventory(
     criticality: Criticality | None = None,
     lifecycle: Lifecycle | None = None,
     monitoring_enabled: bool | None = None,
+    node: str | None = None,
+    os_family: OsFamily | None = None,
+    owner: str | None = None,
+    department: str | None = None,
+    tag: str | None = None,
+    application: str | None = None,
+    health: Annotated[str | None, Query(pattern="^(below_50|below_75|complete)$")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> VmList:
     items, total = list_vms(
         db,
         {
-            "q": q,
-            "platform": platform,
-            "cluster": cluster,
-            "status_value": status_value,
-            "environment": environment,
-            "criticality": criticality,
-            "lifecycle": lifecycle,
-            "monitoring_enabled": monitoring_enabled,
+            "q": q, "platform": platform, "cluster": cluster, "status_value": status_value,
+            "environment": environment, "criticality": criticality, "lifecycle": lifecycle,
+            "monitoring_enabled": monitoring_enabled, "node": node, "os_family": os_family,
+            "owner": owner, "department": department, "tag": tag,
+            "application": application, "health": health,
         },
         limit,
         offset,
     )
     return VmList(
         items=[to_vm_read(item) for item in items],
-        total=total,
-        limit=limit,
-        offset=offset,
+        total=total, limit=limit, offset=offset,
     )
 
 
@@ -110,10 +134,36 @@ _EXPORT_COLS = [
 
 
 @router.get("/export", response_class=StreamingResponse)
-def export_vms(db: DbSession, _: ViewerUser) -> StreamingResponse:
-    vms = list(db.scalars(
-        select(Vm).options(selectinload(Vm.applications)).order_by(Vm.name.asc())
-    ))
+def export_vms(
+    db: DbSession,
+    _: ViewerUser,
+    q: str | None = None,
+    platform: Platform | None = None,
+    cluster: str | None = None,
+    status_value: Annotated[VmStatus | None, Query(alias="status")] = None,
+    environment: Environment | None = None,
+    criticality: Criticality | None = None,
+    lifecycle: Lifecycle | None = None,
+    monitoring_enabled: bool | None = None,
+    node: str | None = None,
+    os_family: OsFamily | None = None,
+    owner: str | None = None,
+    department: str | None = None,
+    tag: str | None = None,
+    application: str | None = None,
+    health: Annotated[str | None, Query(pattern="^(below_50|below_75|complete)$")] = None,
+    ids: Annotated[list[uuid.UUID] | None, Query()] = None,
+) -> StreamingResponse:
+    if ids:
+        base_q = select(Vm).where(Vm.id.in_(ids))
+    else:
+        base_q = apply_vm_filters(
+            select(Vm), q=q, platform=platform, cluster=cluster, status_value=status_value,
+            environment=environment, criticality=criticality, lifecycle=lifecycle,
+            monitoring_enabled=monitoring_enabled, node=node, os_family=os_family,
+            owner=owner, department=department, tag=tag, application=application, health=health,
+        )
+    vms = list(db.scalars(base_q.options(selectinload(Vm.applications)).order_by(Vm.name.asc())))
 
     def generate():
         buf = io.StringIO()

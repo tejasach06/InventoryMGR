@@ -23,13 +23,11 @@ def test_csv_preview_persists_classification_for_create_update_conflict_and_inva
 
     csv_content = "\n".join(
         [
-            "name,platform,cluster,status,cpu_cores,memory_mb,disk_gb,external_id,ip_addresses,tags,ha_enabled,last_verified_at",
-            "Existing App,Proxmox,pve-cluster-a,running,4,8192,120,,"
-            "10.0.0.10;10.0.0.11,web; critical,yes,2026-06-13",
-            " existing app ,pve,pve-cluster-a,stopped,2,4096,80,,,,false,",
-            "New VMware,vcenter,vc-cluster,unknown,8,16384,200,"
-            "vm-200,192.168.1.20,db;prod,no,2026-01-01",
-            "Broken Row,vmware,vc-cluster,unknown,-1,1024,20,,,,false,",
+            "name,platform,cluster,status,cpu_cores,memory_mb,external_id,tags,ha_enabled,last_verified_at",
+            "Existing App,Proxmox,pve-cluster-a,running,4,8192,,web; critical,yes,2026-06-13",
+            " existing app ,pve,pve-cluster-a,powered_off,2,4096,,,false,",
+            "New VMware,vcenter,vc-cluster,unknown,8,16384,vm-200,db;prod,no,2026-01-01",
+            "Broken Row,vmware,vc-cluster,unknown,-1,1024,,,false,",
         ]
     )
 
@@ -46,7 +44,6 @@ def test_csv_preview_persists_classification_for_create_update_conflict_and_inva
         ImportAction.invalid.value,
     ]
     assert rows[0]["normalized"]["platform"] == "proxmox"
-    assert rows[0]["normalized"]["ip_addresses"] == ["10.0.0.10", "10.0.0.11"]
     assert rows[2]["normalized"]["platform"] == "vmware"
     assert rows[2]["normalized"]["ha_enabled"] is False
     assert rows[1]["errors"] == [{"field": "identity", "message": "duplicate CSV identity"}]
@@ -88,9 +85,9 @@ def test_csv_commit_uses_persisted_rows_and_rolls_back_when_later_upsert_fails(
     csrf = login(client, "editor@example.local")
     csv_content = "\n".join(
         [
-            "name,platform,cluster,status,cpu_cores,memory_mb,disk_gb,criticality,lifecycle",
-            "New VMware,vmware,vc-cluster,running,2,4096,60,medium,active",
-            "Manual Proxmox,proxmox,pve-cluster-a,stopped,6,12288,150,critical,active",
+            "name,platform,cluster,status,cpu_cores,memory_mb,criticality,lifecycle",
+            "New VMware,vmware,vc-cluster,running,2,4096,medium,active",
+            "Manual Proxmox,proxmox,pve-cluster-a,running,6,12288,critical,active",
         ]
     )
     preview = upload_csv(client, csrf, csv_content)

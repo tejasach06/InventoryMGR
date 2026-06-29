@@ -11,9 +11,7 @@ describe('vmFormSchema', () => {
       status: 'running',
       cpu_cores: '4',
       memory_mb: '8',
-      disk_gb: '120',
       external_id: ' ',
-      ip_addresses: '10.0.0.10; 10.0.0.11; ',
       tags: 'web; critical ;',
       ha_enabled: true,
       backup_enabled: true,
@@ -30,8 +28,6 @@ describe('vmFormSchema', () => {
       external_id: null,
       cpu_cores: 4,
       memory_mb: 8192,
-      disk_gb: [120],
-      ip_addresses: ['10.0.0.10', '10.0.0.11'],
       tags: ['web', 'critical'],
       ha_enabled: true,
       backup_enabled: true,
@@ -48,7 +44,6 @@ describe('vmFormSchema', () => {
       status: 'running' as const,
       cpu_cores: '2',
       memory_mb: '4',
-      disk_gb: '40',
       criticality: 'medium' as const,
       lifecycle: 'active' as const,
     };
@@ -62,39 +57,22 @@ describe('vmFormSchema', () => {
     expect(linux.data?.os_family).toBe('linux');
   });
 
-  it('parses multiple disks and trims the SR-ID', () => {
+  it('parses semicolon-separated tags and trims the SR-ID', () => {
     const parsed = validateVmFormInput({
       ...createDefaultVmFormValues(),
-      name: 'multi',
+      name: 'tag-vm',
       cluster: 'c1',
       status: 'running',
       cpu_cores: '4',
       memory_mb: '8',
-      disk_gb: '50; 100; 150',
+      tags: 'db; prod; legacy ',
       sr_id: ' SR-2048 ',
       criticality: 'high',
       lifecycle: 'active',
     });
 
     expect(parsed.ok).toBe(true);
-    expect(parsed.data).toMatchObject({ disk_gb: [50, 100, 150], sr_id: 'SR-2048' });
-  });
-
-  it('rejects a VM with no disks', () => {
-    const parsed = validateVmFormInput({
-      ...createDefaultVmFormValues(),
-      name: 'nodisk',
-      cluster: 'c1',
-      status: 'running',
-      cpu_cores: '4',
-      memory_mb: '8',
-      disk_gb: '',
-      criticality: 'high',
-      lifecycle: 'active',
-    });
-
-    expect(parsed.ok).toBe(false);
-    expect(parsed.errors.disk_gb).toBeTruthy();
+    expect(parsed.data).toMatchObject({ tags: ['db', 'prod', 'legacy'], sr_id: 'SR-2048' });
   });
 
   it('reports actionable validation errors for blank required fields, negative numbers, and bad dates', () => {
@@ -104,7 +82,6 @@ describe('vmFormSchema', () => {
       cluster: '',
       cpu_cores: '-1',
       memory_mb: 'not-a-number',
-      disk_gb: '10',
       last_verified_at: '06/13/2026',
     });
 
@@ -113,7 +90,7 @@ describe('vmFormSchema', () => {
       name: 'Name is required.',
       cluster: 'Cluster is required.',
       cpu_cores: 'CPU cores must be 0 or greater.',
-      last_verified_at: 'Last verified date must use YYYY-MM-DD.',
+      last_verified_at: 'Date must use YYYY-MM-DD.',
     });
     expect(parsed.errors.memory_mb).toBeTruthy();
   });

@@ -85,7 +85,7 @@ def test_inventory_rbac_allows_viewer_read_editor_write_and_admin_delete(
     )
     viewer_update = client.patch(
         f"/api/vms/{existing_vm.id}",
-        json={"notes": "viewer must not update"},
+        json={"description": "viewer must not update"},
         headers=auth_headers(viewer_csrf),
     )
     assert viewer_update.status_code == 403
@@ -104,11 +104,11 @@ def test_inventory_rbac_allows_viewer_read_editor_write_and_admin_delete(
 
     patched = client.patch(
         f"/api/vms/{vm_id}",
-        json={"notes": "updated by editor"},
+        json={"description": "updated by editor"},
         headers=auth_headers(editor_csrf),
     )
     assert patched.status_code == 200, patched.text
-    assert patched.json()["notes"] == "updated by editor"
+    assert patched.json()["description"] == "updated by editor"
 
     editor_delete = client.delete(f"/api/vms/{vm_id}", headers=auth_headers(editor_csrf))
     assert editor_delete.status_code == 403
@@ -212,23 +212,21 @@ def test_cannot_deactivate_or_demote_last_active_admin(client, db_session: Sessi
     assert demote_after_second_admin.json()["role"] == "editor"
 
 
-def test_create_vm_with_multiple_disks_and_sr_id(client, db_session: Session) -> None:
+def test_create_vm_with_sr_id(client, db_session: Session) -> None:
     create_user(db_session, email="editor@example.local", role=UserRole.editor)
     csrf = login(client, "editor@example.local")
 
     created = client.post(
         "/api/vms",
-        json=vm_payload(name="multi-disk", disk_gb=[50, 100, 150], sr_id="SR-2048"),
+        json=vm_payload(name="sr-id-vm", sr_id="SR-2048"),
         headers=auth_headers(csrf),
     )
     assert created.status_code == 201, created.text
     body = created.json()
-    assert body["disk_gb"] == [50, 100, 150]
     assert body["sr_id"] == "SR-2048"
 
     fetched = client.get(f"/api/vms/{body['id']}")
     assert fetched.status_code == 200, fetched.text
-    assert fetched.json()["disk_gb"] == [50, 100, 150]
     assert fetched.json()["sr_id"] == "SR-2048"
 
 

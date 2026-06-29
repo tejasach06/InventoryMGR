@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.api.deps import Csrf, DbSession, EditorUser, ViewerUser
 from app.db.models import VmDisk
 from app.schemas.vms import DiskCreate, DiskRead
-from app.services.vms import get_vm_or_404
+from app.services.vms import get_vm_or_404, recompute_health
 
 router = APIRouter()
 
@@ -26,6 +26,7 @@ def add_disk(
     db.add(disk)
     db.commit()
     db.refresh(disk)
+    recompute_health(db, vm_id)
     return disk
 
 
@@ -57,3 +58,4 @@ def remove_disk(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Disk not found")
     db.delete(disk)
     db.commit()
+    recompute_health(db, vm_id)

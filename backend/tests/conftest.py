@@ -104,16 +104,16 @@ def vm_payload(**overrides: Any) -> dict[str, Any]:
         "cluster": "pve-cluster-a",
         "external_id": None,
         "status": "running",
+        "environment": "production",
         "cpu_cores": 4,
         "memory_mb": 8192,
-        "disk_gb": [120],
         "os_name": "Debian 12",
         "os_family": "linux",
-        "ip_addresses": ["10.0.0.10"],
         "owner": "ops",
-        "notes": "manual inventory",
+        "description": "manual inventory",
         "backup_enabled": True,
         "ha_enabled": True,
+        "monitoring_enabled": False,
         "criticality": "high",
         "lifecycle": "active",
         "tags": ["web", "prod-like"],
@@ -123,15 +123,16 @@ def vm_payload(**overrides: Any) -> dict[str, Any]:
     return payload
 
 
+_VM_COLUMNS = {col.name for col in Vm.__table__.columns}
+
+
 def create_vm_row(db: Session, user: User, **overrides: Any) -> Vm:
     values = vm_payload(**overrides)
     if isinstance(values.get("last_verified_at"), str):
         values["last_verified_at"] = date.fromisoformat(values["last_verified_at"])
-    vm = Vm(
-        **values,
-        created_by_id=user.id,
-        updated_by_id=user.id,
-    )
+    # Strip any keys not present as Vm columns (e.g. legacy disk_gb, ip_addresses)
+    values = {k: v for k, v in values.items() if k in _VM_COLUMNS}
+    vm = Vm(**values, created_by_id=user.id, updated_by_id=user.id)
     db.add(vm)
     db.commit()
     db.refresh(vm)

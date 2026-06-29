@@ -105,15 +105,10 @@ describe('VmFormPage IP rows', () => {
     fireEvent.change(screen.getByLabelText(/^Cluster/), { target: { value: 'cluster-a' } });
     fireEvent.change(screen.getByLabelText(/^CPU cores/), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText(/^Memory GB/), { target: { value: '4' } });
-    fireEvent.change(screen.getByLabelText('Disk 1 size'), { target: { value: '40' } });
-    fireEvent.change(screen.getByLabelText('IP address 1'), { target: { value: '10.0.0.1' } });
-
     fireEvent.submit(screen.getByLabelText(/^Name/).closest('form') as HTMLFormElement);
 
     await vi.waitFor(() => expect(create).toHaveBeenCalledTimes(1));
     const payload = create.mock.calls[0][0];
     expect(payload.memory_mb).toBe(4096);
-    expect(payload.disk_gb).toEqual([40]);
-    expect(payload.ip_addresses).toEqual(['10.0.0.1']);
   });
 });

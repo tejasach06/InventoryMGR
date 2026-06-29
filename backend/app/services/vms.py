@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from psycopg.errors import UniqueViolation
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, String, cast, exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -12,6 +12,7 @@ from app.db.models import (
     Criticality,
     Environment,
     Lifecycle,
+    OsFamily,
     Platform,
     User,
     Vm,
@@ -19,6 +20,7 @@ from app.db.models import (
     VmDisk,
     VmNetwork,
     VmStatus,
+    compute_health_score,
     now_utc,
 )
 from app.schemas.vms import VmCreate, VmRead, VmUpdate
@@ -40,6 +42,8 @@ def create_vm(db: Session, payload: VmCreate, user: User, *, commit: bool = True
         if commit:
             db.commit()
             db.refresh(vm)
+            vm.health_score = compute_health_score(vm)
+            db.commit()
         else:
             db.flush()
     except IntegrityError as exc:
@@ -75,6 +79,8 @@ def update_vm(db: Session, vm: Vm, payload: VmUpdate, user: User, *, commit: boo
         if commit:
             db.commit()
             db.refresh(vm)
+            vm.health_score = compute_health_score(vm)
+            db.commit()
         else:
             db.flush()
     except IntegrityError as exc:
@@ -111,8 +117,19 @@ def get_vm_detail_or_404(db: Session, vm_id: uuid.UUID) -> Vm:
 
 
 def to_vm_read(vm: Vm) -> VmRead:
-    r = VmRead.model_validate(vm)
-    return r.model_copy(update={"health_score": vm.health_score})
+    return VmRead.model_validate(vm)
+
+
+def recompute_health(db: Session, vm_id: uuid.UUID) -> None:
+    """Load VM + children, recompute health_score, commit."""
+    vm = db.scalar(
+        select(Vm).options(
+            selectinload(Vm.disks), selectinload(Vm.networks), selectinload(Vm.applications)
+        ).where(Vm.id == vm_id)
+    )
+    if vm is not None:
+        vm.health_score = compute_health_score(vm)
+        db.commit()
 
 
 def clone_vm(db: Session, vm: Vm, user: User) -> Vm:
@@ -143,7 +160,10 @@ def clone_vm(db: Session, vm: Vm, user: User) -> Vm:
             app_owner=app.app_owner, description=app.description,
         ))
     db.commit()
-    return get_vm_detail_or_404(db, cloned.id)
+    cloned_full = get_vm_detail_or_404(db, cloned.id)
+    cloned_full.health_score = compute_health_score(cloned_full)
+    db.commit()
+    return cloned_full
 
 
 def apply_vm_filters(
@@ -157,18 +177,40 @@ def apply_vm_filters(
     criticality: Criticality | None = None,
     lifecycle: Lifecycle | None = None,
     monitoring_enabled: bool | None = None,
+    node: str | None = None,
+    os_family: OsFamily | None = None,
+    owner: str | None = None,
+    department: str | None = None,
+    tag: str | None = None,
+    application: str | None = None,
+    health: str | None = None,
 ) -> Select[tuple[Vm]]:
     if q:
         pattern = f"%{q.strip().lower()}%"
-        stmt = stmt.where(
-            or_(
-                func.lower(Vm.name).like(pattern),
-                func.lower(Vm.cluster).like(pattern),
-                func.lower(func.coalesce(Vm.owner, "")).like(pattern),
-                func.lower(func.coalesce(Vm.fqdn, "")).like(pattern),
-                func.lower(func.coalesce(Vm.department, "")).like(pattern),
-            )
-        )
+        net_subq = exists(select(VmNetwork.vm_id).where(
+            VmNetwork.vm_id == Vm.id,
+            func.lower(VmNetwork.ip_address).like(pattern),
+        ))
+        app_subq = exists(select(VmApplication.vm_id).where(
+            VmApplication.vm_id == Vm.id,
+            func.lower(VmApplication.app_name).like(pattern),
+        ))
+        stmt = stmt.where(or_(
+            func.lower(Vm.name).like(pattern),
+            func.lower(Vm.cluster).like(pattern),
+            func.lower(func.coalesce(Vm.owner, "")).like(pattern),
+            func.lower(func.coalesce(Vm.fqdn, "")).like(pattern),
+            func.lower(func.coalesce(Vm.department, "")).like(pattern),
+            func.lower(func.coalesce(Vm.external_id, "")).like(pattern),
+            func.lower(func.coalesce(Vm.sr_id, "")).like(pattern),
+            func.lower(func.coalesce(Vm.os_name, "")).like(pattern),
+            func.lower(func.coalesce(Vm.os_distribution, "")).like(pattern),
+            func.lower(func.coalesce(Vm.os_version, "")).like(pattern),
+            # ponytail: imprecise JSONB cast, fine for search
+            cast(Vm.tags, String).like(f"%{q.strip()}%"),
+            net_subq,
+            app_subq,
+        ))
     if platform:
         stmt = stmt.where(Vm.platform == platform)
     if cluster:
@@ -183,6 +225,33 @@ def apply_vm_filters(
         stmt = stmt.where(Vm.lifecycle == lifecycle)
     if monitoring_enabled is not None:
         stmt = stmt.where(Vm.monitoring_enabled == monitoring_enabled)
+    if node:
+        stmt = stmt.where(Vm.node == node.strip())
+    if os_family:
+        stmt = stmt.where(Vm.os_family == os_family)
+    if owner:
+        lo = owner.strip().lower()
+        stmt = stmt.where(or_(
+            func.lower(func.coalesce(Vm.owner, "")) == lo,
+            func.lower(func.coalesce(Vm.business_owner, "")) == lo,
+            func.lower(func.coalesce(Vm.technical_owner, "")) == lo,
+        ))
+    if department:
+        dept = department.strip().lower()
+        stmt = stmt.where(func.lower(func.coalesce(Vm.department, "")) == dept)
+    if tag:
+        stmt = stmt.where(Vm.tags.contains([tag.strip()]))
+    if application:
+        stmt = stmt.where(exists(select(VmApplication.vm_id).where(
+            VmApplication.vm_id == Vm.id,
+            func.lower(VmApplication.app_name).like(f"%{application.strip().lower()}%"),
+        )))
+    if health == "below_50":
+        stmt = stmt.where(Vm.health_score < 50)
+    elif health == "below_75":
+        stmt = stmt.where(Vm.health_score < 75)
+    elif health == "complete":
+        stmt = stmt.where(Vm.health_score >= 100)
     return stmt
 
 

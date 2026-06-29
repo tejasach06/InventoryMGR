@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.deps import Csrf, DbSession, EditorUser, ViewerUser
 from app.db.models import VmApplication
 from app.schemas.vms import ApplicationCreate, ApplicationRead
-from app.services.vms import get_vm_or_404
+from app.services.vms import get_vm_or_404, recompute_health
 
 router = APIRouter()
 
@@ -31,6 +31,7 @@ def add_application(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Application already linked to this VM")
     db.refresh(app)
+    recompute_health(db, vm_id)
     return app
 
 
@@ -58,7 +59,6 @@ def remove_application(
     vm_id: uuid.UUID, app_id: uuid.UUID, db: DbSession, _: EditorUser, __: Csrf
 ) -> None:
     app = db.scalar(select(VmApplication).where(VmApplication.id == app_id, VmApplication.vm_id == vm_id))
-    if app is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
     db.delete(app)
     db.commit()
+    recompute_health(db, vm_id)

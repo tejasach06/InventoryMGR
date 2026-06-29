@@ -284,7 +284,10 @@ export const api = {
     apiRequest<Vm>(`/vms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteVm: (id: string) => apiRequest<null>(`/vms/${id}`, { method: 'DELETE' }),
   cloneVm: (id: string) => apiRequest<Vm>(`/vms/${id}/clone`, { method: 'POST' }),
-  exportVmsUrl: () => `${API_PREFIX}/vms/export`,
+  exportVmsUrl: (params?: URLSearchParams) =>
+    params && params.toString() ? `${API_PREFIX}/vms/export?${params.toString()}` : `${API_PREFIX}/vms/export`,
+  exportSelectedUrl: (ids: string[]) =>
+    `${API_PREFIX}/vms/export?${ids.map(id => `ids=${encodeURIComponent(id)}`).join('&')}`,
   listVmOwners: () => apiRequest<string[]>('/vms/owners'),
 
   listDisks: (vmId: string) => apiRequest<Disk[]>(`/vms/${vmId}/disks`),

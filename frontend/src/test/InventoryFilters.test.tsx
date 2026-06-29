@@ -21,6 +21,7 @@ const list: VmList = { items: [makeVm()], total: 1, limit: 50, offset: 0 };
 beforeEach(() => {
   pushMock.mockReset();
   vi.spyOn(api, 'listVms').mockResolvedValue(list);
+  vi.spyOn(api, 'listVmOwners').mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -35,7 +36,7 @@ describe('InventoryPage filters', () => {
       renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
       fireEvent.change(screen.getByLabelText('Platform'), { target: { value: 'vmware' } });
-      fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'stopped' } });
+      fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'powered_off' } });
       fireEvent.change(screen.getByLabelText('Criticality'), { target: { value: 'high' } });
       fireEvent.change(screen.getByLabelText('Lifecycle'), { target: { value: 'retired' } });
 
@@ -44,7 +45,7 @@ describe('InventoryPage filters', () => {
       expect(pushMock).toHaveBeenCalledTimes(1);
       const target = pushMock.mock.calls[0][0] as string;
       expect(target).toContain('platform=vmware');
-      expect(target).toContain('status=stopped');
+      expect(target).toContain('status=powered_off');
       expect(target).toContain('criticality=high');
       expect(target).toContain('lifecycle=retired');
     } finally {
