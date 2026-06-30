@@ -8,7 +8,7 @@ InventoryMGR is a full-stack virtual machine inventory application for small and
 - **Frontend**: Next.js 16, React, TypeScript, Tailwind CSS, TanStack Query
 - **Tooling**: devbox, uv, bun, just, pytest, Vitest, Playwright
 
-## Main features
+## Features
 
 - First-deployment admin account creation from the login page.
 - Session-cookie authentication with CSRF protection for state-changing requests.
@@ -23,60 +23,35 @@ InventoryMGR is a full-stack virtual machine inventory application for small and
 - Audit log recording every field change with old/new values and the acting user.
 - Dashboard with 9 infrastructure summary cards and recently added VMs.
 - 8 predefined downloadable CSV reports (Linux, Windows, Production, Monitoring, etc.).
-- CSV export of all VMs or filtered results.
+- CSV export of all VMs or a filtered subset.
 - CSV import with preview, column mapping, duplicate detection, and error report.
 - Admin-only user management.
 
 ## Project layout
 
 ```text
-backend/   FastAPI app, database models, Alembic migrations, pytest tests
-frontend/  Next.js app, API client, UI routes, unit and E2E tests
-justfile   Common local commands
-devbox.json Development runtime and PostgreSQL scripts
-docs/      CONTRIBUTING.md (setup, scripts, testing) · RUNBOOK.md (deployment, ops)
+backend/     FastAPI app, database models, Alembic migrations, pytest tests
+frontend/    Next.js app, API client, UI routes, unit and E2E tests
+justfile     Common local commands
+devbox.json  Development runtime and PostgreSQL scripts
+docs/        CONTRIBUTING.md (setup, scripts, testing) · RUNBOOK.md (deployment, ops)
 ```
 
-## Configuration
+## Quick start
 
-Copy the example environment file and edit secrets before running outside local development:
+Requires [devbox](https://www.jetify.com/devbox).
 
 ```bash
-cp .env.example .env
+devbox shell
+just setup      # install deps, init DB, run migrations
+
+just api-dev    # FastAPI on :8000
+just web-dev    # Next.js on :3000
 ```
 
-Important variables:
+Open `http://127.0.0.1:3000`. On a fresh database `/login` shows **Create admin account**.
 
-| Variable | Purpose |
-| --- | --- |
-| `APP_ENV` | `development`, `test`, or `production` |
-| `DATABASE_URL` | PostgreSQL URL used by the backend |
-| `TEST_DATABASE_URL` | PostgreSQL URL used by backend tests |
-| `JWT_SECRET` | Secret used to sign session tokens |
-| `APP_CORS_ORIGINS` | Comma-separated frontend origins allowed by the API |
-| `UPLOAD_DIR` | Directory where VM file attachments are stored (default: `/data/uploads`) |
-
-For production, set a strong `JWT_SECRET`. The first admin account is created from the `/login` setup page when the users table is empty.
-
-## Run locally
-
-The easiest local path is devbox:
-
-```bash
-devbox run setup
-just api-dev
-just web-dev
-```
-
-Open the app at:
-
-```text
-http://127.0.0.1:3000
-```
-
-On a fresh database, `/login` shows `Create admin account`. Create the first admin there; later visits show the normal sign-in form.
-
-If setup has already run, start only the database and apps:
+If setup has already run and you just need to start the services:
 
 ```bash
 just db-up
@@ -84,123 +59,57 @@ just api-dev
 just web-dev
 ```
 
-## Tests
+### Tests
 
 ```bash
-just api-test
-just web-test
-just e2e
+just api-test   # pytest (backend)
+just web-test   # Vitest (frontend)
+just e2e        # Playwright end-to-end
+
+just verify     # all of the above + lint + typecheck
 ```
 
-Full verification:
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for the full command reference.
+
+## Configuration
+
+Copy the example file and edit secrets before running outside local development:
 
 ```bash
-just verify
+cp .env.example .env
 ```
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `APP_ENV` | No | `development`, `test`, or `production` |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `JWT_SECRET` | Yes (prod) | Must be 32+ random bytes in production |
+| `APP_CORS_ORIGINS` | No | Comma-separated frontend origins |
+| `UPLOAD_DIR` | No | File attachment storage (default: `/data/uploads`) |
+
+See [docs/RUNBOOK.md](docs/RUNBOOK.md) for the full environment variable reference.
 
 ## Docker
 
-Dockerfile for the backend is at `backend/Dockerfile`, for the frontend at `frontend/Dockerfile`. `docker-compose.yml` defines three services: `db` (Postgres 16), `backend`, and `frontend`.
+`docker-compose.yml` defines three services: `db` (Postgres 16), `backend` (:8000), `frontend` (:3000).
 
 ```bash
-docker compose build
 docker compose up -d
 ```
 
-## Deployment with PM2
-
-This repository uses PM2 for process management in production.
-
-### 1. Provision PostgreSQL
-
-Create a production database and user, then set `DATABASE_URL`, for example:
-
-```text
-postgresql+psycopg://inventorymgr:<password>@<host>:5432/inventorymgr
-```
-
-### 2. Configure production environment
-
-Create `.env` on the server:
+For E2E tests in Docker (no local services needed):
 
 ```bash
-APP_ENV=production
-DATABASE_URL=postgresql+psycopg://inventorymgr:<password>@<host>:5432/inventorymgr
-JWT_SECRET=<long-random-secret>
-SESSION_COOKIE_NAME=inventorymgr_session
-CSRF_COOKIE_NAME=inventorymgr_csrf
-APP_CORS_ORIGINS=https://your-domain.example
-INVENTORYMGR_API_URL=http://127.0.0.1:8000
-UPLOAD_DIR=/data/uploads
-NODE_ENV=production
+docker compose -f docker-compose.e2e.yml run --rm playwright
 ```
 
-### 3. Install backend dependencies and migrate
+## Deployment
 
-```bash
-cd backend
-uv sync
-uv run alembic upgrade head
-```
-
-### 4. Build frontend
-
-```bash
-cd frontend
-bun install
-bun run build
-```
-
-### 5. Start with PM2
-
-```bash
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup
-```
-
-### 6. PM2 management
-
-```bash
-pm2 status
-pm2 logs
-pm2 restart all
-pm2 stop all
-```
-
-### 7. Reverse proxy rules
-
-Route traffic like this:
-
-- `/api/*` → backend at `http://127.0.0.1:8000`
-- everything else → Next.js frontend at `http://127.0.0.1:3000`
-
-### 8. First login
-
-Open `/login` after services are running. If no users exist, the page shows `Create admin account`.
-
-## Useful commands
-
-```bash
-just setup         # install dependencies, initialize DB, run migrations
-just db-up         # start PostgreSQL
-just api-dev       # FastAPI dev server on :8000
-just web-dev       # Next.js dev server on :3000
-just verify        # lint, typecheck, unit tests, Playwright
-
-just pm2-start
-just pm2-stop
-just pm2-restart
-just pm2-logs
-just pm2-status
-just pm2-save
-just pm2-startup
-just pm2-kill
-```
+See **[docs/RUNBOOK.md](docs/RUNBOOK.md)** for the complete PM2 deployment guide, health checks, common issues, and rollback procedures.
 
 ## API Reference
 
-All endpoints are prefixed with `/api`.
+All routes are prefixed with `/api`. Authentication uses a session cookie set on `POST /api/auth/login`.
 
 ### Authentication
 
@@ -238,7 +147,7 @@ All endpoints are prefixed with `/api`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/vms/{vm_id}/networks` | List interfaces |
+| GET | `/vms/{vm_id}/networks` | List network interfaces |
 | POST | `/vms/{vm_id}/networks` | Add interface |
 | PATCH | `/vms/{vm_id}/networks/{network_id}` | Update interface |
 | DELETE | `/vms/{vm_id}/networks/{network_id}` | Delete interface |
@@ -257,7 +166,7 @@ All endpoints are prefixed with `/api`.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/vms/{vm_id}/attachments` | List attachments |
-| POST | `/vms/{vm_id}/attachments` | Upload file (max 50 MB) |
+| POST | `/vms/{vm_id}/attachments` | Upload file |
 | GET | `/vms/{vm_id}/attachments/{attachment_id}/download` | Download file |
 | DELETE | `/vms/{vm_id}/attachments/{attachment_id}` | Delete attachment |
 
@@ -277,16 +186,15 @@ All endpoints are prefixed with `/api`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/reports` | List predefined reports |
-| GET | `/reports/{report_name}` | Download report as CSV |
+| GET | `/reports/{report_name}` | Download predefined CSV report |
 
 ### CSV Imports
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/imports/preview` | Preview CSV (multipart/form-data) |
-| GET | `/imports/{batch_id}` | Import batch status |
-| POST | `/imports/{batch_id}/commit` | Commit import |
+| POST | `/imports/preview` | Upload CSV and get import preview |
+| GET | `/imports/{batch_id}` | Get import batch details |
+| POST | `/imports/{batch_id}/commit` | Commit an import batch |
 
 ### Users (admin only)
 
@@ -296,15 +204,15 @@ All endpoints are prefixed with `/api`.
 | POST | `/users` | Create user |
 | PATCH | `/users/{user_id}` | Update user |
 
-### Settings
+### Settings (admin only)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/settings/options` | Grouped dropdown options for all categories |
-| GET | `/settings/options/all` | Flat list of all options (admin) |
-| POST | `/settings/options` | Create dropdown option (admin) |
-| PATCH | `/settings/options/{option_id}` | Update dropdown option (admin) |
-| DELETE | `/settings/options/{option_id}` | Delete dropdown option (admin) |
+| GET | `/settings/options/all` | Flat list of all options |
+| POST | `/settings/options` | Create dropdown option |
+| PATCH | `/settings/options/{option_id}` | Update dropdown option |
+| DELETE | `/settings/options/{option_id}` | Delete dropdown option |
 
 ### Health
 
