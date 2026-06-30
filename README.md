@@ -5,7 +5,7 @@ InventoryMGR is a full-stack virtual machine inventory application for small and
 ## Stack
 
 - **Backend**: Python 3.12+, FastAPI, SQLAlchemy, Alembic, PostgreSQL, PyJWT
-- **Frontend**: Next.js 15, React, TypeScript, Tailwind CSS, TanStack Query
+- **Frontend**: Next.js 16, React, TypeScript, Tailwind CSS, TanStack Query
 - **Tooling**: devbox, uv, bun, just, pytest, Vitest, Playwright
 
 ## Main features
@@ -34,6 +34,7 @@ backend/   FastAPI app, database models, Alembic migrations, pytest tests
 frontend/  Next.js app, API client, UI routes, unit and E2E tests
 justfile   Common local commands
 devbox.json Development runtime and PostgreSQL scripts
+docs/      CONTRIBUTING.md (setup, scripts, testing) · RUNBOOK.md (deployment, ops)
 ```
 
 ## Configuration
@@ -215,13 +216,14 @@ All endpoints are prefixed with `/api`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/vms` | List VMs (`q`, `platform`, `status`, `environment`, `criticality`, `lifecycle`, `monitoring_enabled`) |
+| GET | `/vms` | List VMs (`q`, `platform`, `status`, `environment`, `criticality`, `lifecycle`, `monitoring_enabled`, `health`, `limit`, `offset`) |
 | POST | `/vms` | Create VM |
+| GET | `/vms/owners` | List distinct owner names |
 | GET | `/vms/{vm_id}` | Get VM with all sub-resources |
 | PATCH | `/vms/{vm_id}` | Update VM |
 | DELETE | `/vms/{vm_id}` | Delete VM |
 | POST | `/vms/{vm_id}/clone` | Clone VM record |
-| GET | `/vms/export` | Stream all VMs as CSV |
+| GET | `/vms/export` | Stream filtered VMs as CSV (`status`, `health`, `ids`) |
 
 ### Disks
 
@@ -293,6 +295,16 @@ All endpoints are prefixed with `/api`.
 | GET | `/users` | List users |
 | POST | `/users` | Create user |
 | PATCH | `/users/{user_id}` | Update user |
+
+### Settings
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/settings/options` | Grouped dropdown options for all categories |
+| GET | `/settings/options/all` | Flat list of all options (admin) |
+| POST | `/settings/options` | Create dropdown option (admin) |
+| PATCH | `/settings/options/{option_id}` | Update dropdown option (admin) |
+| DELETE | `/settings/options/{option_id}` | Delete dropdown option (admin) |
 
 ### Health
 
