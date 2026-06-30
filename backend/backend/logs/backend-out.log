@@ -1,5 +1,0 @@
-2026-06-15 05:29:23 +00:00: INFO:     127.0.0.1:55602 - "GET /api/health HTTP/1.1" 200 OK
-2026-06-15 05:29:54 +00:00: INFO:     127.0.0.1:37378 - "GET /api/mempalace/search?q=test HTTP/1.1" 404 Not Found
-2026-06-15 05:37:45 +00:00: INFO:     127.0.0.1:59630 - "GET /api/health HTTP/1.1" 200 OK
-2026-06-15 05:49:24 +00:00: INFO:     127.0.0.1:38704 - "GET /api/health HTTP/1.1" 200 OK
-2026-06-15 05:49:24 +00:00: INFO:     127.0.0.1:38718 - "GET /api/mempalace/search?q=test HTTP/1.1" 404 Not Found
