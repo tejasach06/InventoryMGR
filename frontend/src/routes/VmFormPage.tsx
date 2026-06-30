@@ -11,7 +11,7 @@ import {
   secondaryButtonClass, sectionTitleClass, selectClass, textareaClass,
 } from '../components/ui';
 import {
-  collectErrors, criticalities, emptyVmFormValues, environments, lifecycles,
+  collectErrors, criticalities, emptyVmFormValues, environments,
   platforms, statuses, VmFormErrors, VmFormValues, vmFormSchema, vmToFormValues,
 } from '../lib/vmForm';
 
@@ -117,7 +117,6 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
 
   const options = optionsQuery.data ?? EMPTY_OPTIONS;
   const owners = ownersQuery.data ?? [];
-  const osOptions = values.os_family ? (options.os_by_family[values.os_family as 'linux' | 'windows'] ?? []) : options.os;
 
   useEffect(() => { if (vmQuery.data) setValues(vmToFormValues(vmQuery.data)); }, [vmQuery.data]);
 
@@ -175,7 +174,6 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
               <SelectInput name="status" label="Status" values={values} errors={errors} onChange={setField} options={statuses} required />
               <SelectInput name="environment" label="Environment" values={values} errors={errors} onChange={setField} options={environments} required />
               <SelectInput name="criticality" label="Criticality" values={values} errors={errors} onChange={setField} options={criticalities} required />
-              <SelectInput name="lifecycle" label="Lifecycle" values={values} errors={errors} onChange={setField} options={lifecycles} required />
             </div>
           </FormSection>
 
@@ -204,7 +202,6 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
                   <option value="windows">Windows</option>
                 </select>
               </div>
-              <ComboInput name="os_name" label="OS Name" values={values} errors={errors} onChange={setField} options={osOptions} />
               <TextInput name="os_distribution" label="Distribution" values={values} errors={errors} onChange={setField} />
               <TextInput name="os_version" label="Version" values={values} errors={errors} onChange={setField} />
             </div>
@@ -214,7 +211,6 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <div className="grid gap-4 lg:grid-cols-3">
               <ComboInput name="owner" label="Owner" values={values} errors={errors} onChange={setField} options={owners} />
               <TextInput name="business_owner" label="Business Owner" values={values} errors={errors} onChange={setField} />
-              <TextInput name="technical_owner" label="Technical Owner" values={values} errors={errors} onChange={setField} />
               <TextInput name="department" label="Department" values={values} errors={errors} onChange={setField} />
             </div>
           </FormSection>

@@ -1,0 +1,62 @@
+---
+# Run E2E tests in Docker: docker compose -f docker-compose.e2e.yml run --rm playwright
+services:
+  db-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: inventorymgr
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: inventorymgr_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventorymgr"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      APP_ENV: test
+      DATABASE_URL: "postgresql+psycopg://inventorymgr:password@db-test:5432/inventorymgr_test"
+      JWT_SECRET: "e2e-test-only-not-for-production"
+    depends_on:
+      db-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        INVENTORYMGR_API_URL: http://backend:8000
+    environment:
+      INVENTORYMGR_API_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.60.0-jammy
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    environment:
+      BASE_URL: http://frontend:3000
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    depends_on:
+      frontend:
+        condition: service_healthy
+    command: >
+      bash -c "npm install --legacy-peer-deps --silent && npx playwright test --project=chromium"

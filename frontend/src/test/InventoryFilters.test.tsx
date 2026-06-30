@@ -38,7 +38,6 @@ describe('InventoryPage filters', () => {
       fireEvent.change(screen.getByLabelText('Platform'), { target: { value: 'vmware' } });
       fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'powered_off' } });
       fireEvent.change(screen.getByLabelText('Criticality'), { target: { value: 'high' } });
-      fireEvent.change(screen.getByLabelText('Lifecycle'), { target: { value: 'retired' } });
 
       act(() => { vi.advanceTimersByTime(400); });
 
@@ -47,7 +46,6 @@ describe('InventoryPage filters', () => {
       expect(target).toContain('platform=vmware');
       expect(target).toContain('status=powered_off');
       expect(target).toContain('criticality=high');
-      expect(target).toContain('lifecycle=retired');
     } finally {
       vi.useRealTimers();
     }

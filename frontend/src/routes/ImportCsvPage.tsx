@@ -9,8 +9,8 @@ const actions: ImportAction[] = ['create', 'update', 'conflict', 'invalid'];
 
 export const TEMPLATE_HEADERS: string[] = [
   'name', 'fqdn', 'platform', 'cluster', 'node', 'sr_id', 'external_id', 'datacenter',
-  'status', 'environment', 'criticality', 'lifecycle', 'owner', 'business_owner',
-  'technical_owner', 'department', 'cpu_cores', 'memory_mb', 'os_family', 'os_distribution',
+  'status', 'environment', 'criticality', 'owner', 'business_owner',
+  'department', 'cpu_cores', 'memory_mb', 'os_family', 'os_distribution',
   'os_version', 'monitoring_enabled', 'last_patch_date', 'last_vuln_scan_date',
   'security_remarks', 'decommission_date', 'description', 'tags',
 ];

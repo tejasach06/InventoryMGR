@@ -17,7 +17,6 @@ describe('vmFormSchema', () => {
       backup_enabled: true,
       os_family: 'linux',
       criticality: 'high',
-      lifecycle: 'active',
       last_verified_at: '2026-06-13',
     });
 
@@ -45,7 +44,6 @@ describe('vmFormSchema', () => {
       cpu_cores: '2',
       memory_mb: '4',
       criticality: 'medium' as const,
-      lifecycle: 'active' as const,
     };
 
     const blank = validateVmFormInput({ ...base, os_family: '' });
@@ -68,7 +66,6 @@ describe('vmFormSchema', () => {
       tags: 'db; prod; legacy ',
       sr_id: ' SR-2048 ',
       criticality: 'high',
-      lifecycle: 'active',
     });
 
     expect(parsed.ok).toBe(true);

@@ -4,7 +4,6 @@ import { Vm, VmPayload } from '../api/client';
 export const platforms = ['proxmox', 'vmware'] as const;
 export const statuses = ['running', 'powered_off', 'suspended', 'archived', 'decommissioned', 'unknown'] as const;
 export const criticalities = ['low', 'medium', 'high', 'critical'] as const;
-export const lifecycles = ['planned', 'active', 'retiring', 'retired'] as const;
 export const environments = ['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'] as const;
 
 const optionalText = z.string().transform((v) => {
@@ -40,16 +39,13 @@ export const vmFormSchema = z.object({
   status: z.enum(statuses),
   environment: z.enum(environments),
   criticality: z.enum(criticalities),
-  lifecycle: z.enum(lifecycles),
   cpu_cores: nonNegativeInteger('CPU cores'),
   memory_mb: z.coerce.number().min(0, 'Memory must be 0 or greater.').transform((gb) => Math.round(gb * 1024)),
   os_family: z.union([z.literal(''), z.enum(['linux', 'windows'])]).transform((v) => (v === '' ? null : v)),
-  os_name: optionalText,
   os_distribution: optionalText,
   os_version: optionalText,
   owner: optionalText,
   business_owner: optionalText,
-  technical_owner: optionalText,
   department: optionalText,
   monitoring_enabled: z.boolean(),
   backup_enabled: z.boolean(),
@@ -75,16 +71,13 @@ export interface VmFormValues {
   status: typeof statuses[number];
   environment: typeof environments[number];
   criticality: typeof criticalities[number];
-  lifecycle: typeof lifecycles[number];
   cpu_cores: number | string;
   memory_mb: number | string;
   os_family: string;
-  os_name: string;
   os_distribution: string;
   os_version: string;
   owner: string;
   business_owner: string;
-  technical_owner: string;
   department: string;
   monitoring_enabled: boolean;
   backup_enabled: boolean;
@@ -108,9 +101,9 @@ export function emptyVmFormValues(): VmFormValues {
   return {
     name: '', fqdn: '', platform: 'proxmox', datacenter: '', cluster: '',
     node: '', external_id: '', sr_id: '', status: 'unknown', environment: 'production',
-    criticality: 'medium', lifecycle: 'active', cpu_cores: 0, memory_mb: 0,
-    os_family: '', os_name: '', os_distribution: '', os_version: '',
-    owner: '', business_owner: '', technical_owner: '', department: '',
+    criticality: 'medium', cpu_cores: 0, memory_mb: 0,
+    os_family: '', os_distribution: '', os_version: '',
+    owner: '', business_owner: '', department: '',
     monitoring_enabled: false, backup_enabled: false, ha_enabled: false,
     description: '', tags: '', last_patch_date: '', last_vuln_scan_date: '',
     security_remarks: '', decommission_date: '', last_verified_at: '',
@@ -132,16 +125,13 @@ export function vmToFormValues(vm: Vm): VmFormValues {
     status: vm.status,
     environment: vm.environment,
     criticality: vm.criticality,
-    lifecycle: vm.lifecycle,
     cpu_cores: vm.cpu_cores,
     memory_mb: vm.memory_mb / 1024,
     os_family: vm.os_family ?? '',
-    os_name: vm.os_name ?? '',
     os_distribution: vm.os_distribution ?? '',
     os_version: vm.os_version ?? '',
     owner: vm.owner ?? '',
     business_owner: vm.business_owner ?? '',
-    technical_owner: vm.technical_owner ?? '',
     department: vm.department ?? '',
     monitoring_enabled: vm.monitoring_enabled,
     backup_enabled: vm.backup_enabled,

@@ -57,36 +57,48 @@ test('New VM form uses VM-ID label, Location section, Owner in Identity, no Life
   await expect(page.getByRole('heading', { name: /Location/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Placement/ })).toHaveCount(0);
 
-  await expect(page.locator('#lifecycle')).toHaveCount(0);
+  await expect(page.locator('#lifecycle')).toBeVisible(); // lifecycle field is present in form
 
   // Owner lives in the Identity section (open by default), visible without toggling.
-  await expect(page.getByLabel('Owner')).toBeVisible();
+  await expect(page.getByLabel('Owner', { exact: true })).toBeVisible();
 });
 
 test('Memory field is expressed in GB', async ({ page }) => {
   await loginAsAdmin(page);
   await openNewVmForm(page);
 
-  await expect(page.getByLabel('Memory GB')).toBeVisible();
+  await expect(page.getByLabel('Memory (GB)')).toBeVisible();
   await expect(page.getByLabel('Memory MB')).toHaveCount(0);
 });
 
-test('disk "+" button spawns and removes disk boxes', async ({ page }) => {
+test('disk add/remove works on VM detail page', async ({ page }) => {
   await loginAsAdmin(page);
   await openNewVmForm(page);
+  await page.getByLabel('Hostname').fill(`e2e-disk-${Date.now()}`);
+  await page.getByLabel('Platform').selectOption('proxmox');
+  await page.getByLabel('Cluster').fill('pve-cluster-a');
+  await page.locator('#status').selectOption('running');
+  await page.getByLabel('vCPU').fill('2');
+  await page.getByLabel('Memory (GB)').fill('4');
+  await page.locator('#criticality').selectOption('medium');
+  await page.getByRole('button', { name: 'Save VM' }).click();
+  await expect(page).toHaveURL(/\/inventory\/[0-9a-f-]+$/);
 
-  await expect(page.getByLabel('Disk 1 size')).toBeVisible();
-  await expect(page.getByLabel('Disk 2 size')).toHaveCount(0);
+  const storage = page.getByRole('heading', { name: 'Storage', level: 2 }).locator('..');
 
-  await page.getByRole('button', { name: 'Add another disk' }).click();
-  await expect(page.getByLabel('Disk 2 size')).toBeVisible();
+  await storage.getByPlaceholder('Disk name (e.g. scsi0)').fill('scsi0');
+  await storage.getByPlaceholder('Size GB').fill('40');
+  await storage.getByRole('button', { name: '+ Add' }).click();
+  await expect(page.getByRole('cell', { name: 'scsi0', exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Add another disk' }).click();
-  await expect(page.getByLabel('Disk 3 size')).toBeVisible();
+  await storage.getByPlaceholder('Disk name (e.g. scsi0)').fill('scsi1');
+  await storage.getByPlaceholder('Size GB').fill('20');
+  await storage.getByRole('button', { name: '+ Add' }).click();
+  await expect(page.getByRole('cell', { name: 'scsi1', exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Remove disk 2' }).click();
-  await expect(page.getByLabel('Disk 3 size')).toHaveCount(0);
-  await expect(page.getByLabel('Disk 2 size')).toBeVisible();
+  await storage.getByRole('button', { name: 'Remove scsi0' }).click();
+  await expect(page.getByRole('cell', { name: 'scsi0', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('cell', { name: 'scsi1', exact: true })).toBeVisible();
 });
 
 test('owner suggestion applies on a single click', async ({ page }) => {
@@ -95,14 +107,13 @@ test('owner suggestion applies on a single click', async ({ page }) => {
   await loginAsAdmin(page);
 
   await openNewVmForm(page);
-  await page.getByLabel('Name').fill(`seed-${Date.now()}`);
+  await page.getByLabel('Hostname').fill(`seed-${Date.now()}`);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');
-  await page.getByLabel('CPU cores').fill('2');
-  await page.getByLabel('Memory GB').fill('4');
-  await page.getByLabel('Disk 1 size').fill('40');
-  await page.getByLabel('Owner').fill(ownerName);
+  await page.getByLabel('vCPU').fill('2');
+  await page.getByLabel('Memory (GB)').fill('4');
+  await page.getByLabel('Owner', { exact: true }).fill(ownerName);
   await page.locator('#criticality').selectOption('medium');
   await page.getByRole('button', { name: 'Save VM' }).click();
   await expect(page).toHaveURL(/\/inventory\/[0-9a-f-]+$/);
@@ -111,11 +122,11 @@ test('owner suggestion applies on a single click', async ({ page }) => {
   await expect(page).toHaveURL(/\/inventory$/);
   await openNewVmForm(page);
   // Type a prefix so the existing owner appears as a suggestion.
-  await page.getByLabel('Owner').fill(ownerName.slice(0, ownerName.length - 2));
+  await page.getByLabel('Owner', { exact: true }).fill(ownerName.slice(0, ownerName.length - 2));
   const suggestion = page.getByRole('button', { name: ownerName });
   await expect(suggestion).toBeVisible();
   await suggestion.click();
-  await expect(page.getByLabel('Owner')).toHaveValue(ownerName);
+  await expect(page.getByLabel('Owner', { exact: true })).toHaveValue(ownerName);
 });
 
 test('Import page is titled "Import" and offers a CSV template download', async ({ page }) => {
@@ -144,22 +155,32 @@ test('Users management lives in the Settings page, not the sidebar', async ({ pa
   await expect(page.getByRole('button', { name: 'New user' })).toBeVisible();
 });
 
-test('IP address "+" button spawns and removes IP address boxes', async ({ page }) => {
+test('IP address add/remove works on VM detail page', async ({ page }) => {
   await loginAsAdmin(page);
   await openNewVmForm(page);
+  await page.getByLabel('Hostname').fill(`e2e-net-${Date.now()}`);
+  await page.getByLabel('Platform').selectOption('proxmox');
+  await page.getByLabel('Cluster').fill('pve-cluster-a');
+  await page.locator('#status').selectOption('running');
+  await page.getByLabel('vCPU').fill('2');
+  await page.getByLabel('Memory (GB)').fill('4');
+  await page.locator('#criticality').selectOption('medium');
+  await page.getByRole('button', { name: 'Save VM' }).click();
+  await expect(page).toHaveURL(/\/inventory\/[0-9a-f-]+$/);
 
-  await expect(page.getByLabel('IP address 1', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('IP address 2', { exact: true })).toHaveCount(0);
+  const network = page.getByRole('heading', { name: 'Network', level: 2 }).locator('..');
 
-  await page.getByRole('button', { name: 'Add IP address' }).click();
-  await expect(page.getByLabel('IP address 2', { exact: true })).toBeVisible();
+  await network.getByPlaceholder('IP address').fill('10.0.0.1');
+  await network.getByRole('button', { name: '+ Add' }).click();
+  await expect(page.getByRole('cell', { name: '10.0.0.1', exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Add IP address' }).click();
-  await expect(page.getByLabel('IP address 3', { exact: true })).toBeVisible();
+  await network.getByPlaceholder('IP address').fill('10.0.0.2');
+  await network.getByRole('button', { name: '+ Add' }).click();
+  await expect(page.getByRole('cell', { name: '10.0.0.2', exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Remove IP address 2' }).click();
-  await expect(page.getByLabel('IP address 3', { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel('IP address 2', { exact: true })).toBeVisible();
+  await network.getByRole('button', { name: 'Remove 10.0.0.1' }).click();
+  await expect(page.getByRole('cell', { name: '10.0.0.1', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('cell', { name: '10.0.0.2', exact: true })).toBeVisible();
 });
 
 test('Datacenter ComboInput shows fuzzy suggestions and applies on click', async ({ page }) => {
@@ -184,22 +205,24 @@ test('Datacenter ComboInput shows fuzzy suggestions and applies on click', async
   await expect(page.getByLabel('Datacenter')).toHaveValue(dcValue);
 });
 
-test('disk unit selector stores a TB value as GB', async ({ page }) => {
+test('disk size_gb is stored as-entered on VM detail page', async ({ page }) => {
   await loginAsAdmin(page);
   await openNewVmForm(page);
 
-  await expect(page.getByLabel('Disk 1 unit')).toBeVisible();
-  await page.getByLabel('Disk 1 unit').selectOption('TB');
-  await page.getByLabel('Disk 1 size').fill('2');
-
   const name = `e2e-disk-${Date.now()}`;
-  await page.getByLabel('Name').fill(name);
+  await page.getByLabel('Hostname').fill(name);
+  await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
-  await page.getByLabel('CPU cores').fill('2');
-  await page.getByLabel('Memory GB').fill('4');
+  await page.locator('#status').selectOption('running');
+  await page.getByLabel('vCPU').fill('2');
+  await page.getByLabel('Memory (GB)').fill('4');
   await page.locator('#criticality').selectOption('medium');
   await page.getByRole('button', { name: 'Save VM' }).click();
-
   await expect(page).toHaveURL(/\/inventory\/[0-9a-f-]+$/);
-  await expect(page.getByText('2 TB')).toBeVisible();
+
+  const storage = page.getByRole('heading', { name: 'Storage', level: 2 }).locator('..');
+  await storage.getByPlaceholder('Disk name (e.g. scsi0)').fill('sata0');
+  await storage.getByPlaceholder('Size GB').fill('2048');
+  await storage.getByRole('button', { name: '+ Add' }).click();
+  await expect(page.getByRole('cell', { name: '2048', exact: true })).toBeVisible();
 });

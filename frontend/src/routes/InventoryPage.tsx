@@ -9,7 +9,7 @@ import { useCurrentUser } from '../components/AuthContext';
 import { Alert, Badge, EmptyState, PageHeader, PageTransition, TableSkeleton, cardClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
 import { formatMemory } from '../lib/units';
 
-const filterNames = ['q', 'platform', 'status', 'criticality', 'lifecycle', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'department', 'tag', 'application', 'health'] as const;
+const filterNames = ['q', 'platform', 'status', 'criticality', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'department', 'tag', 'application', 'health'] as const;
 
 type FilterName = (typeof filterNames)[number];
 type Filters = Record<FilterName, string>;
@@ -33,7 +33,6 @@ function filtersFromParams(params: ParamReader): Filters {
     platform: params.get('platform') ?? '',
     status: params.get('status') ?? '',
     criticality: params.get('criticality') ?? '',
-    lifecycle: params.get('lifecycle') ?? '',
     environment: params.get('environment') ?? '',
     monitoring_enabled: params.get('monitoring_enabled') ?? '',
     node: params.get('node') ?? '',
@@ -180,7 +179,7 @@ export function InventoryPage() {
   }
 
   function clearFilters() {
-    const empty: Filters = { q: '', platform: '', status: '', criticality: '', lifecycle: '', environment: '', monitoring_enabled: '', node: '', os_family: '', owner: '', department: '', tag: '', application: '', health: '' };
+    const empty: Filters = { q: '', platform: '', status: '', criticality: '', environment: '', monitoring_enabled: '', node: '', os_family: '', owner: '', department: '', tag: '', application: '', health: '' };
     setFilters(empty);
     router.push(pathname);
   }
@@ -222,12 +221,6 @@ export function InventoryPage() {
             <label className={labelClass} htmlFor="criticality">Criticality</label>
             <select className={selectClass} id="criticality" name="criticality" value={filters.criticality} onChange={(event) => setFilters({ ...filters, criticality: event.target.value })}>
               <option value="">All criticalities</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="critical">critical</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="lifecycle">Lifecycle</label>
-            <select className={selectClass} id="lifecycle" name="lifecycle" value={filters.lifecycle} onChange={(event) => setFilters({ ...filters, lifecycle: event.target.value })}>
-              <option value="">All lifecycles</option><option value="planned">planned</option><option value="active">active</option><option value="retiring">retiring</option><option value="retired">retired</option>
             </select>
           </div>
           <div>

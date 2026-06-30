@@ -338,7 +338,6 @@ export function VmDetailPage() {
             <Field label="Environment" value={vm.environment} />
             <Field label="Status" value={vm.status} />
             <Field label="Criticality" value={vm.criticality} />
-            <Field label="Lifecycle" value={vm.lifecycle} />
             <Field label="Tags" value={vm.tags.join(', ') || null} />
             {vm.description && <div className="sm:col-span-2 xl:col-span-3 py-2">
               <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Description</dt>
@@ -371,7 +370,6 @@ export function VmDetailPage() {
         <DetailSection title="Operating System">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="OS Family" value={vm.os_family} />
-            <Field label="OS Name" value={vm.os_name} />
             <Field label="Distribution" value={vm.os_distribution} />
             <Field label="Version" value={vm.os_version} />
           </dl>
@@ -381,7 +379,6 @@ export function VmDetailPage() {
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Owner" value={vm.owner} />
             <Field label="Business Owner" value={vm.business_owner} />
-            <Field label="Technical Owner" value={vm.technical_owner} />
             <Field label="Department" value={vm.department} />
           </dl>
         </DetailSection>

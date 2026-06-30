@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "graphify": {
+      "type": "stdio",
+      "command": "graphify-mcp",
+      "args": ["--graph", "graphify-out/graph.json"],
+      "env": {}
+    },
+    "serena": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "--project",
+        ".",
+        "--context",
+        "claude-code",
+        "--open-web-dashboard",
+        "False"
+      ],
+      "env": {}
+    }
+  }
+}

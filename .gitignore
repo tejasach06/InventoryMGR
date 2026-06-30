@@ -12,6 +12,7 @@ backend/htmlcov/
 frontend/dist/
 frontend/coverage/
 frontend/.next/
+frontend/package-lock.json
 playwright-report/
 test-results/
 graphify-out/
@@ -26,3 +27,8 @@ frontend/.env*.local
 frontend/playwright-report/
 *.sqlite
 *.db
+docs/
+.serena
+.devbox
+AGENTS.md
+CLAUDE.md
