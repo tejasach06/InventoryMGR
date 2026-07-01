@@ -13,6 +13,7 @@ export const TEMPLATE_HEADERS: string[] = [
   'department', 'cpu_cores', 'memory_mb', 'os_family', 'os_distribution',
   'os_version', 'monitoring_enabled', 'last_patch_date', 'last_vuln_scan_date',
   'security_remarks', 'decommission_date', 'description', 'tags',
+  'disk_name', 'disk_gb', 'ip_address',
 ];
 
 const actionBorderColor: Record<ImportAction, string> = {
@@ -169,6 +170,8 @@ export function ImportCsvPage() {
                       <th className="px-4 py-3" scope="col">Name</th>
                       <th className="px-4 py-3" scope="col">Platform</th>
                       <th className="px-4 py-3" scope="col">Cluster</th>
+                      <th className="px-4 py-3" scope="col">Disk</th>
+                      <th className="px-4 py-3" scope="col">IP</th>
                       <th className="px-4 py-3" scope="col">Errors</th>
                     </tr>
                   </thead>
@@ -180,6 +183,8 @@ export function ImportCsvPage() {
                         <td className={tableCellClass}>{row.normalized?.name ?? String(row.raw.name ?? '—')}</td>
                         <td className={tableCellClass}>{row.normalized?.platform ?? String(row.raw.platform ?? '—')}</td>
                         <td className={tableCellClass}>{row.normalized?.cluster ?? String(row.raw.cluster ?? '—')}</td>
+                        <td className={tableCellClass}>{row.raw.disk_name ? `${row.raw.disk_name}${row.raw.disk_gb ? ` (${row.raw.disk_gb} GB)` : ''}` : '—'}</td>
+                        <td className={tableCellClass}>{String(row.raw.ip_address ?? '—')}</td>
                         <td className="min-w-72 px-4 py-3 text-slate-700 dark:text-slate-300">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5 text-red-700 dark:text-red-300">{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
                       </tr>
                     ))}

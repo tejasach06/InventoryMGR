@@ -16,6 +16,8 @@ from app.db.models import (
     Platform,
     User,
     Vm,
+    VmDisk,
+    VmNetwork,
 )
 from app.schemas.vms import VmCreate, VmUpdate
 from app.services.vms import create_vm, update_vm
@@ -53,6 +55,9 @@ OPTIONAL_HEADERS = {
     "security_remarks",
     "decommission_date",
     "last_verified_at",
+    "disk_name",
+    "disk_gb",
+    "ip_address",
 }
 ALL_HEADERS = REQUIRED_HEADERS | OPTIONAL_HEADERS
 
@@ -386,7 +391,15 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
                 if normalized.get(date_field):
                     normalized[date_field] = date.fromisoformat(normalized[date_field])
             if row.action == ImportAction.create:
-                create_vm(db, VmCreate.model_validate(normalized), user, commit=False)
+                vm = create_vm(db, VmCreate.model_validate(normalized), user, commit=False)
+                db.flush()
+                disk_name = str(row.raw.get("disk_name") or "").strip()
+                disk_gb = row.raw.get("disk_gb")
+                ip_address = str(row.raw.get("ip_address") or "").strip()
+                if disk_name:
+                    db.add(VmDisk(vm_id=vm.id, disk_name=disk_name, size_gb=int(disk_gb) if str(disk_gb or "").strip().isdigit() else 0, sort_order=0))
+                if ip_address:
+                    db.add(VmNetwork(vm_id=vm.id, ip_address=ip_address, sort_order=0))
                 created += 1
             elif row.action == ImportAction.update:
                 if row.target_vm_id is None:

@@ -110,6 +110,8 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const queryClient = useQueryClient();
   const [values, setValues] = useState<VmFormValues>(() => emptyVmFormValues());
   const [errors, setErrors] = useState<VmFormErrors>({});
+  const [initDisk, setInitDisk] = useState({ disk_name: '', size_gb: '' });
+  const [initIp, setInitIp] = useState('');
 
   const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => api.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
   const optionsQuery = useQuery({ queryKey: ['settings', 'options'], queryFn: api.getDropdownOptions });
@@ -122,12 +124,6 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
 
   const save = useMutation({
     mutationFn: (payload: VmPayload) => (mode === 'create' ? api.createVm(payload) : api.updateVm(id ?? '', payload)),
-    onSuccess: (vm) => {
-      queryClient.invalidateQueries({ queryKey: ['vms'] });
-      queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
-      queryClient.setQueryData(['vm', vm.id], vm);
-      router.push(`/inventory/${vm.id}`);
-    },
   });
 
   const title = useMemo(() => (mode === 'create' ? 'New VM' : `Edit ${vmQuery.data?.name ?? 'VM'}`), [mode, vmQuery.data]);
@@ -137,7 +133,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
     setErrors((c) => ({ ...c, [name]: undefined }));
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsed = vmFormSchema.safeParse(values);
     if (!parsed.success) {
@@ -148,7 +144,19 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
       return;
     }
     setErrors({});
-    save.mutate(parsed.data as unknown as VmPayload);
+    try {
+      const vm = await save.mutateAsync(parsed.data as unknown as VmPayload);
+      if (mode === 'create') {
+        const sub: Promise<unknown>[] = [];
+        if (initDisk.disk_name.trim()) sub.push(api.addDisk(vm.id, { disk_name: initDisk.disk_name.trim(), size_gb: Number(initDisk.size_gb) || 0, storage_name: null, storage_type: null, sort_order: 0 }));
+        if (initIp.trim()) sub.push(api.addNetwork(vm.id, { ip_address: initIp.trim(), vlan: null, gateway: null, sort_order: 0 }));
+        await Promise.allSettled(sub);
+      }
+      queryClient.invalidateQueries({ queryKey: ['vms'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
+      queryClient.setQueryData(['vm', vm.id], vm);
+      router.push(`/inventory/${vm.id}`);
+    } catch { /* save.isError displayed above the form */ }
   }
 
   if (vmQuery.isLoading) return (
@@ -189,8 +197,29 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <div className="grid gap-4 lg:grid-cols-3">
               <ComboInput name="cpu_cores" label="vCPU" values={values} errors={errors} onChange={setField} options={options.cpu} type="number" required />
               <TextInput name="memory_mb" label="Memory (GB)" values={values} errors={errors} onChange={setField} type="number" required />
+              {mode === 'create' && <>
+                <div>
+                  <label className={labelClass} htmlFor="init_disk_name">Disk Name</label>
+                  <input className={inputClass} id="init_disk_name" type="text" value={initDisk.disk_name} placeholder="e.g. sda" onChange={(e) => setInitDisk((d) => ({ ...d, disk_name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="init_disk_size">Disk Size (GB)</label>
+                  <input className={inputClass} id="init_disk_size" type="number" min="0" value={initDisk.size_gb} placeholder="e.g. 100" onChange={(e) => setInitDisk((d) => ({ ...d, size_gb: e.target.value }))} />
+                </div>
+              </>}
             </div>
           </FormSection>
+
+          {mode === 'create' && (
+            <FormSection title="Network">
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div>
+                  <label className={labelClass} htmlFor="init_ip">Primary IP Address</label>
+                  <input className={inputClass} id="init_ip" type="text" value={initIp} placeholder="e.g. 192.168.1.10" onChange={(e) => setInitIp(e.target.value)} />
+                </div>
+              </div>
+            </FormSection>
+          )}
 
           <FormSection title="Operating System">
             <div className="grid gap-4 lg:grid-cols-3">
@@ -249,7 +278,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
                 <textarea className={textareaClass} id="description" name="description" value={values.description} onChange={(e) => setField('description', e.target.value)} rows={3} />
               </div>
             </div>
-            <p className={helpTextClass}>Disks, networks, and applications are managed on the VM detail page after saving.</p>
+            <p className={helpTextClass}>{mode === 'create' ? 'Applications are managed on the VM detail page. Additional disks and networks can be added there too.' : 'Disks, networks, and applications are also managed on the VM detail page.'}</p>
           </FormSection>
 
           <div className="sticky bottom-0 flex items-center gap-3 rounded-xl border border-slate-200/70 bg-white/85 px-5 py-3 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/85">
