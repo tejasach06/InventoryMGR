@@ -164,6 +164,27 @@ class ApplicationRead(ApplicationCreate):
     vm_id: uuid.UUID
 
 
+class DiskUpdate(BaseModel):
+    disk_name: str | None = None
+    storage_name: str | None = None
+    size_gb: int | None = Field(default=None, ge=0)
+    storage_type: str | None = None
+    sort_order: int | None = None
+
+
+class NetworkUpdate(BaseModel):
+    ip_address: str | None = None
+    vlan: int | None = Field(default=None, ge=0, le=4094)
+    gateway: str | None = None
+    sort_order: int | None = None
+
+
+class ApplicationUpdate(BaseModel):
+    app_name: str | None = None
+    app_owner: str | None = None
+    description: str | None = None
+
+
 class AttachmentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
