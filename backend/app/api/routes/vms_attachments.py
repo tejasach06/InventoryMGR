@@ -21,6 +21,34 @@ ALLOWED_MIME = {
 }
 MAX_BYTES = 50 * 1024 * 1024  # 50 MB
 
+# Magic-byte → set of valid claimed MIME types for that signature
+_MAGIC: list[tuple[bytes, frozenset[str]]] = [
+    (b"%PDF", frozenset({"application/pdf"})),
+    (b"\x89PNG", frozenset({"image/png"})),
+    (b"\xff\xd8", frozenset({"image/jpeg"})),
+    (b"PK\x03\x04", frozenset({
+        "application/zip",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })),
+]
+
+_EXT: dict[str, str] = {
+    "application/pdf": ".pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "application/zip": ".zip",
+}
+
+
+def _magic_matches(data: bytes, claimed: str) -> bool:
+    for magic, valid_types in _MAGIC:
+        if data.startswith(magic):
+            return claimed in valid_types
+    return False
+
 router = APIRouter()
 
 
@@ -42,12 +70,16 @@ async def upload_attachment(
     content = await file.read()
     if len(content) > MAX_BYTES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File exceeds 50 MB limit")
+    claimed_type = file.content_type or ""
+    if not _magic_matches(content, claimed_type):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File content does not match declared type")
 
     settings = get_settings()
     attach_id = uuid.uuid4()
     dest_dir = Path(settings.upload_dir) / str(vm_id)
     dest_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = Path(file.filename or "upload").name
+    stem = Path(file.filename or "upload").stem[:128] or "upload"
+    safe_name = f"{stem}{_EXT.get(claimed_type, '')}"
     dest = dest_dir / f"{attach_id}_{safe_name}"
     dest.write_bytes(content)
 
