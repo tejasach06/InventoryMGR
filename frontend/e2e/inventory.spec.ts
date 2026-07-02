@@ -16,6 +16,8 @@ async function setupInitialAdmin(page: Page) {
 async function loginAsAdmin(page: Page) {
   await page.goto('/login');
   const setupButton = page.getByRole('button', { name: 'Create admin account' });
+  const signInButton = page.getByRole('button', { name: 'Sign in' });
+  await expect(setupButton.or(signInButton)).toBeVisible();
   if (await setupButton.isVisible()) {
     await page.getByLabel('Email').fill(adminEmail);
     await page.getByLabel('Password', { exact: true }).fill(adminPassword);
@@ -38,12 +40,12 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
 
   await page.getByRole('link', { name: 'New VM' }).click();
   await expect(page.getByRole('heading', { name: 'New VM' })).toBeVisible();
-  await page.getByLabel('Hostname').fill(proxmoxName);
+  await page.getByLabel('Name').fill(proxmoxName);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');
-  await page.getByLabel('vCPU').fill('4');
-  await page.getByLabel('Memory (GB)').fill('8');
+  await page.getByLabel('CPU cores').fill('4');
+  await page.getByLabel('Memory GB').fill('8');
   await page.locator('#criticality').selectOption('high');
   await page.getByRole('button', { name: 'Save VM' }).click();
 
@@ -63,13 +65,6 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
   });
   await page.getByRole('button', { name: 'Preview CSV' }).click();
   await page.waitForTimeout(3000);
-  // Check for error alert
-  const errorAlert = page.locator('[role="alert"]').first();
-  if (await errorAlert.isVisible({ timeout: 1000 })) {
-    console.log('Error alert:', await errorAlert.textContent());
-  }
-  await page.screenshot({ path: 'debug-after-preview.png', fullPage: true });
-  console.log('Page content:', await page.content());
   const summary = page.locator('.summary-card');
   await expect(summary.first()).toBeVisible();
   await expect(summary.filter({ hasText: 'create' }).locator('strong')).toHaveText('1');
@@ -84,6 +79,6 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
   await expect(page.getByRole('link', { name: vmwareName })).toBeVisible();
   await page.getByLabel('Search').fill(proxmoxName);
   const proxmoxRow = page.getByRole('row').filter({ hasText: proxmoxName });
-  await expect(proxmoxRow).toContainText('powered_off');
+  await expect(proxmoxRow).toContainText('powered off');
   await expect(proxmoxRow).toContainText('12 GB');
 });

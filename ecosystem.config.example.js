@@ -1,16 +1,16 @@
+// Copy to ecosystem.config.js and adjust paths for your deployment host.
+// JWT_SECRET/DATABASE_URL are intentionally omitted — the backend loads them
+// from ../.env (see backend/app/core/config.py, .env.example).
 module.exports = {
   apps: [
     // Backend - FastAPI with uvicorn
     {
       name: 'inventorymgr-backend',
-      script: '/home/tejas_acharya/Projects/InventoryMGR/.devbox/nix/profile/default/bin/uv',
+      script: 'uv',
       args: 'run uvicorn app.main:app --host 127.0.0.1 --port 8000',
-      cwd: '/home/tejas_acharya/Projects/InventoryMGR/backend',
+      cwd: __dirname + '/backend',
       env: {
         APP_ENV: 'production',
-        DATABASE_URL: 'postgresql+psycopg://inventorymgr@127.0.0.1:54329/inventorymgr',
-        JWT_SECRET: 'a-very-long-random-secret-key-that-is-at-least-32-bytes-long-for-production',
-        APP_CORS_ORIGINS: 'http://127.0.0.1:3000',
       },
       instances: 1,
       exec_mode: 'fork',
@@ -25,9 +25,9 @@ module.exports = {
     // Frontend - Next.js production server
     {
       name: 'inventorymgr-frontend',
-      script: '/home/tejas_acharya/Projects/InventoryMGR/.devbox/nix/profile/default/bin/bun',
+      script: 'bun',
       args: 'run start',
-      cwd: '/home/tejas_acharya/Projects/InventoryMGR/frontend',
+      cwd: __dirname + '/frontend',
       env: {
         NODE_ENV: 'production',
         INVENTORYMGR_API_URL: 'http://127.0.0.1:8000',

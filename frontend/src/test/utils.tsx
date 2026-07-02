@@ -89,7 +89,10 @@ export function makeVm(overrides: Partial<Vm> = {}): Vm {
     decommission_date: null,
     last_verified_at: '2024-03-01',
     disks: [],
-    networks: [],
+    networks: [
+      { id: 'net-1', vm_id: 'vm-1', ip_address: '10.0.0.10', vlan: null, gateway: null, sort_order: 0 },
+      { id: 'net-2', vm_id: 'vm-1', ip_address: '10.0.0.11', vlan: null, gateway: null, sort_order: 1 },
+    ],
     applications: [],
     attachments: [],
     health_score: 50,

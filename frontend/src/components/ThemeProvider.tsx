@@ -28,16 +28,20 @@ function applyResolvedTheme(resolvedTheme: ResolvedTheme) {
   document.documentElement.style.colorScheme = resolvedTheme;
 }
 
+// Dark is the product default: with no stored preference we resolve to dark rather
+// than following the OS. 'system' remains explicitly selectable and is persisted.
+const DEFAULT_THEME: ThemePreference = 'dark';
+
 function readStoredTheme(): ThemePreference {
-  if (typeof window === 'undefined') return 'system';
+  if (typeof window === 'undefined') return DEFAULT_THEME;
   try {
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark') return stored;
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
     if (stored !== null) window.localStorage.removeItem(THEME_STORAGE_KEY);
   } catch {
-    return 'system';
+    return DEFAULT_THEME;
   }
-  return 'system';
+  return DEFAULT_THEME;
 }
 
 function readSystemPreference(): boolean {
@@ -50,7 +54,7 @@ function readSystemPreference(): boolean {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }): ReactElement {
-  const [theme, setThemeState] = useState<ThemePreference>('system');
+  const [theme, setThemeState] = useState<ThemePreference>(DEFAULT_THEME);
   const [prefersDark, setPrefersDark] = useState(false);
   const [mounted, setMounted] = useState(false);
   const resolvedTheme = resolveThemePreference(theme, prefersDark);
@@ -92,11 +96,9 @@ export function ThemeProvider({ children }: { children: ReactNode }): ReactEleme
   const setTheme = useCallback((nextTheme: ThemePreference) => {
     setThemeState(nextTheme);
     try {
-      if (nextTheme === 'system') {
-        window.localStorage.removeItem(THEME_STORAGE_KEY);
-      } else {
-        window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
-      }
+      // Persist every choice (including 'system') so it survives reloads and is
+      // distinguishable from the dark default.
+      window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
     } catch {
       // Ignore storage failures; the in-memory theme still updates for this session.
     }

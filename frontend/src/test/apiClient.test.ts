@@ -240,6 +240,9 @@ describe('api client methods', () => {
       security_remarks: null,
       decommission_date: null,
       last_verified_at: null,
+      lifecycle: 'active',
+      os_name: null,
+      technical_owner: null,
     };
     await api.createVm(payload);
     expect(lastFetchCall()[0]).toBe('/api/vms');

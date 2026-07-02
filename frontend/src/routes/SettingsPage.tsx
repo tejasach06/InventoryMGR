@@ -133,6 +133,7 @@ export function SettingsPage() {
     for (const option of optionsQuery.data ?? []) {
       map[option.category].push(option);
     }
+    map.cpu.sort((a, b) => Number(a.value) - Number(b.value));
     return map;
   }, [optionsQuery.data]);
 

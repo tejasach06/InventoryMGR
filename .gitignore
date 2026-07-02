@@ -17,7 +17,6 @@ playwright-report/
 test-results/
 graphify-out/
 .claude
-CLAUDE.md
 data/
 *.log
 .DS_Store
@@ -33,3 +32,10 @@ docs/superpowers
 AGENTS.md
 CLAUDE.md
 gan-harness/
+ecosystem.config.js
+backend/ecosystem.config.js
+frontend/ecosystem.config.js
+frontend/ecosystem.config.cjs
+tailwind.config.js
+*.tsbuildinfo
+debug-*.png

@@ -128,7 +128,7 @@ describe('theme controls', () => {
     expect(screen.getByLabelText('Theme')).toHaveValue('dark');
   });
 
-  it('stores explicit light theme and removes storage for system theme', async () => {
+  it('stores explicit light theme and persists an explicit system theme', async () => {
     mockMatchMedia(true);
     render(createElement(ThemeProvider, null, createElement(ThemeSelect)));
 
@@ -143,7 +143,9 @@ describe('theme controls', () => {
 
     fireEvent.change(select, { target: { value: 'system' } });
 
-    await waitFor(() => expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull());
+    // Dark is the product default, so an explicit 'system' choice is persisted (not
+    // removed) to remain distinguishable from the default and keep following the OS.
+    await waitFor(() => expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('system'));
     await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
     expect(document.documentElement.style.colorScheme).toBe('dark');
   });

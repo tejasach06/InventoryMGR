@@ -67,19 +67,19 @@ test('Memory field is expressed in GB', async ({ page }) => {
   await loginAsAdmin(page);
   await openNewVmForm(page);
 
-  await expect(page.getByLabel('Memory (GB)')).toBeVisible();
+  await expect(page.getByLabel('Memory GB')).toBeVisible();
   await expect(page.getByLabel('Memory MB')).toHaveCount(0);
 });
 
 test('disk add/remove works on VM detail page', async ({ page }) => {
   await loginAsAdmin(page);
   await openNewVmForm(page);
-  await page.getByLabel('Hostname').fill(`e2e-disk-${Date.now()}`);
+  await page.getByLabel('Name').fill(`e2e-disk-${Date.now()}`);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');
-  await page.getByLabel('vCPU').fill('2');
-  await page.getByLabel('Memory (GB)').fill('4');
+  await page.getByLabel('CPU cores').fill('2');
+  await page.getByLabel('Memory GB').fill('4');
   await page.locator('#criticality').selectOption('medium');
   await page.getByRole('button', { name: 'Save VM' }).click();
   await expect(page).toHaveURL(/\/inventory\/[0-9a-f-]+$/);
@@ -107,12 +107,12 @@ test('owner suggestion applies on a single click', async ({ page }) => {
   await loginAsAdmin(page);
 
   await openNewVmForm(page);
-  await page.getByLabel('Hostname').fill(`seed-${Date.now()}`);
+  await page.getByLabel('Name').fill(`seed-${Date.now()}`);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');
-  await page.getByLabel('vCPU').fill('2');
-  await page.getByLabel('Memory (GB)').fill('4');
+  await page.getByLabel('CPU cores').fill('2');
+  await page.getByLabel('Memory GB').fill('4');
   await page.getByLabel('Owner', { exact: true }).fill(ownerName);
   await page.locator('#criticality').selectOption('medium');
   await page.getByRole('button', { name: 'Save VM' }).click();
@@ -158,12 +158,12 @@ test('Users management lives in the Settings page, not the sidebar', async ({ pa
 test('IP address add/remove works on VM detail page', async ({ page }) => {
   await loginAsAdmin(page);
   await openNewVmForm(page);
-  await page.getByLabel('Hostname').fill(`e2e-net-${Date.now()}`);
+  await page.getByLabel('Name').fill(`e2e-net-${Date.now()}`);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');
-  await page.getByLabel('vCPU').fill('2');
-  await page.getByLabel('Memory (GB)').fill('4');
+  await page.getByLabel('CPU cores').fill('2');
+  await page.getByLabel('Memory GB').fill('4');
   await page.locator('#criticality').selectOption('medium');
   await page.getByRole('button', { name: 'Save VM' }).click();
   await expect(page).toHaveURL(/\/inventory\/[0-9a-f-]+$/);
@@ -210,12 +210,12 @@ test('disk size_gb is stored as-entered on VM detail page', async ({ page }) => 
   await openNewVmForm(page);
 
   const name = `e2e-disk-${Date.now()}`;
-  await page.getByLabel('Hostname').fill(name);
+  await page.getByLabel('Name').fill(name);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');
-  await page.getByLabel('vCPU').fill('2');
-  await page.getByLabel('Memory (GB)').fill('4');
+  await page.getByLabel('CPU cores').fill('2');
+  await page.getByLabel('Memory GB').fill('4');
   await page.locator('#criticality').selectOption('medium');
   await page.getByRole('button', { name: 'Save VM' }).click();
   await expect(page).toHaveURL(/\/inventory\/[0-9a-f-]+$/);

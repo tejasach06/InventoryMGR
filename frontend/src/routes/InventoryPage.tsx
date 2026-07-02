@@ -103,9 +103,9 @@ function VmTable({ vms, selectedIds, onToggle, onToggleAll }: { vms: Vm[], selec
               </td>
               <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-blue-700 dark:text-blue-300" scope="row"><Link className="hover:text-blue-900 hover:underline dark:hover:text-blue-200" href={`/inventory/${vm.id}`}>{vm.name}</Link></th>
               <td className={tableCellClass}>{vm.platform}</td>
-              <td className={tableCellClass}>{vm.cluster}</td>
+              <td className={`${tableCellClass} tech`}>{vm.cluster}</td>
               <td className="whitespace-nowrap px-4 py-3"><Badge value={vm.status} /></td>
-              <td className={tableCellClass}>{vm.cpu_cores} CPU / {formatMemory(vm.memory_mb)} / {`${vm.disks.length} disk(s)`}</td>
+              <td className={`${tableCellClass} tech text-[0.8125rem]`}>{vm.cpu_cores} CPU · {formatMemory(vm.memory_mb)} · {vm.disks.length} disk{vm.disks.length !== 1 ? 's' : ''}</td>
               <td className="whitespace-nowrap px-4 py-3"><Badge value={vm.criticality} /></td>
               <td className="whitespace-nowrap px-4 py-3">
                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -115,7 +115,7 @@ function VmTable({ vms, selectedIds, onToggle, onToggleAll }: { vms: Vm[], selec
                   'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
                 }`}>{vm.health_score}%</span>
               </td>
-              <td className={tableCellClass}>{new Date(vm.updated_at).toLocaleString()}</td>
+              <td className={`${tableCellClass} tech text-[0.8125rem] text-slate-500 dark:text-slate-400`}>{new Date(vm.updated_at).toLocaleDateString('en-CA')}</td>
             </tr>
           ))}
         </tbody>

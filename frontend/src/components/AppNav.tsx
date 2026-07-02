@@ -59,44 +59,65 @@ function IconReport() {
   );
 }
 
+// Role-gated primary navigation. Dashboard and Reports are context (see OVERVIEW_ITEMS)
+// and are shown to everyone, so they are not part of the role-gated set.
 export function buildNavItems(user: Pick<User, 'role'>): NavItem[] {
   return [
-    { to: '/dashboard', label: 'Dashboard', visible: true, icon: <IconDashboard /> },
     { to: '/inventory', label: 'Inventory', visible: true, icon: <IconGrid /> },
-    { to: '/reports', label: 'Reports', visible: true, icon: <IconReport /> },
     { to: '/imports/new', label: 'Import', visible: user.role === 'admin' || user.role === 'editor', icon: <IconUpload /> },
     { to: '/settings', label: 'Settings', visible: canSeeUsers(user.role), icon: <IconGear /> },
   ];
 }
 
+const OVERVIEW_ITEMS: NavItem[] = [
+  { to: '/dashboard', label: 'Dashboard', visible: true, icon: <IconDashboard /> },
+  { to: '/reports', label: 'Reports', visible: true, icon: <IconReport /> },
+];
+
+function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolean; active: boolean }) {
+  return (
+    <Link
+      href={item.to}
+      title={collapsed ? item.label : undefined}
+      aria-label={collapsed ? item.label : undefined}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'relative flex items-center rounded-lg text-sm font-medium transition-colors duration-150',
+        collapsed ? 'justify-center px-2 py-2.5' : 'gap-2.5 px-3 py-2',
+        active
+          ? 'bg-indigo-50 font-semibold text-indigo-700 dark:bg-indigo-500/12 dark:text-indigo-300'
+          : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-white',
+      )}
+    >
+      {active && !collapsed ? (
+        <span aria-hidden="true" className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-indigo-500" />
+      ) : null}
+      {item.icon}
+      {!collapsed && item.label}
+    </Link>
+  );
+}
+
+function GroupLabel({ children, collapsed }: { children: string; collapsed: boolean }) {
+  if (collapsed) return <div aria-hidden="true" className="mx-auto my-2 h-px w-6 bg-slate-200 dark:bg-slate-800" />;
+  return <p className="px-3 pb-1 pt-3 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">{children}</p>;
+}
+
 export function AppNav({ user, collapsed = false }: { user: Pick<User, 'role'>; collapsed?: boolean }) {
   const pathname = usePathname();
+  const isActive = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
+  const primary = buildNavItems(user).filter((item) => item.visible);
 
   return (
-    <nav className={cn('mt-4 flex gap-1 overflow-x-auto lg:mt-6 lg:flex-col lg:overflow-visible', collapsed && 'lg:items-center')} aria-label="Primary">
-      {buildNavItems(user)
-        .filter((item) => item.visible)
-        .map((item) => {
-          const active = pathname === item.to || pathname.startsWith(`${item.to}/`);
-          return (
-            <Link
-              key={item.to}
-              href={item.to}
-              title={collapsed ? item.label : undefined}
-              aria-label={collapsed ? item.label : undefined}
-              className={cn(
-                'flex items-center rounded-lg text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950',
-                collapsed ? 'justify-center px-2 py-2.5' : 'gap-2.5 px-3 py-2.5',
-                active
-                  ? 'bg-indigo-50 font-semibold text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300'
-                  : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-white',
-              )}
-            >
-              {item.icon}
-              {!collapsed && item.label}
-            </Link>
-          );
-        })}
+    <nav className="mt-4 flex flex-col gap-0.5 lg:mt-5" aria-label="Primary">
+      <GroupLabel collapsed={collapsed}>Overview</GroupLabel>
+      {OVERVIEW_ITEMS.map((item) => (
+        <NavLink key={item.to} item={item} collapsed={collapsed} active={isActive(item.to)} />
+      ))}
+      <GroupLabel collapsed={collapsed}>Manage</GroupLabel>
+      {primary.map((item) => (
+        <NavLink key={item.to} item={item} collapsed={collapsed} active={isActive(item.to)} />
+      ))}
     </nav>
   );
 }

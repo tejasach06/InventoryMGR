@@ -82,9 +82,35 @@ html.dark body {
   padding-right: 2.25rem;
 }
 
-/* Accessible focus ring for keyboard users */
+/* Accessible focus ring for keyboard users — visible in both themes */
 :focus-visible {
-  outline: none;
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Elements that render their own ring/border focus treatment opt out of the default outline */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible {
+  outline-offset: 2px;
+}
+
+/* Technical values (IPs, MACs, hostnames, UUIDs, sizes) */
+.tech {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Hairline grid backdrop for data panels */
+.grid-lines {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, currentColor 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, currentColor 6%, transparent) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 
 /* Refined selection + scrollbar for product polish */
@@ -103,3 +129,13 @@ html.dark * {
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: #c8ccdc; border-radius: 9999px; border: 3px solid transparent; background-clip: content-box; }
 html.dark ::-webkit-scrollbar-thumb { background: #2a2f44; border: 3px solid transparent; background-clip: content-box; }
+
+/* Honor users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

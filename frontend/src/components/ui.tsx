@@ -15,8 +15,10 @@ export const sectionTitleClass = 'font-display text-[length:var(--text-fluid-h2)
 export const tableClass = 'min-w-full divide-y divide-slate-100 text-sm dark:divide-slate-800/70';
 export const tableHeadClass = 'sticky top-0 z-10 bg-slate-50/90 text-left text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-slate-500 backdrop-blur dark:bg-slate-900/90 dark:text-slate-400';
 export const tableBodyClass = 'divide-y divide-slate-100 bg-white dark:divide-slate-800/70 dark:bg-transparent';
-export const tableRowClass = 'transition-colors duration-100 hover:bg-indigo-50/40 dark:hover:bg-slate-800/50';
+export const tableRowClass = 'transition-colors duration-100 odd:bg-white even:bg-slate-50/60 hover:bg-indigo-50/50 dark:odd:bg-transparent dark:even:bg-slate-900/40 dark:hover:bg-slate-800/50';
 export const tableCellClass = 'whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-300';
+// Technical values: IPs, hostnames, UUIDs, sizes, counts.
+export const monoClass = 'tech text-[0.8125rem] text-slate-600 dark:text-slate-300';
 
 const emeraldTone = 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300';
 const redTone = 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300';
@@ -77,8 +79,23 @@ export function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
+const dotTone: Record<string, string> = {
+  running: 'bg-emerald-500', create: 'bg-emerald-500', low: 'bg-emerald-500', active: 'bg-emerald-500',
+  stopped: 'bg-red-500', powered_off: 'bg-red-500', invalid: 'bg-red-500', critical: 'bg-red-500',
+  suspended: 'bg-amber-500', conflict: 'bg-amber-500', high: 'bg-amber-500', retiring: 'bg-amber-500',
+  unknown: 'bg-blue-500', update: 'bg-blue-500', medium: 'bg-blue-500',
+  planned: 'bg-violet-500', retired: 'bg-slate-400', archived: 'bg-slate-400', decommissioned: 'bg-slate-400',
+};
+
 export function Badge({ value }: { value: string }) {
-  return <span className={cn('inline-flex cursor-default items-center rounded-md border px-2 py-0.5 text-xs font-semibold capitalize', badgeTone[value] ?? 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300')}>{value}</span>;
+  const tone = badgeTone[value] ?? 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
+  const dot = dotTone[value] ?? 'bg-slate-400 dark:bg-slate-500';
+  return (
+    <span className={cn('inline-flex cursor-default items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-semibold capitalize', tone)}>
+      <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', dot)} />
+      {value.replace(/_/g, ' ')}
+    </span>
+  );
 }
 
 export function EmptyState({ title, body, icon }: { title: string; body: string; icon?: ReactNode }) {

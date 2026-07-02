@@ -7,17 +7,19 @@ import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, Vm } from '../api/client';
 import {
   Alert, Badge, PageHeader, PageTransition, Skeleton, Spinner,
-  cardClass, dangerButtonClass, secondaryButtonClass, sectionTitleClass,
+  cardClass, dangerButtonClass, monoClass, secondaryButtonClass, sectionTitleClass,
 } from '../components/ui';
-// cardClass used in skeleton
+import { useCurrentUser } from '../components/AuthContext';
+import { formatMemory } from '../lib/units';
 
-function Field({ label, value }: { label: string; value: string | number | boolean | null | undefined }) {
+function Field({ label, value, mono = false }: { label: string; value: string | number | boolean | null | undefined; mono?: boolean }) {
   const display = value === null || value === undefined || value === ''
     ? '—' : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
+  const empty = display === '—';
   return (
     <div className="py-2">
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</dt>
-      <dd className="mt-1 text-slate-900 dark:text-slate-100">{display}</dd>
+      <dt className="text-[0.7rem] font-medium uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className={`mt-1 ${mono && !empty ? monoClass : ''} ${empty ? 'text-slate-400 dark:text-slate-600' : 'text-slate-900 dark:text-slate-100'}`}>{display}</dd>
     </div>
   );
 }
@@ -289,10 +291,13 @@ export function VmDetailPage() {
     mutationFn: () => api.deleteVm(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vms'] }); router.push('/inventory'); },
   });
+  const user = useCurrentUser();
+  const canEdit = user.role === 'editor' || user.role === 'admin';
+  const canDelete = user.role === 'admin';
 
   if (vmQ.isLoading) return (
     <PageTransition>
-      <div className="space-y-5" role="status">
+      <div className="space-y-5" role="status" aria-label="Loading">
         <div className="flex items-center gap-3"><Skeleton className="h-7 w-48" /><Skeleton className="h-5 w-16" /></div>
         {[1, 2, 3, 4].map((s) => (
           <div key={s} className={cardClass + ' space-y-3'}>
@@ -315,13 +320,17 @@ export function VmDetailPage() {
           <>
             <Badge value={vm.status} />
             <Badge value={vm.platform} />
-            <Link className={secondaryButtonClass} href={`/inventory/${id}/edit`}>Edit</Link>
-            <button className={secondaryButtonClass} onClick={() => cloneMut.mutate()} disabled={cloneMut.isPending}>
-              {cloneMut.isPending && <Spinner />} Clone
-            </button>
-            <button className={dangerButtonClass} onClick={() => { if (confirm(`Delete "${vm.name}"?`)) deleteMut.mutate(); }} disabled={deleteMut.isPending}>
-              {deleteMut.isPending && <Spinner />} Delete
-            </button>
+            {canEdit && <Link className={secondaryButtonClass} href={`/inventory/${id}/edit`}>Edit</Link>}
+            {canEdit && (
+              <button className={secondaryButtonClass} onClick={() => cloneMut.mutate()} disabled={cloneMut.isPending}>
+                {cloneMut.isPending && <Spinner />} Clone
+              </button>
+            )}
+            {canDelete && (
+              <button className={dangerButtonClass} onClick={() => { if (confirm(`Delete VM ${vm.name}? This cannot be undone.`)) deleteMut.mutate(); }} disabled={deleteMut.isPending}>
+                {deleteMut.isPending && <Spinner />} Delete
+              </button>
+            )}
           </>
         } />
 
@@ -336,8 +345,8 @@ export function VmDetailPage() {
             <Field label="Hostname" value={vm.name} />
             <Field label="FQDN" value={vm.fqdn} />
             <Field label="Environment" value={vm.environment} />
-            <Field label="Status" value={vm.status} />
             <Field label="Criticality" value={vm.criticality} />
+            <Field label="Lifecycle" value={vm.lifecycle} />
             <Field label="Tags" value={vm.tags.join(', ') || null} />
             {vm.description && <div className="sm:col-span-2 xl:col-span-3 py-2">
               <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Description</dt>
@@ -359,17 +368,22 @@ export function VmDetailPage() {
 
         <DetailSection title="Hardware">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="vCPU" value={vm.cpu_cores} />
-            <Field label="Memory" value={vm.memory_mb ? `${(vm.memory_mb / 1024).toFixed(1)} GB` : null} />
+            <Field label="vCPU" value={`${vm.cpu_cores} cores`} mono />
+            <Field label="Memory" value={vm.memory_mb ? formatMemory(vm.memory_mb) : null} mono />
           </dl>
         </DetailSection>
 
         <DetailSection title="Storage"><DisksPanel vm={vm} /></DetailSection>
-        <DetailSection title="Network"><NetworksPanel vm={vm} /></DetailSection>
+        <DetailSection title="Network">
+          <dl className="mb-4 grid gap-x-8 gap-y-1 border-b border-slate-100 pb-2 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="IP addresses" value={vm.networks.map((n) => n.ip_address).join(', ') || null} mono />
+          </dl>
+          <NetworksPanel vm={vm} />
+        </DetailSection>
 
         <DetailSection title="Operating System">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="OS Family" value={vm.os_family} />
+            <Field label="OS Family" value={vm.os_family ? vm.os_family.charAt(0).toUpperCase() + vm.os_family.slice(1) : null} />
             <Field label="Distribution" value={vm.os_distribution} />
             <Field label="Version" value={vm.os_version} />
           </dl>

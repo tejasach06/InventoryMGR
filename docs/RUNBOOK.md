@@ -49,9 +49,15 @@ cd frontend && bun install
 INVENTORYMGR_API_URL=http://127.0.0.1:8000 bun run build
 ```
 
-### 5. Update `ecosystem.config.js`
+### 5. Create `ecosystem.config.js`
 
-Set the correct absolute paths for `script`, `cwd`, and env values in `ecosystem.config.js`.
+`ecosystem.config.js` is gitignored (it's host-specific and must never contain secrets —
+those come from `.env`, loaded by `backend/app/core/config.py`). Copy the template and
+adjust paths/env for your host:
+
+```bash
+cp ecosystem.config.example.js ecosystem.config.js
+```
 
 ### 6. Start with PM2
 
