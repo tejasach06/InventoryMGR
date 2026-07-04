@@ -6,6 +6,7 @@ export const statuses = ['running', 'powered_off', 'suspended', 'archived', 'dec
 export const criticalities = ['low', 'medium', 'high', 'critical'] as const;
 export const environments = ['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'] as const;
 export const lifecycles = ['planned', 'active', 'retiring', 'retired'] as const;
+export const vmTypes = ['permanent', 'temporary'] as const;
 
 const optionalText = z.string().transform((v) => {
   const t = v.trim();
@@ -41,6 +42,7 @@ export const vmFormSchema = z.object({
   environment: z.enum(environments),
   criticality: z.enum(criticalities),
   lifecycle: z.enum(lifecycles),
+  vm_type: z.enum(vmTypes),
   cpu_cores: nonNegativeInteger('CPU cores'),
   memory_mb: z.coerce.number().min(0, 'Memory must be 0 or greater.').transform((gb) => Math.round(gb * 1024)),
   os_family: z.union([z.literal(''), z.enum(['linux', 'windows'])]).transform((v) => (v === '' ? null : v)),
@@ -59,6 +61,14 @@ export const vmFormSchema = z.object({
   security_remarks: optionalText,
   decommission_date: optionalDate,
   last_verified_at: optionalDate,
+}).superRefine((data, ctx) => {
+  if (data.vm_type === 'temporary' && !data.decommission_date) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Decommission date is required for temporary VMs.',
+      path: ['decommission_date'],
+    });
+  }
 });
 
 export interface VmFormValues {
@@ -74,6 +84,7 @@ export interface VmFormValues {
   environment: typeof environments[number];
   criticality: typeof criticalities[number];
   lifecycle: typeof lifecycles[number];
+  vm_type: typeof vmTypes[number];
   cpu_cores: number | string;
   memory_mb: number | string;
   os_family: string;
@@ -104,7 +115,7 @@ export function emptyVmFormValues(): VmFormValues {
   return {
     name: '', fqdn: '', platform: 'proxmox', datacenter: '', cluster: '',
     node: '', external_id: '', sr_id: '', status: 'unknown', environment: 'production',
-    criticality: 'medium', lifecycle: 'active', cpu_cores: 0, memory_mb: 0,
+    criticality: 'medium', lifecycle: 'active', vm_type: 'permanent', cpu_cores: 0, memory_mb: 0,
     os_family: '', os_distribution: '', os_version: '',
     owner: '', business_owner: '', department: '',
     monitoring_enabled: false, backup_enabled: false, ha_enabled: false,
@@ -129,6 +140,7 @@ export function vmToFormValues(vm: Vm): VmFormValues {
     environment: vm.environment,
     criticality: vm.criticality,
     lifecycle: vm.lifecycle,
+    vm_type: vm.vm_type,
     cpu_cores: vm.cpu_cores,
     memory_mb: vm.memory_mb / 1024,
     os_family: vm.os_family ?? '',

@@ -371,6 +371,7 @@ export function VmDetailPage() {
 
         <DetailSection title="Record">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="VM Type" value={vm.vm_type} />
             <Field label="Last Verified" value={vm.last_verified_at} />
             <Field label="Decommission Date" value={vm.decommission_date} />
             <Field label="Created" value={new Date(vm.created_at).toLocaleDateString()} />

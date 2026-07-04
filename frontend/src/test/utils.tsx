@@ -82,6 +82,7 @@ export function makeVm(overrides: Partial<Vm> = {}): Vm {
     ha_enabled: true,
     criticality: 'high',
     lifecycle: 'active',
+    vm_type: 'permanent',
     tags: ['web', 'prod'],
     last_patch_date: null,
     last_vuln_scan_date: null,

@@ -3,6 +3,7 @@ export type Platform = 'proxmox' | 'vmware';
 export type VmStatus = 'running' | 'powered_off' | 'suspended' | 'archived' | 'decommissioned' | 'unknown';
 export type Criticality = 'low' | 'medium' | 'high' | 'critical';
 export type Lifecycle = 'planned' | 'active' | 'retiring' | 'retired';
+export type VmType = 'permanent' | 'temporary';
 export type Environment = 'production' | 'development' | 'testing' | 'uat' | 'dr' | 'staging' | 'sandbox';
 export type ImportAction = 'create' | 'update' | 'conflict' | 'invalid';
 export type DropdownCategory = 'cpu' | 'datacenter' | 'disk' | 'os';
@@ -88,6 +89,7 @@ export interface Vm {
   environment: Environment;
   criticality: Criticality;
   lifecycle: Lifecycle;
+  vm_type: VmType;
   cpu_cores: number;
   memory_mb: number;
   os_family: OsFamily | null;

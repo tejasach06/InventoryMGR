@@ -12,7 +12,7 @@ import {
 } from '../components/ui';
 import {
   collectErrors, criticalities, emptyVmFormValues, environments,
-  platforms, statuses, VmFormErrors, VmFormValues, vmFormSchema, vmToFormValues,
+  platforms, statuses, VmFormErrors, VmFormValues, vmFormSchema, vmToFormValues, vmTypes,
 } from '../lib/vmForm';
 
 type FieldChange = (name: keyof VmFormValues, value: string | boolean) => void;
@@ -208,7 +208,8 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   function setField(name: keyof VmFormValues, value: string | boolean) {
     setValues((c) => {
       const next = { ...c, [name]: value };
-      if (name === 'status' && value !== 'decommissioned') next.decommission_date = '';
+      const decommissionAllowed = next.status === 'decommissioned' || next.vm_type === 'temporary';
+      if (!decommissionAllowed) next.decommission_date = '';
       return next;
     });
     setErrors((c) => ({ ...c, [name]: undefined }));
@@ -278,6 +279,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
               <SelectInput name="status" label="Status" values={values} errors={errors} onChange={setField} options={statuses} required />
               <SelectInput name="environment" label="Environment" values={values} errors={errors} onChange={setField} options={environments} required />
               <SelectInput name="criticality" label="Criticality" values={values} errors={errors} onChange={setField} options={criticalities} required />
+              <SelectInput name="vm_type" label="VM Type" values={values} errors={errors} onChange={setField} options={vmTypes} />
             </div>
           </FormSection>
 
@@ -339,7 +341,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <div className="grid gap-4 lg:grid-cols-3">
               <TextInput name="last_patch_date" label="Last Patch Date" values={values} errors={errors} onChange={setField} type="date" />
               <TextInput name="last_vuln_scan_date" label="Last Vuln Scan" values={values} errors={errors} onChange={setField} type="date" />
-              <TextInput name="decommission_date" label="Decommission Date" values={values} errors={errors} onChange={setField} type="date" disabled={values.status !== 'decommissioned'} />
+              <TextInput name="decommission_date" label="Decommission Date" values={values} errors={errors} onChange={setField} type="date" disabled={!(values.status === 'decommissioned' || values.vm_type === 'temporary')} />
               <TextInput name="last_verified_at" label="Last Verified" values={values} errors={errors} onChange={setField} type="date" />
               <div className="lg:col-span-3">
                 <label className={labelClass} htmlFor="security_remarks">Security Remarks</label>

@@ -241,6 +241,7 @@ describe('api client methods', () => {
       decommission_date: null,
       last_verified_at: null,
       lifecycle: 'active',
+      vm_type: 'permanent',
       os_name: null,
       technical_owner: null,
     };
