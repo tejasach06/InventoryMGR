@@ -191,7 +191,10 @@ def _op_condition(column, value: str, operator: FilterOperator, *, case_insensit
         like_target = target if case_insensitive else cast(target, String)
         return like_target.like(f"%{needle}%")
     if operator == FilterOperator.neq:
-        return target != needle
+        # ponytail: target.is_(None) is a no-op for non-nullable columns and for the
+        # case_insensitive path (already coalesced to ""), so this only changes
+        # behavior for nullable columns like Vm.node / Vm.os_family.
+        return or_(target != needle, target.is_(None))
     return target == needle
 
 

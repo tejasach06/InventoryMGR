@@ -86,3 +86,31 @@ def test_owner_neq_excludes_across_owner_columns(client, db_session: Session) ->
     assert response.status_code == 200
     names = {item["name"] for item in response.json()["items"]}
     assert names == {"bob-vm"}
+
+
+def test_node_neq_includes_vms_with_unset_node(client, db_session: Session) -> None:
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    create_vm_row(db_session, editor, name="node-a", node="pve-a")
+    create_vm_row(db_session, editor, name="node-unset", node=None)
+    login(client, "editor@example.local")
+
+    response = client.get("/api/vms", params={"node": "pve-a", "node_op": "neq"})
+
+    assert response.status_code == 200
+    names = {item["name"] for item in response.json()["items"]}
+    assert names == {"node-unset"}
+
+
+def test_os_family_neq_includes_vms_with_unset_os_family(client, db_session: Session) -> None:
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    create_vm_row(db_session, editor, name="os-linux", os_family="linux")
+    create_vm_row(db_session, editor, name="os-unset", os_family=None)
+    login(client, "editor@example.local")
+
+    response = client.get(
+        "/api/vms", params={"os_family": "linux", "os_family_op": "neq"}
+    )
+
+    assert response.status_code == 200
+    names = {item["name"] for item in response.json()["items"]}
+    assert names == {"os-unset"}
