@@ -107,13 +107,8 @@ function VmCard({ vm }: { vm: Vm }) {
       <div className="mt-2 text-xs text-slate-400 dark:text-slate-500">
         {vm.cpu_cores} CPU / {formatMemory(vm.memory_mb)} / {`${vm.disks.length} disk(s)`}
       </div>
-      <div className="mt-1 text-xs">
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-          vm.health_score >= 100 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' :
-          vm.health_score >= 75 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
-          vm.health_score >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' :
-          'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
-        }`}>Health {vm.health_score}%</span>
+      <div className="mt-1 font-mono text-xs text-slate-500 dark:text-slate-400">
+        {vm.networks[0]?.ip_address ?? '—'}
       </div>
     </Link>
   );
@@ -134,7 +129,7 @@ function VmTable({ vms, selectedIds, onToggle, onToggleAll }: { vms: Vm[], selec
             <th className="px-4 py-3" scope="col">Status</th>
             <th className="px-4 py-3" scope="col">Resources</th>
             <th className="px-4 py-3" scope="col">Criticality</th>
-            <th className="px-4 py-3" scope="col">Health</th>
+            <th className="px-4 py-3" scope="col">IP Address</th>
             <th className="px-4 py-3" scope="col">Updated</th>
           </tr>
         </thead>
@@ -150,13 +145,8 @@ function VmTable({ vms, selectedIds, onToggle, onToggleAll }: { vms: Vm[], selec
               <td className="whitespace-nowrap px-4 py-3"><Badge value={vm.status} /></td>
               <td className={`${tableCellClass} tech text-[0.8125rem]`}>{vm.cpu_cores} CPU · {formatMemory(vm.memory_mb)} · {vm.disks.length} disk{vm.disks.length !== 1 ? 's' : ''}</td>
               <td className="whitespace-nowrap px-4 py-3"><Badge value={vm.criticality} /></td>
-              <td className="whitespace-nowrap px-4 py-3">
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                  vm.health_score >= 100 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' :
-                  vm.health_score >= 75 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
-                  vm.health_score >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' :
-                  'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
-                }`}>{vm.health_score}%</span>
+              <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600 dark:text-slate-300">
+                {vm.networks[0]?.ip_address ?? '—'}
               </td>
               <td className={`${tableCellClass} tech text-[0.8125rem] text-slate-500 dark:text-slate-400`}>{new Date(vm.updated_at).toLocaleDateString('en-CA')}</td>
             </tr>
