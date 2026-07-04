@@ -102,7 +102,7 @@ function FormSection({ title, children }: { title: string; children: ReactNode }
   );
 }
 
-type DiskRow = { size: string; unit: 'GB' | 'TB' };
+type DiskRow = { name: string; size: string; unit: 'GB' | 'TB'; storage: string; type: string };
 
 const rowRemoveClass = 'inline-flex h-[42px] w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-lg leading-none text-slate-400 transition-colors hover:border-red-300 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-slate-700 dark:text-slate-500 dark:hover:border-red-500/40 dark:hover:text-red-400';
 const rowAddClass = 'mt-2.5 inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300';
@@ -116,13 +116,22 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
         {disks.map((d, i) => (
           <div key={i} className="flex items-end gap-2">
             <div className="flex-1">
-              <input aria-label={`Disk ${i + 1} size`} className={inputClass} type="number" min="0" placeholder="Size" value={d.size} onChange={(e) => update(i, { size: e.target.value })} />
+              <input aria-label={`Disk ${i + 1} name`} className={inputClass} type="text" placeholder="Disk name" value={d.name} onChange={(e) => update(i, { name: e.target.value })} />
             </div>
             <div className="w-24">
+              <input aria-label={`Disk ${i + 1} size`} className={inputClass} type="number" min="0" placeholder="Size" value={d.size} onChange={(e) => update(i, { size: e.target.value })} />
+            </div>
+            <div className="w-20">
               <select aria-label={`Disk ${i + 1} unit`} className={selectClass} value={d.unit} onChange={(e) => update(i, { unit: e.target.value as 'GB' | 'TB' })}>
                 <option value="GB">GB</option>
                 <option value="TB">TB</option>
               </select>
+            </div>
+            <div className="flex-1">
+              <input aria-label={`Disk ${i + 1} storage`} className={inputClass} type="text" placeholder="Storage" value={d.storage} onChange={(e) => update(i, { storage: e.target.value })} />
+            </div>
+            <div className="w-28">
+              <input aria-label={`Disk ${i + 1} type`} className={inputClass} type="text" placeholder="Type" value={d.type} onChange={(e) => update(i, { type: e.target.value })} />
             </div>
             {disks.length > 1 && (
               <button type="button" aria-label={`Remove disk ${i + 1}`} className={rowRemoveClass} onClick={() => setDisks((rows) => rows.filter((_, idx) => idx !== i))}>×</button>
@@ -130,22 +139,31 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
           </div>
         ))}
       </div>
-      <button type="button" className={rowAddClass} onClick={() => setDisks((rows) => [...rows, { size: '', unit: 'GB' }])}>
+      <button type="button" className={rowAddClass} onClick={() => setDisks((rows) => [...rows, { name: '', size: '', unit: 'GB', storage: '', type: '' }])}>
         <span aria-hidden="true">+</span> Add another disk
       </button>
     </div>
   );
 }
 
-function IpRows({ ips, setIps }: { ips: string[]; setIps: Dispatch<SetStateAction<string[]>> }) {
+type IpRow = { ip: string; vlan: string; gateway: string };
+
+function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction<IpRow[]>> }) {
+  const update = (i: number, patch: Partial<IpRow>) => setIps((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   return (
     <div>
       <p className={labelClass}>IP addresses</p>
       <div className="space-y-2">
-        {ips.map((ip, i) => (
+        {ips.map((r, i) => (
           <div key={i} className="flex items-end gap-2">
             <div className="flex-1">
-              <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={ip} onChange={(e) => setIps((rows) => rows.map((r, idx) => (idx === i ? e.target.value : r)))} />
+              <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })} />
+            </div>
+            <div className="w-24">
+              <input aria-label={`VLAN ${i + 1}`} className={inputClass} type="number" min="0" placeholder="VLAN" value={r.vlan} onChange={(e) => update(i, { vlan: e.target.value })} />
+            </div>
+            <div className="flex-1">
+              <input aria-label={`Gateway ${i + 1}`} className={inputClass} type="text" placeholder="Gateway" value={r.gateway} onChange={(e) => update(i, { gateway: e.target.value })} />
             </div>
             {ips.length > 1 && (
               <button type="button" aria-label={`Remove IP address ${i + 1}`} className={rowRemoveClass} onClick={() => setIps((rows) => rows.filter((_, idx) => idx !== i))}>×</button>
@@ -153,7 +171,7 @@ function IpRows({ ips, setIps }: { ips: string[]; setIps: Dispatch<SetStateActio
           </div>
         ))}
       </div>
-      <button type="button" className={rowAddClass} onClick={() => setIps((rows) => [...rows, ''])}>
+      <button type="button" className={rowAddClass} onClick={() => setIps((rows) => [...rows, { ip: '', vlan: '', gateway: '' }])}>
         <span aria-hidden="true">+</span> Add IP address
       </button>
     </div>
@@ -169,8 +187,8 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const queryClient = useQueryClient();
   const [values, setValues] = useState<VmFormValues>(() => emptyVmFormValues());
   const [errors, setErrors] = useState<VmFormErrors>({});
-  const [disks, setDisks] = useState<DiskRow[]>([{ size: '', unit: 'GB' }]);
-  const [ips, setIps] = useState<string[]>(['']);
+  const [disks, setDisks] = useState<DiskRow[]>([{ name: '', size: '', unit: 'GB', storage: '', type: '' }]);
+  const [ips, setIps] = useState<IpRow[]>([{ ip: '', vlan: '', gateway: '' }]);
 
   const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => api.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
   const optionsQuery = useQuery({ queryKey: ['settings', 'options'], queryFn: api.getDropdownOptions });
@@ -214,14 +232,20 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
         disks
           .filter((d) => Number(d.size) > 0)
           .forEach((d, i) => sub.push(api.addDisk(vm.id, {
-            disk_name: `disk-${i + 1}`,
+            disk_name: d.name.trim() || `disk-${i + 1}`,
             size_gb: d.unit === 'TB' ? Number(d.size) * 1024 : Number(d.size),
-            storage_name: null, storage_type: null, sort_order: i,
+            storage_name: d.storage.trim() || null,
+            storage_type: d.type.trim() || null,
+            sort_order: i,
           })));
         ips
-          .map((ip) => ip.trim())
-          .filter(Boolean)
-          .forEach((ip, i) => sub.push(api.addNetwork(vm.id, { ip_address: ip, vlan: null, gateway: null, sort_order: i })));
+          .filter((r) => r.ip.trim())
+          .forEach((r, i) => sub.push(api.addNetwork(vm.id, {
+            ip_address: r.ip.trim(),
+            vlan: r.vlan.trim() ? Number(r.vlan) : null,
+            gateway: r.gateway.trim() || null,
+            sort_order: i,
+          })));
         await Promise.allSettled(sub);
       }
       queryClient.invalidateQueries({ queryKey: ['vms'] });

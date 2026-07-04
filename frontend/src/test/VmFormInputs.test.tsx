@@ -112,3 +112,36 @@ describe('VmFormPage IP rows', () => {
     expect(payload.memory_mb).toBe(4096);
   });
 });
+
+describe('VmFormPage disk/network detail fields', () => {
+  it('submits disk name/storage/type and network vlan/gateway', async () => {
+    vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-new', name: 'multi' }));
+    const addDisk = vi.spyOn(api, 'addDisk').mockResolvedValue({} as never);
+    const addNetwork = vi.spyOn(api, 'addNetwork').mockResolvedValue({} as never);
+    renderWithProviders(<VmFormPage mode="create" />);
+
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'multi' } });
+    fireEvent.change(screen.getByLabelText(/^Cluster/), { target: { value: 'cluster-a' } });
+    fireEvent.change(screen.getByLabelText(/^CPU cores/), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText(/^Memory GB/), { target: { value: '4' } });
+
+    fireEvent.change(screen.getByLabelText('Disk 1 name'), { target: { value: 'os-disk' } });
+    fireEvent.change(screen.getByLabelText('Disk 1 size'), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText('Disk 1 storage'), { target: { value: 'ssd-pool' } });
+    fireEvent.change(screen.getByLabelText('Disk 1 type'), { target: { value: 'thin' } });
+
+    fireEvent.change(screen.getByLabelText('IP address 1'), { target: { value: '10.0.0.5' } });
+    fireEvent.change(screen.getByLabelText('VLAN 1'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Gateway 1'), { target: { value: '10.0.0.1' } });
+
+    fireEvent.submit(screen.getByLabelText(/^Name/).closest('form') as HTMLFormElement);
+
+    await vi.waitFor(() => expect(addDisk).toHaveBeenCalledTimes(1));
+    expect(addDisk).toHaveBeenCalledWith('vm-new', {
+      disk_name: 'os-disk', size_gb: 40, storage_name: 'ssd-pool', storage_type: 'thin', sort_order: 0,
+    });
+    expect(addNetwork).toHaveBeenCalledWith('vm-new', {
+      ip_address: '10.0.0.5', vlan: 100, gateway: '10.0.0.1', sort_order: 0,
+    });
+  });
+});
