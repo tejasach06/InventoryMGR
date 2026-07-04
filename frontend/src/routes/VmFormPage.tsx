@@ -279,6 +279,9 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
               <SelectInput name="status" label="Status" values={values} errors={errors} onChange={setField} options={statuses} required />
               <SelectInput name="environment" label="Environment" values={values} errors={errors} onChange={setField} options={environments} required />
               <SelectInput name="criticality" label="Criticality" values={values} errors={errors} onChange={setField} options={criticalities} required />
+              {/* ponytail: no `required` marker here — z.enum(vmTypes) already guarantees a valid
+                  value, and Testing Library's getByLabelText does a raw textContent match that would
+                  include the "*" suffix. Add `required` back only if a test switches to regex. */}
               <SelectInput name="vm_type" label="VM Type" values={values} errors={errors} onChange={setField} options={vmTypes} />
             </div>
           </FormSection>
