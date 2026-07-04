@@ -209,3 +209,35 @@ def test_csv_commit_persists_sr_id_os_family_and_backup_enabled(
     assert vm is not None
     assert vm.os_family.value == "linux"
     assert vm.backup_enabled is True
+
+
+def test_csv_commit_wraps_unexpected_row_error_as_actionable_4xx(
+    client, db_session: Session, monkeypatch
+) -> None:
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster",
+            "Kaboom VM,proxmox,pve-cluster-a",
+        ]
+    )
+    preview = upload_csv(client, csrf, csv_content)
+    assert preview.status_code == 201, preview.text
+    batch_id = preview.json()["id"]
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("simulated backend failure")
+
+    monkeypatch.setattr("app.services.csv_import.create_vm", boom)
+
+    commit = client.post(
+        f"/api/imports/{batch_id}/commit", headers=auth_headers(csrf)
+    )
+
+    assert commit.status_code == 422, commit.text
+    detail = commit.json()["detail"]
+    assert "row" in detail.lower()
+    assert "simulated backend failure" in detail
+    # nothing partially committed
+    assert db_session.scalar(select(Vm).where(Vm.name == "Kaboom VM")) is None

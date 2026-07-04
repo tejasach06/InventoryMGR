@@ -383,8 +383,8 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
         )
     created = 0
     updated = 0
-    try:
-        for row in batch.rows:
+    for row in batch.rows:
+        try:
             assert row.normalized is not None
             normalized = row.normalized.copy()
             for date_field in ("last_patch_date", "last_vuln_scan_date", "decommission_date", "last_verified_at"):
@@ -413,6 +413,17 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
                     )
                 update_vm(db, vm, VmUpdate.model_validate(normalized), user, commit=False)
                 updated += 1
+        except HTTPException:
+            db.rollback()
+            raise
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Row {row.row_number} failed to import: {exc}",
+            ) from exc
+
+    try:
         batch.status = ImportStatus.committed
         batch.committed_at = datetime.now(UTC)
         batch.summary = {**batch.summary, "committed": True}
