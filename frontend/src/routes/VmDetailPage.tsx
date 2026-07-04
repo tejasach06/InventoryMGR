@@ -172,7 +172,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
   const qc = useQueryClient();
   const addMut = useMutation({
     mutationFn: (v: Record<string, string>) => api.addApplication(vm.id, {
-      app_name: v.app_name, app_owner: v.app_owner || null, description: v.description || null,
+      app_name: v.app_name, app_owner: null, description: v.description || null,
     }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
   });
@@ -188,7 +188,6 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
             <li key={a.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/60">
               <div>
                 <span className="font-medium text-slate-900 dark:text-slate-100">{a.app_name}</span>
-                {a.app_owner && <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">{a.app_owner}</span>}
                 {a.description && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{a.description}</p>}
               </div>
               <RemoveButton onClick={() => delMut.mutate(a.id)} label={`Remove ${a.app_name}`} />
@@ -198,7 +197,6 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
       )}
       <AddRowForm fields={[
         { name: 'app_name', placeholder: 'Application name' },
-        { name: 'app_owner', placeholder: 'Owner' },
         { name: 'description', placeholder: 'Description' },
       ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
       {addMut.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addMut.error)}</p>}
