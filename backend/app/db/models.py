@@ -69,6 +69,11 @@ class Lifecycle(StrEnum):
     retired = "retired"
 
 
+class VmType(StrEnum):
+    permanent = "permanent"
+    temporary = "temporary"
+
+
 class OsFamily(StrEnum):
     linux = "linux"
     windows = "windows"
@@ -147,6 +152,9 @@ class Vm(Base, TimestampMixin):
         Enum(Criticality, name="criticality"), nullable=False
     )
     lifecycle: Mapped[Lifecycle] = mapped_column(Enum(Lifecycle, name="lifecycle"), nullable=False)
+    vm_type: Mapped[VmType] = mapped_column(
+        Enum(VmType, name="vm_type"), nullable=False, default=VmType.permanent
+    )
     cpu_cores: Mapped[int] = mapped_column(Integer, nullable=False)
     memory_mb: Mapped[int] = mapped_column(Integer, nullable=False)
     os_family: Mapped[OsFamily | None] = mapped_column(os_family_enum, nullable=True)
@@ -228,6 +236,7 @@ Index("ix_vms_cluster", Vm.cluster)
 Index("ix_vms_status", Vm.status)
 Index("ix_vms_criticality", Vm.criticality)
 Index("ix_vms_lifecycle", Vm.lifecycle)
+Index("ix_vms_vm_type", Vm.vm_type)
 Index("ix_vms_environment", Vm.environment)
 Index("ix_vms_monitoring_enabled", Vm.monitoring_enabled)
 

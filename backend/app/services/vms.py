@@ -21,6 +21,7 @@ from app.db.models import (
     VmDisk,
     VmNetwork,
     VmStatus,
+    VmType,
     compute_health_score,
     now_utc,
 )
@@ -35,9 +36,15 @@ def _raise_identity_conflict(exc: IntegrityError) -> None:
     raise exc
 
 
+def _apply_vm_type_lifecycle(vm: Vm) -> None:
+    if vm.vm_type == VmType.temporary and vm.decommission_date is not None:
+        vm.lifecycle = Lifecycle.retiring
+
+
 def create_vm(db: Session, payload: VmCreate, user: User, *, commit: bool = True) -> Vm:
     values = payload.model_dump()
     vm = Vm(**values, created_by_id=user.id, updated_by_id=user.id)
+    _apply_vm_type_lifecycle(vm)
     db.add(vm)
     try:
         if commit:
@@ -73,6 +80,7 @@ def update_vm(db: Session, vm: Vm, payload: VmUpdate, user: User, *, commit: boo
         if old_value != new_value:
             changes[key] = (old_value, new_value)
         setattr(vm, key, new_value)
+    _apply_vm_type_lifecycle(vm)
     vm.updated_by_id = user.id
     if changes:
         _write_audit(db, vm, user, changes)

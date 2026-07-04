@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.db.models import Criticality, Environment, Lifecycle, OsFamily, Platform, VmStatus
+from app.db.models import Criticality, Environment, Lifecycle, OsFamily, Platform, VmStatus, VmType
 
 STRING_FIELDS = {
     "external_id",
@@ -61,6 +61,7 @@ class VmBase(BaseModel):
     ha_enabled: bool | None = None
     criticality: Criticality | None = None
     lifecycle: Lifecycle | None = None
+    vm_type: VmType | None = None
     tags: list[str] | None = None
     last_patch_date: date | None = None
     last_vuln_scan_date: date | None = None
@@ -69,7 +70,7 @@ class VmBase(BaseModel):
     last_verified_at: date | None = None
 
     @field_validator(
-        "platform", "status", "criticality", "lifecycle", "os_family", "environment",
+        "platform", "status", "criticality", "lifecycle", "os_family", "environment", "vm_type",
         mode="before",
     )
     @classmethod
@@ -103,6 +104,7 @@ class VmCreate(VmBase):
     memory_mb: int = Field(ge=0)
     criticality: Criticality
     lifecycle: Lifecycle
+    vm_type: VmType = VmType.permanent
     monitoring_enabled: bool = False
     backup_enabled: bool = False
     ha_enabled: bool = False
