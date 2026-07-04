@@ -39,3 +39,4 @@ frontend/ecosystem.config.cjs
 tailwind.config.js
 *.tsbuildinfo
 debug-*.png
+.tokensave
