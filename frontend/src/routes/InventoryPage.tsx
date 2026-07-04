@@ -9,44 +9,87 @@ import { useCurrentUser } from '../components/AuthContext';
 import { Alert, Badge, EmptyState, PageHeader, PageTransition, TableSkeleton, cardClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
 import { formatMemory } from '../lib/units';
 
-const filterNames = ['q', 'platform', 'status', 'criticality', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'department', 'tag', 'application', 'health'] as const;
+const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
+const advancedFilterNames = ['environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'department', 'tag', 'application', 'health'] as const;
+const filterNames = [...coreFilterNames, ...advancedFilterNames] as const;
+const operableFilterNames = ['platform', 'status', 'criticality', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'department', 'tag', 'application'] as const;
 
 type FilterName = (typeof filterNames)[number];
+type AdvancedFilterName = (typeof advancedFilterNames)[number];
+type OperableFilterName = (typeof operableFilterNames)[number];
 type Filters = Record<FilterName, string>;
+type Operators = Record<OperableFilterName, string>;
 
-type ParamReader = Pick<URLSearchParams, 'get' | 'toString'>;
+const defaultOperators: Operators = {
+  platform: 'eq', status: 'eq', criticality: 'eq', environment: 'eq', monitoring_enabled: 'eq',
+  node: 'eq', os_family: 'eq', owner: 'eq', department: 'eq', tag: 'eq', application: 'contains',
+};
 
-function paramsFromFilters(filters: Filters): URLSearchParams {
+const advancedFilterLabels: Record<AdvancedFilterName, string> = {
+  environment: 'Environment', monitoring_enabled: 'Monitoring', node: 'Node',
+  os_family: 'OS Family', owner: 'Owner', department: 'Department',
+  tag: 'Tag', application: 'Application', health: 'Doc Health',
+};
+
+const operatorOptions = [
+  { value: 'eq', label: 'Is' },
+  { value: 'contains', label: 'Contains' },
+  { value: 'neq', label: 'Is not' },
+] as const;
+
+function emptyFilters(): Filters {
+  return {
+    q: '', platform: '', status: '', criticality: '', environment: '', monitoring_enabled: '',
+    node: '', os_family: '', owner: '', department: '', tag: '', application: '', health: '',
+  };
+}
+
+function paramsFromFilters(filters: Filters, operators: Operators): URLSearchParams {
   const params = new URLSearchParams();
   for (const name of filterNames) {
     const value = filters[name].trim();
     if (value.length > 0) params.set(name, value);
+  }
+  for (const name of operableFilterNames) {
+    if (filters[name].trim().length > 0 && operators[name] !== defaultOperators[name]) {
+      params.set(`${name}_op`, operators[name]);
+    }
   }
   params.set('limit', '50');
   params.set('offset', '0');
   return params;
 }
 
-function filtersFromParams(params: ParamReader): Filters {
-  return {
-    q: params.get('q') ?? '',
-    platform: params.get('platform') ?? '',
-    status: params.get('status') ?? '',
-    criticality: params.get('criticality') ?? '',
-    environment: params.get('environment') ?? '',
-    monitoring_enabled: params.get('monitoring_enabled') ?? '',
-    node: params.get('node') ?? '',
-    os_family: params.get('os_family') ?? '',
-    owner: params.get('owner') ?? '',
-    department: params.get('department') ?? '',
-    tag: params.get('tag') ?? '',
-    application: params.get('application') ?? '',
-    health: params.get('health') ?? '',
-  };
+function filtersFromParams(params: URLSearchParams): Filters {
+  const result = emptyFilters();
+  for (const name of filterNames) result[name] = params.get(name) ?? '';
+  return result;
+}
+
+function operatorsFromParams(params: URLSearchParams): Operators {
+  const result = { ...defaultOperators };
+  for (const name of operableFilterNames) result[name] = params.get(`${name}_op`) ?? defaultOperators[name];
+  return result;
+}
+
+function revealedFromParams(params: URLSearchParams): Set<AdvancedFilterName> {
+  const revealed = new Set<AdvancedFilterName>();
+  for (const name of advancedFilterNames) {
+    if ((params.get(name) ?? '').trim().length > 0) revealed.add(name);
+  }
+  return revealed;
 }
 
 function hasActiveFilters(filters: Filters): boolean {
   return filterNames.some((name) => filters[name].trim().length > 0);
+}
+
+function OperatorSelect({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <select className={`${selectClass} mt-1.5`} aria-label={`${label} operator`} value={value} onChange={(event) => onChange(event.target.value)}>
+      {operatorOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+    </select>
+  );
 }
 
 function VmCard({ vm }: { vm: Vm }) {
@@ -131,6 +174,9 @@ export function InventoryPage() {
   const searchParams = useSearchParams();
   const canCreateVm = user.role === 'editor' || user.role === 'admin';
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
+  const [operators, setOperators] = useState<Operators>(() => operatorsFromParams(searchParams));
+  const [revealed, setRevealed] = useState<Set<AdvancedFilterName>>(() => revealedFromParams(searchParams));
+  const [addFilterOpen, setAddFilterOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   function toggleSelect(id: string) {
@@ -145,42 +191,44 @@ export function InventoryPage() {
     setSelectedIds(prev => prev.size === ids.length ? new Set() : new Set(ids));
   }
 
-  const exportFilteredUrl = api.exportVmsUrl(paramsFromFilters(filtersFromParams(searchParams)));
+  const exportFilteredUrl = api.exportVmsUrl(paramsFromFilters(filtersFromParams(searchParams), operatorsFromParams(searchParams)));
   function exportSelected() {
     if (selectedIds.size === 0) return;
     window.location.href = api.exportSelectedUrl([...selectedIds]);
   }
-  const queryParams = useMemo(() => paramsFromFilters(filtersFromParams(searchParams)), [searchParams]);
+  const queryParams = useMemo(() => paramsFromFilters(filtersFromParams(searchParams), operatorsFromParams(searchParams)), [searchParams]);
   const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => api.listVms(queryParams) });
   const owners = useQuery({ queryKey: ['vm-owners'], queryFn: () => api.listVmOwners(), staleTime: 60_000 });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setFilters(filtersFromParams(searchParams));
+    setOperators(operatorsFromParams(searchParams));
   }, [searchParams]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      const params = paramsFromFilters(filters);
-      const current = paramsFromFilters(filtersFromParams(searchParams));
+      const params = paramsFromFilters(filters, operators);
+      const current = paramsFromFilters(filtersFromParams(searchParams), operatorsFromParams(searchParams));
       if (params.toString() !== current.toString()) {
         router.push(`${pathname}?${params.toString()}`);
       }
     }, 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [filters, pathname, router, searchParams]);
+  }, [filters, operators, pathname, router, searchParams]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const params = paramsFromFilters(filters);
+    const params = paramsFromFilters(filters, operators);
     router.push(`${pathname}?${params.toString()}`);
   }
 
   function clearFilters() {
-    const empty: Filters = { q: '', platform: '', status: '', criticality: '', environment: '', monitoring_enabled: '', node: '', os_family: '', owner: '', department: '', tag: '', application: '', health: '' };
-    setFilters(empty);
+    setFilters(emptyFilters());
+    setOperators({ ...defaultOperators });
+    setRevealed(new Set());
     router.push(pathname);
   }
 
@@ -210,68 +258,116 @@ export function InventoryPage() {
             <select className={selectClass} id="platform" name="platform" value={filters.platform} onChange={(event) => setFilters({ ...filters, platform: event.target.value })}>
               <option value="">All platforms</option><option value="proxmox">proxmox</option><option value="vmware">vmware</option>
             </select>
+            <OperatorSelect label="Platform" value={operators.platform} onChange={(value) => setOperators({ ...operators, platform: value })} />
           </div>
           <div>
             <label className={labelClass} htmlFor="status">Status</label>
             <select className={selectClass} id="status" name="status" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
               <option value="">All statuses</option><option value="running">running</option><option value="powered_off">powered_off</option><option value="suspended">suspended</option><option value="archived">archived</option><option value="decommissioned">decommissioned</option><option value="unknown">unknown</option>
             </select>
+            <OperatorSelect label="Status" value={operators.status} onChange={(value) => setOperators({ ...operators, status: value })} />
           </div>
           <div>
             <label className={labelClass} htmlFor="criticality">Criticality</label>
             <select className={selectClass} id="criticality" name="criticality" value={filters.criticality} onChange={(event) => setFilters({ ...filters, criticality: event.target.value })}>
               <option value="">All criticalities</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="critical">critical</option>
             </select>
+            <OperatorSelect label="Criticality" value={operators.criticality} onChange={(value) => setOperators({ ...operators, criticality: value })} />
           </div>
-          <div>
-            <label className={labelClass} htmlFor="environment">Environment</label>
-            <select className={selectClass} id="environment" name="environment" value={filters.environment} onChange={(event) => setFilters({ ...filters, environment: event.target.value })}>
-              <option value="">All environments</option><option value="production">production</option><option value="development">development</option><option value="testing">testing</option><option value="uat">uat</option><option value="dr">dr</option><option value="staging">staging</option><option value="sandbox">sandbox</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="monitoring_enabled">Monitoring</label>
-            <select className={selectClass} id="monitoring_enabled" name="monitoring_enabled" value={filters.monitoring_enabled} onChange={(event) => setFilters({ ...filters, monitoring_enabled: event.target.value })}>
-              <option value="">All</option><option value="true">Enabled</option><option value="false">Disabled</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="os_family">OS Family</label>
-            <select className={selectClass} id="os_family" name="os_family" value={filters.os_family} onChange={(event) => setFilters({ ...filters, os_family: event.target.value })}>
-              <option value="">All</option><option value="linux">Linux</option><option value="windows">Windows</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="owner">Owner</label>
-            <select className={selectClass} id="owner" name="owner" value={filters.owner} onChange={(event) => setFilters({ ...filters, owner: event.target.value })}>
-              <option value="">All owners</option>
-              {(owners.data ?? []).map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="health">Doc Health</label>
-            <select className={selectClass} id="health" name="health" value={filters.health} onChange={(event) => setFilters({ ...filters, health: event.target.value })}>
-              <option value="">All</option><option value="below_50">&lt; 50%</option><option value="below_75">&lt; 75%</option><option value="complete">Complete (100%)</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="node">Node</label>
-            <input className={inputClass} id="node" name="node" value={filters.node} onChange={(event) => setFilters({ ...filters, node: event.target.value })} placeholder="Node name" />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="department">Department</label>
-            <input className={inputClass} id="department" name="department" value={filters.department} onChange={(event) => setFilters({ ...filters, department: event.target.value })} placeholder="Department" />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="tag">Tag</label>
-            <input className={inputClass} id="tag" name="tag" value={filters.tag} onChange={(event) => setFilters({ ...filters, tag: event.target.value })} placeholder="Exact tag" />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="application">Application</label>
-            <input className={inputClass} id="application" name="application" value={filters.application} onChange={(event) => setFilters({ ...filters, application: event.target.value })} placeholder="App name" />
-          </div>
+          {revealed.has('environment') && (
+            <div>
+              <label className={labelClass} htmlFor="environment">Environment</label>
+              <select className={selectClass} id="environment" name="environment" value={filters.environment} onChange={(event) => setFilters({ ...filters, environment: event.target.value })}>
+                <option value="">All environments</option><option value="production">production</option><option value="development">development</option><option value="testing">testing</option><option value="uat">uat</option><option value="dr">dr</option><option value="staging">staging</option><option value="sandbox">sandbox</option>
+              </select>
+              <OperatorSelect label="Environment" value={operators.environment} onChange={(value) => setOperators({ ...operators, environment: value })} />
+            </div>
+          )}
+          {revealed.has('monitoring_enabled') && (
+            <div>
+              <label className={labelClass} htmlFor="monitoring_enabled">Monitoring</label>
+              <select className={selectClass} id="monitoring_enabled" name="monitoring_enabled" value={filters.monitoring_enabled} onChange={(event) => setFilters({ ...filters, monitoring_enabled: event.target.value })}>
+                <option value="">All</option><option value="true">Enabled</option><option value="false">Disabled</option>
+              </select>
+              <OperatorSelect label="Monitoring" value={operators.monitoring_enabled} onChange={(value) => setOperators({ ...operators, monitoring_enabled: value })} />
+            </div>
+          )}
+          {revealed.has('os_family') && (
+            <div>
+              <label className={labelClass} htmlFor="os_family">OS Family</label>
+              <select className={selectClass} id="os_family" name="os_family" value={filters.os_family} onChange={(event) => setFilters({ ...filters, os_family: event.target.value })}>
+                <option value="">All</option><option value="linux">Linux</option><option value="windows">Windows</option>
+              </select>
+              <OperatorSelect label="OS Family" value={operators.os_family} onChange={(value) => setOperators({ ...operators, os_family: value })} />
+            </div>
+          )}
+          {revealed.has('owner') && (
+            <div>
+              <label className={labelClass} htmlFor="owner">Owner</label>
+              <select className={selectClass} id="owner" name="owner" value={filters.owner} onChange={(event) => setFilters({ ...filters, owner: event.target.value })}>
+                <option value="">All owners</option>
+                {(owners.data ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+              <OperatorSelect label="Owner" value={operators.owner} onChange={(value) => setOperators({ ...operators, owner: value })} />
+            </div>
+          )}
+          {revealed.has('health') && (
+            <div>
+              <label className={labelClass} htmlFor="health">Doc Health</label>
+              <select className={selectClass} id="health" name="health" value={filters.health} onChange={(event) => setFilters({ ...filters, health: event.target.value })}>
+                <option value="">All</option><option value="below_50">&lt; 50%</option><option value="below_75">&lt; 75%</option><option value="complete">Complete (100%)</option>
+              </select>
+            </div>
+          )}
+          {revealed.has('node') && (
+            <div>
+              <label className={labelClass} htmlFor="node">Node</label>
+              <input className={inputClass} id="node" name="node" value={filters.node} onChange={(event) => setFilters({ ...filters, node: event.target.value })} placeholder="Node name" />
+              <OperatorSelect label="Node" value={operators.node} onChange={(value) => setOperators({ ...operators, node: value })} />
+            </div>
+          )}
+          {revealed.has('department') && (
+            <div>
+              <label className={labelClass} htmlFor="department">Department</label>
+              <input className={inputClass} id="department" name="department" value={filters.department} onChange={(event) => setFilters({ ...filters, department: event.target.value })} placeholder="Department" />
+              <OperatorSelect label="Department" value={operators.department} onChange={(value) => setOperators({ ...operators, department: value })} />
+            </div>
+          )}
+          {revealed.has('tag') && (
+            <div>
+              <label className={labelClass} htmlFor="tag">Tag</label>
+              <input className={inputClass} id="tag" name="tag" value={filters.tag} onChange={(event) => setFilters({ ...filters, tag: event.target.value })} placeholder="Exact tag" />
+              <OperatorSelect label="Tag" value={operators.tag} onChange={(value) => setOperators({ ...operators, tag: value })} />
+            </div>
+          )}
+          {revealed.has('application') && (
+            <div>
+              <label className={labelClass} htmlFor="application">Application</label>
+              <input className={inputClass} id="application" name="application" value={filters.application} onChange={(event) => setFilters({ ...filters, application: event.target.value })} placeholder="App name" />
+              <OperatorSelect label="Application" value={operators.application} onChange={(value) => setOperators({ ...operators, application: value })} />
+            </div>
+          )}
           <div className="flex items-end gap-3 sm:col-span-2 lg:col-span-5">
-            {hasActiveFilters(filters) ? <button type="button" className="text-sm font-medium text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" onClick={clearFilters}>Clear filters</button> : null}
+            <div className="relative">
+              <button type="button" className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" onClick={() => setAddFilterOpen((open) => !open)}>
+                + Add filter
+              </button>
+              {addFilterOpen && (
+                <ul className="absolute z-10 mt-1 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                  {advancedFilterNames.filter((name) => !revealed.has(name)).map((name) => (
+                    <li key={name}>
+                      <button type="button" onClick={() => { setRevealed((prev) => new Set(prev).add(name)); setAddFilterOpen(false); }}
+                        className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+                        {advancedFilterLabels[name]}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {hasActiveFilters(filters) ? (
+              <button type="button" className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" onClick={clearFilters}>Clear filters</button>
+            ) : null}
           </div>
         </form>
         {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
