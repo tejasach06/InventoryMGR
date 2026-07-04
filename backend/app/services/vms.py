@@ -1,4 +1,5 @@
 import uuid
+from enum import StrEnum
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -165,23 +166,55 @@ def clone_vm(db: Session, vm: Vm, user: User) -> Vm:
     return cloned_full
 
 
+class FilterOperator(StrEnum):
+    eq = "eq"
+    contains = "contains"
+    neq = "neq"
+
+
+def _op_condition(column, value: str, operator: FilterOperator, *, case_insensitive: bool = False):
+    if case_insensitive:
+        target = func.lower(func.coalesce(column, ""))
+        needle = value.strip().lower()
+    else:
+        target = column
+        needle = value.strip()
+    if operator == FilterOperator.contains:
+        like_target = target if case_insensitive else cast(target, String)
+        return like_target.like(f"%{needle}%")
+    if operator == FilterOperator.neq:
+        return target != needle
+    return target == needle
+
+
 def apply_vm_filters(
     stmt: Select[tuple[Vm]],
     *,
     q: str | None = None,
     platform: Platform | None = None,
+    platform_op: FilterOperator = FilterOperator.eq,
     cluster: str | None = None,
     status_value: VmStatus | None = None,
+    status_op: FilterOperator = FilterOperator.eq,
     environment: Environment | None = None,
+    environment_op: FilterOperator = FilterOperator.eq,
     criticality: Criticality | None = None,
+    criticality_op: FilterOperator = FilterOperator.eq,
     lifecycle: Lifecycle | None = None,
     monitoring_enabled: bool | None = None,
+    monitoring_enabled_op: FilterOperator = FilterOperator.eq,
     node: str | None = None,
+    node_op: FilterOperator = FilterOperator.eq,
     os_family: OsFamily | None = None,
+    os_family_op: FilterOperator = FilterOperator.eq,
     owner: str | None = None,
+    owner_op: FilterOperator = FilterOperator.eq,
     department: str | None = None,
+    department_op: FilterOperator = FilterOperator.eq,
     tag: str | None = None,
+    tag_op: FilterOperator = FilterOperator.eq,
     application: str | None = None,
+    application_op: FilterOperator = FilterOperator.contains,
     health: str | None = None,
 ) -> Select[tuple[Vm]]:
     if q:
@@ -211,40 +244,51 @@ def apply_vm_filters(
             app_subq,
         ))
     if platform:
-        stmt = stmt.where(Vm.platform == platform)
+        stmt = stmt.where(_op_condition(Vm.platform, platform.value, platform_op))
     if cluster:
         stmt = stmt.where(Vm.cluster == cluster.strip())
     if status_value:
-        stmt = stmt.where(Vm.status == status_value)
+        stmt = stmt.where(_op_condition(Vm.status, status_value.value, status_op))
     if environment:
-        stmt = stmt.where(Vm.environment == environment)
+        stmt = stmt.where(_op_condition(Vm.environment, environment.value, environment_op))
     if criticality:
-        stmt = stmt.where(Vm.criticality == criticality)
+        stmt = stmt.where(_op_condition(Vm.criticality, criticality.value, criticality_op))
     if lifecycle:
         stmt = stmt.where(Vm.lifecycle == lifecycle)
     if monitoring_enabled is not None:
-        stmt = stmt.where(Vm.monitoring_enabled == monitoring_enabled)
+        stmt = stmt.where(
+            Vm.monitoring_enabled != monitoring_enabled
+            if monitoring_enabled_op == FilterOperator.neq
+            else Vm.monitoring_enabled == monitoring_enabled
+        )
     if node:
-        stmt = stmt.where(Vm.node == node.strip())
+        stmt = stmt.where(_op_condition(Vm.node, node.strip(), node_op))
     if os_family:
-        stmt = stmt.where(Vm.os_family == os_family)
+        stmt = stmt.where(_op_condition(Vm.os_family, os_family.value, os_family_op))
     if owner:
-        lo = owner.strip().lower()
-        stmt = stmt.where(or_(
-            func.lower(func.coalesce(Vm.owner, "")) == lo,
-            func.lower(func.coalesce(Vm.business_owner, "")) == lo,
-            func.lower(func.coalesce(Vm.technical_owner, "")) == lo,
-        ))
+        needle = owner.strip().lower()
+        owner_match = or_(
+            func.lower(func.coalesce(Vm.owner, "")) == needle,
+            func.lower(func.coalesce(Vm.business_owner, "")) == needle,
+            func.lower(func.coalesce(Vm.technical_owner, "")) == needle,
+        )
+        stmt = stmt.where(~owner_match if owner_op == FilterOperator.neq else owner_match)
     if department:
-        dept = department.strip().lower()
-        stmt = stmt.where(func.lower(func.coalesce(Vm.department, "")) == dept)
+        stmt = stmt.where(
+            _op_condition(Vm.department, department, department_op, case_insensitive=True)
+        )
     if tag:
-        stmt = stmt.where(Vm.tags.contains([tag.strip()]))
+        tag_match = Vm.tags.contains([tag.strip()])
+        stmt = stmt.where(~tag_match if tag_op == FilterOperator.neq else tag_match)
     if application:
-        stmt = stmt.where(exists(select(VmApplication.vm_id).where(
+        needle = application.strip().lower()
+        app_match = exists(select(VmApplication.vm_id).where(
             VmApplication.vm_id == Vm.id,
-            func.lower(VmApplication.app_name).like(f"%{application.strip().lower()}%"),
-        )))
+            func.lower(VmApplication.app_name).like(f"%{needle}%")
+            if application_op == FilterOperator.contains
+            else func.lower(VmApplication.app_name) == needle,
+        ))
+        stmt = stmt.where(~app_match if application_op == FilterOperator.neq else app_match)
     if health == "below_50":
         stmt = stmt.where(Vm.health_score < 50)
     elif health == "below_75":
