@@ -11,7 +11,7 @@ import {
   secondaryButtonClass, sectionTitleClass, selectClass, textareaClass,
 } from '../components/ui';
 import {
-  collectErrors, criticalities, emptyVmFormValues, environments, lifecycles,
+  collectErrors, criticalities, emptyVmFormValues, environments,
   platforms, statuses, VmFormErrors, VmFormValues, vmFormSchema, vmToFormValues,
 } from '../lib/vmForm';
 
@@ -26,7 +26,7 @@ interface BaseFieldProps {
   required?: boolean;
 }
 
-function TextInput({ name, label, values, errors, onChange, required = false, type = 'text' }: BaseFieldProps & { type?: string }) {
+function TextInput({ name, label, values, errors, onChange, required = false, type = 'text', disabled = false }: BaseFieldProps & { type?: string; disabled?: boolean }) {
   const errorId = `${String(name)}-error`;
   const value = values[name];
   return (
@@ -35,6 +35,7 @@ function TextInput({ name, label, values, errors, onChange, required = false, ty
       <input className={inputClass} id={String(name)} name={String(name)} type={type}
         value={typeof value === 'boolean' ? '' : value}
         onChange={(e) => onChange(name, e.target.value)}
+        disabled={disabled}
         aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])} />
       <FieldError id={errorId} message={errors[name]} />
     </div>
@@ -187,7 +188,11 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const title = useMemo(() => (mode === 'create' ? 'New VM' : `Edit ${vmQuery.data?.name ?? 'VM'}`), [mode, vmQuery.data]);
 
   function setField(name: keyof VmFormValues, value: string | boolean) {
-    setValues((c) => ({ ...c, [name]: value }));
+    setValues((c) => {
+      const next = { ...c, [name]: value };
+      if (name === 'status' && value !== 'decommissioned') next.decommission_date = '';
+      return next;
+    });
     setErrors((c) => ({ ...c, [name]: undefined }));
   }
 
@@ -310,18 +315,12 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <div className="grid gap-4 lg:grid-cols-3">
               <TextInput name="last_patch_date" label="Last Patch Date" values={values} errors={errors} onChange={setField} type="date" />
               <TextInput name="last_vuln_scan_date" label="Last Vuln Scan" values={values} errors={errors} onChange={setField} type="date" />
+              <TextInput name="decommission_date" label="Decommission Date" values={values} errors={errors} onChange={setField} type="date" disabled={values.status !== 'decommissioned'} />
+              <TextInput name="last_verified_at" label="Last Verified" values={values} errors={errors} onChange={setField} type="date" />
               <div className="lg:col-span-3">
                 <label className={labelClass} htmlFor="security_remarks">Security Remarks</label>
                 <textarea className={textareaClass} id="security_remarks" name="security_remarks" value={values.security_remarks} onChange={(e) => setField('security_remarks', e.target.value)} rows={2} />
               </div>
-            </div>
-          </FormSection>
-
-          <FormSection title="Lifecycle">
-            <div className="grid gap-4 lg:grid-cols-3">
-              <SelectInput name="lifecycle" label="Lifecycle" values={values} errors={errors} onChange={setField} options={lifecycles} required />
-              <TextInput name="decommission_date" label="Decommission Date" values={values} errors={errors} onChange={setField} type="date" />
-              <TextInput name="last_verified_at" label="Last Verified" values={values} errors={errors} onChange={setField} type="date" />
             </div>
           </FormSection>
 

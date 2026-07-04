@@ -43,7 +43,7 @@ describe('VmDetailPage', () => {
     expect(screen.getByText('10.0.0.10, 10.0.0.11')).toBeInTheDocument();
     expect(screen.getByText('running')).toBeInTheDocument();
     expect(screen.getByText('high')).toBeInTheDocument();
-    expect(screen.getByText('active')).toBeInTheDocument();
+    expect(screen.getByText('Record')).toBeInTheDocument();
     expect(screen.getByText('Linux')).toBeInTheDocument();
     expect(screen.getAllByText('Yes').length).toBeGreaterThanOrEqual(2);
   });

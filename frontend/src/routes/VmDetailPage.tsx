@@ -303,7 +303,6 @@ export function VmDetailPage() {
             <Field label="FQDN" value={vm.fqdn} />
             <Field label="Environment" value={vm.environment} />
             <Field label="Criticality" value={vm.criticality} />
-            <Field label="Lifecycle" value={vm.lifecycle} />
             <Field label="Tags" value={vm.tags.join(', ') || null} />
             {vm.description && <div className="sm:col-span-2 xl:col-span-3 py-2">
               <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Description</dt>
@@ -372,7 +371,7 @@ export function VmDetailPage() {
           </dl>
         </DetailSection>
 
-        <DetailSection title="Lifecycle">
+        <DetailSection title="Record">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Last Verified" value={vm.last_verified_at} />
             <Field label="Decommission Date" value={vm.decommission_date} />
