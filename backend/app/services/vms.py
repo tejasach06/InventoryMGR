@@ -105,7 +105,6 @@ _DETAIL_OPTIONS = [
     selectinload(Vm.disks),
     selectinload(Vm.networks),
     selectinload(Vm.applications),
-    selectinload(Vm.attachments),
 ]
 
 

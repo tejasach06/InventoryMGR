@@ -10,7 +10,6 @@ from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.settings import router as settings_router
 from app.api.routes.vms_applications import router as vms_applications_router
-from app.api.routes.vms_attachments import router as vms_attachments_router
 from app.api.routes.vms_disks import router as vms_disks_router
 from app.api.routes.vms_networks import router as vms_networks_router
 from app.core.config import get_settings, validate_production_settings
@@ -44,7 +43,6 @@ def create_app() -> FastAPI:
     app.include_router(vms_disks_router, prefix="/api/vms/{vm_id}/disks", tags=["vms"])
     app.include_router(vms_networks_router, prefix="/api/vms/{vm_id}/networks", tags=["vms"])
     app.include_router(vms_applications_router, prefix="/api/vms/{vm_id}/applications", tags=["vms"])
-    app.include_router(vms_attachments_router, prefix="/api/vms/{vm_id}/attachments", tags=["vms"])
     app.include_router(audit_router, prefix="/api/vms/{vm_id}/audit", tags=["audit"])
     app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
     app.include_router(reports_router, prefix="/api/reports", tags=["reports"])

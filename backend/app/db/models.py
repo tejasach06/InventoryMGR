@@ -185,9 +185,6 @@ class Vm(Base, TimestampMixin):
     applications: Mapped[list["VmApplication"]] = relationship(
         back_populates="vm", cascade="all, delete-orphan", order_by="VmApplication.app_name"
     )
-    attachments: Mapped[list["VmAttachment"]] = relationship(
-        back_populates="vm", cascade="all, delete-orphan", order_by="VmAttachment.created_at"
-    )
     audit_entries: Mapped[list["AuditLog"]] = relationship(
         back_populates="vm", cascade="all, delete-orphan"
     )
@@ -281,28 +278,6 @@ class VmApplication(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     vm: Mapped[Vm] = relationship(back_populates="applications")
-
-
-class VmAttachment(Base):
-    __tablename__ = "vm_attachments"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    vm_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("vms.id", ondelete="CASCADE"), nullable=False
-    )
-    filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
-    file_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    uploaded_by_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=now_utc, nullable=False
-    )
-
-    vm: Mapped[Vm] = relationship(back_populates="attachments")
-    uploaded_by: Mapped[User] = relationship()
 
 
 class AuditLog(Base):

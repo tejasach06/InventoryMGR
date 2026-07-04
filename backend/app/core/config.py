@@ -23,7 +23,6 @@ class Settings(BaseSettings):
         default="http://localhost:3000,http://127.0.0.1:3000",
         alias="APP_CORS_ORIGINS",
     )
-    upload_dir: str = Field(default="/data/uploads", alias="UPLOAD_DIR")
 
     @computed_field  # type: ignore[prop-decorator]
     @property

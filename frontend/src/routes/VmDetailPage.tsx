@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -206,49 +206,6 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
   );
 }
 
-function AttachmentsPanel({ vm }: { vm: Vm }) {
-  const qc = useQueryClient();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const uploadMut = useMutation({
-    mutationFn: (file: File) => api.uploadAttachment(vm.id, file),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vm', vm.id] }); if (fileRef.current) fileRef.current.value = ''; },
-  });
-  const delMut = useMutation({
-    mutationFn: (id: string) => api.deleteAttachment(vm.id, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
-  });
-  function handleFile(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) uploadMut.mutate(file);
-  }
-  function fmt(b: number) { return b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`; }
-  return (
-    <div>
-      {vm.attachments.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No attachments.</p> : (
-        <ul className="space-y-1">
-          {vm.attachments.map((a) => (
-            <li key={a.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/60">
-              <div>
-                <a href={api.downloadAttachmentUrl(vm.id, a.id)} target="_blank" rel="noopener noreferrer"
-                  className="font-medium text-blue-600 hover:underline dark:text-blue-400">{a.filename}</a>
-                <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">{fmt(a.file_size)}</span>
-              </div>
-              <RemoveButton onClick={() => delMut.mutate(a.id)} label={`Remove ${a.filename}`} />
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
-        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700">
-          {uploadMut.isPending ? <><Spinner /> Uploading…</> : '+ Upload file (PDF, DOCX, XLSX, PNG, JPG, ZIP — max 50 MB)'}
-          <input ref={fileRef} type="file" className="sr-only" accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg,.zip" onChange={handleFile} disabled={uploadMut.isPending} />
-        </label>
-        {uploadMut.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(uploadMut.error)}</p>}
-      </div>
-    </div>
-  );
-}
-
 function AuditPanel({ vmId }: { vmId: string }) {
   const auditQ = useQuery({ queryKey: ['audit', vmId], queryFn: () => api.getAuditLog(vmId) });
   if (auditQ.isLoading) return <Skeleton className="h-24" />;
@@ -424,7 +381,6 @@ export function VmDetailPage() {
           </dl>
         </DetailSection>
 
-        <DetailSection title="Attachments"><AttachmentsPanel vm={vm} /></DetailSection>
         <DetailSection title="Audit Log"><AuditPanel vmId={vm.id} /></DetailSection>
       </section>
     </PageTransition>

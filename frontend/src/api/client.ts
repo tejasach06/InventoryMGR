@@ -63,16 +63,6 @@ export interface Application {
   description: string | null;
 }
 
-export interface Attachment {
-  id: string;
-  vm_id: string;
-  filename: string;
-  file_size: number;
-  mime_type: string;
-  uploaded_by_id: string;
-  created_at: string;
-}
-
 export interface AuditLogEntry {
   id: string;
   vm_id: string;
@@ -120,7 +110,6 @@ export interface Vm {
   disks: Disk[];
   networks: Network[];
   applications: Application[];
-  attachments: Attachment[];
   health_score: number;
   created_by_id: string;
   updated_by_id: string;
@@ -128,7 +117,7 @@ export interface Vm {
   updated_at: string;
 }
 
-export type VmPayload = Omit<Vm, 'id' | 'disks' | 'networks' | 'applications' | 'attachments' | 'health_score' | 'created_by_id' | 'updated_by_id' | 'created_at' | 'updated_at'>;
+export type VmPayload = Omit<Vm, 'id' | 'disks' | 'networks' | 'applications' | 'health_score' | 'created_by_id' | 'updated_by_id' | 'created_at' | 'updated_at'>;
 
 export interface VmList {
   items: Vm[];
@@ -307,17 +296,6 @@ export const api = {
     apiRequest<Application>(`/vms/${vmId}/applications`, { method: 'POST', body: JSON.stringify(payload) }),
   deleteApplication: (vmId: string, appId: string) =>
     apiRequest<null>(`/vms/${vmId}/applications/${appId}`, { method: 'DELETE' }),
-
-  listAttachments: (vmId: string) => apiRequest<Attachment[]>(`/vms/${vmId}/attachments`),
-  uploadAttachment: (vmId: string, file: File) => {
-    const body = new FormData();
-    body.set('file', file);
-    return apiRequest<Attachment>(`/vms/${vmId}/attachments`, { method: 'POST', body });
-  },
-  downloadAttachmentUrl: (vmId: string, attachmentId: string) =>
-    `${API_PREFIX}/vms/${vmId}/attachments/${attachmentId}/download`,
-  deleteAttachment: (vmId: string, attachmentId: string) =>
-    apiRequest<null>(`/vms/${vmId}/attachments/${attachmentId}`, { method: 'DELETE' }),
 
   getAuditLog: (vmId: string, limit = 50) =>
     apiRequest<AuditLogEntry[]>(`/vms/${vmId}/audit?limit=${limit}`),

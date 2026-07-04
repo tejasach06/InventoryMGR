@@ -185,17 +185,6 @@ class ApplicationUpdate(BaseModel):
     description: str | None = None
 
 
-class AttachmentRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID
-    vm_id: uuid.UUID
-    filename: str
-    file_size: int
-    mime_type: str
-    uploaded_by_id: uuid.UUID
-    created_at: datetime
-
-
 class AuditLogRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -218,7 +207,6 @@ class VmRead(VmCreate):
     disks: list[DiskRead] = []
     networks: list[NetworkRead] = []
     applications: list[ApplicationRead] = []
-    attachments: list[AttachmentRead] = []
     health_score: int = 0
 
 
