@@ -102,6 +102,13 @@ docker compose -f docker-compose.e2e.yml run --rm playwright
 
 No pre-commit hooks are configured — run `just verify` before submitting a PR.
 
+## Pull Requests
+
+- Create a feature branch from `main`.
+- Keep changes focused and describe the intent clearly in the PR summary.
+- Include testing details and any relevant screenshots or notes.
+- Run `just verify` before requesting review.
+
 ## Environment Variables
 
 See [`.env.example`](../.env.example) at the repo root for a full reference. Copy it to `.env` before first run:

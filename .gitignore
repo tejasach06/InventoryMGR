@@ -1,7 +1,10 @@
 .env
+.env.local
+.env.*.local
 .venv/
 node_modules/
 .devbox/postgres/
+.mcp.json
 backend/.mypy_cache/
 backend/.pytest_cache/
 backend/.coverage

@@ -71,6 +71,14 @@ just verify     # all of the above + lint + typecheck
 
 See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for the full command reference.
 
+## Contributing
+
+Contributions are welcome. Please read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for local setup and testing guidance, then open an issue or pull request with a clear summary of the change.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
 ## Configuration
 
 Copy the example file and edit secrets before running outside local development:
