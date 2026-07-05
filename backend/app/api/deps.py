@@ -6,7 +6,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.security import decode_session_token
+from app.core.security import decode_session_token, verify_csrf_token
 from app.db.models import User, UserRole
 from app.db.session import get_db
 
@@ -51,9 +51,10 @@ def get_current_user(db: DbSession, request: Request) -> User:
 def require_csrf(
     request: Request, x_csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None
 ) -> None:
-    payload = get_session_payload(request)
-    expected = payload.get("csrf")
-    if not expected or not x_csrf_token or x_csrf_token != expected:
+    session_token = _session_cookie(request)
+    if not session_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    if not x_csrf_token or not verify_csrf_token(x_csrf_token, session_token):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")
 
 

@@ -180,28 +180,6 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
 
 const EMPTY_OPTIONS = { cpu: [], datacenter: [], disk: [], os: [], os_by_family: { linux: [], windows: [] } };
 
-function buildSubRequests(disks: DiskRow[], ips: IpRow[], vmId: string): Promise<unknown>[] {
-  const sub: Promise<unknown>[] = [];
-  disks
-    .filter((d) => Number(d.size) > 0)
-    .forEach((d, i) => sub.push(api.addDisk(vmId, {
-      disk_name: d.name.trim() || `disk-${i + 1}`,
-      size_gb: d.unit === 'TB' ? Number(d.size) * 1024 : Number(d.size),
-      storage_name: d.storage.trim() || null,
-      storage_type: d.type.trim() || null,
-      sort_order: i,
-    })));
-  ips
-    .filter((r) => r.ip.trim())
-    .forEach((r, i) => sub.push(api.addNetwork(vmId, {
-      ip_address: r.ip.trim(),
-      vlan: r.vlan.trim() ? Number(r.vlan) : null,
-      gateway: r.gateway.trim() || null,
-      sort_order: i,
-    })));
-  return sub;
-}
-
 export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const params = useParams<{ id?: string }>();
   const id = params.id;
@@ -219,7 +197,23 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const options = optionsQuery.data ?? EMPTY_OPTIONS;
   const owners = ownersQuery.data ?? [];
 
-  useEffect(() => { if (vmQuery.data) setValues(vmToFormValues(vmQuery.data)); }, [vmQuery.data]);
+  useEffect(() => {
+    if (vmQuery.data) {
+      setValues(vmToFormValues(vmQuery.data));
+      setDisks(vmQuery.data.disks.length > 0 ? vmQuery.data.disks.map((d) => ({
+        name: d.disk_name,
+        size: String(d.size_gb >= 1024 ? d.size_gb / 1024 : d.size_gb),
+        unit: (d.size_gb >= 1024 ? 'TB' : 'GB') as 'GB' | 'TB',
+        storage: d.storage_name ?? '',
+        type: d.storage_type ?? '',
+      })) : [{ name: '', size: '', unit: 'GB' as const, storage: '', type: '' }]);
+      setIps(vmQuery.data.networks.length > 0 ? vmQuery.data.networks.map((n) => ({
+        ip: n.ip_address,
+        vlan: n.vlan !== null ? String(n.vlan) : '',
+        gateway: n.gateway ?? '',
+      })) : [{ ip: '', vlan: '', gateway: '' }]);
+    }
+  }, [vmQuery.data]);
 
   const save = useMutation({
     mutationFn: (payload: VmPayload) => (mode === 'create' ? api.createVm(payload) : api.updateVm(id ?? '', payload)),
@@ -249,10 +243,27 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
     }
     setErrors({});
     try {
-      const vm = await save.mutateAsync(parsed.data as unknown as VmPayload);
-      if (mode === 'create') {
-        await Promise.allSettled(buildSubRequests(disks, ips, vm.id));
-      }
+      const payload = {
+        ...parsed.data,
+        disks: disks
+          .filter((d) => d.size && Number(d.size) > 0)
+          .map((d, i) => ({
+            disk_name: d.name.trim() || `disk-${i + 1}`,
+            size_gb: d.unit === 'TB' ? Number(d.size) * 1024 : Number(d.size),
+            storage_name: d.storage.trim() || null,
+            storage_type: d.type.trim() || null,
+            sort_order: i,
+          })),
+        networks: ips
+          .filter((r) => r.ip.trim())
+          .map((r, i) => ({
+            ip_address: r.ip.trim(),
+            vlan: r.vlan.trim() ? Number(r.vlan) : null,
+            gateway: r.gateway.trim() || null,
+            sort_order: i,
+          })),
+      };
+      const vm = await save.mutateAsync(payload as VmPayload);
       queryClient.invalidateQueries({ queryKey: ['vms'] });
       queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
       queryClient.setQueryData(['vm', vm.id], vm);
@@ -303,14 +314,12 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
               <ComboInput name="cpu_cores" label="CPU cores" values={values} errors={errors} onChange={setField} options={options.cpu} type="number" required />
               <TextInput name="memory_mb" label="Memory GB" values={values} errors={errors} onChange={setField} type="number" required />
             </div>
-            {mode === 'create' && <DiskRows disks={disks} setDisks={setDisks} />}
+            <DiskRows disks={disks} setDisks={setDisks} />
           </FormSection>
 
-          {mode === 'create' && (
-            <FormSection title="Network">
-              <IpRows ips={ips} setIps={setIps} />
-            </FormSection>
-          )}
+          <FormSection title="Network">
+            <IpRows ips={ips} setIps={setIps} />
+          </FormSection>
 
           <FormSection title="Operating System">
             <div className="grid gap-4 lg:grid-cols-3">
@@ -365,7 +374,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
                 <textarea className={textareaClass} id="description" name="description" value={values.description} onChange={(e) => setField('description', e.target.value)} rows={3} />
               </div>
             </div>
-            <p className={helpTextClass}>{mode === 'create' ? 'Applications are managed on the VM detail page. Additional disks and networks can be added there too.' : 'Disks, networks, and applications are also managed on the VM detail page.'}</p>
+            <p className={helpTextClass}>Applications are managed on the VM detail page.</p>
           </FormSection>
 
           <div className="sticky bottom-0 flex items-center gap-3 rounded-xl border border-slate-200/70 bg-white/85 px-5 py-3 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/85">

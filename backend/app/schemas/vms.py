@@ -68,6 +68,8 @@ class VmBase(BaseModel):
     security_remarks: str | None = None
     decommission_date: date | None = None
     last_verified_at: date | None = None
+    disks: list["DiskCreate"] = []
+    networks: list["NetworkCreate"] = []
 
     @field_validator(
         "platform", "status", "criticality", "lifecycle", "os_family", "environment", "vm_type",

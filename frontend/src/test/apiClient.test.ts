@@ -244,6 +244,8 @@ describe('api client methods', () => {
       vm_type: 'permanent',
       os_name: null,
       technical_owner: null,
+      disks: [],
+      networks: [],
     };
     await api.createVm(payload);
     expect(lastFetchCall()[0]).toBe('/api/vms');

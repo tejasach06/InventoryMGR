@@ -1,3 +1,5 @@
+import csv
+import io
 import uuid
 from typing import Annotated
 
@@ -10,6 +12,18 @@ from app.services.csv_import import commit_batch, create_preview_batch, load_bat
 router = APIRouter()
 
 ALLOWED_CSV_TYPES = {"text/csv", "application/csv", "application/vnd.ms-excel"}
+
+
+def _looks_like_csv(content: bytes) -> bool:
+    try:
+        sample = content[:4096].decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
+    except csv.Error:
+        return False
+    return dialect.delimiter in (",", ";", "\t")
 
 
 @router.post("/preview", response_model=ImportBatchRead, status_code=status.HTTP_201_CREATED)
@@ -25,6 +39,11 @@ async def preview_import(
             detail="CSV upload must use text/csv content type",
         )
     content = await file.read()
+    if not _looks_like_csv(content):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File content does not appear to be valid CSV",
+        )
     return create_preview_batch(
         db, filename=file.filename or "upload.csv", content=content, user=current_user
     )

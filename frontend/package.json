@@ -22,6 +22,9 @@
     "typescript": "6.0.3",
     "zod": "4.4.3"
   },
+  "overrides": {
+    "undici": ">=7.28.0 <8.0.0"
+  },
   "devDependencies": {
     "@playwright/test": "1.60.0",
     "@tailwindcss/postcss": "4.3.1",

@@ -9,11 +9,12 @@ dependencies = [
   "sqlalchemy>=2",
   "alembic",
   "psycopg[binary]",
-  "pydantic-settings",
+  "pydantic-settings>=2.14.2",
   "PyJWT",
   "pwdlib[argon2]",
   "python-multipart",
   "email-validator",
+  "slowapi>=0.1.10",
 ]
 
 [project.optional-dependencies]

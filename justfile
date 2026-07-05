@@ -26,6 +26,18 @@ verify:
 	cd frontend && bun run lint && bun run typecheck && bun run test
 	cd frontend && bunx playwright test
 
+audit:
+	@echo "=== Frontend (bun audit) ==="
+	cd frontend && bun audit
+	@echo "=== Backend (uv audit) ==="
+	cd backend && uv audit
+	@echo "=== TypeScript typecheck ==="
+	cd frontend && bun run typecheck
+	@echo "=== Python lint (ruff) ==="
+	cd backend && uv run ruff check app tests
+	@echo "=== Accepted risks check ==="
+	bash tools/check-accepted-risks.sh
+
 pm2-start:
 	pm2 start ecosystem.config.js
 

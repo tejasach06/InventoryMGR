@@ -119,7 +119,10 @@ export interface Vm {
   updated_at: string;
 }
 
-export type VmPayload = Omit<Vm, 'id' | 'disks' | 'networks' | 'applications' | 'health_score' | 'created_by_id' | 'updated_by_id' | 'created_at' | 'updated_at'>;
+export type VmPayload = Omit<Vm, 'id' | 'disks' | 'networks' | 'applications' | 'health_score' | 'created_by_id' | 'updated_by_id' | 'created_at' | 'updated_at'> & {
+  disks: Omit<Disk, 'id' | 'vm_id'>[];
+  networks: Omit<Network, 'id' | 'vm_id'>[];
+};
 
 export interface VmList {
   items: Vm[];
@@ -214,7 +217,7 @@ async function parseResponse(response: Response): Promise<unknown> {
   try { return JSON.parse(text); } catch { return text; }
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(path: string, options: RequestInit = {}, _retried = false): Promise<T> {
   const method = (options.method ?? 'GET').toUpperCase();
   const headers = new Headers(options.headers);
 
@@ -228,6 +231,12 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   }
 
   const response = await fetch(`${API_PREFIX}${path}`, { ...options, method, headers, credentials: 'include' });
+  if (response.status === 401 && !_retried) {
+    const refreshRes = await fetch(`${API_PREFIX}/auth/refresh`, { method: 'POST', credentials: 'include' });
+    if (refreshRes.ok) {
+      return apiRequest<T>(path, options, true);
+    }
+  }
   const data = await parseResponse(response);
 
   if (!response.ok) {

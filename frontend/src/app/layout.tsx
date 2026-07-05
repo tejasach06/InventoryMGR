@@ -14,26 +14,11 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover' };
 
-const themeInitScript = `(() => {
-  try {
-    const stored = window.localStorage.getItem('inventorymgr-theme');
-    // Dark is the default; only an explicit 'light' or 'system' (following the OS) overrides it.
-    const theme = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'dark';
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const dark = theme === 'dark' || (theme === 'system' && prefersDark);
-    document.documentElement.classList.toggle('dark', dark);
-    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-  } catch {
-    document.documentElement.classList.add('dark');
-    document.documentElement.style.colorScheme = 'dark';
-  }
-})();`;
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} ${display.variable}`} suppressHydrationWarning>
       <body>
-        <script id="theme-init" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script id="theme-init" src="/theme-init.js" />
         <Providers>{children}</Providers>
       </body>
     </html>

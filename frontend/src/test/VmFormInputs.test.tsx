@@ -114,10 +114,8 @@ describe('VmFormPage IP rows', () => {
 });
 
 describe('VmFormPage disk/network detail fields', () => {
-  it('submits disk name/storage/type and network vlan/gateway', async () => {
-    vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-new', name: 'multi' }));
-    const addDisk = vi.spyOn(api, 'addDisk').mockResolvedValue({} as never);
-    const addNetwork = vi.spyOn(api, 'addNetwork').mockResolvedValue({} as never);
+  it('submits disk name/storage/type and network vlan/gateway in the createVm payload', async () => {
+    const create = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-new', name: 'multi' }));
     renderWithProviders(<VmFormPage mode="create" />);
 
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'multi' } });
@@ -136,12 +134,13 @@ describe('VmFormPage disk/network detail fields', () => {
 
     fireEvent.submit(screen.getByLabelText(/^Name/).closest('form') as HTMLFormElement);
 
-    await vi.waitFor(() => expect(addDisk).toHaveBeenCalledTimes(1));
-    expect(addDisk).toHaveBeenCalledWith('vm-new', {
+    await vi.waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    const payload = create.mock.calls[0][0];
+    expect(payload.disks).toEqual([{
       disk_name: 'os-disk', size_gb: 40, storage_name: 'ssd-pool', storage_type: 'thin', sort_order: 0,
-    });
-    expect(addNetwork).toHaveBeenCalledWith('vm-new', {
+    }]);
+    expect(payload.networks).toEqual([{
       ip_address: '10.0.0.5', vlan: 100, gateway: '10.0.0.1', sort_order: 0,
-    });
+    }]);
   });
 });

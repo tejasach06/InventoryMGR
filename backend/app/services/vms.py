@@ -25,7 +25,7 @@ from app.db.models import (
     compute_health_score,
     now_utc,
 )
-from app.schemas.vms import VmCreate, VmRead, VmUpdate
+from app.schemas.vms import DiskCreate, NetworkCreate, VmCreate, VmRead, VmUpdate
 
 IDENTITY_ERROR = "VM identity already exists"
 
@@ -41,13 +41,43 @@ def _apply_vm_type_lifecycle(vm: Vm) -> None:
         vm.lifecycle = Lifecycle.retiring
 
 
+def _sync_disks(db: Session, vm: Vm, disks: list[DiskCreate]) -> None:
+    db.query(VmDisk).filter(VmDisk.vm_id == vm.id).delete()
+    for i, disk in enumerate(disks):
+        db.add(VmDisk(
+            vm_id=vm.id,
+            disk_name=disk.disk_name,
+            storage_name=disk.storage_name,
+            size_gb=disk.size_gb,
+            storage_type=disk.storage_type,
+            sort_order=disk.sort_order if disk.sort_order is not None else i,
+        ))
+
+
+def _sync_networks(db: Session, vm: Vm, networks: list[NetworkCreate]) -> None:
+    db.query(VmNetwork).filter(VmNetwork.vm_id == vm.id).delete()
+    for i, network in enumerate(networks):
+        db.add(VmNetwork(
+            vm_id=vm.id,
+            ip_address=network.ip_address,
+            vlan=network.vlan,
+            gateway=network.gateway,
+            sort_order=network.sort_order if network.sort_order is not None else i,
+        ))
+
+
 def create_vm(db: Session, payload: VmCreate, user: User, *, commit: bool = True) -> Vm:
-    values = payload.model_dump()
+    values = payload.model_dump(exclude={"disks", "networks"})
     vm = Vm(**values, created_by_id=user.id, updated_by_id=user.id)
     _apply_vm_type_lifecycle(vm)
     db.add(vm)
     try:
         if commit:
+            db.flush()
+            if payload.disks:
+                _sync_disks(db, vm, payload.disks)
+            if payload.networks:
+                _sync_networks(db, vm, payload.networks)
             db.commit()
             db.refresh(vm)
             vm.health_score = compute_health_score(vm)
@@ -73,7 +103,7 @@ def _write_audit(db: Session, vm: Vm, user: User, changes: dict[str, tuple[Any, 
 
 
 def update_vm(db: Session, vm: Vm, payload: VmUpdate, user: User, *, commit: bool = True) -> Vm:
-    values = payload.model_dump(exclude_unset=True)
+    values = payload.model_dump(exclude_unset=True, exclude={"disks", "networks"})
     changes: dict[str, tuple[Any, Any]] = {}
     for key, new_value in values.items():
         old_value = getattr(vm, key)
@@ -86,6 +116,11 @@ def update_vm(db: Session, vm: Vm, payload: VmUpdate, user: User, *, commit: boo
         _write_audit(db, vm, user, changes)
     try:
         if commit:
+            db.flush()
+            if "disks" in payload.model_fields_set:
+                _sync_disks(db, vm, payload.disks)
+            if "networks" in payload.model_fields_set:
+                _sync_networks(db, vm, payload.networks)
             db.commit()
             db.refresh(vm)
             vm.health_score = compute_health_score(vm)
