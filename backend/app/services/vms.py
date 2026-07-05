@@ -254,16 +254,22 @@ def apply_vm_filters(
             net_subq,
             app_subq,
         ))
-    if platform:
-        stmt = stmt.where(_op_condition(Vm.platform, platform.value, platform_op))
+    FILTER_SPECS = (
+        (platform, Vm.platform, platform_op, False),
+        (status_value, Vm.status, status_op, False),
+        (environment, Vm.environment, environment_op, False),
+        (criticality, Vm.criticality, criticality_op, False),
+        (node, Vm.node, node_op, False),
+        (os_family, Vm.os_family, os_family_op, False),
+        (department, Vm.department, department_op, True),
+    )
+    for value, column, operator, case_insensitive in FILTER_SPECS:
+        if value:
+            stmt = stmt.where(
+                _op_condition(column, value, operator, case_insensitive=case_insensitive)
+            )
     if cluster:
         stmt = stmt.where(Vm.cluster == cluster.strip())
-    if status_value:
-        stmt = stmt.where(_op_condition(Vm.status, status_value.value, status_op))
-    if environment:
-        stmt = stmt.where(_op_condition(Vm.environment, environment.value, environment_op))
-    if criticality:
-        stmt = stmt.where(_op_condition(Vm.criticality, criticality.value, criticality_op))
     if lifecycle:
         stmt = stmt.where(Vm.lifecycle == lifecycle)
     if monitoring_enabled is not None:
@@ -272,10 +278,6 @@ def apply_vm_filters(
             if monitoring_enabled_op == FilterOperator.neq
             else Vm.monitoring_enabled == monitoring_enabled
         )
-    if node:
-        stmt = stmt.where(_op_condition(Vm.node, node.strip(), node_op))
-    if os_family:
-        stmt = stmt.where(_op_condition(Vm.os_family, os_family.value, os_family_op))
     if owner:
         needle = owner.strip().lower()
         owner_match = or_(
@@ -284,10 +286,6 @@ def apply_vm_filters(
             func.lower(func.coalesce(Vm.technical_owner, "")) == needle,
         )
         stmt = stmt.where(~owner_match if owner_op == FilterOperator.neq else owner_match)
-    if department:
-        stmt = stmt.where(
-            _op_condition(Vm.department, department, department_op, case_insensitive=True)
-        )
     if tag:
         tag_match = Vm.tags.contains([tag.strip()])
         stmt = stmt.where(~tag_match if tag_op == FilterOperator.neq else tag_match)

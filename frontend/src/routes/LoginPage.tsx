@@ -7,6 +7,21 @@ import { api, detailMessage, User } from '../api/client';
 import { ThemeSelect } from '../components/ThemeProvider';
 import { Alert, FieldError, Logo, Spinner, inputClass, labelClass, primaryButtonClass } from '../components/ui';
 
+function validateLogin(email: string, password: string) {
+  return {
+    email: email.trim().length === 0 ? 'Email is required.' : undefined,
+    password: password.length === 0 ? 'Password is required.' : undefined,
+  };
+}
+
+function validateSetup(email: string, password: string, confirmPassword: string) {
+  return {
+    email: email.trim().length === 0 ? 'Email is required.' : undefined,
+    password: password.length < 8 ? 'Password must be at least 8 characters.' : undefined,
+    confirmPassword: confirmPassword !== password ? 'Passwords do not match.' : undefined,
+  };
+}
+
 function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="relative min-h-screen lg:grid lg:grid-cols-[1.05fr_1fr]">
@@ -75,23 +90,27 @@ export function LoginPage() {
     if (cachedUser) router.replace('/inventory');
   }, [cachedUser, router]);
 
-  const emailError = submitted && email.trim().length === 0 ? 'Email is required.' : undefined;
-  const passwordError = submitted && password.length === 0 ? 'Password is required.' : undefined;
-  const setupEmailError = setupSubmitted && setupEmail.trim().length === 0 ? 'Email is required.' : undefined;
-  const setupPasswordError = setupSubmitted && setupPassword.length < 8 ? 'Password must be at least 8 characters.' : undefined;
-  const setupConfirmPasswordError = setupSubmitted && setupConfirmPassword !== setupPassword ? 'Passwords do not match.' : undefined;
+  const loginValidation = validateLogin(email, password);
+  const emailError = submitted ? loginValidation.email : undefined;
+  const passwordError = submitted ? loginValidation.password : undefined;
+  const setupValidation = validateSetup(setupEmail, setupPassword, setupConfirmPassword);
+  const setupEmailError = setupSubmitted ? setupValidation.email : undefined;
+  const setupPasswordError = setupSubmitted ? setupValidation.password : undefined;
+  const setupConfirmPasswordError = setupSubmitted ? setupValidation.confirmPassword : undefined;
 
   function submitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
-    if (email.trim().length === 0 || password.length === 0) return;
+    const errors = validateLogin(email, password);
+    if (errors.email || errors.password) return;
     login.mutate();
   }
 
   function submitSetup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSetupSubmitted(true);
-    if (setupEmail.trim().length === 0 || setupPassword.length < 8 || setupConfirmPassword !== setupPassword) return;
+    const errors = validateSetup(setupEmail, setupPassword, setupConfirmPassword);
+    if (errors.email || errors.password || errors.confirmPassword) return;
     setupAdmin.mutate();
   }
 

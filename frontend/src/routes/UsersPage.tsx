@@ -18,24 +18,38 @@ function defaultNewUser(): NewUserForm {
   return { email: '', password: '', role: 'viewer', is_active: true };
 }
 
+function buildUpdateUserMutation(
+  userId: string,
+  role: UserRole,
+  isActive: boolean,
+  password: string,
+  setPassword: (value: string) => void,
+  queryClient: ReturnType<typeof useQueryClient>,
+  onSuccess?: () => void,
+) {
+  return {
+    mutationFn: () => {
+      const payload: Partial<{ role: UserRole; is_active: boolean; password: string }> = { role, is_active: isActive };
+      if (password.length > 0) payload.password = password;
+      return api.updateUser(userId, payload);
+    },
+    onSuccess: () => {
+      setPassword('');
+      onSuccess?.();
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  };
+}
+
 function UserCard({ user }: { user: User }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [role, setRole] = useState<UserRole>(user.role);
   const [isActive, setIsActive] = useState(user.is_active);
   const [password, setPassword] = useState('');
-  const update = useMutation({
-    mutationFn: () => {
-      const payload: Partial<{ role: UserRole; is_active: boolean; password: string }> = { role, is_active: isActive };
-      if (password.length > 0) payload.password = password;
-      return api.updateUser(user.id, payload);
-    },
-    onSuccess: () => {
-      setPassword('');
-      setEditing(false);
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-  });
+  const update = useMutation(
+    buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient, () => setEditing(false)),
+  );
 
   return (
     <div className={cardClass}>
@@ -77,17 +91,7 @@ function UserRow({ user }: { user: User }) {
   const [role, setRole] = useState<UserRole>(user.role);
   const [isActive, setIsActive] = useState(user.is_active);
   const [password, setPassword] = useState('');
-  const update = useMutation({
-    mutationFn: () => {
-      const payload: Partial<{ role: UserRole; is_active: boolean; password: string }> = { role, is_active: isActive };
-      if (password.length > 0) payload.password = password;
-      return api.updateUser(user.id, payload);
-    },
-    onSuccess: () => {
-      setPassword('');
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-  });
+  const update = useMutation(buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient));
 
   return (
     <>

@@ -31,6 +31,35 @@ const advancedFilterLabels: Record<AdvancedFilterName, string> = {
   tag: 'Tag', application: 'Application', health: 'Doc Health',
 };
 
+type AdvancedFieldConfig =
+  | { kind: 'select'; options: readonly { value: string; label: string }[] }
+  | { kind: 'dynamicSelect' }
+  | { kind: 'input'; placeholder: string };
+
+const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfig> = {
+  environment: { kind: 'select', options: [
+    { value: '', label: 'All environments' }, { value: 'production', label: 'production' },
+    { value: 'development', label: 'development' }, { value: 'testing', label: 'testing' },
+    { value: 'uat', label: 'uat' }, { value: 'dr', label: 'dr' },
+    { value: 'staging', label: 'staging' }, { value: 'sandbox', label: 'sandbox' },
+  ] },
+  monitoring_enabled: { kind: 'select', options: [
+    { value: '', label: 'All' }, { value: 'true', label: 'Enabled' }, { value: 'false', label: 'Disabled' },
+  ] },
+  os_family: { kind: 'select', options: [
+    { value: '', label: 'All' }, { value: 'linux', label: 'Linux' }, { value: 'windows', label: 'Windows' },
+  ] },
+  owner: { kind: 'dynamicSelect' },
+  health: { kind: 'select', options: [
+    { value: '', label: 'All' }, { value: 'below_50', label: '< 50%' },
+    { value: 'below_75', label: '< 75%' }, { value: 'complete', label: 'Complete (100%)' },
+  ] },
+  node: { kind: 'input', placeholder: 'Node name' },
+  department: { kind: 'input', placeholder: 'Department' },
+  tag: { kind: 'input', placeholder: 'Exact tag' },
+  application: { kind: 'input', placeholder: 'App name' },
+};
+
 const operatorOptions = [
   { value: 'eq', label: 'Is' },
   { value: 'contains', label: 'Contains' },
@@ -264,79 +293,33 @@ export function InventoryPage() {
             </select>
             <OperatorSelect label="Criticality" value={operators.criticality} onChange={(value) => setOperators({ ...operators, criticality: value })} />
           </div>
-          {revealed.has('environment') && (
-            <div>
-              <label className={labelClass} htmlFor="environment">Environment</label>
-              <select className={selectClass} id="environment" name="environment" value={filters.environment} onChange={(event) => setFilters({ ...filters, environment: event.target.value })}>
-                <option value="">All environments</option><option value="production">production</option><option value="development">development</option><option value="testing">testing</option><option value="uat">uat</option><option value="dr">dr</option><option value="staging">staging</option><option value="sandbox">sandbox</option>
-              </select>
-              <OperatorSelect label="Environment" value={operators.environment} onChange={(value) => setOperators({ ...operators, environment: value })} />
-            </div>
-          )}
-          {revealed.has('monitoring_enabled') && (
-            <div>
-              <label className={labelClass} htmlFor="monitoring_enabled">Monitoring</label>
-              <select className={selectClass} id="monitoring_enabled" name="monitoring_enabled" value={filters.monitoring_enabled} onChange={(event) => setFilters({ ...filters, monitoring_enabled: event.target.value })}>
-                <option value="">All</option><option value="true">Enabled</option><option value="false">Disabled</option>
-              </select>
-              <OperatorSelect label="Monitoring" value={operators.monitoring_enabled} onChange={(value) => setOperators({ ...operators, monitoring_enabled: value })} />
-            </div>
-          )}
-          {revealed.has('os_family') && (
-            <div>
-              <label className={labelClass} htmlFor="os_family">OS Family</label>
-              <select className={selectClass} id="os_family" name="os_family" value={filters.os_family} onChange={(event) => setFilters({ ...filters, os_family: event.target.value })}>
-                <option value="">All</option><option value="linux">Linux</option><option value="windows">Windows</option>
-              </select>
-              <OperatorSelect label="OS Family" value={operators.os_family} onChange={(value) => setOperators({ ...operators, os_family: value })} />
-            </div>
-          )}
-          {revealed.has('owner') && (
-            <div>
-              <label className={labelClass} htmlFor="owner">Owner</label>
-              <select className={selectClass} id="owner" name="owner" value={filters.owner} onChange={(event) => setFilters({ ...filters, owner: event.target.value })}>
-                <option value="">All owners</option>
-                {(owners.data ?? []).map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-              <OperatorSelect label="Owner" value={operators.owner} onChange={(value) => setOperators({ ...operators, owner: value })} />
-            </div>
-          )}
-          {revealed.has('health') && (
-            <div>
-              <label className={labelClass} htmlFor="health">Doc Health</label>
-              <select className={selectClass} id="health" name="health" value={filters.health} onChange={(event) => setFilters({ ...filters, health: event.target.value })}>
-                <option value="">All</option><option value="below_50">&lt; 50%</option><option value="below_75">&lt; 75%</option><option value="complete">Complete (100%)</option>
-              </select>
-            </div>
-          )}
-          {revealed.has('node') && (
-            <div>
-              <label className={labelClass} htmlFor="node">Node</label>
-              <input className={inputClass} id="node" name="node" value={filters.node} onChange={(event) => setFilters({ ...filters, node: event.target.value })} placeholder="Node name" />
-              <OperatorSelect label="Node" value={operators.node} onChange={(value) => setOperators({ ...operators, node: value })} />
-            </div>
-          )}
-          {revealed.has('department') && (
-            <div>
-              <label className={labelClass} htmlFor="department">Department</label>
-              <input className={inputClass} id="department" name="department" value={filters.department} onChange={(event) => setFilters({ ...filters, department: event.target.value })} placeholder="Department" />
-              <OperatorSelect label="Department" value={operators.department} onChange={(value) => setOperators({ ...operators, department: value })} />
-            </div>
-          )}
-          {revealed.has('tag') && (
-            <div>
-              <label className={labelClass} htmlFor="tag">Tag</label>
-              <input className={inputClass} id="tag" name="tag" value={filters.tag} onChange={(event) => setFilters({ ...filters, tag: event.target.value })} placeholder="Exact tag" />
-              <OperatorSelect label="Tag" value={operators.tag} onChange={(value) => setOperators({ ...operators, tag: value })} />
-            </div>
-          )}
-          {revealed.has('application') && (
-            <div>
-              <label className={labelClass} htmlFor="application">Application</label>
-              <input className={inputClass} id="application" name="application" value={filters.application} onChange={(event) => setFilters({ ...filters, application: event.target.value })} placeholder="App name" />
-              <OperatorSelect label="Application" value={operators.application} onChange={(value) => setOperators({ ...operators, application: value })} />
-            </div>
-          )}
+          {advancedFilterNames.filter((name) => revealed.has(name)).map((name) => {
+            const config = advancedFilterConfig[name];
+            const label = advancedFilterLabels[name];
+            return (
+              <div key={name}>
+                <label className={labelClass} htmlFor={name}>{label}</label>
+                {config.kind === 'input' ? (
+                  <input className={inputClass} id={name} name={name} value={filters[name]} placeholder={config.placeholder}
+                    onChange={(event) => setFilters({ ...filters, [name]: event.target.value })} />
+                ) : (
+                  <select className={selectClass} id={name} name={name} value={filters[name]}
+                    onChange={(event) => setFilters({ ...filters, [name]: event.target.value })}>
+                    {config.kind === 'select'
+                      ? config.options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)
+                      : <>
+                          <option value="">All owners</option>
+                          {(owners.data ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+                        </>}
+                  </select>
+                )}
+                {name !== 'health' && (
+                  <OperatorSelect label={label} value={operators[name as OperableFilterName]}
+                    onChange={(value) => setOperators({ ...operators, [name as OperableFilterName]: value })} />
+                )}
+              </div>
+            );
+          })}
           <div className="flex items-end gap-3 sm:col-span-2 lg:col-span-5">
             <div className="relative">
               <button type="button" className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" onClick={() => setAddFilterOpen((open) => !open)}>

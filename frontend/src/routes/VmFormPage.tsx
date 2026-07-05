@@ -180,6 +180,28 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
 
 const EMPTY_OPTIONS = { cpu: [], datacenter: [], disk: [], os: [], os_by_family: { linux: [], windows: [] } };
 
+function buildSubRequests(disks: DiskRow[], ips: IpRow[], vmId: string): Promise<unknown>[] {
+  const sub: Promise<unknown>[] = [];
+  disks
+    .filter((d) => Number(d.size) > 0)
+    .forEach((d, i) => sub.push(api.addDisk(vmId, {
+      disk_name: d.name.trim() || `disk-${i + 1}`,
+      size_gb: d.unit === 'TB' ? Number(d.size) * 1024 : Number(d.size),
+      storage_name: d.storage.trim() || null,
+      storage_type: d.type.trim() || null,
+      sort_order: i,
+    })));
+  ips
+    .filter((r) => r.ip.trim())
+    .forEach((r, i) => sub.push(api.addNetwork(vmId, {
+      ip_address: r.ip.trim(),
+      vlan: r.vlan.trim() ? Number(r.vlan) : null,
+      gateway: r.gateway.trim() || null,
+      sort_order: i,
+    })));
+  return sub;
+}
+
 export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const params = useParams<{ id?: string }>();
   const id = params.id;
@@ -229,25 +251,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
     try {
       const vm = await save.mutateAsync(parsed.data as unknown as VmPayload);
       if (mode === 'create') {
-        const sub: Promise<unknown>[] = [];
-        disks
-          .filter((d) => Number(d.size) > 0)
-          .forEach((d, i) => sub.push(api.addDisk(vm.id, {
-            disk_name: d.name.trim() || `disk-${i + 1}`,
-            size_gb: d.unit === 'TB' ? Number(d.size) * 1024 : Number(d.size),
-            storage_name: d.storage.trim() || null,
-            storage_type: d.type.trim() || null,
-            sort_order: i,
-          })));
-        ips
-          .filter((r) => r.ip.trim())
-          .forEach((r, i) => sub.push(api.addNetwork(vm.id, {
-            ip_address: r.ip.trim(),
-            vlan: r.vlan.trim() ? Number(r.vlan) : null,
-            gateway: r.gateway.trim() || null,
-            sort_order: i,
-          })));
-        await Promise.allSettled(sub);
+        await Promise.allSettled(buildSubRequests(disks, ips, vm.id));
       }
       queryClient.invalidateQueries({ queryKey: ['vms'] });
       queryClient.invalidateQueries({ queryKey: ['vm-owners'] });

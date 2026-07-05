@@ -40,6 +40,21 @@ export function summarizePreview(batch: Pick<ImportBatch, 'summary' | 'rows'> | 
   return counts;
 }
 
+function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
+  return (
+    <tr className={tableRowClass}>
+      <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-900 dark:text-slate-100" scope="row">{row.row_number}</th>
+      <td className="whitespace-nowrap px-4 py-3"><Badge value={row.action} /></td>
+      <td className={tableCellClass}>{row.normalized?.name ?? String(row.raw.name ?? '—')}</td>
+      <td className={tableCellClass}>{row.normalized?.platform ?? String(row.raw.platform ?? '—')}</td>
+      <td className={tableCellClass}>{row.normalized?.cluster ?? String(row.raw.cluster ?? '—')}</td>
+      <td className={tableCellClass}>{row.raw.disk_name ? `${row.raw.disk_name}${row.raw.disk_gb ? ` (${row.raw.disk_gb} GB)` : ''}` : '—'}</td>
+      <td className={tableCellClass}>{String(row.raw.ip_address ?? '—')}</td>
+      <td className="min-w-72 px-4 py-3 text-slate-700 dark:text-slate-300">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5 text-red-700 dark:text-red-300">{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
+    </tr>
+  );
+}
+
 export function ImportCsvPage() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -176,18 +191,7 @@ export function ImportCsvPage() {
                     </tr>
                   </thead>
                   <tbody className={tableBodyClass}>
-                    {batch.rows.map((row) => (
-                      <tr key={row.id} className={tableRowClass}>
-                        <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-900 dark:text-slate-100" scope="row">{row.row_number}</th>
-                        <td className="whitespace-nowrap px-4 py-3"><Badge value={row.action} /></td>
-                        <td className={tableCellClass}>{row.normalized?.name ?? String(row.raw.name ?? '—')}</td>
-                        <td className={tableCellClass}>{row.normalized?.platform ?? String(row.raw.platform ?? '—')}</td>
-                        <td className={tableCellClass}>{row.normalized?.cluster ?? String(row.raw.cluster ?? '—')}</td>
-                        <td className={tableCellClass}>{row.raw.disk_name ? `${row.raw.disk_name}${row.raw.disk_gb ? ` (${row.raw.disk_gb} GB)` : ''}` : '—'}</td>
-                        <td className={tableCellClass}>{String(row.raw.ip_address ?? '—')}</td>
-                        <td className="min-w-72 px-4 py-3 text-slate-700 dark:text-slate-300">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5 text-red-700 dark:text-red-300">{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
-                      </tr>
-                    ))}
+                    {batch.rows.map((row) => <ImportRow key={row.id} row={row} />)}
                   </tbody>
                 </table>
               </div>

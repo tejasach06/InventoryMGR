@@ -25,9 +25,8 @@
     },
     "postgres": {
       "type": "stdio",
-      "command": "npx",
+      "command": "bunx",
       "args": [
-        "-y",
         "@modelcontextprotocol/server-postgres",
         "postgresql://inventorymgr@127.0.0.1:54329/inventorymgr"
       ],
@@ -35,8 +34,8 @@
     },
     "context7": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"],
+      "command": "bunx",
+      "args": ["@upstash/context7-mcp@latest"],
       "env": {}
     }
   }

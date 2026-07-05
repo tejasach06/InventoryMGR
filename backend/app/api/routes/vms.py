@@ -1,9 +1,10 @@
 import csv
 import io
 import uuid
+from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -43,56 +44,45 @@ from app.services.vms import (
 router = APIRouter()
 
 
+@dataclass
+class VmFilterParams:
+    q: str | None = None
+    platform: Platform | None = None
+    platform_op: FilterOperator = FilterOperator.eq
+    cluster: str | None = None
+    status_value: Annotated[VmStatus | None, Query(alias="status")] = None
+    status_op: FilterOperator = FilterOperator.eq
+    environment: Environment | None = None
+    environment_op: FilterOperator = FilterOperator.eq
+    criticality: Criticality | None = None
+    criticality_op: FilterOperator = FilterOperator.eq
+    lifecycle: Lifecycle | None = None
+    monitoring_enabled: bool | None = None
+    monitoring_enabled_op: FilterOperator = FilterOperator.eq
+    node: str | None = None
+    node_op: FilterOperator = FilterOperator.eq
+    os_family: OsFamily | None = None
+    os_family_op: FilterOperator = FilterOperator.eq
+    owner: str | None = None
+    owner_op: FilterOperator = FilterOperator.eq
+    department: str | None = None
+    department_op: FilterOperator = FilterOperator.eq
+    tag: str | None = None
+    tag_op: FilterOperator = FilterOperator.eq
+    application: str | None = None
+    application_op: FilterOperator = FilterOperator.contains
+    health: Annotated[str | None, Query(pattern="^(below_50|below_75|complete)$")] = None
+
+
 @router.get("", response_model=VmList)
 def list_inventory(
     db: DbSession,
     _: ViewerUser,
-    q: str | None = None,
-    platform: Platform | None = None,
-    platform_op: FilterOperator = FilterOperator.eq,
-    cluster: str | None = None,
-    status_value: Annotated[VmStatus | None, Query(alias="status")] = None,
-    status_op: FilterOperator = FilterOperator.eq,
-    environment: Environment | None = None,
-    environment_op: FilterOperator = FilterOperator.eq,
-    criticality: Criticality | None = None,
-    criticality_op: FilterOperator = FilterOperator.eq,
-    lifecycle: Lifecycle | None = None,
-    monitoring_enabled: bool | None = None,
-    monitoring_enabled_op: FilterOperator = FilterOperator.eq,
-    node: str | None = None,
-    node_op: FilterOperator = FilterOperator.eq,
-    os_family: OsFamily | None = None,
-    os_family_op: FilterOperator = FilterOperator.eq,
-    owner: str | None = None,
-    owner_op: FilterOperator = FilterOperator.eq,
-    department: str | None = None,
-    department_op: FilterOperator = FilterOperator.eq,
-    tag: str | None = None,
-    tag_op: FilterOperator = FilterOperator.eq,
-    application: str | None = None,
-    application_op: FilterOperator = FilterOperator.contains,
-    health: Annotated[str | None, Query(pattern="^(below_50|below_75|complete)$")] = None,
+    filters: Annotated[VmFilterParams, Depends()],
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> VmList:
-    items, total = list_vms(
-        db,
-        {
-            "q": q, "platform": platform, "platform_op": platform_op,
-            "cluster": cluster, "status_value": status_value, "status_op": status_op,
-            "environment": environment, "environment_op": environment_op,
-            "criticality": criticality, "criticality_op": criticality_op, "lifecycle": lifecycle,
-            "monitoring_enabled": monitoring_enabled,
-            "monitoring_enabled_op": monitoring_enabled_op,
-            "node": node, "node_op": node_op, "os_family": os_family, "os_family_op": os_family_op,
-            "owner": owner, "owner_op": owner_op, "department": department,
-            "department_op": department_op, "tag": tag, "tag_op": tag_op,
-            "application": application, "application_op": application_op, "health": health,
-        },
-        limit,
-        offset,
-    )
+    items, total = list_vms(db, vars(filters), limit, offset)
     return VmList(
         items=[to_vm_read(item) for item in items],
         total=total, limit=limit, offset=offset,
@@ -154,47 +144,13 @@ _EXPORT_COLS = [
 def export_vms(
     db: DbSession,
     _: ViewerUser,
-    q: str | None = None,
-    platform: Platform | None = None,
-    platform_op: FilterOperator = FilterOperator.eq,
-    cluster: str | None = None,
-    status_value: Annotated[VmStatus | None, Query(alias="status")] = None,
-    status_op: FilterOperator = FilterOperator.eq,
-    environment: Environment | None = None,
-    environment_op: FilterOperator = FilterOperator.eq,
-    criticality: Criticality | None = None,
-    criticality_op: FilterOperator = FilterOperator.eq,
-    lifecycle: Lifecycle | None = None,
-    monitoring_enabled: bool | None = None,
-    monitoring_enabled_op: FilterOperator = FilterOperator.eq,
-    node: str | None = None,
-    node_op: FilterOperator = FilterOperator.eq,
-    os_family: OsFamily | None = None,
-    os_family_op: FilterOperator = FilterOperator.eq,
-    owner: str | None = None,
-    owner_op: FilterOperator = FilterOperator.eq,
-    department: str | None = None,
-    department_op: FilterOperator = FilterOperator.eq,
-    tag: str | None = None,
-    tag_op: FilterOperator = FilterOperator.eq,
-    application: str | None = None,
-    application_op: FilterOperator = FilterOperator.contains,
-    health: Annotated[str | None, Query(pattern="^(below_50|below_75|complete)$")] = None,
+    filters: Annotated[VmFilterParams, Depends()],
     ids: Annotated[list[uuid.UUID] | None, Query()] = None,
 ) -> StreamingResponse:
     if ids:
         base_q = select(Vm).where(Vm.id.in_(ids))
     else:
-        base_q = apply_vm_filters(
-            select(Vm), q=q, platform=platform, platform_op=platform_op, cluster=cluster,
-            status_value=status_value, status_op=status_op, environment=environment,
-            environment_op=environment_op, criticality=criticality, criticality_op=criticality_op,
-            lifecycle=lifecycle, monitoring_enabled=monitoring_enabled,
-            monitoring_enabled_op=monitoring_enabled_op, node=node, node_op=node_op,
-            os_family=os_family, os_family_op=os_family_op, owner=owner, owner_op=owner_op,
-            department=department, department_op=department_op, tag=tag, tag_op=tag_op,
-            application=application, application_op=application_op, health=health,
-        )
+        base_q = apply_vm_filters(select(Vm), **vars(filters))
     vms = list(db.scalars(base_q.options(selectinload(Vm.applications)).order_by(Vm.name.asc())))
 
     def generate():

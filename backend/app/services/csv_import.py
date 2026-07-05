@@ -86,6 +86,7 @@ DEFAULTS: dict[str, Any] = {
     "ha_enabled": False,
     "backup_enabled": False,
     "tags": [],
+    "os_family": None,
 }
 
 
@@ -208,9 +209,9 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
         value = clean.get(field, "")
         normalized[field] = value or None
 
-    for field in ("status", "environment", "criticality", "lifecycle"):
+    for field in ("status", "environment", "criticality", "lifecycle", "os_family"):
         value = clean.get(field, "").lower() or DEFAULTS[field]
-        if value not in ENUM_VALUES[field]:
+        if value is not None and value not in ENUM_VALUES[field]:
             errors.append(_error(field, f"must be one of {', '.join(sorted(ENUM_VALUES[field]))}"))
         normalized[field] = value
 
@@ -220,16 +221,6 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
     normalized["monitoring_enabled"] = _parse_bool(clean, "monitoring_enabled", errors)
     normalized["ha_enabled"] = _parse_bool(clean, "ha_enabled", errors)
     normalized["backup_enabled"] = _parse_bool(clean, "backup_enabled", errors)
-
-    os_family = clean.get("os_family", "").lower()
-    if os_family == "":
-        normalized["os_family"] = None
-    elif os_family not in ENUM_VALUES["os_family"]:
-        errors.append(
-            _error("os_family", f"must be one of {', '.join(sorted(ENUM_VALUES['os_family']))}")
-        )
-    else:
-        normalized["os_family"] = os_family
 
     normalized["tags"] = _parse_list(clean, "tags")
     for field in ("last_patch_date", "last_vuln_scan_date", "decommission_date", "last_verified_at"):
@@ -367,6 +358,39 @@ def load_batch_or_404(db: Session, batch_id: uuid.UUID, user: User) -> CsvImport
     return batch
 
 
+def _commit_row(db: Session, row: CsvImportRow, user: User) -> str:
+    assert row.normalized is not None
+    normalized = row.normalized.copy()
+    date_fields = (
+        "last_patch_date", "last_vuln_scan_date", "decommission_date", "last_verified_at"
+    )
+    for date_field in date_fields:
+        if normalized.get(date_field):
+            normalized[date_field] = date.fromisoformat(normalized[date_field])
+    if row.action == ImportAction.create:
+        vm = create_vm(db, VmCreate.model_validate(normalized), user, commit=False)
+        db.flush()
+        disk_name = str(row.raw.get("disk_name") or "").strip()
+        disk_gb = row.raw.get("disk_gb")
+        ip_address = str(row.raw.get("ip_address") or "").strip()
+        if disk_name:
+            db.add(VmDisk(
+                vm_id=vm.id, disk_name=disk_name,
+                size_gb=int(disk_gb) if str(disk_gb or "").strip().isdigit() else 0,
+                sort_order=0,
+            ))
+        if ip_address:
+            db.add(VmNetwork(vm_id=vm.id, ip_address=ip_address, sort_order=0))
+        return "create"
+    if row.target_vm_id is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
+    vm = db.get(Vm, row.target_vm_id)
+    if vm is None or find_matching_vm(db, row.normalized) != vm:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
+    update_vm(db, vm, VmUpdate.model_validate(normalized), user, commit=False)
+    return "update"
+
+
 def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, int]:
     batch = load_batch_or_404(db, batch_id, user)
     if batch.status != ImportStatus.previewed:
@@ -385,33 +409,9 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
     updated = 0
     for row in batch.rows:
         try:
-            assert row.normalized is not None
-            normalized = row.normalized.copy()
-            for date_field in ("last_patch_date", "last_vuln_scan_date", "decommission_date", "last_verified_at"):
-                if normalized.get(date_field):
-                    normalized[date_field] = date.fromisoformat(normalized[date_field])
-            if row.action == ImportAction.create:
-                vm = create_vm(db, VmCreate.model_validate(normalized), user, commit=False)
-                db.flush()
-                disk_name = str(row.raw.get("disk_name") or "").strip()
-                disk_gb = row.raw.get("disk_gb")
-                ip_address = str(row.raw.get("ip_address") or "").strip()
-                if disk_name:
-                    db.add(VmDisk(vm_id=vm.id, disk_name=disk_name, size_gb=int(disk_gb) if str(disk_gb or "").strip().isdigit() else 0, sort_order=0))
-                if ip_address:
-                    db.add(VmNetwork(vm_id=vm.id, ip_address=ip_address, sort_order=0))
+            if _commit_row(db, row, user) == "create":
                 created += 1
-            elif row.action == ImportAction.update:
-                if row.target_vm_id is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed"
-                    )
-                vm = db.get(Vm, row.target_vm_id)
-                if vm is None or find_matching_vm(db, row.normalized) != vm:
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed"
-                    )
-                update_vm(db, vm, VmUpdate.model_validate(normalized), user, commit=False)
+            else:
                 updated += 1
         except HTTPException:
             db.rollback()
