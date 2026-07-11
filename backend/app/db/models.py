@@ -20,6 +20,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+# ponytail: JSONB for preferences — flexible per-user config without schema changes
+
 
 class Base(DeclarativeBase):
     pass
@@ -123,6 +125,7 @@ class User(Base, TimestampMixin):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    preferences: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
 
 
 class Vm(Base, TimestampMixin):
@@ -164,9 +167,10 @@ class Vm(Base, TimestampMixin):
     owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
     business_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
     technical_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    department: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    pmp_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     monitoring_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     backup_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    backup_location: Mapped[str | None] = mapped_column(String(500), nullable=True)
     ha_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     last_patch_date: Mapped[date | None] = mapped_column(Date, nullable=True)

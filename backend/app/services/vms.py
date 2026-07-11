@@ -255,8 +255,8 @@ def apply_vm_filters(
     os_family_op: FilterOperator = FilterOperator.eq,
     owner: str | None = None,
     owner_op: FilterOperator = FilterOperator.eq,
-    department: str | None = None,
-    department_op: FilterOperator = FilterOperator.eq,
+    pmp_enabled: bool | None = None,
+    pmp_enabled_op: FilterOperator = FilterOperator.eq,
     tag: str | None = None,
     tag_op: FilterOperator = FilterOperator.eq,
     application: str | None = None,
@@ -278,7 +278,6 @@ def apply_vm_filters(
             func.lower(Vm.cluster).like(pattern),
             func.lower(func.coalesce(Vm.owner, "")).like(pattern),
             func.lower(func.coalesce(Vm.fqdn, "")).like(pattern),
-            func.lower(func.coalesce(Vm.department, "")).like(pattern),
             func.lower(func.coalesce(Vm.external_id, "")).like(pattern),
             func.lower(func.coalesce(Vm.sr_id, "")).like(pattern),
             func.lower(func.coalesce(Vm.os_name, "")).like(pattern),
@@ -296,7 +295,7 @@ def apply_vm_filters(
         (criticality, Vm.criticality, criticality_op, False),
         (node, Vm.node, node_op, False),
         (os_family, Vm.os_family, os_family_op, False),
-        (department, Vm.department, department_op, True),
+        (pmp_enabled, Vm.pmp_enabled, pmp_enabled_op, False),
     )
     for value, column, operator, case_insensitive in FILTER_SPECS:
         if value:

@@ -226,6 +226,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
       const next = { ...c, [name]: value };
       const decommissionAllowed = next.status === 'decommissioned' || next.vm_type === 'temporary';
       if (!decommissionAllowed) next.decommission_date = '';
+      if (name === 'backup_enabled' && !value) next.backup_location = '';
       return next;
     });
     setErrors((c) => ({ ...c, [name]: undefined }));
@@ -341,16 +342,25 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <div className="grid gap-4 lg:grid-cols-3">
               <ComboInput name="owner" label="Owner" values={values} errors={errors} onChange={setField} options={owners} />
               <TextInput name="business_owner" label="Business Owner" values={values} errors={errors} onChange={setField} />
-              <TextInput name="department" label="Department" values={values} errors={errors} onChange={setField} />
             </div>
           </FormSection>
 
           <FormSection title="Operations">
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-4">
               <CheckboxInput name="monitoring_enabled" label="Monitoring enabled" values={values} errors={errors} onChange={setField} />
               <CheckboxInput name="backup_enabled" label="Backup enabled" values={values} errors={errors} onChange={setField} />
               <CheckboxInput name="ha_enabled" label="HA enabled" values={values} errors={errors} onChange={setField} />
+              <CheckboxInput name="pmp_enabled" label="PMP access enabled" values={values} errors={errors} onChange={setField} />
             </div>
+            {values.backup_enabled && (
+              <div className="mt-3 transition-all duration-200 ease-in-out">
+                <label className={labelClass} htmlFor="backup_location">Backup Location</label>
+                <input className={inputClass} id="backup_location" name="backup_location" type="text"
+                  placeholder="e.g. NAS-01 /backups, Veeam, S3 bucket name"
+                  value={values.backup_location}
+                  onChange={(e) => setField('backup_location', e.target.value)} />
+              </div>
+            )}
           </FormSection>
 
           <FormSection title="Security">

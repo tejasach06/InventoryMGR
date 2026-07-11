@@ -74,7 +74,7 @@ test('Memory field is expressed in GB', async ({ page }) => {
 test('disk add/remove works on VM detail page', async ({ page }) => {
   await loginAsAdmin(page);
   await openNewVmForm(page);
-  await page.getByLabel('Name').fill(`e2e-disk-${Date.now()}`);
+  await page.locator('#name').fill(`e2e-disk-${Date.now()}`);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');
@@ -107,7 +107,7 @@ test('owner suggestion applies on a single click', async ({ page }) => {
   await loginAsAdmin(page);
 
   await openNewVmForm(page);
-  await page.getByLabel('Name').fill(`seed-${Date.now()}`);
+  await page.locator('#name').fill(`seed-${Date.now()}`);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');
@@ -155,10 +155,53 @@ test('Users management lives in the Settings page, not the sidebar', async ({ pa
   await expect(page.getByRole('button', { name: 'New user' })).toBeVisible();
 });
 
+test('Columns button toggles the column editor and hides/shows a table column', async ({ page }) => {
+  // Ensure at least one VM exists so the inventory table renders.
+  await loginAsAdmin(page);
+  await openNewVmForm(page);
+  await page.locator('#name').fill(`e2e-cols-${Date.now()}`);
+  await page.getByLabel('Platform').selectOption('proxmox');
+  await page.getByLabel('Cluster').fill('pve-cluster-a');
+  await page.locator('#status').selectOption('running');
+  await page.getByLabel('CPU cores').fill('2');
+  await page.getByLabel('Memory GB').fill('4');
+  await page.locator('#criticality').selectOption('medium');
+  await page.getByRole('button', { name: 'Save VM' }).click();
+  await expect(page).toHaveURL(/\/inventory\/[0-9a-f-]+$/);
+
+  await page.getByRole('link', { name: 'Inventory' }).click();
+  await expect(page).toHaveURL(/\/inventory$/);
+
+  const table = page.locator('table');
+  await expect(table.getByRole('columnheader', { name: 'Platform' })).toBeVisible();
+
+  // The Columns button must exist and open the editor panel.
+  const columnsButton = page.getByRole('button', { name: 'Columns' });
+  await expect(columnsButton).toBeVisible();
+  await expect(columnsButton).toHaveAttribute('aria-expanded', 'false');
+  await columnsButton.click();
+  await expect(columnsButton).toHaveAttribute('aria-expanded', 'true');
+
+  const platformToggle = page.getByRole('checkbox', { name: 'Platform' });
+  await expect(platformToggle).toBeVisible();
+
+  // Hiding the Platform column removes its header from the table.
+  await platformToggle.uncheck();
+  await expect(table.getByRole('columnheader', { name: 'Platform' })).toHaveCount(0);
+
+  // Re-showing it restores the header.
+  await platformToggle.check();
+  await expect(table.getByRole('columnheader', { name: 'Platform' })).toBeVisible();
+
+  // Clicking outside closes the panel.
+  await page.getByRole('heading', { level: 1 }).first().click();
+  await expect(columnsButton).toHaveAttribute('aria-expanded', 'false');
+});
+
 test('IP address add/remove works on VM detail page', async ({ page }) => {
   await loginAsAdmin(page);
   await openNewVmForm(page);
-  await page.getByLabel('Name').fill(`e2e-net-${Date.now()}`);
+  await page.locator('#name').fill(`e2e-net-${Date.now()}`);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');
@@ -210,7 +253,7 @@ test('disk size_gb is stored as-entered on VM detail page', async ({ page }) => 
   await openNewVmForm(page);
 
   const name = `e2e-disk-${Date.now()}`;
-  await page.getByLabel('Name').fill(name);
+  await page.locator('#name').fill(name);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');

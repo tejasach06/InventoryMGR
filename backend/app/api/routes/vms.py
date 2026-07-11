@@ -65,8 +65,8 @@ class VmFilterParams:
     os_family_op: FilterOperator = FilterOperator.eq
     owner: str | None = None
     owner_op: FilterOperator = FilterOperator.eq
-    department: str | None = None
-    department_op: FilterOperator = FilterOperator.eq
+    pmp_enabled: bool | None = None
+    pmp_enabled_op: FilterOperator = FilterOperator.eq
     tag: str | None = None
     tag_op: FilterOperator = FilterOperator.eq
     application: str | None = None
@@ -103,6 +103,53 @@ def list_owners(db: DbSession, _: ViewerUser) -> list[str]:
     return [owner for owner in rows if owner]
 
 
+_EXPORT_COLS = [
+    "name", "fqdn", "platform", "cluster", "node", "environment", "status",
+    "criticality", "vcpu", "memory_gb", "os_family", "os_distribution", "os_version",
+    "business_owner", "technical_owner", "pmp_enabled",
+    "monitoring_enabled", "last_patch_date", "last_vuln_scan_date", "decommission_date",
+    "description", "tags",
+]
+
+
+@router.get("/export", response_class=StreamingResponse)
+def export_vms(
+    db: DbSession,
+    _: ViewerUser,
+    filters: Annotated[VmFilterParams, Depends()],
+    ids: Annotated[list[uuid.UUID] | None, Query()] = None,
+    all_vms: Annotated[bool, Query(alias="all")] = False,
+) -> StreamingResponse:
+    if ids:
+        base_q = select(Vm).where(Vm.id.in_(ids))
+    elif all_vms:
+        base_q = select(Vm)
+    else:
+        base_q = apply_vm_filters(select(Vm), **vars(filters))
+    vms = list(db.scalars(base_q.options(selectinload(Vm.applications)).order_by(Vm.name.asc())))
+
+    def generate():
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=_EXPORT_COLS + ["applications"])
+        writer.writeheader()
+        yield buf.getvalue()
+        for vm in vms:
+            buf.seek(0)
+            buf.truncate()
+            row = {col: getattr(vm, col, None) for col in _EXPORT_COLS}
+            row["tags"] = ",".join(vm.tags or [])
+            row["monitoring_enabled"] = "Yes" if vm.monitoring_enabled else "No"
+            row["applications"] = ",".join(a.app_name for a in vm.applications)
+            writer.writerow(row)
+            yield buf.getvalue()
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="vm-inventory.csv"'},
+    )
+
+
 @router.get("/{vm_id}", response_model=VmRead)
 def get_vm(vm_id: uuid.UUID, db: DbSession, _: ViewerUser) -> VmRead:
     vm = get_vm_detail_or_404(db, vm_id)
@@ -131,45 +178,3 @@ def delete_vm(vm_id: uuid.UUID, db: DbSession, _: AdminUser, __: Csrf) -> None:
     delete_vm_service(db, vm)
 
 
-_EXPORT_COLS = [
-    "name", "fqdn", "platform", "cluster", "node", "environment", "status",
-    "criticality", "vcpu", "memory_gb", "os_family", "os_distribution", "os_version",
-    "business_owner", "technical_owner", "department",
-    "monitoring_enabled", "last_patch_date", "last_vuln_scan_date", "decommission_date",
-    "description", "tags",
-]
-
-
-@router.get("/export", response_class=StreamingResponse)
-def export_vms(
-    db: DbSession,
-    _: ViewerUser,
-    filters: Annotated[VmFilterParams, Depends()],
-    ids: Annotated[list[uuid.UUID] | None, Query()] = None,
-) -> StreamingResponse:
-    if ids:
-        base_q = select(Vm).where(Vm.id.in_(ids))
-    else:
-        base_q = apply_vm_filters(select(Vm), **vars(filters))
-    vms = list(db.scalars(base_q.options(selectinload(Vm.applications)).order_by(Vm.name.asc())))
-
-    def generate():
-        buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=_EXPORT_COLS + ["applications"])
-        writer.writeheader()
-        yield buf.getvalue()
-        for vm in vms:
-            buf.seek(0)
-            buf.truncate()
-            row = {col: getattr(vm, col, None) for col in _EXPORT_COLS}
-            row["tags"] = ",".join(vm.tags or [])
-            row["monitoring_enabled"] = "Yes" if vm.monitoring_enabled else "No"
-            row["applications"] = ",".join(a.app_name for a in vm.applications)
-            writer.writerow(row)
-            yield buf.getvalue()
-
-    return StreamingResponse(
-        generate(),
-        media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="vm-inventory.csv"'},
-    )

@@ -21,7 +21,7 @@ STRING_FIELDS = {
     "owner",
     "business_owner",
     "technical_owner",
-    "department",
+    "backup_location",
     "security_remarks",
 }
 REQUIRED_STRINGS = {"name", "cluster"}
@@ -55,9 +55,10 @@ class VmBase(BaseModel):
     owner: str | None = None
     business_owner: str | None = None
     technical_owner: str | None = None
-    department: str | None = None
+    pmp_enabled: bool | None = None
     monitoring_enabled: bool | None = None
     backup_enabled: bool | None = None
+    backup_location: str | None = None
     ha_enabled: bool | None = None
     criticality: Criticality | None = None
     lifecycle: Lifecycle | None = None
@@ -107,6 +108,7 @@ class VmCreate(VmBase):
     criticality: Criticality
     lifecycle: Lifecycle
     vm_type: VmType = VmType.permanent
+    pmp_enabled: bool = False
     monitoring_enabled: bool = False
     backup_enabled: bool = False
     ha_enabled: bool = False
@@ -189,11 +191,18 @@ class ApplicationUpdate(BaseModel):
     description: str | None = None
 
 
+class AuditUserRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    email: str
+
+
 class AuditLogRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     vm_id: uuid.UUID
     user_id: uuid.UUID
+    user: AuditUserRead | None = None
     field_name: str
     old_value: str | None
     new_value: str | None

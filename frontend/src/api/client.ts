@@ -68,6 +68,7 @@ export interface AuditLogEntry {
   id: string;
   vm_id: string;
   user_id: string;
+  user?: { id: string; email: string } | null;
   field_name: string;
   old_value: string | null;
   new_value: string | null;
@@ -99,9 +100,10 @@ export interface Vm {
   owner: string | null;
   business_owner: string | null;
   technical_owner: string | null;
-  department: string | null;
+  pmp_enabled: boolean;
   monitoring_enabled: boolean;
   backup_enabled: boolean;
+  backup_location: string | null;
   ha_enabled: boolean;
   tags: string[];
   last_patch_date: string | null;
@@ -329,4 +331,11 @@ export const api = {
   updateDropdownOption: (id: string, value: string, family: OsFamily | null = null) =>
     apiRequest<DropdownOption>(`/settings/options/${id}`, { method: 'PATCH', body: JSON.stringify({ value, family }) }),
   deleteDropdownOption: (id: string) => apiRequest<null>(`/settings/options/${id}`, { method: 'DELETE' }),
+
+  getColumnPreferences: (pageKey: string) =>
+    apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(`/user/preferences/${pageKey}`),
+  updateColumnPreferences: (pageKey: string, columns: { key: string; visible: boolean; order: number }[]) =>
+    apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(
+      `/user/preferences/${pageKey}`, { method: 'PUT', body: JSON.stringify({ columns }) },
+    ),
 };

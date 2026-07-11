@@ -7,12 +7,14 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api, detailMessage, Vm } from '../api/client';
 import { useCurrentUser } from '../components/AuthContext';
 import { Alert, Badge, EmptyState, PageHeader, PageTransition, TableSkeleton, cardClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
+import { ColumnEditor } from '../components/ColumnEditor';
+import { useColumnPreferences, COLUMN_LABELS } from '../hooks/useColumnPreferences';
 import { formatMemory } from '../lib/units';
 
 const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
-const advancedFilterNames = ['environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'department', 'tag', 'application', 'health'] as const;
+const advancedFilterNames = ['environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'health'] as const;
 const filterNames = [...coreFilterNames, ...advancedFilterNames] as const;
-const operableFilterNames = ['platform', 'status', 'criticality', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'department', 'tag', 'application'] as const;
+const operableFilterNames = ['platform', 'status', 'criticality', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application'] as const;
 
 type FilterName = (typeof filterNames)[number];
 type AdvancedFilterName = (typeof advancedFilterNames)[number];
@@ -22,12 +24,12 @@ type Operators = Record<OperableFilterName, string>;
 
 const defaultOperators: Operators = {
   platform: 'eq', status: 'eq', criticality: 'eq', environment: 'eq', monitoring_enabled: 'eq',
-  node: 'eq', os_family: 'eq', owner: 'eq', department: 'eq', tag: 'eq', application: 'contains',
+  node: 'eq', os_family: 'eq', owner: 'eq', pmp_enabled: 'eq', tag: 'eq', application: 'contains',
 };
 
 const advancedFilterLabels: Record<AdvancedFilterName, string> = {
   environment: 'Environment', monitoring_enabled: 'Monitoring', node: 'Node',
-  os_family: 'OS Family', owner: 'Owner', department: 'Department',
+  os_family: 'OS Family', owner: 'Owner', pmp_enabled: 'PMP Access',
   tag: 'Tag', application: 'Application', health: 'Doc Health',
 };
 
@@ -50,12 +52,14 @@ const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfig> = {
     { value: '', label: 'All' }, { value: 'linux', label: 'Linux' }, { value: 'windows', label: 'Windows' },
   ] },
   owner: { kind: 'dynamicSelect' },
+  pmp_enabled: { kind: 'select', options: [
+    { value: '', label: 'All' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' },
+  ] },
   health: { kind: 'select', options: [
     { value: '', label: 'All' }, { value: 'below_50', label: '< 50%' },
     { value: 'below_75', label: '< 75%' }, { value: 'complete', label: 'Complete (100%)' },
   ] },
   node: { kind: 'input', placeholder: 'Node name' },
-  department: { kind: 'input', placeholder: 'Department' },
   tag: { kind: 'input', placeholder: 'Exact tag' },
   application: { kind: 'input', placeholder: 'App name' },
 };
@@ -69,7 +73,7 @@ const operatorOptions = [
 function emptyFilters(): Filters {
   return {
     q: '', platform: '', status: '', criticality: '', environment: '', monitoring_enabled: '',
-    node: '', os_family: '', owner: '', department: '', tag: '', application: '', health: '',
+    node: '', os_family: '', owner: '', pmp_enabled: '', tag: '', application: '', health: '',
   };
 }
 
@@ -143,7 +147,7 @@ function VmCard({ vm }: { vm: Vm }) {
   );
 }
 
-function VmTable({ vms, selectedIds, onToggle, onToggleAll }: { vms: Vm[], selectedIds: Set<string>, onToggle: (id: string) => void, onToggleAll: (ids: string[]) => void }) {
+function VmTable({ vms, columns, selectedIds, onToggle, onToggleAll }: { vms: Vm[]; columns: { key: string }[]; selectedIds: Set<string>; onToggle: (id: string) => void; onToggleAll: (ids: string[]) => void }) {
   const router = useRouter();
   const allSelected = vms.length > 0 && vms.every(vm => selectedIds.has(vm.id));
   return (
@@ -152,14 +156,9 @@ function VmTable({ vms, selectedIds, onToggle, onToggleAll }: { vms: Vm[], selec
         <thead className={tableHeadClass}>
           <tr>
             <th className="px-3 py-3" scope="col"><input type="checkbox" checked={allSelected} onChange={() => onToggleAll(vms.map(v => v.id))} /></th>
-            <th className="px-4 py-3" scope="col">Name</th>
-            <th className="px-4 py-3" scope="col">Platform</th>
-            <th className="px-4 py-3" scope="col">Cluster</th>
-            <th className="px-4 py-3" scope="col">Status</th>
-            <th className="px-4 py-3" scope="col">Resources</th>
-            <th className="px-4 py-3" scope="col">Criticality</th>
-            <th className="px-4 py-3" scope="col">IP Address</th>
-            <th className="px-4 py-3" scope="col">Updated</th>
+            {columns.map((col) => (
+              <th key={col.key} className="px-4 py-3" scope="col">{COLUMN_LABELS[col.key] ?? col.key}</th>
+            ))}
           </tr>
         </thead>
         <tbody className={tableBodyClass}>
@@ -168,16 +167,37 @@ function VmTable({ vms, selectedIds, onToggle, onToggleAll }: { vms: Vm[], selec
               <td className="px-3 py-3" onClick={e => { e.stopPropagation(); onToggle(vm.id); }}>
                 <input type="checkbox" checked={selectedIds.has(vm.id)} onChange={() => onToggle(vm.id)} />
               </td>
-              <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-blue-700 dark:text-blue-300" scope="row"><Link className="hover:text-blue-900 hover:underline dark:hover:text-blue-200" href={`/inventory/${vm.id}`}>{vm.name}</Link></th>
-              <td className={tableCellClass}>{vm.platform}</td>
-              <td className={`${tableCellClass} tech`}>{vm.cluster}</td>
-              <td className="whitespace-nowrap px-4 py-3"><Badge value={vm.status} /></td>
-              <td className={`${tableCellClass} tech text-[0.8125rem]`}>{vm.cpu_cores} CPU · {formatMemory(vm.memory_mb)} · {vm.disks.length} disk{vm.disks.length !== 1 ? 's' : ''}</td>
-              <td className="whitespace-nowrap px-4 py-3"><Badge value={vm.criticality} /></td>
-              <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600 dark:text-slate-300">
-                {vm.networks[0]?.ip_address ?? '—'}
-              </td>
-              <td className={`${tableCellClass} tech text-[0.8125rem] text-slate-500 dark:text-slate-400`}>{new Date(vm.updated_at).toLocaleDateString('en-CA')}</td>
+              {columns.map((col) => {
+                switch (col.key) {
+                  case 'name':
+                    return <th key={col.key} className="whitespace-nowrap px-4 py-3 text-left font-semibold text-blue-700 dark:text-blue-300" scope="row"><Link className="hover:text-blue-900 hover:underline dark:hover:text-blue-200" href={`/inventory/${vm.id}`}>{vm.name}</Link></th>;
+                  case 'platform': return <td key={col.key} className={tableCellClass}>{vm.platform}</td>;
+                  case 'cluster': return <td key={col.key} className={`${tableCellClass} tech`}>{vm.cluster}</td>;
+                  case 'status': return <td key={col.key} className="whitespace-nowrap px-4 py-3"><Badge value={vm.status} /></td>;
+                  case 'resources': return <td key={col.key} className={`${tableCellClass} tech text-[0.8125rem]`}>{vm.cpu_cores} CPU · {formatMemory(vm.memory_mb)} · {vm.disks.length} disk{vm.disks.length !== 1 ? 's' : ''}</td>;
+                  case 'criticality': return <td key={col.key} className="whitespace-nowrap px-4 py-3"><Badge value={vm.criticality} /></td>;
+                  case 'ip_address': return <td key={col.key} className="whitespace-nowrap px-4 py-3 font-mono text-slate-600 dark:text-slate-300">{vm.networks[0]?.ip_address ?? '—'}</td>;
+                  case 'updated_at': return <td key={col.key} className={`${tableCellClass} tech text-[0.8125rem] text-slate-500 dark:text-slate-400`}>{new Date(vm.updated_at).toLocaleDateString('en-CA')}</td>;
+                  case 'fqdn': return <td key={col.key} className={`${tableCellClass} font-mono text-slate-600 dark:text-slate-300`}>{vm.fqdn ?? '—'}</td>;
+                  case 'environment': return <td key={col.key} className="whitespace-nowrap px-4 py-3"><Badge value={vm.environment} /></td>;
+                  case 'lifecycle': return <td key={col.key} className="whitespace-nowrap px-4 py-3"><Badge value={vm.lifecycle} /></td>;
+                  case 'vm_type': return <td key={col.key} className={tableCellClass}>{vm.vm_type}</td>;
+                  case 'datacenter': return <td key={col.key} className={tableCellClass}>{vm.datacenter ?? '—'}</td>;
+                  case 'node': return <td key={col.key} className={`${tableCellClass} tech`}>{vm.node ?? '—'}</td>;
+                  case 'os': return <td key={col.key} className={tableCellClass}>{vm.os_name ? `${vm.os_name}${vm.os_version ? ` ${vm.os_version}` : ''}` : '—'}</td>;
+                  case 'owner': return <td key={col.key} className={tableCellClass}>{vm.owner ?? '—'}</td>;
+                  case 'business_owner': return <td key={col.key} className={tableCellClass}>{vm.business_owner ?? '—'}</td>;
+                  case 'technical_owner': return <td key={col.key} className={tableCellClass}>{vm.technical_owner ?? '—'}</td>;
+                  case 'pmp_enabled': return <td key={col.key} className={tableCellClass} aria-label={vm.pmp_enabled ? 'PMP enabled' : 'PMP disabled'}>{vm.pmp_enabled ? '✓' : '—'}</td>;
+                  case 'monitoring_enabled': return <td key={col.key} className={tableCellClass} aria-label={vm.monitoring_enabled ? 'Monitoring enabled' : 'Monitoring disabled'}>{vm.monitoring_enabled ? '✓' : '—'}</td>;
+                  case 'backup_enabled': return <td key={col.key} className={tableCellClass} aria-label={vm.backup_enabled ? 'Backup enabled' : 'Backup disabled'}>{vm.backup_enabled ? '✓' : '—'}</td>;
+                  case 'ha_enabled': return <td key={col.key} className={tableCellClass} aria-label={vm.ha_enabled ? 'HA enabled' : 'HA disabled'}>{vm.ha_enabled ? '✓' : '—'}</td>;
+                  case 'health_score': return <td key={col.key} className={`${tableCellClass} tech`}>{vm.health_score}</td>;
+                  case 'tags': return <td key={col.key} className={`${tableCellClass} max-w-[16rem] truncate`} title={vm.tags.join(', ')}>{vm.tags.length ? vm.tags.join(', ') : '—'}</td>;
+                  case 'created_at': return <td key={col.key} className={`${tableCellClass} tech text-[0.8125rem] text-slate-500 dark:text-slate-400`}>{new Date(vm.created_at).toLocaleDateString('en-CA')}</td>;
+                  default: return null;
+                }
+              })}
             </tr>
           ))}
         </tbody>
@@ -197,6 +217,7 @@ export function InventoryPage() {
   const [revealed, setRevealed] = useState<Set<AdvancedFilterName>>(() => revealedFromParams(searchParams));
   const [addFilterOpen, setAddFilterOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { columns: colPrefs, visibleColumns, toggleColumn, moveColumn, resetToDefault } = useColumnPreferences('inventory-list');
 
   function toggleSelect(id: string) {
     setSelectedIds(prev => {
@@ -338,6 +359,7 @@ export function InventoryPage() {
                 </ul>
               )}
             </div>
+            <ColumnEditor columns={colPrefs} onToggle={toggleColumn} onMove={moveColumn} onReset={resetToDefault} />
             {hasActiveFilters(filters) ? (
               <button type="button" className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" onClick={clearFilters}>Clear filters</button>
             ) : null}
@@ -348,7 +370,7 @@ export function InventoryPage() {
         {vms.data && vms.data.items.length > 0 ? (
           <>
             <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">{vms.data.items.length} VM{vms.data.items.length !== 1 ? 's' : ''}</p>
-            <div className="hidden lg:block"><VmTable vms={vms.data.items} selectedIds={selectedIds} onToggle={toggleSelect} onToggleAll={toggleSelectAll} /></div>
+            <div className="hidden lg:block"><VmTable vms={vms.data.items} columns={visibleColumns} selectedIds={selectedIds} onToggle={toggleSelect} onToggleAll={toggleSelectAll} /></div>
             <div className="grid gap-3 lg:hidden">{vms.data.items.map((vm) => <VmCard key={vm.id} vm={vm} />)}</div>
           </>
         ) : null}

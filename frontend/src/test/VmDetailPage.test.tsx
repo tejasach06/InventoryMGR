@@ -76,6 +76,26 @@ describe('VmDetailPage', () => {
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
   });
 
+  it('renders all detail fields including lifecycle, OS name, and technical owner', async () => {
+    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
+    renderWithProviders(<VmDetailPage />, { user: makeUser() });
+
+    await screen.findByRole('heading', { name: 'web-01' });
+    expect(screen.getByText('Lifecycle')).toBeInTheDocument();
+    expect(screen.getByText('active')).toBeInTheDocument();
+    expect(screen.getByText('Technical Owner')).toBeInTheDocument();
+    expect(screen.getByText('OS Name')).toBeInTheDocument();
+  });
+
+  it('navigates to inventory list when Back is clicked', async () => {
+    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
+    renderWithProviders(<VmDetailPage />, { user: makeUser() });
+
+    await screen.findByRole('heading', { name: 'web-01' });
+    fireEvent.click(screen.getByRole('button', { name: '← Back' }));
+    expect(pushMock).toHaveBeenCalledWith('/inventory');
+  });
+
   it('deletes the VM and navigates home when delete is confirmed', async () => {
     vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
     const deleteSpy = vi.spyOn(api, 'deleteVm').mockResolvedValue(null);

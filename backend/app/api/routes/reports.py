@@ -19,14 +19,14 @@ REPORTS: dict[str, dict] = {
     "monitoring": {"label": "Monitoring Status", "filter": lambda q: q},
     "applications": {"label": "Application Inventory", "filter": lambda q: q},
     "owner": {"label": "Owner Report", "filter": lambda q: q.order_by(Vm.business_owner.asc())},
-    "department": {"label": "Department Report", "filter": lambda q: q.order_by(Vm.department.asc())},
+    "pmp_access": {"label": "PMP Access Report", "filter": lambda q: q.where(Vm.pmp_enabled == True)},
     "lifecycle": {"label": "Lifecycle Report", "filter": lambda q: q.order_by(Vm.decommission_date.asc())},
 }
 
 CSV_COLUMNS = [
     "name", "fqdn", "platform", "cluster", "node", "environment", "status",
     "criticality", "vcpu", "memory_gb", "os_family", "os_distribution", "os_version",
-    "business_owner", "technical_owner", "department",
+    "business_owner", "technical_owner", "pmp_enabled",
     "monitoring_enabled", "last_patch_date", "last_vuln_scan_date", "decommission_date",
     "description", "tags",
 ]
@@ -36,6 +36,7 @@ def _vm_to_row(vm: Vm) -> dict:
     row: dict = {col: getattr(vm, col, None) for col in CSV_COLUMNS}
     row["tags"] = ",".join(vm.tags or [])
     row["monitoring_enabled"] = "Yes" if vm.monitoring_enabled else "No"
+    row["pmp_enabled"] = "Yes" if vm.pmp_enabled else "No"
     row["applications"] = ",".join(a.app_name for a in vm.applications) if "applications" in vm.__dict__ else ""
     return row
 

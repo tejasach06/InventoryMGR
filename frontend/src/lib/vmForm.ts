@@ -50,9 +50,10 @@ export const vmFormSchema = z.object({
   os_version: optionalText,
   owner: optionalText,
   business_owner: optionalText,
-  department: optionalText,
+  pmp_enabled: z.boolean(),
   monitoring_enabled: z.boolean(),
   backup_enabled: z.boolean(),
+  backup_location: optionalText,
   ha_enabled: z.boolean(),
   description: optionalText,
   tags: z.string().transform(splitList),
@@ -92,9 +93,10 @@ export interface VmFormValues {
   os_version: string;
   owner: string;
   business_owner: string;
-  department: string;
+  pmp_enabled: boolean;
   monitoring_enabled: boolean;
   backup_enabled: boolean;
+  backup_location: string;
   ha_enabled: boolean;
   description: string;
   tags: string;
@@ -117,8 +119,9 @@ export function emptyVmFormValues(): VmFormValues {
     node: '', external_id: '', sr_id: '', status: 'unknown', environment: 'production',
     criticality: 'medium', lifecycle: 'active', vm_type: 'permanent', cpu_cores: 0, memory_mb: 0,
     os_family: '', os_distribution: '', os_version: '',
-    owner: '', business_owner: '', department: '',
-    monitoring_enabled: false, backup_enabled: false, ha_enabled: false,
+    owner: '', business_owner: '',
+    pmp_enabled: false,
+    monitoring_enabled: false, backup_enabled: false, backup_location: '', ha_enabled: false,
     description: '', tags: '', last_patch_date: '', last_vuln_scan_date: '',
     security_remarks: '', decommission_date: '', last_verified_at: '',
   };
@@ -148,9 +151,10 @@ export function vmToFormValues(vm: Vm): VmFormValues {
     os_version: vm.os_version ?? '',
     owner: vm.owner ?? '',
     business_owner: vm.business_owner ?? '',
-    department: vm.department ?? '',
+    pmp_enabled: vm.pmp_enabled,
     monitoring_enabled: vm.monitoring_enabled,
     backup_enabled: vm.backup_enabled,
+    backup_location: vm.backup_location ?? '',
     ha_enabled: vm.ha_enabled,
     description: vm.description ?? '',
     tags: vm.tags.join('; '),

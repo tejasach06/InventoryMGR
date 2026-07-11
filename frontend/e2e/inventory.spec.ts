@@ -40,7 +40,7 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
 
   await page.getByRole('link', { name: 'New VM' }).click();
   await expect(page.getByRole('heading', { name: 'New VM' })).toBeVisible();
-  await page.getByLabel('Name').fill(proxmoxName);
+  await page.locator('#name').fill(proxmoxName);
   await page.getByLabel('Platform').selectOption('proxmox');
   await page.getByLabel('Cluster').fill('pve-cluster-a');
   await page.locator('#status').selectOption('running');

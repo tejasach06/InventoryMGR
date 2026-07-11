@@ -16,6 +16,7 @@ from app.api.routes.settings import router as settings_router
 from app.api.routes.vms_applications import router as vms_applications_router
 from app.api.routes.vms_disks import router as vms_disks_router
 from app.api.routes.vms_networks import router as vms_networks_router
+from app.api.routes.preferences import router as preferences_router
 from app.api.routes.auth import limiter as auth_limiter
 from app.core.config import get_settings, validate_production_settings
 
@@ -67,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
     app.include_router(imports.router, prefix="/api/imports", tags=["imports"])
     app.include_router(settings_router, prefix="/api/settings", tags=["settings"])
+    app.include_router(preferences_router, prefix="/api/user", tags=["user"])
 
     return app
 

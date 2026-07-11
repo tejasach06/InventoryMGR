@@ -49,9 +49,11 @@ services:
 
   playwright:
     image: mcr.microsoft.com/playwright:v1.60.0-jammy
+    user: root
     working_dir: /app
     volumes:
-      - ./frontend:/app
+      - ./frontend:/app:z
+      - playwright-node-modules:/app/node_modules
     environment:
       BASE_URL: http://frontend:3000
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
@@ -59,4 +61,7 @@ services:
       frontend:
         condition: service_healthy
     command: >
-      bash -c "npm install --legacy-peer-deps --silent && npx playwright test --project=chromium"
+      bash -c "npm install --legacy-peer-deps --silent --no-save && npx playwright test --project=chromium"
+
+volumes:
+  playwright-node-modules:

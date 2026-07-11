@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from app.api.deps import DbSession, ViewerUser
 from app.db.models import AuditLog
@@ -23,6 +24,7 @@ def get_audit_log(
     get_vm_or_404(db, vm_id)
     return list(db.scalars(
         select(AuditLog)
+        .options(joinedload(AuditLog.user))
         .where(AuditLog.vm_id == vm_id)
         .order_by(AuditLog.changed_at.desc())
         .limit(limit)

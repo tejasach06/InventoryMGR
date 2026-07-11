@@ -88,6 +88,55 @@ describe('VmFormPage', () => {
     expect(createSpy.mock.calls[0][0].backup_enabled).toBe(true);
   });
 
+  it('shows backup_location field only when backup is enabled', async () => {
+    renderWithProviders(<VmFormPage mode="create" />);
+    await screen.findByRole('heading', { name: 'New VM' });
+
+    // Field should not be present when backup is off
+    expect(screen.queryByLabelText('Backup Location')).not.toBeInTheDocument();
+
+    // Toggle backup on
+    fireEvent.click(screen.getByLabelText('Backup enabled'));
+    expect(screen.getByLabelText('Backup Location')).toBeInTheDocument();
+
+    // Toggle backup off
+    fireEvent.click(screen.getByLabelText('Backup enabled'));
+    expect(screen.queryByLabelText('Backup Location')).not.toBeInTheDocument();
+  });
+
+  it('clears backup_location value when backup_enabled is toggled off', async () => {
+    renderWithProviders(<VmFormPage mode="create" />);
+    await screen.findByRole('heading', { name: 'New VM' });
+
+    // Toggle backup on and type a location
+    fireEvent.click(screen.getByLabelText('Backup enabled'));
+    const locationInput = screen.getByLabelText('Backup Location');
+    fireEvent.change(locationInput, { target: { value: 'NAS-01 /backups' } });
+    expect(locationInput).toHaveValue('NAS-01 /backups');
+
+    // Toggle backup off — value should be cleared
+    fireEvent.click(screen.getByLabelText('Backup enabled'));
+    expect(screen.queryByLabelText('Backup Location')).not.toBeInTheDocument();
+
+    // Toggle back on — field should be empty
+    fireEvent.click(screen.getByLabelText('Backup enabled'));
+    expect(screen.getByLabelText('Backup Location')).toHaveValue('');
+  });
+
+  it('submits backup_location when backup is enabled with a location', async () => {
+    const createSpy = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-88' }));
+    renderWithProviders(<VmFormPage mode="create" />);
+    await screen.findByRole('heading', { name: 'New VM' });
+
+    fillRequiredCreateFields();
+    fireEvent.click(screen.getByLabelText('Backup enabled'));
+    fireEvent.change(screen.getByLabelText('Backup Location'), { target: { value: 'Veeam Cloud Connect' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+
+    await waitFor(() => expect(createSpy).toHaveBeenCalledTimes(1));
+    expect(createSpy.mock.calls[0][0].backup_location).toBe('Veeam Cloud Connect');
+  });
+
   it('pre-populates the form in edit mode and submits via updateVm', async () => {
     const vm = makeVm({ id: 'vm-1', name: 'web-01' });
     vi.spyOn(api, 'getVm').mockResolvedValue(vm);
@@ -104,6 +153,32 @@ describe('VmFormPage', () => {
     expect(updateSpy.mock.calls[0][1].name).toBe('web-01');
     expect(updateSpy.mock.calls[0][1].memory_mb).toBe(8192);
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/inventory/vm-1'));
+  });
+
+  it('pre-populates backup_location in edit mode when backup is enabled with a location', async () => {
+    const vm = makeVm({ id: 'vm-2', name: 'db-01', backup_enabled: true, backup_location: 'NAS-02 /db-backups' });
+    vi.spyOn(api, 'getVm').mockResolvedValue(vm);
+    vi.spyOn(api, 'updateVm').mockResolvedValue(vm);
+    renderWithProviders(<VmFormPage mode="edit" />);
+
+    // Wait for form to load
+    await screen.findByRole('heading', { name: /Edit/ });
+
+    // Backup checkbox should be checked and location field visible with saved value
+    expect(screen.getByLabelText('Backup enabled')).toBeChecked();
+    expect(screen.getByLabelText('Backup Location')).toHaveValue('NAS-02 /db-backups');
+  });
+
+  it('does not show backup_location in edit mode when backup is disabled', async () => {
+    const vm = makeVm({ id: 'vm-3', name: 'app-01', backup_enabled: false, backup_location: null });
+    vi.spyOn(api, 'getVm').mockResolvedValue(vm);
+    vi.spyOn(api, 'updateVm').mockResolvedValue(vm);
+    renderWithProviders(<VmFormPage mode="edit" />);
+
+    await screen.findByRole('heading', { name: /Edit/ });
+
+    expect(screen.getByLabelText('Backup enabled')).not.toBeChecked();
+    expect(screen.queryByLabelText('Backup Location')).not.toBeInTheDocument();
   });
 
   it('shows the loading skeleton while the VM query is pending in edit mode', async () => {

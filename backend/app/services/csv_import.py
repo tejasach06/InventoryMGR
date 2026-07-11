@@ -41,7 +41,7 @@ OPTIONAL_HEADERS = {
     "owner",
     "business_owner",
     "technical_owner",
-    "department",
+    "pmp_enabled",
     "sr_id",
     "os_family",
     "monitoring_enabled",
@@ -85,6 +85,7 @@ DEFAULTS: dict[str, Any] = {
     "monitoring_enabled": False,
     "ha_enabled": False,
     "backup_enabled": False,
+    "pmp_enabled": False,
     "tags": [],
     "os_family": None,
 }
@@ -203,7 +204,6 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
         "owner",
         "business_owner",
         "technical_owner",
-        "department",
         "security_remarks",
     ):
         value = clean.get(field, "")
@@ -221,6 +221,7 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
     normalized["monitoring_enabled"] = _parse_bool(clean, "monitoring_enabled", errors)
     normalized["ha_enabled"] = _parse_bool(clean, "ha_enabled", errors)
     normalized["backup_enabled"] = _parse_bool(clean, "backup_enabled", errors)
+    normalized["pmp_enabled"] = _parse_bool(clean, "pmp_enabled", errors)
 
     normalized["tags"] = _parse_list(clean, "tags")
     for field in ("last_patch_date", "last_vuln_scan_date", "decommission_date", "last_verified_at"):

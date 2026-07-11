@@ -212,12 +212,13 @@ function AuditPanel({ vmId }: { vmId: string }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm"><thead>
         <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
-          <th className="pb-1 pr-4">Date</th><th className="pb-1 pr-4">Field</th><th className="pb-1 pr-4">Old</th><th className="pb-1">New</th>
+          <th className="pb-1 pr-4">Date</th><th className="pb-1 pr-4">User</th><th className="pb-1 pr-4">Field</th><th className="pb-1 pr-4">Old</th><th className="pb-1">New</th>
         </tr></thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
           {auditQ.data.map((e) => (
             <tr key={e.id}>
               <td className="py-1.5 pr-4 whitespace-nowrap tabular-nums text-slate-500 dark:text-slate-400">{new Date(e.changed_at).toLocaleString()}</td>
+              <td className="py-1.5 pr-4 text-slate-700 dark:text-slate-300">{e.user?.email ?? '—'}</td>
               <td className="py-1.5 pr-4 font-mono text-slate-700 dark:text-slate-300">{e.field_name}</td>
               <td className="max-w-xs truncate py-1.5 pr-4 text-slate-500 dark:text-slate-400">{e.old_value ?? '—'}</td>
               <td className="max-w-xs truncate py-1.5 text-slate-700 dark:text-slate-300">{e.new_value ?? '—'}</td>
@@ -275,6 +276,7 @@ export function VmDetailPage() {
           <>
             <Badge value={vm.status} />
             <Badge value={vm.platform} />
+            <button className={secondaryButtonClass} onClick={() => router.push('/inventory')}>← Back</button>
             {canEdit && <Link className={secondaryButtonClass} href={`/inventory/${id}/edit`}>Edit</Link>}
             {canEdit && (
               <button className={secondaryButtonClass} onClick={() => cloneMut.mutate()} disabled={cloneMut.isPending}>
@@ -301,6 +303,7 @@ export function VmDetailPage() {
             <Field label="FQDN" value={vm.fqdn} />
             <Field label="Environment" value={vm.environment} />
             <Field label="Criticality" value={vm.criticality} />
+            <Field label="Lifecycle" value={vm.lifecycle} />
             <Field label="Tags" value={vm.tags.join(', ') || null} />
             {vm.description && <div className="sm:col-span-2 xl:col-span-3 py-2">
               <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Description</dt>
@@ -338,6 +341,7 @@ export function VmDetailPage() {
         <DetailSection title="Operating System">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="OS Family" value={vm.os_family ? vm.os_family.charAt(0).toUpperCase() + vm.os_family.slice(1) : null} />
+            <Field label="OS Name" value={vm.os_name} />
             <Field label="Distribution" value={vm.os_distribution} />
             <Field label="Version" value={vm.os_version} />
           </dl>
@@ -347,7 +351,7 @@ export function VmDetailPage() {
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Owner" value={vm.owner} />
             <Field label="Business Owner" value={vm.business_owner} />
-            <Field label="Department" value={vm.department} />
+            <Field label="Technical Owner" value={vm.technical_owner} />
           </dl>
         </DetailSection>
 
@@ -357,7 +361,9 @@ export function VmDetailPage() {
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Monitoring Enabled" value={vm.monitoring_enabled} />
             <Field label="Backup Enabled" value={vm.backup_enabled} />
+            <Field label="Backup Location" value={vm.backup_location} />
             <Field label="HA Enabled" value={vm.ha_enabled} />
+            <Field label="PMP Access" value={vm.pmp_enabled} />
           </dl>
         </DetailSection>
 

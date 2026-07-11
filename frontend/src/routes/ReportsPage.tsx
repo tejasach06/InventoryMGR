@@ -22,7 +22,7 @@ const REPORTS: ReportDef[] = [
   { name: 'monitoring', label: 'Monitoring Status', description: 'Guests with monitoring enabled', metric: (v) => v.filter((x) => x.monitoring_enabled).length, suffix: 'monitored' },
   { name: 'applications', label: 'Application Inventory', description: 'Guests with at least one linked app', metric: (v) => v.filter((x) => x.applications.length > 0).length, suffix: 'VMs' },
   { name: 'owner', label: 'Owner Report', description: 'Distinct business/technical owners', metric: (v) => new Set(v.map((x) => x.owner).filter(Boolean)).size, suffix: 'owners' },
-  { name: 'department', label: 'Department Report', description: 'Distinct departments represented', metric: (v) => new Set(v.map((x) => x.department).filter(Boolean)).size, suffix: 'depts' },
+  { name: 'pmp_access', label: 'PMP Access Report', description: 'VMs accessible via PMP', metric: (v) => v.filter((x) => x.pmp_enabled).length, suffix: 'VMs' },
   { name: 'lifecycle', label: 'Lifecycle Report', description: 'Guests with a decommission date set', metric: (v) => v.filter((x) => x.decommission_date).length, suffix: 'scheduled' },
 ];
 
@@ -42,7 +42,13 @@ export function ReportsPage() {
   return (
     <PageTransition>
       <PageHeader title="Reports" eyebrow="Exports" actions={
-        <a href={api.exportVmsUrl()} download="vm-inventory.csv" className={secondaryButtonClass}>
+        <a
+          href={api.exportVmsUrl(new URLSearchParams('all=true'))}
+          target="_blank"
+          rel="noopener"
+          download="vm-inventory.csv"
+          className={secondaryButtonClass}
+        >
           <DownloadIcon /> Export all VMs
         </a>
       } />

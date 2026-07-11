@@ -2,6 +2,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-inventorymgr}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
@@ -20,6 +21,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    restart: unless-stopped
     user: "1000:1000"
     ports:
       - "8000:8000"
@@ -27,7 +29,6 @@ services:
       APP_ENV: ${APP_ENV:-development}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-inventorymgr}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-inventorymgr}
       JWT_SECRET: ${JWT_SECRET:-replace-with-32-byte-random-secret}
-    env_file: .env
     depends_on:
       db:
         condition: service_healthy
@@ -41,6 +42,13 @@ services:
         limits:
           cpus: "0.5"
           memory: 256M
+    develop:
+      watch:
+        - action: rebuild
+          path: backend/Dockerfile
+        - action: sync
+          path: backend/app
+          target: /app/app
 
   frontend:
     build:
@@ -48,6 +56,7 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         INVENTORYMGR_API_URL: http://backend:8000
+    restart: unless-stopped
     user: "1000:1000"
     ports:
       - "3000:3000"
@@ -66,6 +75,13 @@ services:
         limits:
           cpus: "0.5"
           memory: 256M
+    develop:
+      watch:
+        - action: rebuild
+          path: frontend/Dockerfile
+        - action: sync
+          path: frontend/src
+          target: /app/src
 
 volumes:
   pgdata:

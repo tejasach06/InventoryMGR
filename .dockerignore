@@ -19,3 +19,26 @@ backend/__pycache__/**
 *.log
 *.tmp
 backend/.venv/**
+
+# Dev/tooling config
+.devbox/
+.opencode/
+.claude/
+.serena/
+.mcp.json
+.tokensave
+
+# Not needed in images
+graphify-out/
+gan-harness/
+docs/
+tools/
+data/
+*.sqlite
+*.db
+debug-*.png
+
+# Test artifacts
+test-results/
+playwright-report/
+frontend/playwright-report/

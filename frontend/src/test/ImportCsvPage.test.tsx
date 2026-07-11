@@ -115,10 +115,11 @@ describe('ImportCsvPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('exposes template headers including sr_id, os_family, backup_enabled and not backup_status', () => {
+  it('exposes template headers including sr_id, os_family, backup_enabled, backup_location and not backup_status', () => {
     expect(TEMPLATE_HEADERS).toContain('sr_id');
     expect(TEMPLATE_HEADERS).toContain('os_family');
     expect(TEMPLATE_HEADERS).toContain('backup_enabled');
+    expect(TEMPLATE_HEADERS).toContain('backup_location');
     expect(TEMPLATE_HEADERS).not.toContain('backup_status');
   });
 });
