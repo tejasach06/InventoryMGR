@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import AdminUser, Csrf, DbSession, EditorUser, ViewerUser
@@ -17,6 +17,7 @@ from app.db.models import (
     OsFamily,
     Platform,
     Vm,
+    VmApplication,
     VmStatus,
 )
 from app.schemas.vms import VmCreate, VmList, VmRead, VmUpdate
@@ -47,29 +48,29 @@ router = APIRouter()
 @dataclass
 class VmFilterParams:
     q: str | None = None
-    platform: Platform | None = None
+    platform: Annotated[list[Platform] | None, Query()] = None
     platform_op: FilterOperator = FilterOperator.eq
-    cluster: str | None = None
-    status_value: Annotated[VmStatus | None, Query(alias="status")] = None
+    cluster: Annotated[list[str] | None, Query()] = None
+    status_value: Annotated[list[VmStatus] | None, Query(alias="status")] = None
     status_op: FilterOperator = FilterOperator.eq
-    environment: Environment | None = None
+    environment: Annotated[list[Environment] | None, Query()] = None
     environment_op: FilterOperator = FilterOperator.eq
-    criticality: Criticality | None = None
+    criticality: Annotated[list[Criticality] | None, Query()] = None
     criticality_op: FilterOperator = FilterOperator.eq
-    lifecycle: Lifecycle | None = None
+    lifecycle: Annotated[list[Lifecycle] | None, Query()] = None
     monitoring_enabled: bool | None = None
     monitoring_enabled_op: FilterOperator = FilterOperator.eq
-    node: str | None = None
+    node: Annotated[list[str] | None, Query()] = None
     node_op: FilterOperator = FilterOperator.eq
-    os_family: OsFamily | None = None
+    os_family: Annotated[list[OsFamily] | None, Query()] = None
     os_family_op: FilterOperator = FilterOperator.eq
-    owner: str | None = None
+    owner: Annotated[list[str] | None, Query()] = None
     owner_op: FilterOperator = FilterOperator.eq
     pmp_enabled: bool | None = None
     pmp_enabled_op: FilterOperator = FilterOperator.eq
-    tag: str | None = None
+    tag: Annotated[list[str] | None, Query()] = None
     tag_op: FilterOperator = FilterOperator.eq
-    application: str | None = None
+    application: Annotated[list[str] | None, Query()] = None
     application_op: FilterOperator = FilterOperator.contains
     health: Annotated[str | None, Query(pattern="^(below_50|below_75|complete)$")] = None
 
@@ -101,6 +102,38 @@ def list_owners(db: DbSession, _: ViewerUser) -> list[str]:
         select(Vm.owner).where(Vm.owner.is_not(None)).distinct().order_by(Vm.owner.asc())
     ).all()
     return [owner for owner in rows if owner]
+
+
+@router.get("/clusters", response_model=list[str])
+def list_clusters(db: DbSession, _: ViewerUser) -> list[str]:
+    rows = db.scalars(
+        select(Vm.cluster).where(Vm.cluster.is_not(None)).distinct().order_by(Vm.cluster.asc())
+    ).all()
+    return list(rows)
+
+
+@router.get("/nodes", response_model=list[str])
+def list_nodes(db: DbSession, _: ViewerUser) -> list[str]:
+    rows = db.scalars(
+        select(Vm.node).where(Vm.node.is_not(None)).distinct().order_by(Vm.node.asc())
+    ).all()
+    return [node for node in rows if node]
+
+
+@router.get("/applications", response_model=list[str])
+def list_applications(db: DbSession, _: ViewerUser) -> list[str]:
+    rows = db.scalars(
+        select(VmApplication.app_name).distinct().order_by(VmApplication.app_name.asc())
+    ).all()
+    return list(rows)
+
+
+@router.get("/tags", response_model=list[str])
+def list_tags(db: DbSession, _: ViewerUser) -> list[str]:
+    rows = db.scalars(
+        select(func.jsonb_array_elements_text(Vm.tags)).distinct().order_by(1)
+    ).all()
+    return [t for t in rows if t]
 
 
 _EXPORT_COLS = [

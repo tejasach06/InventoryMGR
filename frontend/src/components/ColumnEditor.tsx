@@ -8,17 +8,19 @@ import { secondaryButtonClass } from './ui';
 interface ColumnEditorProps {
   columns: ColumnConfig[];
   onToggle: (key: string) => void;
-  onMove: (key: string, direction: -1 | 1) => void;
+  onReorder: (fromKey: string, toKey: string) => void;
   onReset: () => void;
 }
 
-export function ColumnEditor({ columns, onToggle, onMove, onReset }: ColumnEditorProps) {
+export function ColumnEditor({ columns, onToggle, onReorder, onReset }: ColumnEditorProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const sorted = [...columns].sort((a, b) => a.order - b.order);
+  const [draggedKey, setDraggedKey] = useState<string | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -49,6 +51,34 @@ export function ColumnEditor({ columns, onToggle, onMove, onReset }: ColumnEdito
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
+  function handleDragStart(e: React.DragEvent, key: string) {
+    setDraggedKey(key);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', key);
+  }
+
+  function handleDragOver(e: React.DragEvent, key: string) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (key !== draggedKey) {
+      setDragOverKey(key);
+    }
+  }
+
+  function handleDragEnd() {
+    setDraggedKey(null);
+    setDragOverKey(null);
+  }
+
+  function handleDrop(e: React.DragEvent, toKey: string) {
+    e.preventDefault();
+    if (draggedKey && draggedKey !== toKey) {
+      onReorder(draggedKey, toKey);
+    }
+    setDraggedKey(null);
+    setDragOverKey(null);
+  }
+
   const panel = (
     <div
       ref={panelRef}
@@ -56,26 +86,21 @@ export function ColumnEditor({ columns, onToggle, onMove, onReset }: ColumnEdito
       className="w-56 rounded-lg border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800"
     >
       {sorted.map((col, idx) => (
-        <div key={col.key} className="flex items-center gap-2 px-2 py-1 text-sm">
-          <button
-            type="button"
-            onClick={() => onMove(col.key, -1)}
-            disabled={idx === 0}
-            className="text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
-            aria-label="Move up"
-          >
-            ▲
-          </button>
-          <button
-            type="button"
-            onClick={() => onMove(col.key, 1)}
-            disabled={idx === sorted.length - 1}
-            className="text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
-            aria-label="Move down"
-          >
-            ▼
-          </button>
-          <label className="flex-1 cursor-pointer select-none">
+        <div
+          key={col.key}
+          draggable
+          onDragStart={(e) => handleDragStart(e, col.key)}
+          onDragOver={(e) => handleDragOver(e, col.key)}
+          onDragEnd={handleDragEnd}
+          onDrop={(e) => handleDrop(e, col.key)}
+          className={`flex items-center gap-2 px-2 py-1 text-sm cursor-move select-none ${
+            dragOverKey === col.key ? 'border-t-2 border-indigo-500' : ''
+          } ${draggedKey === col.key ? 'opacity-50' : ''}`}
+        >
+          <span className="text-slate-400 cursor-grab" title="Drag to reorder">
+            ⋮⋮
+          </span>
+          <label className="flex-1 cursor-pointer">
             <input
               type="checkbox"
               checked={col.visible}

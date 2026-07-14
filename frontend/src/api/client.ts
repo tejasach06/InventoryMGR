@@ -291,6 +291,10 @@ export const api = {
   exportSelectedUrl: (ids: string[]) =>
     `${API_PREFIX}/vms/export?${ids.map(id => `ids=${encodeURIComponent(id)}`).join('&')}`,
   listVmOwners: () => apiRequest<string[]>('/vms/owners'),
+  listVmClusters: () => apiRequest<string[]>('/vms/clusters'),
+  listVmNodes: () => apiRequest<string[]>('/vms/nodes'),
+  listVmApplications: () => apiRequest<string[]>('/vms/applications'),
+  listVmTags: () => apiRequest<string[]>('/vms/tags'),
 
   listDisks: (vmId: string) => apiRequest<Disk[]>(`/vms/${vmId}/disks`),
   addDisk: (vmId: string, payload: Omit<Disk, 'id' | 'vm_id'>) =>

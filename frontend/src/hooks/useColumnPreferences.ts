@@ -108,19 +108,18 @@ export function useColumnPreferences(pageKey: string) {
     });
   }, [save]);
 
-  const moveColumn = useCallback((key: string, direction: -1 | 1) => {
+  const reorderColumns = useCallback((fromKey: string, toKey: string) => {
     setColumns((prev) => {
       const sorted = [...prev].sort((a, b) => a.order - b.order);
-      const idx = sorted.findIndex((c) => c.key === key);
-      if (idx < 0) return prev;
-      const target = idx + direction;
-      if (target < 0 || target >= sorted.length) return prev;
-      const swapped = [...sorted];
-      const tmpOrder = swapped[idx].order;
-      swapped[idx] = { ...swapped[idx], order: swapped[target].order };
-      swapped[target] = { ...swapped[target], order: tmpOrder };
-      save(swapped);
-      return swapped;
+      const fromIdx = sorted.findIndex((c) => c.key === fromKey);
+      const toIdx = sorted.findIndex((c) => c.key === toKey);
+      if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return prev;
+      const reordered = [...sorted];
+      const [moved] = reordered.splice(fromIdx, 1);
+      reordered.splice(toIdx, 0, moved);
+      const withNewOrder = reordered.map((c, i) => ({ ...c, order: i }));
+      save(withNewOrder);
+      return withNewOrder;
     });
   }, [save]);
 
@@ -133,5 +132,5 @@ export function useColumnPreferences(pageKey: string) {
     .filter((c) => c.visible)
     .sort((a, b) => a.order - b.order);
 
-  return { columns, visibleColumns, loading, error, toggleColumn, moveColumn, resetToDefault };
+  return { columns, visibleColumns, loading, error, toggleColumn, reorderColumns, resetToDefault };
 }

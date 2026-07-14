@@ -6,86 +6,38 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api, detailMessage, Vm } from '../api/client';
 import { useCurrentUser } from '../components/AuthContext';
-import { Alert, Badge, EmptyState, PageHeader, PageTransition, TableSkeleton, cardClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
+import { Alert, Badge, EmptyState, PageHeader, PageTransition, TableSkeleton, cardClass, inputClass, primaryButtonClass, secondaryButtonClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
 import { ColumnEditor } from '../components/ColumnEditor';
 import { useColumnPreferences, COLUMN_LABELS } from '../hooks/useColumnPreferences';
 import { formatMemory } from '../lib/units';
+import { useFilterPresets } from '../hooks/useFilterPresets';
+import { AdvancedFilters, FilterDrawer } from '../components/FilterDrawer';
 
 const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
-const advancedFilterNames = ['environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'health'] as const;
+const advancedFilterNames = ['cluster', 'lifecycle', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'health'] as const;
 const filterNames = [...coreFilterNames, ...advancedFilterNames] as const;
-const operableFilterNames = ['platform', 'status', 'criticality', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application'] as const;
 
 type FilterName = (typeof filterNames)[number];
-type AdvancedFilterName = (typeof advancedFilterNames)[number];
-type OperableFilterName = (typeof operableFilterNames)[number];
-type Filters = Record<FilterName, string>;
-type Operators = Record<OperableFilterName, string>;
-
-const defaultOperators: Operators = {
-  platform: 'eq', status: 'eq', criticality: 'eq', environment: 'eq', monitoring_enabled: 'eq',
-  node: 'eq', os_family: 'eq', owner: 'eq', pmp_enabled: 'eq', tag: 'eq', application: 'contains',
-};
-
-const advancedFilterLabels: Record<AdvancedFilterName, string> = {
-  environment: 'Environment', monitoring_enabled: 'Monitoring', node: 'Node',
-  os_family: 'OS Family', owner: 'Owner', pmp_enabled: 'PMP Access',
-  tag: 'Tag', application: 'Application', health: 'Doc Health',
-};
-
-type AdvancedFieldConfig =
-  | { kind: 'select'; options: readonly { value: string; label: string }[] }
-  | { kind: 'dynamicSelect' }
-  | { kind: 'input'; placeholder: string };
-
-const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfig> = {
-  environment: { kind: 'select', options: [
-    { value: '', label: 'All environments' }, { value: 'production', label: 'production' },
-    { value: 'development', label: 'development' }, { value: 'testing', label: 'testing' },
-    { value: 'uat', label: 'uat' }, { value: 'dr', label: 'dr' },
-    { value: 'staging', label: 'staging' }, { value: 'sandbox', label: 'sandbox' },
-  ] },
-  monitoring_enabled: { kind: 'select', options: [
-    { value: '', label: 'All' }, { value: 'true', label: 'Enabled' }, { value: 'false', label: 'Disabled' },
-  ] },
-  os_family: { kind: 'select', options: [
-    { value: '', label: 'All' }, { value: 'linux', label: 'Linux' }, { value: 'windows', label: 'Windows' },
-  ] },
-  owner: { kind: 'dynamicSelect' },
-  pmp_enabled: { kind: 'select', options: [
-    { value: '', label: 'All' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' },
-  ] },
-  health: { kind: 'select', options: [
-    { value: '', label: 'All' }, { value: 'below_50', label: '< 50%' },
-    { value: 'below_75', label: '< 75%' }, { value: 'complete', label: 'Complete (100%)' },
-  ] },
-  node: { kind: 'input', placeholder: 'Node name' },
-  tag: { kind: 'input', placeholder: 'Exact tag' },
-  application: { kind: 'input', placeholder: 'App name' },
-};
-
-const operatorOptions = [
-  { value: 'eq', label: 'Is' },
-  { value: 'contains', label: 'Contains' },
-  { value: 'neq', label: 'Is not' },
-] as const;
+type Filters = Record<FilterName, string[]>;
 
 function emptyFilters(): Filters {
   return {
-    q: '', platform: '', status: '', criticality: '', environment: '', monitoring_enabled: '',
-    node: '', os_family: '', owner: '', pmp_enabled: '', tag: '', application: '', health: '',
+    q: [], platform: [], status: [], criticality: [], cluster: [], lifecycle: [],
+    environment: [], monitoring_enabled: [],
+    node: [], os_family: [], owner: [], pmp_enabled: [], tag: [], application: [], health: [],
   };
 }
 
-function paramsFromFilters(filters: Filters, operators: Operators): URLSearchParams {
+function paramsFromFilters(filters: Filters): URLSearchParams {
   const params = new URLSearchParams();
   for (const name of filterNames) {
-    const value = filters[name].trim();
-    if (value.length > 0) params.set(name, value);
-  }
-  for (const name of operableFilterNames) {
-    if (filters[name].trim().length > 0 && operators[name] !== defaultOperators[name]) {
-      params.set(`${name}_op`, operators[name]);
+    if (name === 'q' || name === 'health') {
+      const val = filters[name][0]?.trim() || '';
+      if (val) params.set(name, val);
+    } else {
+      for (const val of filters[name]) {
+        if (val.trim()) params.append(name, val.trim());
+      }
     }
   }
   params.set('limit', '50');
@@ -95,33 +47,38 @@ function paramsFromFilters(filters: Filters, operators: Operators): URLSearchPar
 
 function filtersFromParams(params: URLSearchParams): Filters {
   const result = emptyFilters();
-  for (const name of filterNames) result[name] = params.get(name) ?? '';
-  return result;
-}
-
-function operatorsFromParams(params: URLSearchParams): Operators {
-  const result = { ...defaultOperators };
-  for (const name of operableFilterNames) result[name] = params.get(`${name}_op`) ?? defaultOperators[name];
-  return result;
-}
-
-function revealedFromParams(params: URLSearchParams): Set<AdvancedFilterName> {
-  const revealed = new Set<AdvancedFilterName>();
-  for (const name of advancedFilterNames) {
-    if ((params.get(name) ?? '').trim().length > 0) revealed.add(name);
+  for (const name of filterNames) {
+    if (name === 'q' || name === 'health') {
+      const val = params.get(name) ?? '';
+      result[name] = val ? [val] : [];
+    } else {
+      const vals = params.getAll(name).filter(Boolean);
+      result[name] = vals.length > 0 ? vals : [];
+    }
   }
-  return revealed;
+  return result;
 }
 
 function hasActiveFilters(filters: Filters): boolean {
-  return filterNames.some((name) => filters[name].trim().length > 0);
+  return filterNames.some((name) => filters[name].length > 0);
 }
 
-function OperatorSelect({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function ActiveFilterPills({ filters, onRemove }: { filters: Filters; onRemove: (name: FilterName, value: string) => void }) {
+  const pills: { name: FilterName; value: string }[] = [];
+  for (const name of filterNames) {
+    for (const val of filters[name]) pills.push({ name, value: val });
+  }
+  if (pills.length === 0) return null;
   return (
-    <select className={`${selectClass} mt-1.5`} aria-label={`${label} operator`} value={value} onChange={(event) => onChange(event.target.value)}>
-      {operatorOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-    </select>
+    <div className="mt-3 flex flex-wrap gap-2">
+      {pills.map((pill, i) => (
+        <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+          <span className="capitalize">{pill.name.replace(/_/g, ' ')}:</span>
+          <span className="font-semibold">{pill.value}</span>
+          <button type="button" onClick={() => onRemove(pill.name, pill.value)} className="ml-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">&times;</button>
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -213,11 +170,11 @@ export function InventoryPage() {
   const searchParams = useSearchParams();
   const canCreateVm = user.role === 'editor' || user.role === 'admin';
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
-  const [operators, setOperators] = useState<Operators>(() => operatorsFromParams(searchParams));
-  const [revealed, setRevealed] = useState<Set<AdvancedFilterName>>(() => revealedFromParams(searchParams));
-  const [addFilterOpen, setAddFilterOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const { columns: colPrefs, visibleColumns, toggleColumn, moveColumn, resetToDefault } = useColumnPreferences('inventory-list');
+  const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
+  const { presets, savePreset, deletePreset } = useFilterPresets<Filters, Record<string, string>>('inventory_presets');
+  const [saveName, setSaveName] = useState('');
 
   function toggleSelect(id: string) {
     setSelectedIds(prev => {
@@ -231,45 +188,45 @@ export function InventoryPage() {
     setSelectedIds(prev => prev.size === ids.length ? new Set() : new Set(ids));
   }
 
-  const exportFilteredUrl = api.exportVmsUrl(paramsFromFilters(filtersFromParams(searchParams), operatorsFromParams(searchParams)));
+  const queryParams = useMemo(() => paramsFromFilters(filtersFromParams(searchParams)), [searchParams]);
+  const exportFilteredUrl = api.exportVmsUrl(queryParams);
   function exportSelected() {
     if (selectedIds.size === 0) return;
     window.location.href = api.exportSelectedUrl([...selectedIds]);
   }
-  const queryParams = useMemo(() => paramsFromFilters(filtersFromParams(searchParams), operatorsFromParams(searchParams)), [searchParams]);
   const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => api.listVms(queryParams) });
-  const owners = useQuery({ queryKey: ['vm-owners'], queryFn: () => api.listVmOwners(), staleTime: 60_000 });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setFilters(filtersFromParams(searchParams));
-    setOperators(operatorsFromParams(searchParams));
   }, [searchParams]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      const params = paramsFromFilters(filters, operators);
-      const current = paramsFromFilters(filtersFromParams(searchParams), operatorsFromParams(searchParams));
+      const params = paramsFromFilters(filters);
+      const current = paramsFromFilters(filtersFromParams(searchParams));
       if (params.toString() !== current.toString()) {
         router.push(`${pathname}?${params.toString()}`);
       }
     }, 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [filters, operators, pathname, router, searchParams]);
+  }, [filters, pathname, router, searchParams]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const params = paramsFromFilters(filters, operators);
+    const params = paramsFromFilters(filters);
     router.push(`${pathname}?${params.toString()}`);
   }
 
   function clearFilters() {
     setFilters(emptyFilters());
-    setOperators({ ...defaultOperators });
-    setRevealed(new Set());
     router.push(pathname);
+  }
+
+  function removePill(name: FilterName, value: string) {
+    setFilters((prev) => ({ ...prev, [name]: prev[name].filter((v) => v !== value) }));
   }
 
   return (
@@ -288,83 +245,52 @@ export function InventoryPage() {
             {canCreateVm && <Link className={primaryButtonClass} href="/inventory/new">New VM</Link>}
           </div>
         } />
-        <form className={cardClass + ' mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5'} onSubmit={submit}>
-          <div className="sm:col-span-2 lg:col-span-2">
-            <label className={labelClass} htmlFor="q">Search</label>
-            <input className={inputClass} id="q" name="q" value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} placeholder="Name, owner, cluster" />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="platform">Platform</label>
-            <select className={selectClass} id="platform" name="platform" value={filters.platform} onChange={(event) => setFilters({ ...filters, platform: event.target.value })}>
-              <option value="">All platforms</option><option value="proxmox">proxmox</option><option value="vmware">vmware</option>
-            </select>
-            <OperatorSelect label="Platform" value={operators.platform} onChange={(value) => setOperators({ ...operators, platform: value })} />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="status">Status</label>
-            <select className={selectClass} id="status" name="status" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
-              <option value="">All statuses</option><option value="running">running</option><option value="powered_off">powered_off</option><option value="suspended">suspended</option><option value="archived">archived</option><option value="decommissioned">decommissioned</option><option value="unknown">unknown</option>
-            </select>
-            <OperatorSelect label="Status" value={operators.status} onChange={(value) => setOperators({ ...operators, status: value })} />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="criticality">Criticality</label>
-            <select className={selectClass} id="criticality" name="criticality" value={filters.criticality} onChange={(event) => setFilters({ ...filters, criticality: event.target.value })}>
-              <option value="">All criticalities</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="critical">critical</option>
-            </select>
-            <OperatorSelect label="Criticality" value={operators.criticality} onChange={(value) => setOperators({ ...operators, criticality: value })} />
-          </div>
-          {advancedFilterNames.filter((name) => revealed.has(name)).map((name) => {
-            const config = advancedFilterConfig[name];
-            const label = advancedFilterLabels[name];
-            return (
-              <div key={name}>
-                <label className={labelClass} htmlFor={name}>{label}</label>
-                {config.kind === 'input' ? (
-                  <input className={inputClass} id={name} name={name} value={filters[name]} placeholder={config.placeholder}
-                    onChange={(event) => setFilters({ ...filters, [name]: event.target.value })} />
-                ) : (
-                  <select className={selectClass} id={name} name={name} value={filters[name]}
-                    onChange={(event) => setFilters({ ...filters, [name]: event.target.value })}>
-                    {config.kind === 'select'
-                      ? config.options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)
-                      : <>
-                          <option value="">All owners</option>
-                          {(owners.data ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
-                        </>}
-                  </select>
-                )}
-                {name !== 'health' && (
-                  <OperatorSelect label={label} value={operators[name as OperableFilterName]}
-                    onChange={(value) => setOperators({ ...operators, [name as OperableFilterName]: value })} />
-                )}
-              </div>
-            );
-          })}
-          <div className="flex items-end gap-3 sm:col-span-2 lg:col-span-5">
-            <div className="relative">
-              <button type="button" className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" onClick={() => setAddFilterOpen((open) => !open)}>
-                + Add filter
-              </button>
-              {addFilterOpen && (
-                <ul className="absolute z-10 mt-1 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
-                  {advancedFilterNames.filter((name) => !revealed.has(name)).map((name) => (
-                    <li key={name}>
-                      <button type="button" onClick={() => { setRevealed((prev) => new Set(prev).add(name)); setAddFilterOpen(false); }}
-                        className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
-                        {advancedFilterLabels[name]}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+        <div className={cardClass + ' mb-6'}>
+          <form className="flex flex-wrap items-center gap-4" onSubmit={submit}>
+            <div className="flex-1 min-w-[200px]">
+              <input className={inputClass} id="q" name="q" value={filters.q[0] || ''} onChange={(event) => setFilters({ ...filters, q: event.target.value ? [event.target.value] : [] })} placeholder="Search name, owner, cluster..." />
             </div>
-            <ColumnEditor columns={colPrefs} onToggle={toggleColumn} onMove={moveColumn} onReset={resetToDefault} />
-            {hasActiveFilters(filters) ? (
-              <button type="button" className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" onClick={clearFilters}>Clear filters</button>
-            ) : null}
+
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => setAdvancedOpen(true)} className={`${secondaryButtonClass} bg-slate-50 dark:bg-slate-800`}>
+                <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                Filters
+              </button>
+
+              <ColumnEditor columns={colPrefs} onToggle={toggleColumn} onReorder={reorderColumns} onReset={resetToDefault} />
+
+              {hasActiveFilters(filters) ? (
+                <button type="button" className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" onClick={clearFilters}>Clear</button>
+              ) : null}
+            </div>
+          </form>
+
+          <ActiveFilterPills filters={filters} onRemove={removePill} />
+
+          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <select className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                onChange={(e) => {
+                  if (e.target.value && presets[e.target.value]) {
+                    setFilters(presets[e.target.value].filters);
+                  }
+                  e.target.value = ''; // reset select
+                }}
+                defaultValue=""
+              >
+                <option value="" disabled>Load preset...</option>
+                {Object.keys(presets).map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (saveName.trim()) { savePreset(saveName.trim(), filters, {}); setSaveName(''); } }}>
+                <input className="w-40 rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" placeholder="Preset name" value={saveName} onChange={e => setSaveName(e.target.value)} />
+                <button type="submit" disabled={!saveName.trim()} className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">Save</button>
+              </form>
+            </div>
           </div>
-        </form>
+        </div>
+
+        <FilterDrawer open={advancedOpen} onClose={() => setAdvancedOpen(false)} filters={filters as unknown as AdvancedFilters} onApply={(f) => setFilters(prev => ({ ...prev, ...f }))} />
+
         {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
         {vms.isLoading ? <TableSkeleton rows={8} cols={7} /> : null}
         {vms.data && vms.data.items.length > 0 ? (

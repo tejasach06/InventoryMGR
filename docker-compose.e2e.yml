@@ -8,10 +8,10 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: inventorymgr_test
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U inventorymgr"]
+      test: ["CMD-SHELL", "pg_isready -U inventorymgr -d inventorymgr_test"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 20
 
   backend:
     build:
@@ -19,6 +19,7 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       APP_ENV: test
+      TEST_DATABASE_URL: "postgresql+psycopg://inventorymgr:password@db-test:5432/inventorymgr_test"
       DATABASE_URL: "postgresql+psycopg://inventorymgr:password@db-test:5432/inventorymgr_test"
       JWT_SECRET: "e2e-test-only-not-for-production"
     depends_on:

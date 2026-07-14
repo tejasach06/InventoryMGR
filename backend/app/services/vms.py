@@ -215,6 +215,14 @@ class FilterOperator(StrEnum):
     neq = "neq"
 
 
+def _op_condition_list(column, values: list, operator: FilterOperator):
+    # ponytail: 'contains' has no meaning for an IN-list of exact enum values, so it
+    # collapses to 'eq' (IN) rather than raising. Only 'neq' gets distinct handling.
+    if operator == FilterOperator.neq:
+        return or_(column.notin_(values), column.is_(None))
+    return column.in_(values)
+
+
 def _op_condition(column, value: str, operator: FilterOperator, *, case_insensitive: bool = False):
     if case_insensitive:
         target = func.lower(func.coalesce(column, ""))
@@ -237,29 +245,29 @@ def apply_vm_filters(
     stmt: Select[tuple[Vm]],
     *,
     q: str | None = None,
-    platform: Platform | None = None,
+    platform: list[Platform] | None = None,
     platform_op: FilterOperator = FilterOperator.eq,
-    cluster: str | None = None,
-    status_value: VmStatus | None = None,
+    cluster: list[str] | None = None,
+    status_value: list[VmStatus] | None = None,
     status_op: FilterOperator = FilterOperator.eq,
-    environment: Environment | None = None,
+    environment: list[Environment] | None = None,
     environment_op: FilterOperator = FilterOperator.eq,
-    criticality: Criticality | None = None,
+    criticality: list[Criticality] | None = None,
     criticality_op: FilterOperator = FilterOperator.eq,
-    lifecycle: Lifecycle | None = None,
+    lifecycle: list[Lifecycle] | None = None,
     monitoring_enabled: bool | None = None,
     monitoring_enabled_op: FilterOperator = FilterOperator.eq,
-    node: str | None = None,
+    node: list[str] | None = None,
     node_op: FilterOperator = FilterOperator.eq,
-    os_family: OsFamily | None = None,
+    os_family: list[OsFamily] | None = None,
     os_family_op: FilterOperator = FilterOperator.eq,
-    owner: str | None = None,
+    owner: list[str] | None = None,
     owner_op: FilterOperator = FilterOperator.eq,
     pmp_enabled: bool | None = None,
     pmp_enabled_op: FilterOperator = FilterOperator.eq,
-    tag: str | None = None,
+    tag: list[str] | None = None,
     tag_op: FilterOperator = FilterOperator.eq,
-    application: str | None = None,
+    application: list[str] | None = None,
     application_op: FilterOperator = FilterOperator.contains,
     health: str | None = None,
 ) -> Select[tuple[Vm]]:
@@ -289,23 +297,28 @@ def apply_vm_filters(
             app_subq,
         ))
     FILTER_SPECS = (
-        (platform, Vm.platform, platform_op, False),
-        (status_value, Vm.status, status_op, False),
-        (environment, Vm.environment, environment_op, False),
-        (criticality, Vm.criticality, criticality_op, False),
-        (node, Vm.node, node_op, False),
-        (os_family, Vm.os_family, os_family_op, False),
         (pmp_enabled, Vm.pmp_enabled, pmp_enabled_op, False),
     )
     for value, column, operator, case_insensitive in FILTER_SPECS:
-        if value:
+        if value is not None:
             stmt = stmt.where(
                 _op_condition(column, value, operator, case_insensitive=case_insensitive)
             )
-    if cluster:
-        stmt = stmt.where(Vm.cluster == cluster.strip())
-    if lifecycle:
-        stmt = stmt.where(Vm.lifecycle == lifecycle)
+
+    LIST_FILTER_SPECS = (
+        (platform, Vm.platform, platform_op),
+        (status_value, Vm.status, status_op),
+        (environment, Vm.environment, environment_op),
+        (criticality, Vm.criticality, criticality_op),
+        (os_family, Vm.os_family, os_family_op),
+        (lifecycle, Vm.lifecycle, FilterOperator.eq),
+        (node, Vm.node, node_op),
+        (cluster, Vm.cluster, FilterOperator.eq),
+    )
+    for values_list, column, operator in LIST_FILTER_SPECS:
+        if values_list:
+            stmt = stmt.where(_op_condition_list(column, values_list, operator))
+
     if monitoring_enabled is not None:
         stmt = stmt.where(
             Vm.monitoring_enabled != monitoring_enabled
@@ -313,24 +326,30 @@ def apply_vm_filters(
             else Vm.monitoring_enabled == monitoring_enabled
         )
     if owner:
-        needle = owner.strip().lower()
-        owner_match = or_(
-            func.lower(func.coalesce(Vm.owner, "")) == needle,
-            func.lower(func.coalesce(Vm.business_owner, "")) == needle,
-            func.lower(func.coalesce(Vm.technical_owner, "")) == needle,
-        )
+        owner_matches = []
+        for o in owner:
+            needle = o.strip().lower()
+            owner_matches.append(or_(
+                func.lower(func.coalesce(Vm.owner, "")) == needle,
+                func.lower(func.coalesce(Vm.business_owner, "")) == needle,
+                func.lower(func.coalesce(Vm.technical_owner, "")) == needle,
+            ))
+        owner_match = or_(*owner_matches)
         stmt = stmt.where(~owner_match if owner_op == FilterOperator.neq else owner_match)
     if tag:
-        tag_match = Vm.tags.contains([tag.strip()])
+        tag_match = or_(*(Vm.tags.contains([t.strip()]) for t in tag))
         stmt = stmt.where(~tag_match if tag_op == FilterOperator.neq else tag_match)
     if application:
-        needle = application.strip().lower()
-        app_match = exists(select(VmApplication.vm_id).where(
-            VmApplication.vm_id == Vm.id,
-            func.lower(VmApplication.app_name).like(f"%{needle}%")
-            if application_op == FilterOperator.contains
-            else func.lower(VmApplication.app_name) == needle,
-        ))
+        app_matches = []
+        for app in application:
+            needle = app.strip().lower()
+            app_matches.append(exists(select(VmApplication.vm_id).where(
+                VmApplication.vm_id == Vm.id,
+                func.lower(VmApplication.app_name).like(f"%{needle}%")
+                if application_op == FilterOperator.contains
+                else func.lower(VmApplication.app_name) == needle,
+            )))
+        app_match = or_(*app_matches)
         stmt = stmt.where(~app_match if application_op == FilterOperator.neq else app_match)
     if health == "below_50":
         stmt = stmt.where(Vm.health_score < 50)
