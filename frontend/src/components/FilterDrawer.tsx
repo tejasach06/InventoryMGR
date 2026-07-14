@@ -116,10 +116,10 @@ function FilterGroup({
   return (
     <div>
       <label className={labelClass}>{advancedFilterLabels[name]}</label>
-      {config.kind === 'dynamicMultiSelect' ? (
+      {config.kind === 'multiSelect' || config.kind === 'dynamicMultiSelect' ? (
         <FuzzyMultiSelect
           value={values}
-          options={dynamicOptions ?? []}
+          options={config.kind === 'multiSelect' ? (config.options as string[]) : (dynamicOptions ?? [])}
           onChange={onSetValues}
           placeholder={`Filter ${advancedFilterLabels[name].toLowerCase()}...`}
         />
@@ -130,28 +130,7 @@ function FilterGroup({
           placeholder={config.placeholder}
           onChange={(e) => onSetInput(e.target.value)}
         />
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {(config.kind === 'multiSelect' ? config.options : []).map((value) => {
-            const selected = values.includes(value);
-            const displayLabel = config.kind === 'multiSelect' && config.labels ? (config.labels[value] ?? value) : value;
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => onToggle(value)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  selected
-                    ? 'bg-indigo-600 text-white'
-                    : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
-                }`}
-              >
-                {displayLabel}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
