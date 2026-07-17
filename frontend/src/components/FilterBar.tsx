@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { FuzzyMultiSelect } from './FuzzyMultiSelect';
-import { secondaryButtonClass, labelClass, inputClass } from './ui';
+import { secondaryButtonClass, labelClass, inputClass, cardClass } from './ui';
 import { cn } from '../lib/classNames';
 import type { Filters, FilterName } from '../routes/InventoryPage';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -280,7 +280,7 @@ export function FilterBar({
 
   return (
     <>
-      <div className="sticky top-16 z-30 bg-gradient-to-r from-indigo-50/50 via-white to-white dark:from-slate-800/50 dark:via-slate-900 dark:to-slate-950 backdrop-blur-lg border-b-2 border-indigo-300 dark:border-indigo-600 px-4 py-5 sm:px-6 lg:px-8 shadow-md dark:shadow-lg dark:shadow-slate-950/50">
+      <div className={cn(cardClass, "mb-6")}>
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
           {/* Search */}
           <div className="relative flex-1 min-w-0 max-w-xs sm:max-w-sm">
@@ -339,7 +339,7 @@ export function FilterBar({
               </svg>
             </button>
             {presetsOpen && (
-              <div className="absolute right-0 top-full mt-1.5 min-w-[180px] rounded-lg border border-[var(--color-border)] bg-white p-2 shadow-lg dark:bg-slate-900 dark:border-[var(--color-border)] animate-fade-in">
+              <div className={cn(cardClass, "absolute right-0 top-full mt-1.5 min-w-[180px] p-2 animate-fade-in")}>
                 {presetFilters.map((preset) => (
                   <button
                     key={preset.id}

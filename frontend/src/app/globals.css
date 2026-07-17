@@ -94,8 +94,6 @@
   --animate-shimmer: shimmer 1.5s ease-in-out infinite;
   --animate-pill-pop: pillPop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-pill-remove: pillRemove 180ms cubic-bezier(0.4, 0, 1, 1) both;
-  --animate-density: densityShift 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-row-enter: rise 300ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--stagger-index, 0) * 15ms) both;
   
   /* High contrast accents for dark mode */
   --dark-glow: 0 0 10px rgba(79, 70, 229, 0.3), 0 0 20px rgba(79, 70, 229, 0.1);
@@ -131,10 +129,6 @@
   100% { opacity: 0; transform: scale(0.7) translateX(-8px); }
 }
 
-@keyframes densityShift {
-  from { height: var(--row-height-from, var(--row-height-comfortable)); }
-  to { height: var(--row-height-to, var(--row-height-comfortable)); }
-}
 
 html {
   scroll-behavior: smooth;
@@ -305,24 +299,6 @@ html.dark ::-webkit-scrollbar-thumb { background: #2a2f44; border: 3px solid tra
   }
 }
 
-/* Utility classes for semantic colors */
-.semantic-bg { background: var(--semantic-bg, var(--color-surface)); }
-.semantic-text { color: var(--semantic-fg, var(--color-text-primary)); }
-.semantic-border { border-color: var(--semantic-border, var(--color-border)); }
-
-/* Row accent utility */
-.row-accent {
-  border-left: 3px solid var(--row-accent-color, transparent);
-  transition: background-color 150ms ease-out;
-}
-.row-accent:hover {
-  background-color: var(--row-accent-hover, transparent) !important;
-}
-
-/* FilterBar dark mode labels with subtle text shadow */
-html.dark [role="group"][aria-label="Core filters"] label {
-  text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
-}
 
 /* Badge dark mode glow */
 html.dark .dark\:shadow-\[var\(--dark-glow\)\] {

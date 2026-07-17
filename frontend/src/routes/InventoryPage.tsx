@@ -16,6 +16,8 @@ import {
   TableSkeleton,
   cardClass,
   inputClass,
+  monoClass,
+  selectClass,
   primaryButtonClass,
   secondaryButtonClass,
   tableBodyClass,
@@ -86,30 +88,16 @@ function hasActiveFilters(filters: Filters): boolean {
   return filterNames.some((name) => filters[name].length > 0);
 }
 
-/** Row accent color — derive from status (primary), fallback to criticality, then environment */
-function getRowAccent(vm: Vm): { type: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle'; value: string } | null {
-  if (vm.status) return { type: 'status', value: vm.status };
-  if (vm.criticality) return { type: 'criticality', value: vm.criticality };
-  if (vm.environment) return { type: 'environment', value: vm.environment };
-  if (vm.platform) return { type: 'platform', value: vm.platform };
-  if (vm.os_family) return { type: 'os_family', value: vm.os_family };
-  if (vm.lifecycle) return { type: 'lifecycle', value: vm.lifecycle };
-  return null;
-}
 
 function VmCard({ vm }: { vm: Vm }) {
-  const accent = getRowAccent(vm);
   return (
     <article
       className={cn(cardClass, 'p-4 transition-colors duration-150')}
-      style={{
-        ...(accent ? { borderLeft: `3px solid var(--color-${accent.type}-${accent.value})` } : {}),
-      } as React.CSSProperties}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-medium text-[var(--color-text-primary)] truncate">{vm.name}</h3>
-          <p className="mt-0.5 text-sm text-[var(--color-text-tertiary)] monoClass">{vm.platform} / {vm.cluster}</p>
+          <p className={cn("mt-0.5 text-sm text-[var(--color-text-tertiary)]", monoClass)}>{vm.platform} / {vm.cluster}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Badge value={vm.status} type="status" />
@@ -173,24 +161,15 @@ function VmTable({
         </thead>
         <tbody className={tableBodyClass}>
           {vms.map((vm, index) => {
-            const accent = getRowAccent(vm);
             const isSelected = selectedIds.has(vm.id);
-            const rowStyle = {
-              '--stagger-index': index,
-              ...(accent ? { '--row-accent-color': `var(--color-${accent.type}-${accent.value})` } : {}),
-              ...(accent ? { '--row-accent-hover': `color-mix(in srgb, var(--color-${accent.type}-${accent.value}) 12%, transparent)` } : {}),
-            } as React.CSSProperties;
             
             return (
               <tr
                 key={vm.id}
                 className={cn(
                   tableRowClass,
-                  'animate-row-enter transition-[height,background-color] duration-200 ease-out',
-                  isSelected && 'bg-[var(--color-accent)]/10 ring-inset ring-1 ring-[var(--color-accent)]/30',
-                  accent && 'row-accent hover:bg-[var(--row-accent-hover,var(--color-surface-secondary))] dark:hover:bg-[var(--row-accent-hover,rgba(51,65,85,0.5))]'
+                  isSelected && 'bg-[var(--color-accent)]/10'
                 )}
-                style={rowStyle}
               >
                 <td className="px-4 py-3">
                   <input
@@ -209,8 +188,8 @@ function VmTable({
                       </Link>
                     )}
                     {col.key === 'platform' && <Badge value={vm.platform} type="platform" />}
-                    {col.key === 'cluster' && <span className="monoClass truncate max-w-[180px]">{vm.cluster}</span>}
-                    {col.key === 'node' && <span className="monoClass truncate max-w-[180px]">{vm.node}</span>}
+                    {col.key === 'cluster' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.cluster}</span>}
+                    {col.key === 'node' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.node}</span>}
                     {col.key === 'status' && <Badge value={vm.status} type="status" />}
                     {col.key === 'environment' && <Badge value={vm.environment} type="environment" />}
                     {col.key === 'criticality' && <Badge value={vm.criticality} type="criticality" />}
@@ -221,10 +200,10 @@ function VmTable({
                     {col.key === 'pmp_enabled' && <Badge value={vm.pmp_enabled ? 'Enabled' : 'Disabled'} type="status" />}
                     {col.key === 'health' && <Badge value={vm.health_score >= 80 ? 'healthy' : vm.health_score >= 50 ? 'warning' : 'critical'} type="status" />}
                     {col.key === 'resources' && (
-                      <span className="monoClass truncate max-w-[200px]">{vm.cpu_cores} vCPU · {formatMemory(vm.memory_mb)}</span>
+                      <span className={cn(monoClass, "truncate max-w-[200px]")}>{vm.cpu_cores} vCPU · {formatMemory(vm.memory_mb)}</span>
                     )}
-                    {col.key === 'fqdn' && <span className="monoClass truncate max-w-xs">{vm.fqdn ?? ''}</span>}
-                    {col.key === 'ip_address' && <span className="monoClass">{vm.networks?.[0]?.ip_address ?? ''}</span>}
+                    {col.key === 'fqdn' && <span className={cn(monoClass, "truncate max-w-xs")}>{vm.fqdn ?? ''}</span>}
+                    {col.key === 'ip_address' && <span className={monoClass}>{vm.networks?.[0]?.ip_address ?? ''}</span>}
                     {col.key === 'tags' && vm.tags?.length && (
                       <span className="inline-flex items-center gap-1 flex-wrap">
                         {vm.tags.slice(0, 3).map((t) => (
@@ -237,10 +216,10 @@ function VmTable({
                 ))}
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
-                    <Link href={`/inventory/${vm.id}`} className="p-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] transition-colors" aria-label="View details">
+                    <Link href={`/inventory/${vm.id}`} className="px-2 py-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] transition-colors" aria-label="View details">
                       <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 8l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </Link>
-                    <Link href={`/inventory/${vm.id}/edit`} className="p-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] transition-colors" aria-label="Edit">
+                    <Link href={`/inventory/${vm.id}/edit`} className="px-2 py-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] transition-colors" aria-label="Edit">
                       <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M12 3l3 3-8 8H3l-1-5 5-1 8-8-3-3Z" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </Link>
                   </div>
@@ -250,19 +229,6 @@ function VmTable({
           })}
         </tbody>
       </table>
-      {vms.length === 0 && (
-        <tbody>
-          <tr>
-            <td colSpan={columns.length + 2} className="px-4 py-12 text-center">
-              <EmptyState 
-                title="No VMs found" 
-                body="Create a VM or adjust the filters to see inventory." 
-                icon="📦"
-              />
-            </td>
-          </tr>
-        </tbody>
-      )}
     </div>
   );
 }
@@ -348,6 +314,7 @@ export function InventoryPage() {
       <section>
         <PageHeader
           title="Inventory"
+          eyebrow={vms.data && vms.data.items.length > 0 ? `${vms.data.items.length} VM${vms.data.items.length !== 1 ? 's' : ''}` : undefined}
           actions={
             <div className="flex items-center gap-2">
               {selectedIds.size > 0 && (
@@ -369,7 +336,7 @@ export function InventoryPage() {
             {Object.keys(presets).length > 0 && (
               <div className="flex items-center gap-2">
                 <select
-                  className="rounded-lg border border-[var(--color-border)] bg-white px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] dark:border-[var(--color-border)] dark:bg-slate-900 dark:text-slate-100"
+                  className={selectClass}
                   onChange={(e) => {
                     if (e.target.value && presets[e.target.value]) {
                       setFilters(presets[e.target.value].filters);
@@ -395,12 +362,12 @@ export function InventoryPage() {
                   }}
                 >
                   <input
-                    className="w-40 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm dark:border-[var(--color-border)] dark:bg-slate-900 dark:text-slate-100"
+                    className={cn(inputClass, "w-40")}
                     placeholder="Preset name"
                     value={saveName}
                     onChange={(e) => setSaveName(e.target.value)}
                   />
-                  <button type="submit" disabled={!saveName.trim()} className="rounded-lg bg-[var(--color-surface-tertiary)] px-3 py-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-border)] disabled:opacity-50 dark:hover:bg-slate-700 transition-colors">
+                  <button type="submit" disabled={!saveName.trim()} className={secondaryButtonClass}>
                     Save
                   </button>
                 </form>
@@ -413,7 +380,6 @@ export function InventoryPage() {
         {vms.isLoading ? <TableSkeleton rows={8} cols={7} /> : null}
         {vms.data && vms.data.items.length > 0 ? (
           <>
-            <p className="mb-3 text-sm text-[var(--color-text-tertiary)]">{vms.data.items.length} VM{vms.data.items.length !== 1 ? 's' : ''}</p>
             <div className="hidden lg:block">
               <VmTable vms={vms.data.items} columns={visibleColumns} selectedIds={selectedIds} onToggle={toggleSelect} onToggleAll={toggleSelectAll} density={density} />
             </div>

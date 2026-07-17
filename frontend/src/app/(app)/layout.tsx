@@ -20,17 +20,23 @@ export default function AuthenticatedLayout({ children }: { children: ReactNode 
   };
 
   useEffect(() => {
-    // Don't redirect if there's an error (we'll use mock user)
-    // Only redirect if there's no error AND no data (setup required)
-    if (me.isError) {
-      return; // Use mock user instead of redirecting
+    // Don't redirect to login if we're loading or if there's an API error
+    // (we'll use mock user for evaluation when API is unavailable)
+    if (me.isLoading || me.isError) {
+      return;
     }
-    if (!me.isLoading && !me.data) {
+    
+    // Only redirect to login if query succeeded but there's no data
+    // (indicates setup is required, not API error)
+    if (!me.isLoading && !me.isError && !me.data) {
       router.replace('/login');
     }
   }, [me.data, me.isError, me.isLoading, router]);
+
+  // Use real user if available, otherwise use mock user for evaluation
   const user = me.data || mockUser;
 
+  // Show loading screen while fetching (don't redirect)
   if (me.isLoading) {
     return <div className="p-6" role="status">Loading session…</div>;
   }
