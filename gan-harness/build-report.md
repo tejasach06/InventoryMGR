@@ -1,11 +1,12 @@
-# Gan harness build report — InventoryMGR Inventory page redesign
+# Gan harness build report
 
-**Project:** InventoryMGR  
-**Target:** `frontend/src/routes/InventoryPage.tsx` + supporting components  
-**Spec:** gan-harness/spec.md  
-**Eval Rubric:** gan-harness/eval-rubric.md  
-**Threshold:** 8.5 / 10.0  
-**Final Score:** 8.6 / 10.0 ✅ **PASS**
+**Brief:** Redesign the Inventory page (`frontend/src/routes/InventoryPage.tsx`) — the core data surface of InventoryMGR. Shows a filterable, sortable, column-customizable table of VMs with inline row actions and bulk operations.
+
+**Result:** PASS
+
+**Iterations:** 3 / 15
+
+**Final Score:** 8.6 / 10
 
 ---
 
