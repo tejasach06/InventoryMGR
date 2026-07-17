@@ -98,9 +98,12 @@ export function ColumnEditor({ columns, onToggle, onReorder, onReset }: ColumnEd
             dragOverKey === col.key ? 'border-t-2 border-[var(--color-accent)]' : 'border-t-2 border-transparent'
           } ${draggedKey === col.key ? 'opacity-50' : ''}`}
         >
-          <span className="text-[var(--color-text-tertiary)] cursor-grab" title="Drag to reorder" aria-hidden="true">
-            ⋮⋮
-          </span>
+          <svg className="h-3.5 w-3.5 shrink-0 cursor-grab text-[var(--color-text-tertiary)]" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
+            <title>Drag to reorder</title>
+            <circle cx="2.5" cy="2.5" r="1.25" /><circle cx="7.5" cy="2.5" r="1.25" />
+            <circle cx="2.5" cy="8" r="1.25" /><circle cx="7.5" cy="8" r="1.25" />
+            <circle cx="2.5" cy="13.5" r="1.25" /><circle cx="7.5" cy="13.5" r="1.25" />
+          </svg>
           <label className="flex-1 cursor-pointer text-[var(--color-text-primary)] dark:text-slate-200">
             <input
               type="checkbox"

@@ -334,22 +334,27 @@ html.dark .dark\:shadow-\[var\(--dark-glow\)\] {
   color: var(--color-text-tertiary);
 }
 
-/* Reveal-on-hover row actions */
+/* Reveal-on-hover row actions. Scoped to `tr:hover` (only the physically
+   hovered row) plus `.row-actions:focus-within` (only once focus lands on
+   an action link itself, e.g. via Tab) — deliberately NOT `tr:focus-within`,
+   which would keep a row's actions visible any time another element in that
+   row (like its checkbox) retains focus, letting two rows appear lit at once. */
 .row-actions {
   opacity: 0;
   transform: translateX(2px);
   transition: opacity 150ms var(--ease-out-expo), transform 150ms var(--ease-out-expo);
 }
 tr:hover .row-actions,
-tr:focus-within .row-actions {
+.row-actions:focus-within {
   opacity: 1;
   transform: translateX(0);
 }
 
-/* Bulk action bar */
+/* Bulk action bar — anchored bottom-right of the viewport so it never
+   collides with the fixed-position sidebar nav on the left. */
 @keyframes slideUpBar {
-  from { opacity: 0; transform: translate(-50%, 16px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .bulk-bar {
   animation: slideUpBar 220ms var(--ease-out-expo) both;

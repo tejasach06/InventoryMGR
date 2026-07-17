@@ -500,7 +500,7 @@ export function InventoryPage() {
 
       {/* Bulk action bar — slides up from bottom when rows are selected */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-40 bulk-bar" role="toolbar" aria-label="Bulk actions">
+        <div className="fixed bottom-6 right-4 sm:right-6 lg:right-10 z-40 bulk-bar" role="toolbar" aria-label="Bulk actions">
           <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-text-primary)] px-4 py-2.5 text-white shadow-[var(--shadow-overlay)] dark:bg-slate-800 dark:border-slate-700">
             <span className="text-sm font-semibold tabular-nums">{selectedIds.size} selected</span>
             <div className="h-4 w-px bg-white/20" aria-hidden="true" />

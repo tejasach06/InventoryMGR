@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { FuzzyMultiSelect } from './FuzzyMultiSelect';
+import { SegmentedControl } from './SegmentedControl';
 import { secondaryButtonClass, labelClass, inputClass, cardClass, filterBarClass, eyebrowClass } from './ui';
 import { cn } from '../lib/classNames';
 import type { Filters, FilterName } from '../routes/InventoryPage';
@@ -60,6 +61,14 @@ const advancedFilterLabels: Record<AdvancedFilterName, string> = {
 
 const booleanFilters: AdvancedFilterName[] = ['monitoring_enabled', 'pmp_enabled'];
 const dynamicMultiSelectFilters: AdvancedFilterName[] = ['owner', 'cluster', 'node', 'tag', 'application'];
+
+const dynamicFetchers: Record<'owner' | 'cluster' | 'node' | 'tag' | 'application', () => Promise<string[]>> = {
+  owner: api.listVmOwners,
+  cluster: api.listVmClusters,
+  node: api.listVmNodes,
+  tag: api.listVmTags,
+  application: api.listVmApplications,
+};
 const singleSelectFilters: AdvancedFilterName[] = ['health'];
 const coreFilters = ['status', 'platform', 'criticality'] as const;
 const coreFilterTypes: Record<typeof coreFilters[number], 'status' | 'criticality' | 'platform'> = {
@@ -88,6 +97,21 @@ export function FilterBar({
   const [advancedFilters, setAdvancedFilters] = useState<Partial<Filters>>({});
   const [searchQuery, setSearchQuery] = useState(filters.q[0] || '');
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Dynamic facet options (cluster/node/owner/tag/application) come from the
+  // fleet itself rather than a fixed enum, so fetch them once and reuse.
+  const ownersQuery = useQuery({ queryKey: ['vm-owners'], queryFn: dynamicFetchers.owner, staleTime: 60_000 });
+  const clustersQuery = useQuery({ queryKey: ['vm-clusters'], queryFn: dynamicFetchers.cluster, staleTime: 60_000 });
+  const nodesQuery = useQuery({ queryKey: ['vm-nodes'], queryFn: dynamicFetchers.node, staleTime: 60_000 });
+  const tagsQuery = useQuery({ queryKey: ['vm-tags'], queryFn: dynamicFetchers.tag, staleTime: 60_000 });
+  const applicationsQuery = useQuery({ queryKey: ['vm-applications'], queryFn: dynamicFetchers.application, staleTime: 60_000 });
+  const dynamicResults: Record<'owner' | 'cluster' | 'node' | 'tag' | 'application', { options: string[]; isLoading: boolean; isError: boolean }> = {
+    owner: { options: ownersQuery.data ?? [], isLoading: ownersQuery.isLoading, isError: ownersQuery.isError },
+    cluster: { options: clustersQuery.data ?? [], isLoading: clustersQuery.isLoading, isError: clustersQuery.isError },
+    node: { options: nodesQuery.data ?? [], isLoading: nodesQuery.isLoading, isError: nodesQuery.isError },
+    tag: { options: tagsQuery.data ?? [], isLoading: tagsQuery.isLoading, isError: tagsQuery.isError },
+    application: { options: applicationsQuery.data ?? [], isLoading: applicationsQuery.isLoading, isError: applicationsQuery.isError },
+  };
   useEffect(() => {
     const adv: Partial<Filters> = {};
     (Object.keys(filters) as FilterName[]).forEach((key) => {
@@ -154,7 +178,7 @@ export function FilterBar({
 
 
   const renderCoreChips = () => (
-    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Core filters">
+    <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Core filters">
       {coreFilters.map((name) => {
         const config = advancedFilterConfig[name];
         const type = coreFilterTypes[name];
@@ -163,18 +187,14 @@ export function FilterBar({
         if (config.kind !== 'multiSelect') return null;
         return (
           <div key={name} className="flex items-center gap-1.5">
-            <label htmlFor={`core-${name}`} className="sr-only">{label}</label>
-            <FuzzyMultiSelect
+            <SegmentedControl
+              label={label}
               value={values}
-              options={[...config.options] as string[]}
+              options={config.options}
+              type={type}
+              labels={config.labels}
               onChange={(v) => handleCoreFilterChange(name, v)}
-              placeholder={label}
             />
-            {values.length > 0 && (
-              <span className="text-xs text-[var(--color-text-tertiary)] dark:text-slate-400" aria-hidden="true">
-                {values.length}
-              </span>
-            )}
           </div>
         );
       })}
@@ -304,17 +324,36 @@ export function FilterBar({
             {group.filters.map((name) => {
               const config = advancedFilterConfig[name];
               const values = (advancedFilters[name] as string[]) || filters[name] || [];
+              const dynamic = config.kind === 'dynamicMultiSelect'
+                ? dynamicResults[name as 'owner' | 'cluster' | 'node' | 'tag' | 'application']
+                : null;
               const options = config.kind === 'dynamicMultiSelect'
-                ? []
+                ? dynamic!.options
                 : config.options;
               const labels = config.labels;
               const isSingle = singleSelectFilters.includes(name);
 
-              if (!options.length && config.kind === 'dynamicMultiSelect') {
+              if (dynamic?.isLoading) {
                 return (
                   <div key={name} className="space-y-2">
                     <label className={labelClass}>{advancedFilterLabels[name]}</label>
-                    <div className="text-sm text-[var(--color-text-tertiary)] dark:text-slate-400">Loading…</div>
+                    <div className="h-9 w-full animate-pulse rounded-lg bg-[var(--color-surface-tertiary)] dark:bg-slate-800" aria-label={`Loading ${advancedFilterLabels[name]} options`} />
+                  </div>
+                );
+              }
+              if (dynamic?.isError) {
+                return (
+                  <div key={name} className="space-y-2">
+                    <label className={labelClass}>{advancedFilterLabels[name]}</label>
+                    <div className="text-sm text-[var(--color-criticality-critical)]">Couldn&apos;t load {advancedFilterLabels[name].toLowerCase()} options.</div>
+                  </div>
+                );
+              }
+              if (dynamic && options.length === 0) {
+                return (
+                  <div key={name} className="space-y-2">
+                    <label className={labelClass}>{advancedFilterLabels[name]}</label>
+                    <div className="text-sm text-[var(--color-text-tertiary)] dark:text-slate-400">No {advancedFilterLabels[name].toLowerCase()} values in the fleet yet.</div>
                   </div>
                 );
               }

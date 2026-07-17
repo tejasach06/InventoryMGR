@@ -18,6 +18,7 @@ from app.db.models import (
     Vm,
     VmDisk,
     VmNetwork,
+    compute_health_score,
 )
 from app.schemas.vms import VmCreate, VmUpdate
 from app.services.vms import create_vm, update_vm
@@ -359,7 +360,7 @@ def load_batch_or_404(db: Session, batch_id: uuid.UUID, user: User) -> CsvImport
     return batch
 
 
-def _commit_row(db: Session, row: CsvImportRow, user: User) -> str:
+def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
     assert row.normalized is not None
     normalized = row.normalized.copy()
     date_fields = (
@@ -382,14 +383,14 @@ def _commit_row(db: Session, row: CsvImportRow, user: User) -> str:
             ))
         if ip_address:
             db.add(VmNetwork(vm_id=vm.id, ip_address=ip_address, sort_order=0))
-        return "create"
+        return "create", vm
     if row.target_vm_id is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
     vm = db.get(Vm, row.target_vm_id)
     if vm is None or find_matching_vm(db, row.normalized) != vm:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
     update_vm(db, vm, VmUpdate.model_validate(normalized), user, commit=False)
-    return "update"
+    return "update", vm
 
 
 def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, int]:
@@ -408,9 +409,12 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
         )
     created = 0
     updated = 0
+    touched_vms: list[Vm] = []
     for row in batch.rows:
         try:
-            if _commit_row(db, row, user) == "create":
+            action, vm = _commit_row(db, row, user)
+            touched_vms.append(vm)
+            if action == "create":
                 created += 1
             else:
                 updated += 1
@@ -423,6 +427,13 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Row {row.row_number} failed to import: {exc}",
             ) from exc
+
+    # ponytail: health_score depends on disks/networks attached above; recompute here
+    # (once, for every commit path) rather than inside create_vm/update_vm's commit=False branch.
+    db.flush()
+    for vm in touched_vms:
+        db.refresh(vm)
+        vm.health_score = compute_health_score(vm)
 
     try:
         batch.status = ImportStatus.committed
