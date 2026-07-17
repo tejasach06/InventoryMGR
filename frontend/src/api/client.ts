@@ -911,22 +911,39 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, _re
     if (token) headers.set('X-CSRF-Token', token);
   }
 
-  const response = await fetch(`${API_PREFIX}${path}`, { ...options, method, headers, credentials: 'include' });
-  if (response.status === 401 && !_retried) {
-    const refreshRes = await fetch(`${API_PREFIX}/auth/refresh`, { method: 'POST', credentials: 'include' });
-    if (refreshRes.ok) {
-      return apiRequest<T>(path, options, true);
+  // Add 1500ms timeout to prevent hanging requests
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 1500);
+
+  try {
+    const response = await fetch(`${API_PREFIX}${path}`, {
+      ...options,
+      method,
+      headers,
+      credentials: 'include',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (response.status === 401 && !_retried) {
+      const refreshRes = await fetch(`${API_PREFIX}/auth/refresh`, { method: 'POST', credentials: 'include' });
+      if (refreshRes.ok) {
+        return apiRequest<T>(path, options, true);
+      }
     }
-  }
-  const data = await parseResponse(response);
+    const data = await parseResponse(response);
 
-  if (!response.ok) {
-    const detail = typeof data === 'object' && data !== null && 'detail' in data
-      ? (data as { detail: unknown }).detail : data;
-    throw new ApiError(response.status, detail);
-  }
+    if (!response.ok) {
+      const detail = typeof data === 'object' && data !== null && 'detail' in data
+        ? (data as { detail: unknown }).detail : data;
+      throw new ApiError(response.status, detail);
+    }
 
-  return data as T;
+    return data as T;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
 }
 
 export function detailMessage(error: unknown): string {
