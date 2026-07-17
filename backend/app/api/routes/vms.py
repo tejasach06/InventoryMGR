@@ -130,9 +130,8 @@ def list_applications(db: DbSession, _: ViewerUser) -> list[str]:
 
 @router.get("/tags", response_model=list[str])
 def list_tags(db: DbSession, _: ViewerUser) -> list[str]:
-    rows = db.scalars(
-        select(func.jsonb_array_elements_text(Vm.tags)).distinct().order_by(1)
-    ).all()
+    tag = func.jsonb_array_elements_text(Vm.tags).label("tag")
+    rows = db.scalars(select(tag).distinct().order_by(tag)).all()
     return [t for t in rows if t]
 
 

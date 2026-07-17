@@ -34,6 +34,7 @@ import { useColumnPreferences, COLUMN_LABELS } from '../hooks/useColumnPreferenc
 import { formatMemory, formatDisks } from '../lib/units';
 import { useFilterPresets } from '../hooks/useFilterPresets';
 import { FilterBar } from '../components/FilterBar';
+import { ContextPanel } from '../components/ContextPanel';
 
 export const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
 export const advancedFilterNames = ['cluster', 'lifecycle', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'health'] as const;
@@ -177,6 +178,8 @@ function VmTable({
   sortKey,
   sortDir,
   onSort,
+  activeVmId,
+  onActivate,
 }: {
   vms: Vm[];
   columns: { key: string }[];
@@ -186,6 +189,8 @@ function VmTable({
   sortKey: string | null;
   sortDir: 'asc' | 'desc';
   onSort: (key: string) => void;
+  activeVmId?: string | null;
+  onActivate?: (id: string) => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -239,13 +244,21 @@ function VmTable({
         <tbody className={tableBodyClass}>
           {sorted.map((vm, index) => {
             const isSelected = selectedIds.has(vm.id);
+            const isActive = activeVmId === vm.id;
 
             return (
               <tr
                 key={vm.id}
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  if (target.closest('a, button, input')) return;
+                  onActivate?.(vm.id);
+                }}
                 className={cn(
                   tableRowClass,
-                  isSelected && 'bg-[var(--color-accent)]/10'
+                  'cursor-pointer',
+                  isSelected && 'bg-[var(--color-accent)]/10',
+                  !isSelected && isActive && 'bg-[var(--color-accent)]/5 shadow-[inset_2px_0_0_var(--color-accent)]'
                 )}
               >
                 <td className="py-3 pl-3 pr-4" style={{ borderLeft: `3px solid var(--color-criticality-${vm.criticality})` } as React.CSSProperties}>
@@ -318,6 +331,7 @@ export function InventoryPage() {
   const canCreateVm = user.role === 'editor' || user.role === 'admin';
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [activeVmId, setActiveVmId] = useState<string | null>(null);
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
   const { presets, savePreset, deletePreset } = useFilterPresets<Filters, Record<string, string>>('inventory_presets');
   const [saveName, setSaveName] = useState('');
@@ -450,25 +464,39 @@ export function InventoryPage() {
         {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
         {vms.isLoading ? <TableSkeleton rows={8} cols={7} /> : null}
         {vms.data && vms.data.items.length > 0 ? (
-          <>
-            <div className="hidden lg:block">
-              <VmTable
+          <div className="lg:flex lg:items-start lg:gap-5">
+            <div className="lg:w-[70%] lg:min-w-0">
+              <div className="hidden lg:block">
+                <VmTable
+                  vms={vms.data.items}
+                  columns={visibleColumns}
+                  selectedIds={selectedIds}
+                  onToggle={toggleSelect}
+                  onToggleAll={toggleSelectAll}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  activeVmId={activeVmId}
+                  onActivate={(id) => setActiveVmId((prev) => (prev === id ? null : id))}
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
+                {vms.data.items.map((vm) => (
+                  <VmCard key={vm.id} vm={vm} />
+                ))}
+              </div>
+            </div>
+            <div className="lg:w-[30%]">
+              <ContextPanel
                 vms={vms.data.items}
-                columns={visibleColumns}
-                selectedIds={selectedIds}
-                onToggle={toggleSelect}
-                onToggleAll={toggleSelectAll}
-                sortKey={sortKey}
-                sortDir={sortDir}
-                onSort={handleSort}
+                activeVm={vms.data.items.find((v) => v.id === activeVmId) ?? null}
+                onCloseActive={() => setActiveVmId(null)}
+                selectedCount={selectedIds.size}
+                onExportSelected={exportSelected}
+                onClearSelected={() => setSelectedIds(new Set())}
               />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
-              {vms.data.items.map((vm) => (
-                <VmCard key={vm.id} vm={vm} />
-              ))}
-            </div>
-          </>
+          </div>
         ) : null}
         {vms.data && vms.data.items.length === 0 ? (
           hasActiveFilters(filters) ? (
@@ -498,9 +526,10 @@ export function InventoryPage() {
         ) : null}
       </section>
 
-      {/* Bulk action bar — slides up from bottom when rows are selected */}
+      {/* Bulk action bar — mobile/tablet only; on desktop, bulk actions live
+          in the context panel instead of a floating overlay. */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 right-4 sm:right-6 lg:right-10 z-40 bulk-bar" role="toolbar" aria-label="Bulk actions">
+        <div className="fixed bottom-6 right-4 sm:right-6 z-40 bulk-bar lg:hidden" role="toolbar" aria-label="Bulk actions">
           <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-text-primary)] px-4 py-2.5 text-white shadow-[var(--shadow-overlay)] dark:bg-slate-800 dark:border-slate-700">
             <span className="text-sm font-semibold tabular-nums">{selectedIds.size} selected</span>
             <div className="h-4 w-px bg-white/20" aria-hidden="true" />

@@ -81,7 +81,7 @@ export function AppLayout({ user, children }: LayoutProps) {
           )}
         </div>
       </aside>
-      <main className={`w-full px-4 py-6 sm:px-6 lg:min-h-screen lg:flex-1 lg:px-8 lg:py-8 2xl:px-12 min-[1920px]:px-16 ${collapsed ? 'lg:ml-16' : 'lg:ml-60'}`} tabIndex={-1}>
+      <main className={`w-full min-w-0 px-4 py-6 sm:px-6 lg:min-h-screen lg:flex-1 lg:px-8 lg:py-8 2xl:px-12 min-[1920px]:px-16 ${collapsed ? 'lg:ml-16' : 'lg:ml-60'}`} tabIndex={-1}>
         {children}
       </main>
     </div>

@@ -390,7 +390,7 @@ export function FilterBar({
           </svg>
           <span className={cn(eyebrowClass, 'text-[var(--color-accent)]')}>Filter &amp; Search</span>
         </div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Search - only on mobile */}
           <div className="relative flex-1 min-w-0 max-w-xs sm:hidden">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-tertiary)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -420,7 +420,7 @@ export function FilterBar({
             )}
           </div>
           {/* Core segmented multi-selects fill the row on larger screens */}
-          <div className="hidden flex-1 sm:block">{renderCoreChips()}</div>
+          <div className="hidden min-w-0 flex-1 sm:block">{renderCoreChips()}</div>
 
           {/* Right side: Presets dropdown + Filters trigger */}
           <div className="flex items-center gap-2 flex-shrink-0">
