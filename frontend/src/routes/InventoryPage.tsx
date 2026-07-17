@@ -302,7 +302,10 @@ export function InventoryPage() {
     if (selectedIds.size === 0) return;
     window.location.href = api.exportSelectedUrl([...selectedIds]);
   }
-  const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => api.listVms(queryParams) });
+  const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: async () => {
+    const result = await api.listVms(queryParams);
+    return result;
+  } });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
