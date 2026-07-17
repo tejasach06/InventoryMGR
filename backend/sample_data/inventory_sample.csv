@@ -1,8 +1,0 @@
-external_id,name,platform,cluster,node,status,environment,criticality,lifecycle,os_family,owner,monitoring_enabled,pmp_enabled,tags
-pve-1001,web-prod-01,proxmox,pve-cluster-a,pve-node-1,running,production,high,active,linux,platform-team,true,true,web;frontend
-vmw-2001,db-prod-01,vsphere,vc-cluster,vc-node-9,running,production,critical,active,linux,dba-team,yes,no,db;postgres
-,app-win-01,vmware,vc-cluster,vc-node-3,powered_off,development,low,planned,windows,app-team,false,false,windows;iis
-pve-1002,api-uat-01,proxmox,pve-cluster-b,pve-node-2,suspended,uat,medium,retiring,linux,platform-team,true,false,api;backend
-vmw-2002,legacy-dr-01,vmware,vc-cluster,vc-node-4,archived,dr,low,retired,linux,legacy-team,false,true,legacy;dr
-pve-1001,web-prod-01,proxmox,pve-cluster-a,pve-node-1,powered_off,production,critical,active,linux,platform-team,true,true,web;frontend;updated
-inv-001,bad-status-vm,proxmox,pve-cluster-a,pve-node-1,on,production,high,active,linux,test-team,true,true,invalid
