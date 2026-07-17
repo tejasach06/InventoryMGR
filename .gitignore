@@ -43,3 +43,32 @@ tailwind.config.js
 *.tsbuildinfo
 debug-*.png
 .tokensave
+
+# Additional untracked caches and ide tools
+.pi/
+.pytest_cache/
+.ruff_cache/
+.devbox/
+
+# One-off scripts and debug files
+*test_user*.py
+seed_*.py
+debug-*.mjs
+eval-iter*.js
+evaluate-inventory*.js
+evaluate-inventory*.ts
+evaluate-inventory*.mjs
+
+# CSV outputs/inputs
+*.csv
+
+# E2E test temporary files and evaluations
+frontend/e2e/eval-*.spec.ts
+frontend/e2e/login-*.spec.ts
+frontend/*screenshot*.png
+frontend/login-page.png
+
+# Reports and logs
+frontend/reports/
+evaluation_results.json
+final-evaluation-result.json

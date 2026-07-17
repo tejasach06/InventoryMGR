@@ -31,13 +31,13 @@ export default defineConfig({
       {
         command: backendCommand,
         url: 'http://127.0.0.1:8000/api/health',
-        reuseExistingServer: false,
+        reuseExistingServer: true,
         timeout: 60_000,
       },
       {
         command: 'bun run dev',
         url: 'http://127.0.0.1:3000/login',
-        reuseExistingServer: false,
+        reuseExistingServer: true,
         timeout: 60_000,
       },
     ],

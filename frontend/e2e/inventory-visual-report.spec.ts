@@ -1,11 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, Page } from '@playwright/test';
 
 const ADMIN_EMAIL = process.env.INVENTORYMGR_INITIAL_ADMIN_EMAIL ?? 'admin@example.local';
 const ADMIN_PASSWORD = process.env.INVENTORYMGR_INITIAL_ADMIN_PASSWORD ?? 'change-me-before-use';
 
 test.use({ screenshot: 'only-on-failure' });
 
-async function ensureAdminSession(page) {
+async function ensureAdminSession(page: Page) {
   await page.goto('/login');
   const setup = page.getByRole('button', { name: 'Create admin account' });
   const signin = page.getByRole('button', { name: 'Sign in' });

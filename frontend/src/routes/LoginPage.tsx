@@ -85,10 +85,10 @@ export function LoginPage() {
     },
   });
 
-  const cachedUser = queryClient.getQueryData<User>(['me']);
   useEffect(() => {
-    if (cachedUser) router.replace('/inventory');
-  }, [cachedUser, router]);
+    // Clear the cached user when visiting login page to ensure fresh auth
+    queryClient.removeQueries({ queryKey: ['me'] });
+  }, [queryClient]);
 
   const loginValidation = validateLogin(email, password);
   const emailError = submitted ? loginValidation.email : undefined;
@@ -114,9 +114,6 @@ export function LoginPage() {
     setupAdmin.mutate();
   }
 
-  if (cachedUser) {
-    return <div className="p-6" role="status">Redirecting…</div>;
-  }
 
   if (setup.isLoading) {
     return <div className="p-6" role="status">Checking setup status…</div>;

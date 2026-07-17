@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter
 from sqlalchemy import case, func, select  # func used for count
@@ -28,7 +28,7 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
         )
     ).one()
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    cutoff = datetime.now(UTC) - timedelta(days=30)
     recent = list(db.scalars(
         select(Vm).where(Vm.created_at >= cutoff).order_by(Vm.created_at.desc()).limit(10)
     ))

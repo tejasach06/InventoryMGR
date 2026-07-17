@@ -11,34 +11,24 @@ export default function AuthenticatedLayout({ children }: { children: ReactNode 
   const router = useRouter();
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
 
-  // Fallback to mock admin user for evaluation when API is unavailable
-  const mockUser = {
-    id: 'eval-user',
-    email: 'eval@example.local',
-    role: 'admin' as const,
-    is_active: true,
-  };
 
   useEffect(() => {
-    // Don't redirect to login if we're loading or if there's an API error
-    // (we'll use mock user for evaluation when API is unavailable)
-    if (me.isLoading || me.isError) {
-      return;
-    }
-    
-    // Only redirect to login if query succeeded but there's no data
-    // (indicates setup is required, not API error)
-    if (!me.isLoading && !me.isError && !me.data) {
+    // Redirect to login if user is not authenticated (error) or if query succeeded but returned no user
+    if (me.isError || (!me.isLoading && !me.data)) {
       router.replace('/login');
     }
   }, [me.data, me.isError, me.isLoading, router]);
-
-  // Use real user if available, otherwise use mock user for evaluation
-  const user = me.data || mockUser;
-
-  // Show loading screen while fetching (don't redirect)
+  const user = me.data;
+  
+  // Show loading screen while fetching
   if (me.isLoading) {
     return <div className="p-6" role="status">Loading session…</div>;
+  }
+  
+  // If user is not authenticated or data is missing, show redirecting message
+  // (useEffect above handles the actual redirect)
+  if (me.isError || !user) {
+    return null;
   }
 
   return (

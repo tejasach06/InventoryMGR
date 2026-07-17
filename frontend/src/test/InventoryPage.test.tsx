@@ -102,13 +102,13 @@ describe('InventoryPage', () => {
     expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Search VMs'), 'web');
+    await user.type(screen.getByPlaceholderText('Search…'), 'web');
 
     const clear = screen.getByRole('button', { name: 'Clear all' });
     await user.click(clear);
 
     // Verify the search input is cleared
-    await waitFor(() => expect(screen.getByLabelText('Search VMs')).toHaveValue(''));
+    await waitFor(() => expect(screen.getByPlaceholderText('Search…')).toHaveValue(''));
     // Clear button should disappear after clearing
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument());
   });
@@ -119,7 +119,7 @@ describe('InventoryPage', () => {
 
     await screen.findAllByText('web-01');
     // filtersFromParams seeds the search field from the URL.
-    expect(screen.getByLabelText('Search VMs')).toHaveValue('web');
+    expect(screen.getByPlaceholderText('Search…')).toHaveValue('web');
     const clear = screen.getByRole('button', { name: 'Clear all' });
 
     hoisted.pushMock.mockClear();
@@ -127,6 +127,6 @@ describe('InventoryPage', () => {
     await user.click(clear);
 
     // Verify the search input is cleared
-    await waitFor(() => expect(screen.getByLabelText('Search VMs')).toHaveValue(''));
+    await waitFor(() => expect(screen.getByPlaceholderText('Search…')).toHaveValue(''));
   });
 });

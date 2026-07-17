@@ -31,7 +31,6 @@ def _is_test_env() -> bool:
 
 
 def rate_limit(limit: str):
-    from functools import wraps
 
     def decorator(func):
         if _is_test_env():

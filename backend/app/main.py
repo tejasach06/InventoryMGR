@@ -10,14 +10,14 @@ from starlette.responses import Response
 
 from app.api.routes import auth, imports, users, vms
 from app.api.routes.audit import router as audit_router
+from app.api.routes.auth import limiter as auth_limiter
 from app.api.routes.dashboard import router as dashboard_router
+from app.api.routes.preferences import router as preferences_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.settings import router as settings_router
 from app.api.routes.vms_applications import router as vms_applications_router
 from app.api.routes.vms_disks import router as vms_disks_router
 from app.api.routes.vms_networks import router as vms_networks_router
-from app.api.routes.preferences import router as preferences_router
-from app.api.routes.auth import limiter as auth_limiter
 from app.core.config import get_settings, validate_production_settings
 
 

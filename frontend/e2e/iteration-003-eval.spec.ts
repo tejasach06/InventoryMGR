@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 const BASE_URL = 'http://localhost:3000';
-const SCREENSHOT_DIR = path.join(__dirname, '../..', 'gan-harness', 'screenshots');
+const SCREENSHOT_DIR = path.join(import.meta.dirname, '../..', 'gan-harness', 'screenshots');
 
 // Ensure screenshot directory exists
 if (!fs.existsSync(SCREENSHOT_DIR)) {
@@ -150,18 +150,20 @@ test.describe('Iteration 3 Evaluation - Inventory Page with Mock Data', () => {
     await page.waitForSelector('tbody tr', { timeout: 5000 });
     
     // Check animation on first few rows
-    const rows = page.locator('tbody tr').slice(0, 3);
+    const rowElements = await page.locator('tbody tr').all();
+    const firstThreeRows = rowElements.slice(0, 3);
     
-    const animationData = await rows.evaluateAll((elements) => {
-      return elements.map((el) => {
-        const computed = window.getComputedStyle(el);
+    const animationData = await Promise.all(firstThreeRows.map(async (el) => {
+      const computed = await el.evaluate((e) => {
+        const computed = window.getComputedStyle(e);
         return {
           animation: computed.animation,
           animationDelay: computed.animationDelay,
           transitionDelay: computed.transitionDelay,
         };
       });
-    });
+      return computed;
+    }));
     
     console.log(`✓ Animation data:`, animationData);
     

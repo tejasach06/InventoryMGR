@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import Csrf, CurrentUser, DbSession
-from app.db.models import User
 from app.schemas.preferences import ColumnPreferencesRead
 
 router = APIRouter()
