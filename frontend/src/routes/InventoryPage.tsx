@@ -15,11 +15,13 @@ import {
   PageTransition,
   TableSkeleton,
   cardClass,
+  eyebrowClass,
   inputClass,
   monoClass,
   selectClass,
   primaryButtonClass,
   secondaryButtonClass,
+  statTileClass,
   tableBodyClass,
   tableCellClass,
   tableClass,
@@ -29,7 +31,7 @@ import {
 } from '../components/ui';
 import { ColumnEditor } from '../components/ColumnEditor';
 import { useColumnPreferences, COLUMN_LABELS } from '../hooks/useColumnPreferences';
-import { formatMemory } from '../lib/units';
+import { formatMemory, formatDisks } from '../lib/units';
 import { useFilterPresets } from '../hooks/useFilterPresets';
 import { FilterBar } from '../components/FilterBar';
 
@@ -91,31 +93,78 @@ function hasActiveFilters(filters: Filters): boolean {
 
 function VmCard({ vm }: { vm: Vm }) {
   return (
-    <article
-      className={cn(cardClass, 'p-4 transition-colors duration-150')}
+    <Link
+      href={`/inventory/${vm.id}`}
+      className={cn(
+        cardClass,
+        'block p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-raised)] hover:border-[var(--color-accent)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950'
+      )}
+      style={{ borderLeft: `3px solid var(--color-criticality-${vm.criticality})` } as React.CSSProperties}
     >
+      {/* Primary row: name + status */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-medium text-[var(--color-text-primary)] truncate">{vm.name}</h3>
-          <p className={cn("mt-0.5 text-sm text-[var(--color-text-tertiary)]", monoClass)}>{vm.platform} / {vm.cluster}</p>
+          <h3 className="font-display font-semibold text-[0.9375rem] text-[var(--color-text-primary)] truncate">{vm.name}</h3>
+          <p className={cn('mt-0.5 text-xs text-[var(--color-text-tertiary)]', monoClass)}>{vm.platform} · {vm.cluster}</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Badge value={vm.status} type="status" />
-          <Badge value={vm.criticality} type="criticality" />
+        <Badge value={vm.status} type="status" />
+      </div>
+
+      {/* Metric row: cpu / ram / storage, bento-tile mini-grid */}
+      <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-lg bg-[var(--color-surface-secondary)] p-2 dark:bg-slate-800/50">
+        <div className="text-center">
+          <p className={cn(monoClass, 'text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100')}>{vm.cpu_cores}</p>
+          <p className="eyebrow-label text-[0.5625rem]">vCPU</p>
+        </div>
+        <div className="text-center border-x border-[var(--color-border)] dark:border-[var(--color-border)]/60">
+          <p className={cn(monoClass, 'text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100')}>{formatMemory(vm.memory_mb)}</p>
+          <p className="eyebrow-label text-[0.5625rem]">Memory</p>
+        </div>
+        <div className="text-center">
+          <p className={cn(monoClass, 'text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100')}>{vm.disks?.length ? formatDisks(vm.disks.map((d) => d.size_gb)) : '—'}</p>
+          <p className="eyebrow-label text-[0.5625rem]">Storage</p>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">
+
+      {/* Badge cluster */}
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <Badge value={vm.criticality} type="criticality" />
         {vm.environment && <Badge value={vm.environment} type="environment" />}
         {vm.lifecycle && <Badge value={vm.lifecycle} type="lifecycle" />}
         {vm.os_family && <Badge value={vm.os_family} type="os_family" />}
-        {vm.owner && <span className="inline-flex items-center rounded-full bg-[var(--color-surface-tertiary)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)]">{vm.owner}</span>}
+        {vm.owner && <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-secondary)] dark:bg-slate-800">{vm.owner}</span>}
         {vm.tags && vm.tags.length > 0 && (
-          <span className="inline-flex items-center rounded-full bg-[var(--color-surface-tertiary)] px-2 py-0.5 text-xs text-[var(--color-text-tertiary)]">
+          <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-tertiary)] dark:bg-slate-800">
             {vm.tags.slice(0, 2).join(', ')}{vm.tags.length > 2 && ` +${vm.tags.length - 2}`}
           </span>
         )}
       </div>
-    </article>
+    </Link>
+  );
+}
+
+const SORTABLE_COLUMNS = new Set(['name', 'status', 'criticality', 'health', 'updated_at']);
+
+function sortValue(vm: Vm, key: string): string | number {
+  switch (key) {
+    case 'health':
+      return vm.health_score;
+    case 'updated_at':
+      return vm.updated_at;
+    default:
+      return String((vm as unknown as Record<string, unknown>)[key] ?? '').toLowerCase();
+  }
+}
+
+function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
+  return (
+    <svg className={cn('h-3 w-3 transition-opacity', direction ? 'opacity-100 text-[var(--color-accent)]' : 'opacity-30')} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      {direction === 'desc' ? (
+        <path d="M3 4.5L6 8l3-3.5" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M3 7.5L6 4l3 3.5" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
   );
 }
 
@@ -125,21 +174,34 @@ function VmTable({
   selectedIds,
   onToggle,
   onToggleAll,
-  density,
+  sortKey,
+  sortDir,
+  onSort,
 }: {
   vms: Vm[];
   columns: { key: string }[];
   selectedIds: Set<string>;
   onToggle: (id: string) => void;
   onToggleAll: (ids: string[]) => void;
-  density: 'comfortable' | 'compact' | 'condensed';
+  sortKey: string | null;
+  sortDir: 'asc' | 'desc';
+  onSort: (key: string) => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  const sorted = sortKey
+    ? [...vms].sort((a, b) => {
+        const av = sortValue(a, sortKey);
+        const bv = sortValue(b, sortKey);
+        const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+        return sortDir === 'asc' ? cmp : -cmp;
+      })
+    : vms;
+
   return (
     <div className={tableWrapClass}>
-      <table className={tableClass} role="grid" style={{ '--row-height': `var(--row-height-${density})` } as React.CSSProperties}>
+      <table className={tableClass} role="grid" style={{ '--row-height': 'var(--row-height-comfortable)' } as React.CSSProperties}>
         <thead>
           <tr className={tableHeadClass}>
             <th className="px-4 py-3 w-10">
@@ -151,18 +213,33 @@ function VmTable({
                 aria-label="Select all"
               />
             </th>
-            {columns.map((col) => (
-              <th key={col.key} className="px-4 py-3">
-                <span className="font-medium">{COLUMN_LABELS[col.key as keyof typeof COLUMN_LABELS] || col.key}</span>
-              </th>
-            ))}
+            {columns.map((col) => {
+              const sortable = SORTABLE_COLUMNS.has(col.key);
+              const active = sortKey === col.key;
+              return (
+                <th key={col.key} className="px-4 py-3">
+                  {sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => onSort(col.key)}
+                      className="inline-flex items-center gap-1 font-medium uppercase tracking-[0.08em] text-[0.7rem] hover:text-[var(--color-text-primary)] dark:hover:text-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] rounded"
+                    >
+                      {COLUMN_LABELS[col.key as keyof typeof COLUMN_LABELS] || col.key}
+                      <SortIcon direction={active ? sortDir : null} />
+                    </button>
+                  ) : (
+                    <span className="font-medium">{COLUMN_LABELS[col.key as keyof typeof COLUMN_LABELS] || col.key}</span>
+                  )}
+                </th>
+              );
+            })}
             <th className="px-4 py-3 w-24">Actions</th>
           </tr>
         </thead>
         <tbody className={tableBodyClass}>
-          {vms.map((vm, index) => {
+          {sorted.map((vm, index) => {
             const isSelected = selectedIds.has(vm.id);
-            
+
             return (
               <tr
                 key={vm.id}
@@ -171,7 +248,7 @@ function VmTable({
                   isSelected && 'bg-[var(--color-accent)]/10'
                 )}
               >
-                <td className="px-4 py-3">
+                <td className="py-3 pl-3 pr-4" style={{ borderLeft: `3px solid var(--color-criticality-${vm.criticality})` } as React.CSSProperties}>
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
@@ -215,11 +292,11 @@ function VmTable({
                   </td>
                 ))}
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1">
-                    <Link href={`/inventory/${vm.id}`} className="px-2 py-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] transition-colors" aria-label="View details">
+                  <div className="row-actions flex items-center justify-end gap-1">
+                    <Link href={`/inventory/${vm.id}`} className="px-2 py-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors" aria-label="View details">
                       <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 8l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </Link>
-                    <Link href={`/inventory/${vm.id}/edit`} className="px-2 py-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] transition-colors" aria-label="Edit">
+                    <Link href={`/inventory/${vm.id}/edit`} className="px-2 py-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors" aria-label="Edit">
                       <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M12 3l3 3-8 8H3l-1-5 5-1 8-8-3-3Z" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </Link>
                   </div>
@@ -241,13 +318,22 @@ export function InventoryPage() {
   const canCreateVm = user.role === 'editor' || user.role === 'admin';
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [density, setDensity] = useState<'comfortable' | 'compact' | 'condensed'>(() => {
-    if (typeof window === 'undefined') return 'comfortable';
-    return (localStorage.getItem('inventory-density') as 'comfortable' | 'compact' | 'condensed') || 'comfortable';
-  });
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
   const { presets, savePreset, deletePreset } = useFilterPresets<Filters, Record<string, string>>('inventory_presets');
   const [saveName, setSaveName] = useState('');
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  function handleSort(key: string) {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      setSortDir('desc');
+    } else {
+      setSortKey(null);
+    }
+  }
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -292,10 +378,6 @@ export function InventoryPage() {
     };
   }, [filters, pathname, router, searchParams]);
 
-  useEffect(() => {
-    localStorage.setItem('inventory-density', density);
-    document.documentElement.style.setProperty('--row-height', `var(--row-height-${density})`);
-  }, [density]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -309,19 +391,22 @@ export function InventoryPage() {
     router.push(pathname);
   }
 
+  const items = vms.data?.items ?? [];
+  const stats = {
+    total: vms.data?.total ?? items.length,
+    running: items.filter((v) => v.status === 'running').length,
+    critical: items.filter((v) => v.criticality === 'critical').length,
+    avgHealth: items.length ? Math.round(items.reduce((sum, v) => sum + v.health_score, 0) / items.length) : null,
+  };
+
   return (
     <PageTransition>
       <section>
         <PageHeader
           title="Inventory"
-          eyebrow={vms.data && vms.data.items.length > 0 ? `${vms.data.items.length} VM${vms.data.items.length !== 1 ? 's' : ''}` : undefined}
+          eyebrow="Infrastructure"
           actions={
             <div className="flex items-center gap-2">
-              {selectedIds.size > 0 && (
-                <button type="button" className={secondaryButtonClass} onClick={exportSelected}>
-                  Export selected ({selectedIds.size})
-                </button>
-              )}
               <a href={exportFilteredUrl} download="vm-inventory.csv" className={secondaryButtonClass}>
                 Export filtered
               </a>
@@ -329,51 +414,37 @@ export function InventoryPage() {
             </div>
           }
         />
-        <FilterBar filters={filters} onApply={setFilters} density={density} onDensityChange={setDensity} />
-        <div className={cardClass}>
-          <div className="flex flex-wrap items-center gap-3">
-            <ColumnEditor columns={colPrefs} onToggle={toggleColumn} onReorder={reorderColumns} onReset={resetToDefault} />
-            {Object.keys(presets).length > 0 && (
-              <div className="flex items-center gap-2">
-                <select
-                  className={selectClass}
-                  onChange={(e) => {
-                    if (e.target.value && presets[e.target.value]) {
-                      setFilters(presets[e.target.value].filters);
-                    }
-                    e.target.value = '';
-                  }}
-                  defaultValue=""
-                  aria-label="Load filter preset"
-                >
-                  <option value="" disabled>Load preset…</option>
-                  {Object.keys(presets).map((p) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-                <form
-                  className="flex items-center gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (saveName.trim()) {
-                      savePreset(saveName.trim(), filters, {});
-                      setSaveName('');
-                    }
-                  }}
-                >
-                  <input
-                    className={cn(inputClass, "w-40")}
-                    placeholder="Preset name"
-                    value={saveName}
-                    onChange={(e) => setSaveName(e.target.value)}
-                  />
-                  <button type="submit" disabled={!saveName.trim()} className={secondaryButtonClass}>
-                    Save
-                  </button>
-                </form>
-              </div>
-            )}
+
+        {/* Bento quick-stats strip — scan the state of the fleet in 3 seconds */}
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className={statTileClass}>
+            <p className="eyebrow-label">Total VMs</p>
+            <p className={cn(monoClass, 'mt-1 text-2xl font-semibold text-[var(--color-text-primary)] dark:text-slate-50')}>{stats.total}</p>
           </div>
+          <div className={statTileClass}>
+            <p className="eyebrow-label">Running</p>
+            <p className="mt-1 flex items-baseline gap-1.5">
+              <span className={cn(monoClass, 'text-2xl font-semibold')} style={{ color: 'var(--color-status-running)' } as React.CSSProperties}>{stats.running}</span>
+            </p>
+          </div>
+          <div className={statTileClass}>
+            <p className="eyebrow-label">Critical</p>
+            <p className="mt-1 flex items-baseline gap-1.5">
+              <span className={cn(monoClass, 'text-2xl font-semibold')} style={{ color: 'var(--color-criticality-critical)' } as React.CSSProperties}>{stats.critical}</span>
+            </p>
+          </div>
+          <div className={statTileClass}>
+            <p className="eyebrow-label">Avg Health</p>
+            <p className={cn(monoClass, 'mt-1 text-2xl font-semibold text-[var(--color-text-primary)] dark:text-slate-50')}>{stats.avgHealth !== null ? `${stats.avgHealth}%` : '—'}</p>
+          </div>
+        </div>
+
+        <FilterBar filters={filters} onApply={setFilters} />
+        <div className="mb-4 flex items-center justify-between">
+          <p className="eyebrow-label">
+            {vms.data ? `${items.length} of ${stats.total} shown` : 'Loading…'}
+          </p>
+          <ColumnEditor columns={colPrefs} onToggle={toggleColumn} onReorder={reorderColumns} onReset={resetToDefault} />
         </div>
 
         {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
@@ -381,17 +452,67 @@ export function InventoryPage() {
         {vms.data && vms.data.items.length > 0 ? (
           <>
             <div className="hidden lg:block">
-              <VmTable vms={vms.data.items} columns={visibleColumns} selectedIds={selectedIds} onToggle={toggleSelect} onToggleAll={toggleSelectAll} density={density} />
+              <VmTable
+                vms={vms.data.items}
+                columns={visibleColumns}
+                selectedIds={selectedIds}
+                onToggle={toggleSelect}
+                onToggleAll={toggleSelectAll}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={handleSort}
+              />
             </div>
-            <div className="grid gap-3 lg:hidden">
+            <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
               {vms.data.items.map((vm) => (
                 <VmCard key={vm.id} vm={vm} />
               ))}
             </div>
           </>
         ) : null}
-        {vms.data && vms.data.items.length === 0 ? <EmptyState title="No VMs found" body="Create a VM or adjust the filters to see inventory." icon={<span className="text-6xl">📦</span>} /> : null}
+        {vms.data && vms.data.items.length === 0 ? (
+          hasActiveFilters(filters) ? (
+            <EmptyState
+              title="No VMs match these filters"
+              body="Try loosening a filter or clearing them entirely — nothing in the fleet matches the current combination."
+              actions={
+                <button type="button" className={primaryButtonClass} onClick={clearFilters}>
+                  Clear all filters
+                </button>
+              }
+            />
+          ) : (
+            <EmptyState
+              title="No VMs yet"
+              body="Bring your fleet into view by creating a VM manually or importing an existing inventory export."
+              actions={
+                canCreateVm ? (
+                  <>
+                    <Link className={primaryButtonClass} href="/inventory/new">Create first VM</Link>
+                    <Link className={secondaryButtonClass} href="/imports/new">Import CSV</Link>
+                  </>
+                ) : undefined
+              }
+            />
+          )
+        ) : null}
       </section>
+
+      {/* Bulk action bar — slides up from bottom when rows are selected */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 z-40 bulk-bar" role="toolbar" aria-label="Bulk actions">
+          <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-text-primary)] px-4 py-2.5 text-white shadow-[var(--shadow-overlay)] dark:bg-slate-800 dark:border-slate-700">
+            <span className="text-sm font-semibold tabular-nums">{selectedIds.size} selected</span>
+            <div className="h-4 w-px bg-white/20" aria-hidden="true" />
+            <button type="button" onClick={exportSelected} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
+              Export
+            </button>
+            <button type="button" onClick={() => setSelectedIds(new Set())} className="text-sm font-medium text-white/60 hover:text-white transition-colors">
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
     </PageTransition>
   );
 }

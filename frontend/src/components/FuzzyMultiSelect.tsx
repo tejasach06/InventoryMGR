@@ -144,10 +144,10 @@ export function FuzzyMultiSelect({
     <div
       ref={panelRef}
       style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 100 }}
-      className="max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"
+      className="animate-rise max-h-60 overflow-auto rounded-lg border border-[var(--color-border)]/70 bg-white shadow-[var(--shadow-overlay)] dark:border-[var(--color-border)] dark:bg-slate-900"
     >
       {filtered.length === 0 && query && (
-        <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
+        <div className="px-3 py-2 text-sm text-[var(--color-text-tertiary)]">
           No matches for "{query}" — press Enter to add as custom value
         </div>
       )}
@@ -156,10 +156,10 @@ export function FuzzyMultiSelect({
           key={opt}
           type="button"
           onClick={() => addValue(opt)}
-          className={`w-full text-left px-3 py-2 text-sm ${
+          className={`w-full text-left px-3 py-2 text-sm transition-colors duration-100 ${
             idx === highlightedIndex
-              ? 'bg-indigo-100 dark:bg-indigo-900/30'
-              : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+              ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+              : 'text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] dark:text-slate-200 dark:hover:bg-slate-800'
           }`}
         >
           {labels?.[opt] ?? opt}
@@ -172,7 +172,7 @@ export function FuzzyMultiSelect({
     <div className="relative" ref={containerRef}>
     <div className="flex flex-wrap gap-1.5 mb-1 items-center">
         {value.map((val, i) => (
-          <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-2 py-0.5 text-sm font-medium text-indigo-700 transition-all duration-150 dark:bg-indigo-900/30 dark:text-indigo-300">
+          <span key={i} className="animate-pill-pop inline-flex items-center gap-1 rounded-md bg-[var(--color-accent)]/10 px-2 py-1 text-xs font-semibold text-[var(--color-accent)] transition-all duration-150">
             {labels?.[val] ?? val}
             <button
               type="button"
@@ -180,7 +180,8 @@ export function FuzzyMultiSelect({
                 e.stopPropagation();
                 removeValue(val);
               }}
-              className="ml-1 rounded p-0.5 text-indigo-500 hover:bg-indigo-200 dark:hover:bg-indigo-800/30 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              className="ml-0.5 rounded p-0.5 hover:bg-[var(--color-accent)]/20 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+              aria-label={`Remove ${labels?.[val] ?? val}`}
             >
               ×
             </button>

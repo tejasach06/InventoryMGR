@@ -14,14 +14,21 @@ export const textareaClass = cn(inputClass, 'min-h-28 resize-y');
 export const cardClass = 'rounded-xl border border-[var(--color-border)]/70 bg-white p-5 shadow-sm shadow-slate-900/[0.04] dark:border-[var(--color-border)] dark:bg-slate-900/70 dark:shadow-none dark:backdrop-blur';
 export const tableWrapClass = 'overflow-x-auto rounded-xl border border-[var(--color-border)]/70 bg-white shadow-sm shadow-slate-900/[0.04] dark:border-[var(--color-border)] dark:bg-slate-900/70 dark:shadow-none';
 
+/* FilterBar — distinct "control deck" surface, tinted so it reads apart from data cards */
+export const filterBarClass = 'mb-4 rounded-xl border border-[var(--color-accent)]/25 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-accent)_5%,var(--color-surface)),var(--color-surface))] p-4 shadow-[var(--shadow-raised)] dark:border-[var(--color-accent)]/25 dark:bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-accent)_10%,#0f172a),#0f172a)]';
+
+/* Bento stat tile */
+export const statTileClass = 'bento-tile rounded-xl border border-[var(--color-border)]/70 bg-white p-4 dark:border-[var(--color-border)] dark:bg-slate-900/70';
+
 /* Typography */
 export const labelClass = 'mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)] dark:text-slate-300';
 export const helpTextClass = 'mt-2 text-sm text-[var(--color-text-tertiary)] dark:text-slate-400';
 export const sectionTitleClass = 'font-display text-[length:var(--text-fluid-h2)] font-semibold text-[var(--color-text-primary)] dark:text-slate-100';
+export const eyebrowClass = 'eyebrow-label';
 
 
 /* Table */
-export const tableClass = 'w-auto divide-y divide-[var(--color-border)] text-sm dark:divide-[var(--color-border)]/70';
+export const tableClass = 'w-full min-w-full divide-y divide-[var(--color-border)] text-sm dark:divide-[var(--color-border)]/70';
 export const tableHeadClass = 'sticky top-0 z-10 bg-[var(--color-surface-tertiary)]/90 text-left text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)] backdrop-blur dark:bg-slate-900/90 dark:text-slate-400';
 export const tableBodyClass = 'divide-y divide-[var(--color-border)] bg-white dark:divide-[var(--color-border)]/70 dark:bg-transparent';
 export const tableRowClass = 'transition-all duration-200 odd:bg-white even:bg-[var(--color-surface-secondary)]/60 hover:bg-[var(--color-accent)]/5 dark:odd:bg-transparent dark:even:bg-slate-900/40 dark:hover:bg-slate-800/50';
@@ -55,21 +62,26 @@ export function rowAccentHover(type: 'status' | 'criticality' | 'environment' | 
 }
 
 
-/* Badge with semantic color */
-export function Badge({ value, type = 'status' }: { value: string; type?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle' }) {
+/* Badge with semantic color. size="sm" for dense table cells, "md" for card contexts. */
+export function Badge({ value, type = 'status', size = 'sm' }: { value: string; type?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle'; size?: 'sm' | 'md' }) {
   const normalized = value.toLowerCase().replace(/\s+/g, '_');
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold transition-all duration-150 hover:scale-105 hover:shadow-md',
+        'inline-flex items-center gap-1 rounded-md font-semibold leading-none transition-all duration-150 hover:brightness-95 dark:hover:brightness-110',
+        size === 'sm' ? 'px-2 py-1 text-[0.6875rem] tracking-[0.01em]' : 'px-2.5 py-1.5 text-xs tracking-[0.02em]',
         'animate-pill-pop dark:shadow-[var(--dark-glow)]'
       )}
       style={{
         backgroundColor: `var(--color-${type}-${normalized}-bg)`,
         color: `var(--color-${type}-${normalized})`,
-        borderColor: `var(--color-${type}-${normalized})`,
       } as React.CSSProperties}
     >
+      <span
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ backgroundColor: `var(--color-${type}-${normalized})` } as React.CSSProperties}
+        aria-hidden="true"
+      />
       {value}
     </span>
   );
@@ -78,12 +90,12 @@ export function Badge({ value, type = 'status' }: { value: string; type?: 'statu
 /* PageHeader */
 export function PageHeader({ title, actions, eyebrow }: { title: string; actions?: ReactNode; eyebrow?: string }) {
   return (
-    <div className="mb-6 grid gap-4 sm:flex sm:items-end sm:justify-between">
+    <div className="mb-8 grid gap-4 sm:flex sm:items-end sm:justify-between">
       <div>
-        {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-accent)]">{eyebrow}</p> : null}
-        <h1 className="font-display mt-1 text-[length:var(--text-fluid-h1)] font-semibold tracking-tight text-[var(--color-text-primary)] dark:text-slate-50">{title}</h1>
+        {eyebrow ? <p className="eyebrow-label text-[var(--color-accent)]">{eyebrow}</p> : null}
+        <h1 className="font-display mt-1 text-[length:var(--text-fluid-h1)] font-semibold leading-[1.05] tracking-tight text-[var(--color-text-primary)] dark:text-slate-50">{title}</h1>
       </div>
-      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -118,9 +130,9 @@ export function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 /* EmptyState */
-export function EmptyState({ title, body, icon }: { title: string; body: string; icon?: ReactNode }) {
+export function EmptyState({ title, body, icon, actions }: { title: string; body: string; icon?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-24 px-4 text-center">
+    <div className={cn(cardClass, 'flex flex-col items-center justify-center gap-4 py-20 px-4 text-center')}>
       {icon ? (
         <div className="text-7xl text-[var(--color-text-secondary)] dark:text-slate-400 mb-3 transition-transform hover:scale-110 duration-300">
           {icon}
@@ -139,6 +151,7 @@ export function EmptyState({ title, body, icon }: { title: string; body: string;
       )}
       <h3 className="font-display text-xl font-semibold text-[var(--color-text-primary)] dark:text-slate-100">{title}</h3>
       <p className="text-base text-[var(--color-text-secondary)] dark:text-slate-300 max-w-md leading-relaxed">{body}</p>
+      {actions ? <div className="mt-2 flex flex-wrap items-center justify-center gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -206,7 +219,19 @@ export function Logo({ className }: { className?: string }) {
 }
 
 /* Drawer */
-export function Drawer({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function Drawer({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
@@ -219,6 +244,11 @@ export function Drawer({ open, onClose, title, children }: { open: boolean; onCl
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">{children}</div>
+        {footer && (
+          <div className="border-t border-[var(--color-border)] px-5 py-4 flex gap-2 justify-end bg-white dark:bg-slate-950">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -249,34 +279,5 @@ export function FilterChip({ label, value, onRemove, type = 'status' }: { label:
         <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
       </button>
     </span>
-  );
-}
-
-/* Density toggle */
-export function DensityToggle({ value, onChange }: { value: 'comfortable' | 'compact' | 'condensed'; onChange: (v: 'comfortable' | 'compact' | 'condensed') => void }) {
-  const options = [
-    { value: 'comfortable', label: 'Comfortable', rows: '50px' },
-    { value: 'compact', label: 'Compact', rows: '38px' },
-    { value: 'condensed', label: 'Condensed', rows: '30px' },
-  ] as const;
-  return (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-surface-tertiary)] p-1" role="group" aria-label="Row density">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={cn(
-            'rounded-md px-2.5 py-1.5 text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950',
-            value === opt.value
-              ? 'bg-white text-[var(--color-text-primary)] shadow-sm dark:bg-slate-800 dark:text-slate-100'
-              : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] dark:hover:text-slate-100'
-          )}
-          aria-pressed={value === opt.value}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
   );
 }

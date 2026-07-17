@@ -83,9 +83,10 @@ export function ColumnEditor({ columns, onToggle, onReorder, onReset }: ColumnEd
     <div
       ref={panelRef}
       style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 100 }}
-      className="w-56 rounded-lg border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+      className="animate-rise w-60 max-h-[70vh] overflow-y-auto rounded-xl border border-[var(--color-border)]/70 bg-white p-2 shadow-[var(--shadow-overlay)] dark:border-[var(--color-border)] dark:bg-slate-900"
     >
-      {sorted.map((col, idx) => (
+      <p className="eyebrow-label px-2 pb-1.5 pt-1">Visible Columns</p>
+      {sorted.map((col) => (
         <div
           key={col.key}
           draggable
@@ -93,29 +94,29 @@ export function ColumnEditor({ columns, onToggle, onReorder, onReset }: ColumnEd
           onDragOver={(e) => handleDragOver(e, col.key)}
           onDragEnd={handleDragEnd}
           onDrop={(e) => handleDrop(e, col.key)}
-          className={`flex items-center gap-2 px-2 py-1 text-sm cursor-move select-none ${
-            dragOverKey === col.key ? 'border-t-2 border-indigo-500' : ''
+          className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm cursor-move select-none transition-colors duration-150 hover:bg-[var(--color-surface-tertiary)] dark:hover:bg-slate-800 ${
+            dragOverKey === col.key ? 'border-t-2 border-[var(--color-accent)]' : 'border-t-2 border-transparent'
           } ${draggedKey === col.key ? 'opacity-50' : ''}`}
         >
-          <span className="text-slate-400 cursor-grab" title="Drag to reorder">
+          <span className="text-[var(--color-text-tertiary)] cursor-grab" title="Drag to reorder" aria-hidden="true">
             ⋮⋮
           </span>
-          <label className="flex-1 cursor-pointer">
+          <label className="flex-1 cursor-pointer text-[var(--color-text-primary)] dark:text-slate-200">
             <input
               type="checkbox"
               checked={col.visible}
               onChange={() => onToggle(col.key)}
-              className="mr-2"
+              className="mr-2 h-3.5 w-3.5 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
             />
             {COLUMN_LABELS[col.key] ?? col.key}
           </label>
         </div>
       ))}
-      <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+      <div className="mt-2 border-t border-[var(--color-border)] pt-2 dark:border-[var(--color-border)]/60">
         <button
           type="button"
           onClick={onReset}
-          className="w-full text-left px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          className="w-full text-left px-2 py-1.5 rounded-lg text-xs font-medium text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors dark:hover:bg-slate-800"
         >
           Reset to default
         </button>

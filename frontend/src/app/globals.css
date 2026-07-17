@@ -98,8 +98,28 @@
   /* High contrast accents for dark mode */
   --dark-glow: 0 0 10px rgba(79, 70, 229, 0.3), 0 0 20px rgba(79, 70, 229, 0.1);
 
-  --text-fluid-h1: clamp(1.5rem, 1.25rem + 1vw, 2rem);
+  --text-fluid-h1: clamp(1.875rem, 1.5rem + 1.6vw, 2.75rem);
   --text-fluid-h2: clamp(1rem, 0.95rem + 0.3vw, 1.25rem);
+
+  /* Spacing rhythm: 4px base unit */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Elevation: 3 surface levels */
+  --shadow-raised: 0 1px 2px rgba(15, 18, 34, 0.04), 0 4px 12px -4px rgba(15, 18, 34, 0.08);
+  --shadow-overlay: 0 8px 24px -6px rgba(15, 18, 34, 0.16), 0 2px 8px -2px rgba(15, 18, 34, 0.08);
+
+  /* Motion: chosen easing curves */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.dark {
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-overlay: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 2px 8px -2px rgba(0, 0, 0, 0.4);
 }
 
 @keyframes fadeIn {
@@ -303,4 +323,43 @@ html.dark ::-webkit-scrollbar-thumb { background: #2a2f44; border: 3px solid tra
 /* Badge dark mode glow */
 html.dark .dark\:shadow-\[var\(--dark-glow\)\] {
   box-shadow: var(--dark-glow);
+}
+
+/* Section label — small caps eyebrow used across the density system */
+.eyebrow-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+/* Reveal-on-hover row actions */
+.row-actions {
+  opacity: 0;
+  transform: translateX(2px);
+  transition: opacity 150ms var(--ease-out-expo), transform 150ms var(--ease-out-expo);
+}
+tr:hover .row-actions,
+tr:focus-within .row-actions {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Bulk action bar */
+@keyframes slideUpBar {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+.bulk-bar {
+  animation: slideUpBar 220ms var(--ease-out-expo) both;
+}
+
+/* Bento stat tile hover lift */
+.bento-tile {
+  transition: transform 200ms var(--ease-out-expo), box-shadow 200ms var(--ease-out-expo), border-color 200ms var(--ease-out-expo);
+}
+.bento-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-raised);
 }
