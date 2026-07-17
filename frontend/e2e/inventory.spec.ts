@@ -77,8 +77,8 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
 
   await page.getByRole('link', { name: 'Inventory' }).click();
   await expect(page.getByRole('link', { name: vmwareName })).toBeVisible();
-  await page.getByLabel('Search').fill(proxmoxName);
+  await page.getByLabel('Search VMs').fill(proxmoxName);
   const proxmoxRow = page.getByRole('row').filter({ hasText: proxmoxName });
-  await expect(proxmoxRow).toContainText('powered off');
+  await expect(proxmoxRow).toContainText('powered_off');
   await expect(proxmoxRow).toContainText('12 GB');
 });

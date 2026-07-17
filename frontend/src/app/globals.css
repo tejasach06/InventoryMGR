@@ -4,7 +4,9 @@
 @theme {
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
+  /* Surface & Text */
   --color-surface: #ffffff;
   --color-surface-secondary: #f6f7fb;
   --color-surface-tertiary: #eef0f7;
@@ -16,9 +18,88 @@
   --color-accent: #4f46e5;
   --color-accent-hover: #4338ca;
 
+  /* Semantic Colors — Light Mode (saturated, intentional) */
+  /* Status */
+  --color-status-running: #059669;
+  --color-status-running-bg: #d1fae5;
+  --color-status-powered_off: #64748b;
+  --color-status-powered_off-bg: #f1f5f9;
+  --color-status-suspended: #d97706;
+  --color-status-suspended-bg: #fef3c7;
+  --color-status-archived: #2563eb;
+  --color-status-archived-bg: #dbeafe;
+  --color-status-decommissioned: #dc2626;
+  --color-status-decommissioned-bg: #fee2e2;
+  --color-status-unknown: #9ca3af;
+  --color-status-unknown-bg: #f3f4f6;
+
+  /* Criticality */
+  --color-criticality-critical: #dc2626;
+  --color-criticality-critical-bg: #fee2e2;
+  --color-criticality-high: #ea580c;
+  --color-criticality-high-bg: #ffedd5;
+  --color-criticality-medium: #d97706;
+  --color-criticality-medium-bg: #fef3c7;
+  --color-criticality-low: #059669;
+  --color-criticality-low-bg: #d1fae5;
+
+  /* Environment */
+  --color-environment-production: #4f46e5;
+  --color-environment-production-bg: #e0e7ff;
+  --color-environment-staging: #7c3aed;
+  --color-environment-staging-bg: #ede9fe;
+  --color-environment-uat: #0891b2;
+  --color-environment-uat-bg: #cffafe;
+  --color-environment-testing: #0d9488;
+  --color-environment-testing-bg: #ccfbf1;
+  --color-environment-development: #16a34a;
+  --color-environment-development-bg: #dcfce7;
+  --color-environment-dr: #dc2626;
+  --color-environment-dr-bg: #fee2e2;
+  --color-environment-sandbox: #9ca3af;
+  --color-environment-sandbox-bg: #f3f4f6;
+
+  /* Platform */
+  --color-platform-proxmox: #f97316;
+  --color-platform-proxmox-bg: #ffedd5;
+  --color-platform-vmware: #2563eb;
+  --color-platform-vmware-bg: #dbeafe;
+
+  /* OS Family */
+  --color-os_family-linux: #16a34a;
+  --color-os_family-linux-bg: #dcfce7;
+  --color-os_family-windows: #2563eb;
+  --color-os_family-windows-bg: #dbeafe;
+
+  /* Lifecycle */
+  --color-lifecycle-active: #059669;
+  --color-lifecycle-active-bg: #d1fae5;
+  --color-lifecycle-planned: #2563eb;
+  --color-lifecycle-planned-bg: #dbeafe;
+  --color-lifecycle-retiring: #d97706;
+  --color-lifecycle-retiring-bg: #fef3c7;
+  --color-lifecycle-retired: #64748b;
+  --color-lifecycle-retired-bg: #f1f5f9;
+
+  /* Row Density (CSS-driven) */
+  --row-height-comfortable: 48px;
+  --row-height-compact: 36px;
+  --row-height-condensed: 28px;
+  --row-height: var(--row-height-comfortable);
+
+  /* Animations */
   --animate-fade-in: fadeIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-rise: rise 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-rise-stagger: rise 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-shimmer: shimmer 1.5s ease-in-out infinite;
-  --animate-rise: rise 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-pill-pop: pillPop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-pill-remove: pillRemove 180ms cubic-bezier(0.4, 0, 1, 1) both;
+  --animate-density: densityShift 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-row-enter: rise 300ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--stagger-index, 0) * 15ms) both;
+  
+  /* High contrast accents for dark mode */
+  --dark-glow: 0 0 10px rgba(79, 70, 229, 0.3), 0 0 20px rgba(79, 70, 229, 0.1);
+
   --text-fluid-h1: clamp(1.5rem, 1.25rem + 1vw, 2rem);
   --text-fluid-h2: clamp(1rem, 0.95rem + 0.3vw, 1.25rem);
 }
@@ -39,6 +120,22 @@
   100% { opacity: 0.5; }
 }
 
+@keyframes pillPop {
+  0% { opacity: 0; transform: scale(0.8) translateY(4px); }
+  60% { transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes pillRemove {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.7) translateX(-8px); }
+}
+
+@keyframes densityShift {
+  from { height: var(--row-height-from, var(--row-height-comfortable)); }
+  to { height: var(--row-height-to, var(--row-height-comfortable)); }
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -56,23 +153,91 @@ body {
 html.dark {
   color-scheme: dark;
 }
-
 html.dark body {
-  background: #0a0c16;
-  color: #e6e8f0;
+  background: #0f172a; /* slate-950 */
+  color: #f1f5f9; /* slate-100 */
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+/* Refine container surface in dark mode */
+html.dark .dark\:bg-slate-900\/70 {
+  background-color: rgba(15, 23, 42, 0.8); /* slate-900 */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .dark\:border-\[var\(--color-border\)\] {
+  border-color: rgba(51, 65, 85, 0.5); /* slate-700/50 */
+}
+
+
+/* Dark mode semantic color overrides — same hues, shifted for dark bg */
+html.dark {
+  --color-status-running: #34d399;
+  --color-status-running-bg: #064e3b;
+  --color-status-powered_off: #94a3b8;
+  --color-status-powered_off-bg: #1e293b;
+  --color-status-suspended: #fbbf24;
+  --color-status-suspended-bg: #78350f;
+  --color-status-archived: #60a5fa;
+  --color-status-archived-bg: #1e3a5f;
+  --color-status-decommissioned: #f87171;
+  --color-status-decommissioned-bg: #7f1d1d;
+  --color-status-unknown: #9ca3af;
+  --color-status-unknown-bg: #374151;
+
+  --color-criticality-critical: #f87171;
+  --color-criticality-critical-bg: #7f1d1d;
+  --color-criticality-high: #fb923c;
+  --color-criticality-high-bg: #7c2d12;
+  --color-criticality-medium: #fbbf24;
+  --color-criticality-medium-bg: #78350f;
+  --color-criticality-low: #34d399;
+  --color-criticality-low-bg: #064e3b;
+
+  --color-environment-production: #818cf8;
+  --color-environment-production-bg: #312e81;
+  --color-environment-staging: #a78bfa;
+  --color-environment-staging-bg: #4c1d95;
+  --color-environment-uat: #22d3ee;
+  --color-environment-uat-bg: #164e63;
+  --color-environment-testing: #14b8a6;
+  --color-environment-testing-bg: #134e4a;
+  --color-environment-development: #4ade80;
+  --color-environment-development-bg: #14532d;
+  --color-environment-dr: #f87171;
+  --color-environment-dr-bg: #7f1d1d;
+  --color-environment-sandbox: #9ca3af;
+  --color-environment-sandbox-bg: #374151;
+
+  --color-platform-proxmox: #fb923c;
+  --color-platform-proxmox-bg: #7c2d12;
+  --color-platform-vmware: #60a5fa;
+  --color-platform-vmware-bg: #1e3a5f;
+
+  --color-os_family-linux: #4ade80;
+  --color-os_family-linux-bg: #14532d;
+  --color-os_family-windows: #60a5fa;
+  --color-os_family-windows-bg: #1e3a5f;
+
+  --color-lifecycle-active: #34d399;
+  --color-lifecycle-active-bg: #064e3b;
+  --color-lifecycle-planned: #60a5fa;
+  --color-lifecycle-planned-bg: #1e3a5f;
+  --color-lifecycle-retiring: #fbbf24;
+  --color-lifecycle-retiring-bg: #78350f;
+  --color-lifecycle-retired: #94a3b8;
+  --color-lifecycle-retired-bg: #1e293b;
 }
 
 * {
   box-sizing: border-box;
 }
 
-/* Display typeface for headings / brand */
 .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.015em;
 }
 
-/* Custom select chevron (replaces native control) */
 .app-select {
   appearance: none;
   -webkit-appearance: none;
@@ -82,30 +247,29 @@ html.dark body {
   padding-right: 2.25rem;
 }
 
-/* Accessible focus ring for keyboard users — visible in both themes */
+/* Focus ring */
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 6px;
 }
-/* Elements that render their own ring/border focus treatment opt out of the default outline */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
-[role='button']:focus-visible {
+[role="button"]:focus-visible {
   outline-offset: 2px;
 }
 
-/* Technical values (IPs, MACs, hostnames, UUIDs, sizes) */
+/* Technical values */
 .tech {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
 
-/* Hairline grid backdrop for data panels */
+/* Hairline grid */
 .grid-lines {
   background-image:
     linear-gradient(to right, color-mix(in srgb, currentColor 6%, transparent) 1px, transparent 1px),
@@ -113,12 +277,13 @@ textarea:focus-visible,
   background-size: 40px 40px;
 }
 
-/* Refined selection + scrollbar for product polish */
+/* Selection */
 ::selection {
   background: color-mix(in srgb, var(--color-accent) 22%, transparent);
   color: inherit;
 }
 
+/* Scrollbar */
 * {
   scrollbar-width: thin;
   scrollbar-color: #c8ccdc transparent;
@@ -130,7 +295,7 @@ html.dark * {
 ::-webkit-scrollbar-thumb { background: #c8ccdc; border-radius: 9999px; border: 3px solid transparent; background-clip: content-box; }
 html.dark ::-webkit-scrollbar-thumb { background: #2a2f44; border: 3px solid transparent; background-clip: content-box; }
 
-/* Honor users who prefer reduced motion */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {
@@ -138,4 +303,28 @@ html.dark ::-webkit-scrollbar-thumb { background: #2a2f44; border: 3px solid tra
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Utility classes for semantic colors */
+.semantic-bg { background: var(--semantic-bg, var(--color-surface)); }
+.semantic-text { color: var(--semantic-fg, var(--color-text-primary)); }
+.semantic-border { border-color: var(--semantic-border, var(--color-border)); }
+
+/* Row accent utility */
+.row-accent {
+  border-left: 3px solid var(--row-accent-color, transparent);
+  transition: background-color 150ms ease-out;
+}
+.row-accent:hover {
+  background-color: var(--row-accent-hover, transparent) !important;
+}
+
+/* FilterBar dark mode labels with subtle text shadow */
+html.dark [role="group"][aria-label="Core filters"] label {
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+/* Badge dark mode glow */
+html.dark .dark\:shadow-\[var\(--dark-glow\)\] {
+  box-shadow: var(--dark-glow);
 }

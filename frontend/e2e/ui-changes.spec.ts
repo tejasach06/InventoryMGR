@@ -57,7 +57,7 @@ test('New VM form uses VM-ID label, Location section, Owner in Identity, no Life
   await expect(page.getByRole('heading', { name: /Location/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Placement/ })).toHaveCount(0);
 
-  await expect(page.locator('#lifecycle')).toBeVisible(); // lifecycle field is present in form
+  await expect(page.locator('#lifecycle')).toHaveCount(0); // lifecycle field removed from the New VM form
 
   // Owner lives in the Identity section (open by default), visible without toggling.
   await expect(page.getByLabel('Owner', { exact: true })).toBeVisible();

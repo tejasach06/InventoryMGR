@@ -20,18 +20,14 @@ describe('UsersPanel query states', () => {
 
     renderWithProviders(<UsersPanel />);
 
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Loading data' })).toBeInTheDocument();
   });
 
   it('renders an error alert when listUsers rejects', async () => {
-    vi.spyOn(api, 'listUsers').mockRejectedValue(new ApiError(500, 'Server is down'));
-
+    vi.spyOn(api, 'listUsers').mockRejectedValue(new ApiError(500, 'Server explosion'));
     renderWithProviders(<UsersPanel />);
-
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Server is down');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server explosion');
   });
-
   it('shows the empty state when listUsers resolves no users', async () => {
     vi.spyOn(api, 'listUsers').mockResolvedValue([]);
 
@@ -39,6 +35,12 @@ describe('UsersPanel query states', () => {
 
     expect(await screen.findByText('No users')).toBeInTheDocument();
     expect(screen.getByText('Create the first managed user account.')).toBeInTheDocument();
+  });
+
+  it('shows the loading skeleton while listUsers is pending', () => {
+    vi.spyOn(api, 'listUsers').mockImplementation(() => new Promise(() => {}));
+    renderWithProviders(<UsersPanel />);
+    expect(screen.getByRole('table', { name: 'Loading data' })).toBeInTheDocument();
   });
 
   it('renders a row and card for each user', async () => {

@@ -10,7 +10,7 @@
 | Python | 3.12+ | Backend runtime (managed by Devbox) |
 | Node.js | 22 | Frontend runtime (managed by Devbox) |
 | Bun | latest | Frontend package manager (managed by Devbox) |
-| PostgreSQL | 16 | Database (managed by Devbox) |
+| PostgreSQL | 16 | Database (Docker: `docker compose -f docker-compose.e2e-db.yml up -d`) |
 | `just` | any | Task runner (managed by Devbox) |
 
 ## Setup
@@ -23,7 +23,7 @@ devbox shell
 just setup
 ```
 
-`just setup` runs in order: `uv sync`, `bun install`, `db:init`, `db:start`, `db:create`, `alembic upgrade head`.
+`just setup` runs in order: `uv sync`, `bun install`, `alembic upgrade head`. (PostgreSQL via `docker compose -f docker-compose.e2e-db.yml up -d` required first.)
 
 ## Available Commands
 
@@ -31,13 +31,12 @@ just setup
 
 | Command | Description |
 |---------|-------------|
-| `just setup` | Install all dependencies, initialize PostgreSQL, run migrations |
-| `just db-up` | Start PostgreSQL and create databases if missing |
-| `just api-dev` | FastAPI dev server on `:8000` with hot reload |
+| `just setup` | Install all dependencies, run migrations (requires Docker PG running) |
+| `just db-up` | Start Docker PostgreSQL for E2E/tests |
 | `just web-dev` | Next.js dev server on `:3000` |
 | `just api-test` | Run backend pytest suite against the test database |
 | `just web-test` | Run frontend Vitest unit tests |
-| `just e2e` | Run Playwright end-to-end tests |
+| `just e2e` | Run Playwright end-to-end tests (requires Docker PG running) |
 | `just verify` | Full check: ruff + pytest + tsc + vitest + Playwright |
 | `just pm2-start` | Start backend + frontend via PM2 (production) |
 | `just pm2-stop` | Stop all PM2 processes |

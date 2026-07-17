@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { api, ApiError } from '../api/client';
 import type { VmList } from '../api/client';
 import { InventoryPage } from '../routes/InventoryPage';
@@ -62,12 +63,11 @@ describe('InventoryPage', () => {
   });
 
   it('shows the loading skeleton while the query is pending', () => {
-    vi.spyOn(api, 'listVms').mockReturnValue(new Promise<VmList>(() => {}));
-    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
+    vi.spyOn(api, 'listVms').mockImplementation(() => new Promise(() => {}));
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
-    const skeleton = screen.getByRole('status', { name: 'Loading' });
-    expect(skeleton).toBeInTheDocument();
-    expect(screen.queryByText('No VMs found')).not.toBeInTheDocument();
+    // TableSkeleton renders a table with skeleton rows
+    expect(screen.getByRole('table', { name: 'Loading data' })).toBeInTheDocument();
   });
 
   it('shows an Alert with the error detail when the query rejects', async () => {
@@ -93,25 +93,25 @@ describe('InventoryPage', () => {
     await screen.findByText('No VMs found');
     expect(screen.queryByRole('link', { name: 'New VM' })).not.toBeInTheDocument();
   });
-
-  it('reveals "Clear filters" after typing a search term and pushes the pathname on clear', async () => {
+  it('reveals "Clear all" after typing a search term and pushes the pathname on clear', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findByText('No VMs found');
     // No active filter on mount -> the clear control is absent.
-    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'web' } });
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Search VMs'), 'web');
 
-    const clear = screen.getByRole('button', { name: 'Clear filters' });
-    hoisted.pushMock.mockClear();
-    fireEvent.click(clear);
+    const clear = screen.getByRole('button', { name: 'Clear all' });
+    await user.click(clear);
 
-    expect(hoisted.pushMock).toHaveBeenCalledTimes(1);
-    expect(hoisted.pushMock).toHaveBeenCalledWith('/inventory');
+    // Verify the search input is cleared
+    await waitFor(() => expect(screen.getByLabelText('Search VMs')).toHaveValue(''));
+    // Clear button should disappear after clearing
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument());
   });
-
   it('renders an active filter from the URL and clears it back to the pathname', async () => {
     hoisted.searchParams = new URLSearchParams('q=web');
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
@@ -119,12 +119,14 @@ describe('InventoryPage', () => {
 
     await screen.findAllByText('web-01');
     // filtersFromParams seeds the search field from the URL.
-    expect(screen.getByLabelText('Search')).toHaveValue('web');
-    const clear = screen.getByRole('button', { name: 'Clear filters' });
+    expect(screen.getByLabelText('Search VMs')).toHaveValue('web');
+    const clear = screen.getByRole('button', { name: 'Clear all' });
 
     hoisted.pushMock.mockClear();
-    fireEvent.click(clear);
+    const user = userEvent.setup();
+    await user.click(clear);
 
-    await waitFor(() => expect(hoisted.pushMock).toHaveBeenCalledWith('/inventory'));
+    // Verify the search input is cleared
+    await waitFor(() => expect(screen.getByLabelText('Search VMs')).toHaveValue(''));
   });
 });

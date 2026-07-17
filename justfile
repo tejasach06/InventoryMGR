@@ -4,7 +4,9 @@ setup:
 	devbox run setup
 
 db-up:
-	devbox run db:start && devbox run db:create
+	docker compose -f docker-compose.e2e-db.yml up -d
+	docker compose -f docker-compose.e2e-db.yml exec -T db-test pg_isready -U inventorymgr -d inventorymgr_test
+	docker compose -f docker-compose.e2e-db.yml exec -T db-test psql -U inventorymgr -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='inventorymgr'" | grep -q 1 || docker compose -f docker-compose.e2e-db.yml exec -T db-test createdb -U inventorymgr inventorymgr
 
 api-dev:
 	cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload

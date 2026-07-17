@@ -20,12 +20,13 @@
 
 ## Deployment: PM2
 
-### 1. Provision PostgreSQL
+### 1. Provision PostgreSQL (Docker)
 
 ```bash
-devbox run db:init
-devbox run db:start
-devbox run db:create
+docker compose -f docker-compose.e2e-db.yml up -d
+docker compose -f docker-compose.e2e-db.yml exec -T db-test pg_isready -U inventorymgr -d inventorymgr_test
+# Create non-test DB (idempotent)
+docker compose -f docker-compose.e2e-db.yml exec -T db-test psql -U inventorymgr -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='inventorymgr'" | grep -q 1 || docker compose -f docker-compose.e2e-db.yml exec -T db-test createdb -U inventorymgr inventorymgr
 ```
 
 ### 2. Configure environment
@@ -142,9 +143,9 @@ INVENTORYMGR_API_URL=http://127.0.0.1:8000 bun run build
 ### PostgreSQL not accepting connections
 
 ```bash
-devbox run db:start          # start if stopped
-pg_ctl -D .devbox/postgres/data status   # check status
-cat .devbox/postgres/postgres.log        # check logs
+docker compose -f docker-compose.e2e-db.yml up -d
+docker compose -f docker-compose.e2e-db.yml logs db-test
+pg_isready -h 127.0.0.1 -p 54329 -U inventorymgr
 ```
 
 ## Rollback

@@ -9,6 +9,7 @@ interface FuzzyMultiSelectProps {
   options: string[];
   onChange: (val: string[]) => void;
   placeholder: string;
+  labels?: Record<string, string>;
 }
 
 function fuzzyMatch(options: string[], query: string): string[] {
@@ -22,6 +23,7 @@ export function FuzzyMultiSelect({
   options,
   onChange,
   placeholder,
+  labels,
 }: FuzzyMultiSelectProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -39,8 +41,11 @@ export function FuzzyMultiSelect({
   useLayoutEffect(() => {
     if (!open || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
+    const panelHeight = panelRef.current?.offsetHeight ?? 240; // matches max-h-60
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const flipAbove = spaceBelow < panelHeight + 4 && rect.top > panelHeight + 4;
     setPos({
-      top: rect.bottom + 4,
+      top: flipAbove ? rect.top - panelHeight - 4 : rect.bottom + 4,
       left: rect.left,
       width: rect.width,
     });
@@ -157,7 +162,7 @@ export function FuzzyMultiSelect({
               : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
           }`}
         >
-          {opt}
+          {labels?.[opt] ?? opt}
         </button>
       ))}
     </div>
@@ -165,17 +170,17 @@ export function FuzzyMultiSelect({
 
   return (
     <div className="relative" ref={containerRef}>
-      <div className="flex flex-wrap gap-1.5 mb-1 items-center">
+    <div className="flex flex-wrap gap-1.5 mb-1 items-center">
         {value.map((val, i) => (
-          <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-2 py-0.5 text-sm font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
-            {val}
+          <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-2 py-0.5 text-sm font-medium text-indigo-700 transition-all duration-150 dark:bg-indigo-900/30 dark:text-indigo-300">
+            {labels?.[val] ?? val}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 removeValue(val);
               }}
-              className="ml-1 rounded p-0.5 text-indigo-500 hover:bg-indigo-200 dark:hover:bg-indigo-800/30"
+              className="ml-1 rounded p-0.5 text-indigo-500 hover:bg-indigo-200 dark:hover:bg-indigo-800/30 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
             >
               ×
             </button>
