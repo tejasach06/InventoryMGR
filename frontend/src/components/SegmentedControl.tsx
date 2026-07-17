@@ -46,8 +46,8 @@ export function SegmentedControl({ label, options, value, onChange, type, labels
             } as React.CSSProperties : undefined}
           >
             <span
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ backgroundColor: `var(--color-${type}-${normalized})`, opacity: active ? 1 : 0.4 } as React.CSSProperties}
+              className={cn('h-1.5 w-1.5 shrink-0 rounded-full', !active && 'opacity-[0.55] dark:opacity-40')}
+              style={{ backgroundColor: `var(--color-${type}-${normalized})` } as React.CSSProperties}
               aria-hidden="true"
             />
             {labels?.[option] ?? option}
