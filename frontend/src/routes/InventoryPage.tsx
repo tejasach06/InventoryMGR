@@ -177,8 +177,6 @@ function VmTable({
   sortKey,
   sortDir,
   onSort,
-  activeVmId,
-  onActivate,
 }: {
   vms: Vm[];
   columns: { key: string }[];
@@ -188,8 +186,6 @@ function VmTable({
   sortKey: string | null;
   sortDir: 'asc' | 'desc';
   onSort: (key: string) => void;
-  activeVmId?: string | null;
-  onActivate?: (id: string) => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -240,23 +236,15 @@ function VmTable({
           </tr>
         </thead>
         <tbody className={tableBodyClass}>
-          {sorted.map((vm, index) => {
+          {sorted.map((vm) => {
             const isSelected = selectedIds.has(vm.id);
-            const isActive = activeVmId === vm.id;
 
             return (
               <tr
                 key={vm.id}
-                onClick={(e) => {
-                  const target = e.target as HTMLElement;
-                  if (target.closest('a, button, input')) return;
-                  onActivate?.(vm.id);
-                }}
                 className={cn(
                   tableRowClass,
-                  'cursor-pointer',
-                  isSelected && 'bg-[var(--color-accent)]/10',
-                  !isSelected && isActive && 'bg-[var(--color-accent)]/5 shadow-[inset_2px_0_0_var(--color-accent)]'
+                  isSelected && 'bg-[var(--color-accent)]/10'
                 )}
               >
                 <td className="py-3 pl-3 pr-4" style={{ borderLeft: `3px solid var(--color-criticality-${vm.criticality})` } as React.CSSProperties}>
@@ -319,7 +307,6 @@ export function InventoryPage() {
   const canCreateVm = user.role === 'editor' || user.role === 'admin';
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [activeVmId, setActiveVmId] = useState<string | null>(null);
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
   const { presets, savePreset, deletePreset } = useFilterPresets<Filters, Record<string, string>>('inventory_presets');
   const [saveName, setSaveName] = useState('');
@@ -423,7 +410,7 @@ export function InventoryPage() {
         {vms.isLoading ? <TableSkeleton rows={8} cols={7} /> : null}
         {vms.data && vms.data.items.length > 0 ? (
           <div className="lg:flex lg:items-start lg:gap-5">
-            <div className="lg:w-[70%] lg:min-w-0">
+            <div className={cn('lg:min-w-0', selectedIds.size > 0 ? 'lg:w-[70%]' : 'lg:w-full')}>
               <div className="hidden lg:block">
                 <VmTable
                   vms={vms.data.items}
@@ -434,8 +421,6 @@ export function InventoryPage() {
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={handleSort}
-                  activeVmId={activeVmId}
-                  onActivate={(id) => setActiveVmId((prev) => (prev === id ? null : id))}
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
@@ -444,16 +429,15 @@ export function InventoryPage() {
                 ))}
               </div>
             </div>
-            <div className="lg:w-[30%]">
-              <ContextPanel
-                vms={vms.data.items}
-                activeVm={vms.data.items.find((v) => v.id === activeVmId) ?? null}
-                onCloseActive={() => setActiveVmId(null)}
-                selectedCount={selectedIds.size}
-                onExportSelected={exportSelected}
-                onClearSelected={() => setSelectedIds(new Set())}
-              />
-            </div>
+            {selectedIds.size > 0 && (
+              <div className="lg:w-[30%]">
+                <ContextPanel
+                  selectedCount={selectedIds.size}
+                  onExportSelected={exportSelected}
+                  onClearSelected={() => setSelectedIds(new Set())}
+                />
+              </div>
+            )}
           </div>
         ) : null}
         {vms.data && vms.data.items.length === 0 ? (
