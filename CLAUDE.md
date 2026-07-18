@@ -132,7 +132,56 @@ names skipped without one).
 | Before committing | `verify` (drives the real app), `ecc:code-review` |
 | Library/API docs | `ecc:docs-lookup` (Context7 MCP) |
 
-### MCP servers available
+### context-mode — default for large output
+
+Plugin `context-mode@context-mode`. Keeps big command output **out of context**:
+the command runs server-side, only your printed summary comes back.
+
+Bash directly only for guaranteed-small ops: file mutations (`mkdir`/`mv`/`rm`),
+git writes (`git add`/`commit`/`push`/`checkout`), navigation, `kill`, package
+installs, `echo`. **Everything else goes through context-mode** — anything that
+reads, queries, tests, builds, diffs, or inspects.
+
+| Need | Tool |
+|------|------|
+| Run a command, get findings | `ctx_execute` |
+| Analyse a file without loading it | `ctx_execute_file` (file lands in `FILE_CONTENT`) |
+| Index a file, then query it | `ctx_index(path:)` then `ctx_search` |
+| External docs | `ctx_fetch_and_index` then `ctx_search` |
+
+Rules that actually bite:
+- **Print your findings.** Only stdout enters context; no output = wasted call.
+- Analyse in the sandbox, don't dump. Not `console.log(JSON.stringify(data))`.
+- `ctx_index(path:)` — **never** `ctx_index(content:)`. `content` sends the data
+  through context as a parameter, doubling the cost.
+- Don't re-index what a previous tool call already returned.
+- Editing a file? Use the normal Read/Edit tools. context-mode is for analysis.
+- `ctx_search(queries: [...])` — batch every question into one call, BM25 is OR.
+
+Applied here: `bun run test`, `uv run pytest`, `bunx playwright test`, `git log`,
+and reading `frontend/reports/*` or any log all belong in `ctx_execute`.
+
+### playwright MCP — interactive browser checks
+
+Project-scoped in `.mcp.json` (gitignored). Complements `frontend/e2e/*.spec.ts`;
+it does not replace them — committed specs stay the regression suite. Use the MCP
+to *drive* the running app when verifying a change or chasing a UI bug.
+
+**Always pass `filename`** on `browser_snapshot`, `browser_console_messages`, and
+`browser_network_requests`. Without it a snapshot dumps 10K–135K tokens. Then read
+it server-side:
+
+```
+browser_snapshot(filename: "/tmp/snap.md")
+  → ctx_index(path: "/tmp/snap.md")  → ctx_search   # several questions
+  → ctx_execute_file(path: "/tmp/snap.md")          # one-shot extraction
+```
+
+`browser_navigate` returns a snapshot automatically — ignore it, take an explicit
+`browser_snapshot(filename:)` instead. The MCP drives a **single** browser, so it
+is not parallel-safe; don't fan it out across subagents.
+
+### Other MCP servers
 
 - **context7** — current docs for FastAPI, SQLAlchemy, Next.js, TanStack Query,
   Playwright. Prefer over web search or memory for library APIs.
