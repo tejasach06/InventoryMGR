@@ -103,7 +103,7 @@ function VmCard({ vm }: { vm: Vm }) {
           <h3 className="font-display font-semibold text-[0.9375rem] text-[var(--color-text-primary)] truncate">{vm.name}</h3>
           <p className={cn('mt-0.5 text-xs text-[var(--color-text-tertiary)]', monoClass)}>{vm.platform} · {vm.cluster}</p>
         </div>
-        <span className="text-xs capitalize text-[var(--color-text-secondary)]">{vm.status.replace('_', ' ')}</span>
+        <span className="text-xs capitalize text-[var(--color-text-secondary)]">{vm.status}</span>
       </div>
 
       {/* Metric row: cpu / ram / storage, bento-tile mini-grid */}
@@ -259,7 +259,7 @@ function VmTable({
                     {col.key === 'platform' && <Badge value={vm.platform} type="platform" />}
                     {col.key === 'cluster' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.cluster}</span>}
                     {col.key === 'node' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.node}</span>}
-                    {col.key === 'status' && <span className="capitalize">{vm.status.replace('_', ' ')}</span>}
+                    {col.key === 'status' && <span className="capitalize">{vm.status}</span>}
                     {col.key === 'environment' && <span className="capitalize">{vm.environment}</span>}
                     {col.key === 'criticality' && <span className="capitalize">{vm.criticality}</span>}
                     {col.key === 'lifecycle' && <span className="capitalize">{vm.lifecycle}</span>}
