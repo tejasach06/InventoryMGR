@@ -2,7 +2,7 @@
 
 import { FilterChip } from '../ui';
 import type { Filters, FilterName } from '../../routes/InventoryPage';
-import { advancedFilterConfig, advancedFilterLabels, chipTypeFor, type AdvancedFilterName } from './filterConfig';
+import { advancedFilterConfig, advancedFilterLabels, type AdvancedFilterName } from './filterConfig';
 
 export function ActiveFilterChips({
   filters,
@@ -22,7 +22,6 @@ export function ActiveFilterChips({
         key={`${advancedName}-${value}`}
         label={advancedFilterLabels[advancedName]}
         value={fieldLabels?.[value] ?? value}
-        type={chipTypeFor(advancedName)}
         onRemove={() => onRemove(advancedName, value)}
       />
     ));

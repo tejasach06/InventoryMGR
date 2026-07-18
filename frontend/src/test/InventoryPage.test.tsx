@@ -89,6 +89,21 @@ describe('InventoryPage', () => {
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 
+  it('renders status and criticality as plain text, keeping only the platform badge coloured', async () => {
+    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
+
+    await screen.findByText('1 of 1 shown');
+    const status = screen.getByTestId('cell-status');
+    expect(status.querySelector('span[style*="--color-status"]')).toBeNull();
+
+    const criticality = screen.getByTestId('cell-criticality');
+    expect(criticality.querySelector('span[style*="--color-criticality"]')).toBeNull();
+
+    const platform = screen.getByTestId('cell-platform');
+    expect(platform.querySelector('span[style*="--color-platform"]')).not.toBeNull();
+  });
+
   it('shows the empty state when no VMs match', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
