@@ -1,0 +1,45 @@
+PASS  API login succeeded — status 200
+PASS  reached /inventory — http://127.0.0.1:3001/inventory
+PASS  card: search box visible
+PASS  card: Filters trigger visible
+PASS  card: Columns trigger visible
+PASS  card: no Status pills inline
+PASS  card: no Platform pills inline
+PASS  card: no Presets button
+PASS  search filters the table live — 20 -> 0 rows
+PASS  search does not open a drawer
+PASS  drawer: contains "Status" group
+PASS  drawer: contains "Platform" group
+PASS  drawer: contains "Criticality" group
+PASS  drawer: contains "Filter presets" group
+PASS  drawer: legend "Core"
+PASS  drawer: legend "Infrastructure"
+PASS  drawer: legend "Lifecycle & State"
+PASS  drawer: legend "Ownership & Environment"
+PASS  drawer: legend "Features"
+PASS  staged: table unchanged before Apply — 20 rows
+PASS  staged: footer shows Apply (1)
+PASS  cancel: drawer closed
+PASS  cancel: no chips added
+PASS  cancel: reopen shows Apply (0)
+PASS  apply: drawer closed
+PASS  apply: chip row rendered
+PASS  apply: Filters trigger badged
+PASS  clear all: chips removed
+PASS  clear all: search preserved — value="web"
+PASS  columns: drawer opened
+PASS  columns: toggle applies immediately (no Apply step) — 10 -> 11 headers
+PASS  columns: Done closes the drawer
+PASS  open drawer blocks the other trigger (modal backdrop)
+PASS  closing restores access to Columns trigger
+FAIL  no horizontal overflow @375px — overflow 50px
+PASS  no horizontal overflow @768px — overflow 0px
+PASS  no horizontal overflow @1024px — overflow 0px
+PASS  no horizontal overflow @1440px — overflow 0px
+PASS  drawer fits viewport @375px — drawer width 375
+PASS  no console errors
+
+==== SUMMARY ====
+39/40 checks passed
+FAILURES:
+  - no horizontal overflow @375px overflow 50px
