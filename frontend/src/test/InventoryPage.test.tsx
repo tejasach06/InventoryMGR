@@ -32,24 +32,24 @@ afterEach(() => {
 });
 
 describe('InventoryPage', () => {
-  it('renders a single VM in both the table and the card with a "1 VM" count', async () => {
+  it('renders a single VM in both the table and the card with a "1 of 1 shown" count', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     // The same VM name renders once in the desktop table and once in the mobile card.
     const names = await screen.findAllByText('web-01');
     expect(names).toHaveLength(2);
-    expect(screen.getByText('1 VM')).toBeInTheDocument();
-    expect(screen.queryByText('No VMs found')).not.toBeInTheDocument();
+    expect(screen.getByText('1 of 1 shown')).toBeInTheDocument();
+    expect(screen.queryByText('No VMs yet')).not.toBeInTheDocument();
   });
 
-  it('pluralizes the count when multiple VMs are returned', async () => {
+  it('reflects the total in the count when multiple VMs are returned', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(
       makeVmList({ items: [makeVm(), makeVm({ id: 'vm-2', name: 'db-02' })], total: 2 }),
     );
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
-    expect(await screen.findByText('2 VMs')).toBeInTheDocument();
+    expect(await screen.findByText('2 of 2 shown')).toBeInTheDocument();
     expect(screen.getAllByText('web-01')).toHaveLength(2);
     expect(screen.getAllByText('db-02')).toHaveLength(2);
   });
@@ -58,8 +58,8 @@ describe('InventoryPage', () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
-    expect(await screen.findByText('No VMs found')).toBeInTheDocument();
-    expect(screen.queryByText('1 VM')).not.toBeInTheDocument();
+    expect(await screen.findByText('No VMs yet')).toBeInTheDocument();
+    expect(screen.queryByText('1 of 1 shown')).not.toBeInTheDocument();
   });
 
   it('shows the loading skeleton while the query is pending', () => {
@@ -82,7 +82,7 @@ describe('InventoryPage', () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'editor' }) });
 
-    await screen.findByText('No VMs found');
+    await screen.findByText('No VMs yet');
     expect(screen.getByRole('link', { name: 'New VM' })).toHaveAttribute('href', '/inventory/new');
   });
 
@@ -90,14 +90,14 @@ describe('InventoryPage', () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
-    await screen.findByText('No VMs found');
+    await screen.findByText('No VMs yet');
     expect(screen.queryByRole('link', { name: 'New VM' })).not.toBeInTheDocument();
   });
   it('clears a typed search term from the search field itself, not "Clear all"', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
-    await screen.findByText('No VMs found');
+    await screen.findByText('No VMs yet');
     expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument();
 
     const user = userEvent.setup();
