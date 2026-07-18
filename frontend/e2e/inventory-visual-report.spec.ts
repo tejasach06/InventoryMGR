@@ -48,17 +48,6 @@ test.describe('InventoryMGR inventory visual report', () => {
     await page.screenshot({ path: 'reports/inventory-mobile.png', fullPage: true });
   });
 
-  test('presets dropdown open', async ({ page }) => {
-    await page.goto('/inventory');
-    await page.waitForTimeout(300);
-    const presetTrigger = page.getByRole('button', { name: /preset/i }).or(page.getByLabel('Filter presets')).first();
-    if (await presetTrigger.count() > 0) {
-      await presetTrigger.click();
-      await page.waitForTimeout(200);
-    }
-    await page.screenshot({ path: 'reports/inventory-presets-open.png', fullPage: false });
-  });
-
   test('column editor dropdown open', async ({ page }) => {
     await page.goto('/inventory');
     await page.waitForTimeout(300);

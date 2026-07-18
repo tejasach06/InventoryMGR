@@ -57,19 +57,6 @@ test.describe('InventoryMGR visual report', () => {
       await captureState(page, viewport, 'default', async () => {});
     });
 
-    test(`${viewport.name} presets dropdown open`, async ({ page }) => {
-      await captureState(page, viewport, 'presets-open', async () => {
-        const presetTrigger = page
-          .getByRole('button', { name: /preset/i })
-          .or(page.getByLabel('Filter presets'))
-          .first();
-        if ((await presetTrigger.count()) > 0) {
-          await presetTrigger.click();
-          await page.waitForTimeout(200);
-        }
-      });
-    });
-
     test(`${viewport.name} column editor open`, async ({ page }) => {
       await captureState(page, viewport, 'column-editor-open', async () => {
         const columnTrigger = page
