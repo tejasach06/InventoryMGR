@@ -21,7 +21,6 @@ import {
   selectClass,
   primaryButtonClass,
   secondaryButtonClass,
-  statTileClass,
   tableBodyClass,
   tableCellClass,
   tableClass,
@@ -406,12 +405,6 @@ export function InventoryPage() {
   }
 
   const items = vms.data?.items ?? [];
-  const stats = {
-    total: vms.data?.total ?? items.length,
-    running: items.filter((v) => v.status === 'running').length,
-    critical: items.filter((v) => v.criticality === 'critical').length,
-    avgHealth: items.length ? Math.round(items.reduce((sum, v) => sum + v.health_score, 0) / items.length) : null,
-  };
 
   return (
     <PageTransition>
@@ -429,34 +422,10 @@ export function InventoryPage() {
           }
         />
 
-        {/* Bento quick-stats strip — scan the state of the fleet in 3 seconds */}
-        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className={statTileClass}>
-            <p className="eyebrow-label">Total VMs</p>
-            <p className={cn(monoClass, 'mt-1 text-2xl font-semibold text-[var(--color-text-primary)] dark:text-slate-50')}>{stats.total}</p>
-          </div>
-          <div className={statTileClass}>
-            <p className="eyebrow-label">Running</p>
-            <p className="mt-1 flex items-baseline gap-1.5">
-              <span className={cn(monoClass, 'text-2xl font-semibold')} style={{ color: 'var(--color-status-running)' } as React.CSSProperties}>{stats.running}</span>
-            </p>
-          </div>
-          <div className={statTileClass}>
-            <p className="eyebrow-label">Critical</p>
-            <p className="mt-1 flex items-baseline gap-1.5">
-              <span className={cn(monoClass, 'text-2xl font-semibold')} style={{ color: 'var(--color-criticality-critical)' } as React.CSSProperties}>{stats.critical}</span>
-            </p>
-          </div>
-          <div className={statTileClass}>
-            <p className="eyebrow-label">Avg Health</p>
-            <p className={cn(monoClass, 'mt-1 text-2xl font-semibold text-[var(--color-text-primary)] dark:text-slate-50')}>{stats.avgHealth !== null ? `${stats.avgHealth}%` : '—'}</p>
-          </div>
-        </div>
-
         <FilterBar filters={filters} onApply={setFilters} />
         <div className="mb-4 flex items-center justify-between">
           <p className="eyebrow-label">
-            {vms.data ? `${items.length} of ${stats.total} shown` : 'Loading…'}
+            {vms.data ? `${items.length} of ${vms.data.total} shown` : 'Loading…'}
           </p>
           <ColumnEditor columns={colPrefs} onToggle={toggleColumn} onReorder={reorderColumns} onReset={resetToDefault} />
         </div>
