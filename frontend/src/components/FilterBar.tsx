@@ -12,77 +12,18 @@ import type { Filters, FilterName } from '../routes/InventoryPage';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { FilterChip, Drawer } from './ui';
 
-type AdvancedFilterName = Exclude<FilterName, 'q'>;
+import {
+  advancedFilterConfig,
+  advancedFilterLabels,
+  coreFilters,
+  coreFilterTypes,
+  dynamicFetchers,
+  filterGroups,
+  presetFilters,
+  type AdvancedFilterName,
+} from './filters/filterConfig';
 
-type AdvancedFieldConfig =
-  | { kind: 'multiSelect'; options: readonly string[]; labels?: Record<string, string> }
-  | { kind: 'dynamicMultiSelect'; labels?: Record<string, string> };
-
-const filterGroups: { label: string; filters: AdvancedFilterName[] }[] = [
-  { label: 'Infrastructure', filters: ['cluster', 'node'] },
-  { label: 'Lifecycle & State', filters: ['lifecycle', 'health'] },
-  { label: 'Ownership & Environment', filters: ['environment', 'owner', 'os_family', 'application', 'tag'] },
-  { label: 'Features', filters: ['monitoring_enabled', 'pmp_enabled'] },
-];
-
-const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfig> = {
-  status: { kind: 'multiSelect', options: ['running', 'powered_off', 'suspended', 'archived', 'decommissioned', 'unknown'] as const },
-  platform: { kind: 'multiSelect', options: ['proxmox', 'vmware'] as const },
-  criticality: { kind: 'multiSelect', options: ['critical', 'high', 'medium', 'low'] as const },
-  lifecycle: { kind: 'multiSelect', options: ['active', 'planned', 'retiring', 'retired'] as const },
-  environment: { kind: 'multiSelect', options: ['production', 'staging', 'uat', 'testing', 'development', 'dr', 'sandbox'] as const },
-  cluster: { kind: 'dynamicMultiSelect' },
-  node: { kind: 'dynamicMultiSelect' },
-  os_family: { kind: 'multiSelect', options: ['linux', 'windows'] as const },
-  owner: { kind: 'dynamicMultiSelect' },
-  application: { kind: 'dynamicMultiSelect' },
-  tag: { kind: 'dynamicMultiSelect' },
-  monitoring_enabled: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Enabled', false: 'Disabled' } },
-  pmp_enabled: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Enabled', false: 'Disabled' } },
-  health: { kind: 'multiSelect', options: ['healthy', 'warning', 'critical', 'unknown'] as const },
-};
-
-const advancedFilterLabels: Record<AdvancedFilterName, string> = {
-  status: 'Status',
-  platform: 'Platform',
-  criticality: 'Criticality',
-  lifecycle: 'Lifecycle',
-  environment: 'Environment',
-  cluster: 'Cluster',
-  node: 'Node',
-  os_family: 'OS Family',
-  owner: 'Owner',
-  application: 'Application',
-  tag: 'Tag',
-  monitoring_enabled: 'Monitoring',
-  pmp_enabled: 'PMP',
-  health: 'Health',
-};
-
-const booleanFilters: AdvancedFilterName[] = ['monitoring_enabled', 'pmp_enabled'];
-const dynamicMultiSelectFilters: AdvancedFilterName[] = ['owner', 'cluster', 'node', 'tag', 'application'];
-
-const dynamicFetchers: Record<'owner' | 'cluster' | 'node' | 'tag' | 'application', () => Promise<string[]>> = {
-  owner: api.listVmOwners,
-  cluster: api.listVmClusters,
-  node: api.listVmNodes,
-  tag: api.listVmTags,
-  application: api.listVmApplications,
-};
 const singleSelectFilters: AdvancedFilterName[] = ['health'];
-const coreFilters = ['status', 'platform', 'criticality'] as const;
-const coreFilterTypes: Record<typeof coreFilters[number], 'status' | 'criticality' | 'platform'> = {
-  status: 'status',
-  platform: 'platform',
-  criticality: 'criticality',
-};
-
-const presetFilters = [
-  { id: 'my-vms', label: 'My VMs', filters: { owner: ['me'] } as Partial<Filters> },
-  { id: 'prod-critical', label: 'Production Critical', filters: { environment: ['production'], criticality: ['critical', 'high'] } as Partial<Filters> },
-  { id: 'needs-attention', label: 'Needs Attention', filters: { status: ['suspended', 'archived'], health: ['warning', 'critical'] } as Partial<Filters> },
-  { id: 'running-prod', label: 'Running in Prod', filters: { status: ['running'], environment: ['production'] } as Partial<Filters> },
-];
 
 export function FilterBar({
   filters,
