@@ -85,6 +85,12 @@ function hasActiveFilters(filters: Filters): boolean {
 }
 
 
+/** Enum values are stored snake_case; show them as words. CSS `capitalize`
+ * handles the casing, so this only has to deal with the separators. */
+function humanize(value: string): string {
+  return value.replace(/_/g, ' ');
+}
+
 const neutralChipClass =
   'inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] capitalize text-[var(--color-text-secondary)] dark:bg-slate-800';
 
@@ -103,7 +109,7 @@ function VmCard({ vm }: { vm: Vm }) {
           <h3 className="font-display font-semibold text-[0.9375rem] text-[var(--color-text-primary)] truncate">{vm.name}</h3>
           <p className={cn('mt-0.5 text-xs text-[var(--color-text-tertiary)]', monoClass)}>{vm.platform} · {vm.cluster}</p>
         </div>
-        <span className="text-xs capitalize text-[var(--color-text-secondary)]">{vm.status}</span>
+        <span className="text-xs capitalize text-[var(--color-text-secondary)]">{humanize(vm.status)}</span>
       </div>
 
       {/* Metric row: cpu / ram / storage, bento-tile mini-grid */}
@@ -124,10 +130,10 @@ function VmCard({ vm }: { vm: Vm }) {
 
       {/* Badge cluster */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <span className={neutralChipClass}>{vm.criticality}</span>
-        {vm.environment && <span className={neutralChipClass}>{vm.environment}</span>}
-        {vm.lifecycle && <span className={neutralChipClass}>{vm.lifecycle}</span>}
-        {vm.os_family && <span className={neutralChipClass}>{vm.os_family}</span>}
+        <span className={neutralChipClass}>{humanize(vm.criticality)}</span>
+        {vm.environment && <span className={neutralChipClass}>{humanize(vm.environment)}</span>}
+        {vm.lifecycle && <span className={neutralChipClass}>{humanize(vm.lifecycle)}</span>}
+        {vm.os_family && <span className={neutralChipClass}>{humanize(vm.os_family)}</span>}
         {vm.owner && <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-secondary)] dark:bg-slate-800">{vm.owner}</span>}
         {vm.tags && vm.tags.length > 0 && (
           <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-tertiary)] dark:bg-slate-800">
@@ -259,11 +265,11 @@ function VmTable({
                     {col.key === 'platform' && <Badge value={vm.platform} type="platform" />}
                     {col.key === 'cluster' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.cluster}</span>}
                     {col.key === 'node' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.node}</span>}
-                    {col.key === 'status' && <span className="capitalize">{vm.status}</span>}
-                    {col.key === 'environment' && <span className="capitalize">{vm.environment}</span>}
-                    {col.key === 'criticality' && <span className="capitalize">{vm.criticality}</span>}
-                    {col.key === 'lifecycle' && <span className="capitalize">{vm.lifecycle}</span>}
-                    {col.key === 'os_family' && <span className="capitalize">{vm.os_family ?? 'unknown'}</span>}
+                    {col.key === 'status' && <span className="capitalize">{humanize(vm.status)}</span>}
+                    {col.key === 'environment' && <span className="capitalize">{humanize(vm.environment)}</span>}
+                    {col.key === 'criticality' && <span className="capitalize">{humanize(vm.criticality)}</span>}
+                    {col.key === 'lifecycle' && <span className="capitalize">{humanize(vm.lifecycle)}</span>}
+                    {col.key === 'os_family' && <span className="capitalize">{humanize(vm.os_family ?? 'unknown')}</span>}
                     {col.key === 'owner' && <span className="truncate max-w-xs">{vm.owner ?? ''}</span>}
                     {col.key === 'monitoring_enabled' && <span>{vm.monitoring_enabled ? 'Enabled' : 'Disabled'}</span>}
                     {col.key === 'pmp_enabled' && <span>{vm.pmp_enabled ? 'Enabled' : 'Disabled'}</span>}

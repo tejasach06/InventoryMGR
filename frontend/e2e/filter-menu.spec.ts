@@ -26,29 +26,42 @@ test.describe('Filter Menu', () => {
     await loginAsAdmin(page);
   });
 
+  /** Every facet lives inside the Filters drawer, which stages edits until Apply. */
+  async function openFilterDrawer(page: Page) {
+    await page.getByRole('button', { name: /Filters/ }).click();
+    const drawer = page.getByRole('dialog');
+    await expect(drawer).toBeVisible();
+    return drawer;
+  }
+
   test('multi-select filter (Status) appears in URL and as pill', async ({ page }) => {
-    // Every fixed-enum facet renders inline as a SegmentedControl: a role="group"
-    // named after the facet, holding one toggle button per option.
-    const option = page.getByRole('group', { name: 'Status' }).getByRole('button', { name: 'running', exact: true });
+    const drawer = await openFilterDrawer(page);
+    // The three core enums render as a SegmentedControl: a role="group" named
+    // after the facet, holding one toggle button per option.
+    const option = drawer.getByRole('group', { name: 'Status' }).getByRole('button', { name: 'running', exact: true });
     await expect(option).toBeVisible();
     await option.click();
 
-    // Applied immediately — inline facets have no separate Apply step.
-    await expect(page).toHaveURL(/status=running/);
+    // Staged, not applied: the URL only changes once Apply is pressed.
     await expect(option).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).not.toHaveURL(/status=running/);
+
+    await drawer.getByRole('button', { name: /^Apply/ }).click();
+    await expect(page).toHaveURL(/status=running/);
 
     // And it surfaces as a removable chip in the active filters row.
     await expect(page.getByRole('button', { name: 'Remove Status filter' })).toBeVisible();
   });
 
   test('boolean filter (Monitoring) appears in URL and as pill', async ({ page }) => {
-    // Monitoring is an inline facet too; its options are relabelled true/false -> Enabled/Disabled.
-    const enabled = page.getByRole('group', { name: 'Monitoring' }).getByRole('button', { name: 'Enabled', exact: true });
-    await expect(enabled).toBeVisible();
-    await enabled.click();
+    const drawer = await openFilterDrawer(page);
+    // Monitoring is not a core enum, so it renders as a FuzzyMultiSelect whose
+    // options are relabelled true/false -> Enabled/Disabled.
+    await drawer.getByPlaceholder('Monitoring').click();
+    await page.getByRole('button', { name: 'Enabled', exact: true }).click();
 
+    await drawer.getByRole('button', { name: /^Apply/ }).click();
     await expect(page).toHaveURL(/monitoring_enabled=true/);
-    await expect(enabled).toHaveAttribute('aria-pressed', 'true');
 
     // FilterChip renders label and value in adjacent spans, so assert on the
     // remove button's accessible name rather than the concatenated text.
@@ -58,7 +71,10 @@ test.describe('Filter Menu', () => {
   });
 
   test('removing a pill clears the URL param', async ({ page }) => {
-    await page.getByRole('group', { name: 'Monitoring' }).getByRole('button', { name: 'Enabled', exact: true }).click();
+    const drawer = await openFilterDrawer(page);
+    await drawer.getByPlaceholder('Monitoring').click();
+    await page.getByRole('button', { name: 'Enabled', exact: true }).click();
+    await drawer.getByRole('button', { name: /^Apply/ }).click();
     await expect(page).toHaveURL(/monitoring_enabled=true/);
 
     await page.getByRole('button', { name: 'Remove Monitoring filter' }).click();

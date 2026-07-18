@@ -28,6 +28,9 @@ export function SegmentedControl({ label, options, value, onChange, type, labels
       {options.map((option) => {
         const active = value.includes(option);
         const normalized = option.toLowerCase().replace(/\s+/g, '_');
+        // Status and criticality are deliberately colourless; platform keeps
+        // its semantic colour, matching how the inventory table renders them.
+        const coloured = type === 'platform';
         return (
           <button
             key={option}
@@ -37,19 +40,21 @@ export function SegmentedControl({ label, options, value, onChange, type, labels
             className={cn(
               'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-semibold leading-none transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]',
               active
-                ? 'shadow-sm'
+                ? cn('shadow-sm', !coloured && 'bg-[var(--color-accent)]/12 text-[var(--color-accent)]')
                 : 'text-[var(--color-text-tertiary)] hover:bg-white hover:text-[var(--color-text-secondary)] dark:hover:bg-slate-800 dark:hover:text-slate-200'
             )}
-            style={active ? {
+            style={active && coloured ? {
               backgroundColor: `var(--color-${type}-${normalized}-bg)`,
               color: `var(--color-${type}-${normalized})`,
             } as React.CSSProperties : undefined}
           >
-            <span
-              className={cn('h-1.5 w-1.5 shrink-0 rounded-full', !active && 'opacity-[0.55] dark:opacity-40')}
-              style={{ backgroundColor: `var(--color-${type}-${normalized})` } as React.CSSProperties}
-              aria-hidden="true"
-            />
+            {coloured && (
+              <span
+                className={cn('h-1.5 w-1.5 shrink-0 rounded-full', !active && 'opacity-[0.55] dark:opacity-40')}
+                style={{ backgroundColor: `var(--color-${type}-${normalized})` } as React.CSSProperties}
+                aria-hidden="true"
+              />
+            )}
             {labels?.[option] ?? option}
           </button>
         );
