@@ -6,10 +6,9 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { FuzzyMultiSelect } from './FuzzyMultiSelect';
 import { SegmentedControl } from './SegmentedControl';
-import { secondaryButtonClass, labelClass, inputClass, cardClass, filterBarClass, eyebrowClass } from './ui';
+import { secondaryButtonClass, labelClass, inputClass, filterBarClass, eyebrowClass } from './ui';
 import { cn } from '../lib/classNames';
 import type { Filters, FilterName } from '../routes/InventoryPage';
-import { useClickOutside } from '../hooks/useClickOutside';
 import { FilterChip, Drawer } from './ui';
 
 type AdvancedFilterName = Exclude<FilterName, 'q'>;
@@ -77,13 +76,6 @@ const coreFilterTypes: Record<typeof coreFilters[number], 'status' | 'criticalit
   criticality: 'criticality',
 };
 
-const presetFilters = [
-  { id: 'my-vms', label: 'My VMs', filters: { owner: ['me'] } as Partial<Filters> },
-  { id: 'prod-critical', label: 'Production Critical', filters: { environment: ['production'], criticality: ['critical', 'high'] } as Partial<Filters> },
-  { id: 'needs-attention', label: 'Needs Attention', filters: { status: ['suspended', 'archived'], health: ['warning', 'critical'] } as Partial<Filters> },
-  { id: 'running-prod', label: 'Running in Prod', filters: { status: ['running'], environment: ['production'] } as Partial<Filters> },
-];
-
 export function FilterBar({
   filters,
   onApply,
@@ -92,8 +84,6 @@ export function FilterBar({
   onApply: (filters: Filters) => void;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [presetsOpen, setPresetsOpen] = useState(false);
-  const presetsRef = useClickOutside<HTMLDivElement>(() => setPresetsOpen(false));
   const [advancedFilters, setAdvancedFilters] = useState<Partial<Filters>>({});
   const [searchQuery, setSearchQuery] = useState(filters.q[0] || '');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -145,12 +135,6 @@ export function FilterBar({
     const merged = { ...filters, ...newAdvFilters };
     onApply(merged);
     setDrawerOpen(false);
-  };
-
-  const handlePresetApply = (presetFilters: Partial<Filters>) => {
-    const merged = { ...filters, ...presetFilters };
-    onApply(merged);
-    setAdvancedFilters(presetFilters);
   };
 
   const clearAllFilters = () => {
@@ -293,28 +277,6 @@ export function FilterBar({
           </div>
         </div>
 
-        {/* Presets */}
-        <div className="space-y-2">
-          <label className={labelClass}>Presets</label>
-          <div className="grid gap-2" role="group" aria-label="Filter presets">
-            {presetFilters.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => {
-                  handlePresetApply(preset.filters);
-                }}
-                className={cn(
-                  secondaryButtonClass,
-                  'w-full justify-start text-left'
-                )}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Advanced filter groups */}
         {filterGroups.map((group) => (
           <fieldset key={group.label} className="space-y-4">
@@ -422,44 +384,8 @@ export function FilterBar({
           {/* Core segmented multi-selects fill the row on larger screens */}
           <div className="hidden min-w-0 flex-1 sm:block">{renderCoreChips()}</div>
 
-          {/* Right side: Presets dropdown + Filters trigger */}
+          {/* Right side: Filters trigger */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Presets dropdown */}
-            <div className="relative" role="group" aria-label="Filter presets" ref={presetsRef}>
-              <button
-                type="button"
-                onClick={() => setPresetsOpen((prev) => !prev)}
-                className={secondaryButtonClass}
-                aria-haspopup="true"
-                aria-expanded={presetsOpen}
-              >
-                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                  <path d="M3 5h10M3 8h10M3 11h7" />
-                </svg>
-                <span>Presets</span>
-                <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                  <path d="M5 6l3 3 3-3" />
-                </svg>
-              </button>
-              {presetsOpen && (
-                <div className={cn(cardClass, "absolute right-0 top-full mt-1.5 min-w-[180px] p-2 animate-fade-in")}>
-                  {presetFilters.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => {
-                        handlePresetApply(preset.filters);
-                        setPresetsOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-md text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] transition-colors dark:hover:bg-slate-800"
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Filters drawer trigger */}
             <button
               type="button"

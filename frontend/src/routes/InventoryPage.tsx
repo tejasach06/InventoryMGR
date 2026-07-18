@@ -31,7 +31,6 @@ import {
 import { ColumnEditor } from '../components/ColumnEditor';
 import { useColumnPreferences, COLUMN_LABELS } from '../hooks/useColumnPreferences';
 import { formatMemory, formatDisks } from '../lib/units';
-import { useFilterPresets } from '../hooks/useFilterPresets';
 import { FilterBar } from '../components/FilterBar';
 import { ContextPanel } from '../components/ContextPanel';
 
@@ -308,8 +307,6 @@ export function InventoryPage() {
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
-  const { presets, savePreset, deletePreset } = useFilterPresets<Filters, Record<string, string>>('inventory_presets');
-  const [saveName, setSaveName] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
