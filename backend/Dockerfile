@@ -25,8 +25,6 @@ RUN uv sync --frozen --no-dev
 
 # Copy the rest of the backend source code
 COPY backend/ .
-# Copy sample data for seeding
-COPY sample-vms.csv .
 
 # Expose FastAPI default port
 EXPOSE 8000
