@@ -42,5 +42,8 @@ export default defineConfig({
       },
     ],
   }),
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // channel 'chromium' uses the full Chromium build rather than the separate
+  // chrome-headless-shell download, so `playwright install chromium` alone is
+  // enough to run the suite.
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chromium' } }],
 });

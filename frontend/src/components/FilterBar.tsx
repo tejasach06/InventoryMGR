@@ -368,6 +368,7 @@ export function FilterBar({
               onKeyDown={handleSearchKeyDown}
               placeholder="Search…"
               className={cn(inputClass, 'pl-10 pr-10')}
+              aria-label="Search VMs"
             />
             {searchQuery && (
               <button
