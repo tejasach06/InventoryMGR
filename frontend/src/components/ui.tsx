@@ -70,7 +70,7 @@ export function Badge({ value, type = 'status', size = 'sm' }: { value: string; 
       className={cn(
         'inline-flex items-center gap-1 rounded-md font-semibold leading-none transition-all duration-150 hover:brightness-95 dark:hover:brightness-110',
         size === 'sm' ? 'px-2 py-1 text-[0.6875rem] tracking-[0.01em]' : 'px-2.5 py-1.5 text-xs tracking-[0.02em]',
-        'animate-pill-pop dark:shadow-[var(--dark-glow)]'
+        'animate-pill-pop'
       )}
       style={{
         backgroundColor: `var(--color-${type}-${normalized}-bg)`,
@@ -261,7 +261,7 @@ export function FilterChip({ label, value, onRemove, type = 'status' }: { label:
     <span
       className={cn(
         'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 hover:shadow-md animate-pill-pop',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] dark:focus-visible:ring-offset-slate-950 dark:shadow-[var(--dark-glow)]'
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] dark:focus-visible:ring-offset-slate-950'
       )}
       style={{
         backgroundColor: `var(--color-${type}-${normalized}-bg)`,

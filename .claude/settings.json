@@ -1,0 +1,21 @@
+{
+  "enabledPlugins": {
+    "ecc@ecc": true,
+    "context7@claude-plugins-official": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "grep -qE '\"file_path\" *: *\"[^\"]*\\.(py|ts|tsx)\"' && /home/tejas/.local/bin/graphify update \"${CLAUDE_PROJECT_DIR:-.}\" >/dev/null 2>&1 || true",
+            "async": true,
+            "statusMessage": "Updating graphify graph"
+          }
+        ]
+      }
+    ]
+  }
+}

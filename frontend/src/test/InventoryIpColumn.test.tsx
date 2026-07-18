@@ -35,7 +35,8 @@ describe('InventoryPage IP address column', () => {
     // VmTable shows it; VmCard is hidden or restructured in the latest UI version
     expect(screen.getAllByText('10.0.0.10').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('10.0.0.11')).not.toBeInTheDocument();
-    expect(screen.queryByText('Health')).not.toBeInTheDocument();
+    // Scoped to the table header: "Health" also appears as an inline filter label.
+    expect(screen.queryByRole('columnheader', { name: /Health/ })).not.toBeInTheDocument();
   });
 
   it('shows a dash when the VM has no networks', async () => {

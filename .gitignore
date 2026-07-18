@@ -19,7 +19,8 @@ frontend/package-lock.json
 playwright-report/
 test-results/
 graphify-out/
-.claude
+.claude/*
+!.claude/settings.json
 data/
 *.log
 .DS_Store
@@ -33,7 +34,6 @@ docs/superpowers
 .serena
 .devbox
 AGENTS.md
-CLAUDE.md
 gan-harness/
 ecosystem.config.js
 backend/ecosystem.config.js

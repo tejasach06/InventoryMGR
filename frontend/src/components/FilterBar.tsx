@@ -6,10 +6,9 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { FuzzyMultiSelect } from './FuzzyMultiSelect';
 import { SegmentedControl } from './SegmentedControl';
-import { secondaryButtonClass, labelClass, inputClass, cardClass, filterBarClass, eyebrowClass } from './ui';
+import { secondaryButtonClass, labelClass, inputClass, filterBarClass, eyebrowClass } from './ui';
 import { cn } from '../lib/classNames';
 import type { Filters, FilterName } from '../routes/InventoryPage';
-import { useClickOutside } from '../hooks/useClickOutside';
 import { FilterChip, Drawer } from './ui';
 
 type AdvancedFilterName = Exclude<FilterName, 'q'>;
@@ -18,11 +17,11 @@ type AdvancedFieldConfig =
   | { kind: 'multiSelect'; options: readonly string[]; labels?: Record<string, string> }
   | { kind: 'dynamicMultiSelect'; labels?: Record<string, string> };
 
+/** Only high-cardinality, fleet-derived facets live in the drawer. Everything
+ * with a fixed option list is rendered inline — see `inlineFilters`. */
 const filterGroups: { label: string; filters: AdvancedFilterName[] }[] = [
   { label: 'Infrastructure', filters: ['cluster', 'node'] },
-  { label: 'Lifecycle & State', filters: ['lifecycle', 'health'] },
-  { label: 'Ownership & Environment', filters: ['environment', 'owner', 'os_family', 'application', 'tag'] },
-  { label: 'Features', filters: ['monitoring_enabled', 'pmp_enabled'] },
+  { label: 'Ownership', filters: ['owner', 'application', 'tag'] },
 ];
 
 const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfig> = {
@@ -70,19 +69,14 @@ const dynamicFetchers: Record<'owner' | 'cluster' | 'node' | 'tag' | 'applicatio
   application: api.listVmApplications,
 };
 const singleSelectFilters: AdvancedFilterName[] = ['health'];
-const coreFilters = ['status', 'platform', 'criticality'] as const;
-const coreFilterTypes: Record<typeof coreFilters[number], 'status' | 'criticality' | 'platform'> = {
-  status: 'status',
-  platform: 'platform',
-  criticality: 'criticality',
-};
 
-const presetFilters = [
-  { id: 'my-vms', label: 'My VMs', filters: { owner: ['me'] } as Partial<Filters> },
-  { id: 'prod-critical', label: 'Production Critical', filters: { environment: ['production'], criticality: ['critical', 'high'] } as Partial<Filters> },
-  { id: 'needs-attention', label: 'Needs Attention', filters: { status: ['suspended', 'archived'], health: ['warning', 'critical'] } as Partial<Filters> },
-  { id: 'running-prod', label: 'Running in Prod', filters: { status: ['running'], environment: ['production'] } as Partial<Filters> },
-];
+/** Fixed-enum facets rendered directly in the bar. High-cardinality facets
+ * (cluster/node/owner/tag/application) stay in the drawer — their options come
+ * from the fleet and would overflow a segmented control. */
+const inlineFilters = [
+  'status', 'platform', 'criticality', 'lifecycle', 'environment',
+  'os_family', 'health', 'monitoring_enabled', 'pmp_enabled',
+] as const;
 
 export function FilterBar({
   filters,
@@ -92,8 +86,6 @@ export function FilterBar({
   onApply: (filters: Filters) => void;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [presetsOpen, setPresetsOpen] = useState(false);
-  const presetsRef = useClickOutside<HTMLDivElement>(() => setPresetsOpen(false));
   const [advancedFilters, setAdvancedFilters] = useState<Partial<Filters>>({});
   const [searchQuery, setSearchQuery] = useState(filters.q[0] || '');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -147,12 +139,6 @@ export function FilterBar({
     setDrawerOpen(false);
   };
 
-  const handlePresetApply = (presetFilters: Partial<Filters>) => {
-    const merged = { ...filters, ...presetFilters };
-    onApply(merged);
-    setAdvancedFilters(presetFilters);
-  };
-
   const clearAllFilters = () => {
     const empty: Filters = {
       q: [],
@@ -177,21 +163,20 @@ export function FilterBar({
   };
 
 
-  const renderCoreChips = () => (
-    <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Core filters">
-      {coreFilters.map((name) => {
+  const renderInlineFilters = () => (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2" role="group" aria-label="Filters">
+      {inlineFilters.map((name) => {
         const config = advancedFilterConfig[name];
-        const type = coreFilterTypes[name];
-        const values = filters[name];
-        const label = advancedFilterLabels[name];
         if (config.kind !== 'multiSelect') return null;
         return (
           <div key={name} className="flex items-center gap-1.5">
+            <span className="text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-[var(--color-text-tertiary)]">
+              {advancedFilterLabels[name]}
+            </span>
             <SegmentedControl
-              label={label}
-              value={values}
+              label={advancedFilterLabels[name]}
+              value={filters[name]}
               options={config.options}
-              type={type}
               labels={config.labels}
               onChange={(v) => handleCoreFilterChange(name, v)}
             />
@@ -293,28 +278,6 @@ export function FilterBar({
           </div>
         </div>
 
-        {/* Presets */}
-        <div className="space-y-2">
-          <label className={labelClass}>Presets</label>
-          <div className="grid gap-2" role="group" aria-label="Filter presets">
-            {presetFilters.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => {
-                  handlePresetApply(preset.filters);
-                }}
-                className={cn(
-                  secondaryButtonClass,
-                  'w-full justify-start text-left'
-                )}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Advanced filter groups */}
         {filterGroups.map((group) => (
           <fieldset key={group.label} className="space-y-4">
@@ -391,8 +354,8 @@ export function FilterBar({
           <span className={cn(eyebrowClass, 'text-[var(--color-accent)]')}>Filter &amp; Search</span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Search - only on mobile */}
-          <div className="relative flex-1 min-w-0 max-w-xs sm:hidden">
+          {/* Search — visible at every breakpoint */}
+          <div className="relative min-w-0 flex-1 sm:max-w-xs">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-tertiary)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
               <circle cx="7" cy="7" r="5" />
               <path d="M10 10l4 4" strokeLinecap="round" />
@@ -405,6 +368,7 @@ export function FilterBar({
               onKeyDown={handleSearchKeyDown}
               placeholder="Search…"
               className={cn(inputClass, 'pl-10 pr-10')}
+              aria-label="Search VMs"
             />
             {searchQuery && (
               <button
@@ -419,47 +383,8 @@ export function FilterBar({
               </button>
             )}
           </div>
-          {/* Core segmented multi-selects fill the row on larger screens */}
-          <div className="hidden min-w-0 flex-1 sm:block">{renderCoreChips()}</div>
-
-          {/* Right side: Presets dropdown + Filters trigger */}
+          {/* Right side: Filters trigger */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Presets dropdown */}
-            <div className="relative" role="group" aria-label="Filter presets" ref={presetsRef}>
-              <button
-                type="button"
-                onClick={() => setPresetsOpen((prev) => !prev)}
-                className={secondaryButtonClass}
-                aria-haspopup="true"
-                aria-expanded={presetsOpen}
-              >
-                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                  <path d="M3 5h10M3 8h10M3 11h7" />
-                </svg>
-                <span>Presets</span>
-                <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                  <path d="M5 6l3 3 3-3" />
-                </svg>
-              </button>
-              {presetsOpen && (
-                <div className={cn(cardClass, "absolute right-0 top-full mt-1.5 min-w-[180px] p-2 animate-fade-in")}>
-                  {presetFilters.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => {
-                        handlePresetApply(preset.filters);
-                        setPresetsOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-md text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] transition-colors dark:hover:bg-slate-800"
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Filters drawer trigger */}
             <button
               type="button"
@@ -478,6 +403,9 @@ export function FilterBar({
             </button>
           </div>
         </div>
+
+        {/* Inline enum facets — every fixed-option filter, no drawer round-trip */}
+        <div className="mt-3">{renderInlineFilters()}</div>
 
         {/* Active filter chips row */}
         {hasActiveFilters && (
