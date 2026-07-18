@@ -29,11 +29,10 @@ import {
   tableRowClass,
   tableWrapClass,
 } from '../components/ui';
-import { ColumnEditor } from '../components/ColumnEditor';
 import { useColumnPreferences, COLUMN_LABELS } from '../hooks/useColumnPreferences';
 import { formatMemory, formatDisks } from '../lib/units';
 import { useFilterPresets } from '../hooks/useFilterPresets';
-import { FilterBar } from '../components/FilterBar';
+import { InventoryToolbar } from '../components/InventoryToolbar';
 import { ContextPanel } from '../components/ContextPanel';
 
 export const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
@@ -453,12 +452,18 @@ export function InventoryPage() {
           </div>
         </div>
 
-        <FilterBar filters={filters} onApply={setFilters} />
+        <InventoryToolbar
+          filters={filters}
+          onApply={setFilters}
+          columns={colPrefs}
+          onToggleColumn={toggleColumn}
+          onReorderColumns={reorderColumns}
+          onResetColumns={resetToDefault}
+        />
         <div className="mb-4 flex items-center justify-between">
           <p className="eyebrow-label">
             {vms.data ? `${items.length} of ${stats.total} shown` : 'Loading…'}
           </p>
-          <ColumnEditor columns={colPrefs} onToggle={toggleColumn} onReorder={reorderColumns} onReset={resetToDefault} />
         </div>
 
         {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}

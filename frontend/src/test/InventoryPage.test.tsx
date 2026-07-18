@@ -93,40 +93,36 @@ describe('InventoryPage', () => {
     await screen.findByText('No VMs found');
     expect(screen.queryByRole('link', { name: 'New VM' })).not.toBeInTheDocument();
   });
-  it('reveals "Clear all" after typing a search term and pushes the pathname on clear', async () => {
+  it('clears a typed search term from the search field itself, not "Clear all"', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findByText('No VMs found');
-    // No active filter on mount -> the clear control is absent.
     expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.type(screen.getByPlaceholderText('Search…'), 'web');
+    const search = screen.getByRole('searchbox', { name: 'Search VMs' });
+    await user.type(search, 'web');
 
-    const clear = screen.getByRole('button', { name: 'Clear all' });
-    await user.click(clear);
+    // Search is not a facet: it never raises the chip row's "Clear all".
+    expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument();
 
-    // Verify the search input is cleared
-    await waitFor(() => expect(screen.getByPlaceholderText('Search…')).toHaveValue(''));
-    // Clear button should disappear after clearing
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
+    await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Search VMs' })).toHaveValue(''));
   });
-  it('renders an active filter from the URL and clears it back to the pathname', async () => {
+  it('seeds the search field from the URL and clears it back to empty', async () => {
     hoisted.searchParams = new URLSearchParams('q=web');
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findAllByText('web-01');
     // filtersFromParams seeds the search field from the URL.
-    expect(screen.getByPlaceholderText('Search…')).toHaveValue('web');
-    const clear = screen.getByRole('button', { name: 'Clear all' });
+    expect(screen.getByRole('searchbox', { name: 'Search VMs' })).toHaveValue('web');
 
     hoisted.pushMock.mockClear();
     const user = userEvent.setup();
-    await user.click(clear);
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
 
-    // Verify the search input is cleared
-    await waitFor(() => expect(screen.getByPlaceholderText('Search…')).toHaveValue(''));
+    await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Search VMs' })).toHaveValue(''));
   });
 });
