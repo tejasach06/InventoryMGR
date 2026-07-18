@@ -17,11 +17,11 @@ type AdvancedFieldConfig =
   | { kind: 'multiSelect'; options: readonly string[]; labels?: Record<string, string> }
   | { kind: 'dynamicMultiSelect'; labels?: Record<string, string> };
 
+/** Only high-cardinality, fleet-derived facets live in the drawer. Everything
+ * with a fixed option list is rendered inline — see `inlineFilters`. */
 const filterGroups: { label: string; filters: AdvancedFilterName[] }[] = [
   { label: 'Infrastructure', filters: ['cluster', 'node'] },
-  { label: 'Lifecycle & State', filters: ['lifecycle', 'health'] },
-  { label: 'Ownership & Environment', filters: ['environment', 'owner', 'os_family', 'application', 'tag'] },
-  { label: 'Features', filters: ['monitoring_enabled', 'pmp_enabled'] },
+  { label: 'Ownership', filters: ['owner', 'application', 'tag'] },
 ];
 
 const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfig> = {
@@ -69,12 +69,14 @@ const dynamicFetchers: Record<'owner' | 'cluster' | 'node' | 'tag' | 'applicatio
   application: api.listVmApplications,
 };
 const singleSelectFilters: AdvancedFilterName[] = ['health'];
-const coreFilters = ['status', 'platform', 'criticality'] as const;
-const coreFilterTypes: Record<typeof coreFilters[number], 'status' | 'criticality' | 'platform'> = {
-  status: 'status',
-  platform: 'platform',
-  criticality: 'criticality',
-};
+
+/** Fixed-enum facets rendered directly in the bar. High-cardinality facets
+ * (cluster/node/owner/tag/application) stay in the drawer — their options come
+ * from the fleet and would overflow a segmented control. */
+const inlineFilters = [
+  'status', 'platform', 'criticality', 'lifecycle', 'environment',
+  'os_family', 'health', 'monitoring_enabled', 'pmp_enabled',
+] as const;
 
 export function FilterBar({
   filters,
@@ -161,21 +163,20 @@ export function FilterBar({
   };
 
 
-  const renderCoreChips = () => (
-    <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Core filters">
-      {coreFilters.map((name) => {
+  const renderInlineFilters = () => (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2" role="group" aria-label="Filters">
+      {inlineFilters.map((name) => {
         const config = advancedFilterConfig[name];
-        const type = coreFilterTypes[name];
-        const values = filters[name];
-        const label = advancedFilterLabels[name];
         if (config.kind !== 'multiSelect') return null;
         return (
           <div key={name} className="flex items-center gap-1.5">
+            <span className="text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-[var(--color-text-tertiary)]">
+              {advancedFilterLabels[name]}
+            </span>
             <SegmentedControl
-              label={label}
-              value={values}
+              label={advancedFilterLabels[name]}
+              value={filters[name]}
               options={config.options}
-              type={type}
               labels={config.labels}
               onChange={(v) => handleCoreFilterChange(name, v)}
             />
@@ -353,8 +354,8 @@ export function FilterBar({
           <span className={cn(eyebrowClass, 'text-[var(--color-accent)]')}>Filter &amp; Search</span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Search - only on mobile */}
-          <div className="relative flex-1 min-w-0 max-w-xs sm:hidden">
+          {/* Search — visible at every breakpoint */}
+          <div className="relative min-w-0 flex-1 sm:max-w-xs">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-tertiary)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
               <circle cx="7" cy="7" r="5" />
               <path d="M10 10l4 4" strokeLinecap="round" />
@@ -381,9 +382,6 @@ export function FilterBar({
               </button>
             )}
           </div>
-          {/* Core segmented multi-selects fill the row on larger screens */}
-          <div className="hidden min-w-0 flex-1 sm:block">{renderCoreChips()}</div>
-
           {/* Right side: Filters trigger */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Filters drawer trigger */}
@@ -404,6 +402,9 @@ export function FilterBar({
             </button>
           </div>
         </div>
+
+        {/* Inline enum facets — every fixed-option filter, no drawer round-trip */}
+        <div className="mt-3">{renderInlineFilters()}</div>
 
         {/* Active filter chips row */}
         {hasActiveFilters && (
