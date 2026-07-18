@@ -231,7 +231,6 @@ function VmTable({
                 </th>
               );
             })}
-            <th className="px-4 py-3 w-24">Actions</th>
           </tr>
         </thead>
         <tbody className={tableBodyClass}>
@@ -286,16 +285,6 @@ function VmTable({
                     )}
                   </td>
                 ))}
-                <td className="px-4 py-3">
-                  <div className="row-actions flex items-center justify-end gap-1">
-                    <Link href={`/inventory/${vm.id}`} className="px-2 py-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors" aria-label="View details">
-                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 8l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    </Link>
-                    <Link href={`/inventory/${vm.id}/edit`} className="px-2 py-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors" aria-label="Edit">
-                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M12 3l3 3-8 8H3l-1-5 5-1 8-8-3-3Z" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    </Link>
-                  </div>
-                </td>
               </tr>
             );
           })}

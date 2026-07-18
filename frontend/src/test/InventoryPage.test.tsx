@@ -79,6 +79,16 @@ describe('InventoryPage', () => {
     expect(await screen.findByRole('toolbar', { name: 'Bulk actions' })).toBeInTheDocument();
   });
 
+  it('has no Actions column in the table', async () => {
+    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
+
+    await screen.findByText('1 of 1 shown');
+    expect(screen.queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('View details')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
+  });
+
   it('shows the empty state when no VMs match', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
