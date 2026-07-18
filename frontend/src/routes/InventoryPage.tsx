@@ -21,6 +21,7 @@ import {
   selectClass,
   primaryButtonClass,
   secondaryButtonClass,
+  statTileClass,
   tableBodyClass,
   tableCellClass,
   tableClass,
@@ -28,10 +29,10 @@ import {
   tableRowClass,
   tableWrapClass,
 } from '../components/ui';
-import { ColumnEditor } from '../components/ColumnEditor';
 import { useColumnPreferences, COLUMN_LABELS } from '../hooks/useColumnPreferences';
 import { formatMemory, formatDisks } from '../lib/units';
-import { FilterBar } from '../components/FilterBar';
+import { useFilterPresets } from '../hooks/useFilterPresets';
+import { InventoryToolbar } from '../components/InventoryToolbar';
 import { ContextPanel } from '../components/ContextPanel';
 
 export const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
@@ -98,6 +99,7 @@ function VmCard({ vm }: { vm: Vm }) {
         cardClass,
         'block p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-raised)] hover:border-[var(--color-accent)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950'
       )}
+      style={{ borderLeft: `3px solid var(--color-criticality-${vm.criticality})` } as React.CSSProperties}
     >
       {/* Primary row: name + status */}
       <div className="flex items-start justify-between gap-3">
@@ -105,7 +107,7 @@ function VmCard({ vm }: { vm: Vm }) {
           <h3 className="font-display font-semibold text-[0.9375rem] text-[var(--color-text-primary)] truncate">{vm.name}</h3>
           <p className={cn('mt-0.5 text-xs text-[var(--color-text-tertiary)]', monoClass)}>{vm.platform} · {vm.cluster}</p>
         </div>
-        <span className="shrink-0 text-xs text-[var(--color-text-secondary)]">{vm.status}</span>
+        <Badge value={vm.status} type="status" />
       </div>
 
       {/* Metric row: cpu / ram / storage, bento-tile mini-grid */}
@@ -126,10 +128,10 @@ function VmCard({ vm }: { vm: Vm }) {
 
       {/* Badge cluster */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <span className="text-[0.6875rem] text-[var(--color-text-secondary)]">{vm.criticality}</span>
-        {vm.environment && <span className="text-[0.6875rem] text-[var(--color-text-secondary)]">{vm.environment}</span>}
-        {vm.lifecycle && <span className="text-[0.6875rem] text-[var(--color-text-secondary)]">{vm.lifecycle}</span>}
-        {vm.os_family && <span className="text-[0.6875rem] text-[var(--color-text-secondary)]">{vm.os_family}</span>}
+        <Badge value={vm.criticality} type="criticality" />
+        {vm.environment && <Badge value={vm.environment} type="environment" />}
+        {vm.lifecycle && <Badge value={vm.lifecycle} type="lifecycle" />}
+        {vm.os_family && <Badge value={vm.os_family} type="os_family" />}
         {vm.owner && <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-secondary)] dark:bg-slate-800">{vm.owner}</span>}
         {vm.tags && vm.tags.length > 0 && (
           <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-tertiary)] dark:bg-slate-800">
@@ -175,6 +177,8 @@ function VmTable({
   sortKey,
   sortDir,
   onSort,
+  activeVmId,
+  onActivate,
 }: {
   vms: Vm[];
   columns: { key: string }[];
@@ -184,6 +188,8 @@ function VmTable({
   sortKey: string | null;
   sortDir: 'asc' | 'desc';
   onSort: (key: string) => void;
+  activeVmId?: string | null;
+  onActivate?: (id: string) => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -231,21 +237,30 @@ function VmTable({
                 </th>
               );
             })}
+            <th className="px-4 py-3 w-24">Actions</th>
           </tr>
         </thead>
         <tbody className={tableBodyClass}>
-          {sorted.map((vm) => {
+          {sorted.map((vm, index) => {
             const isSelected = selectedIds.has(vm.id);
+            const isActive = activeVmId === vm.id;
 
             return (
               <tr
                 key={vm.id}
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  if (target.closest('a, button, input')) return;
+                  onActivate?.(vm.id);
+                }}
                 className={cn(
                   tableRowClass,
-                  isSelected && 'bg-[var(--color-accent)]/10'
+                  'cursor-pointer',
+                  isSelected && 'bg-[var(--color-accent)]/10',
+                  !isSelected && isActive && 'bg-[var(--color-accent)]/5 shadow-[inset_2px_0_0_var(--color-accent)]'
                 )}
               >
-                <td className="py-3 pl-3 pr-4">
+                <td className="py-3 pl-3 pr-4" style={{ borderLeft: `3px solid var(--color-criticality-${vm.criticality})` } as React.CSSProperties}>
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
@@ -264,15 +279,15 @@ function VmTable({
                     {col.key === 'platform' && <Badge value={vm.platform} type="platform" />}
                     {col.key === 'cluster' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.cluster}</span>}
                     {col.key === 'node' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.node}</span>}
-                    {col.key === 'status' && <span>{vm.status}</span>}
-                    {col.key === 'environment' && <span>{vm.environment}</span>}
-                    {col.key === 'criticality' && <span>{vm.criticality}</span>}
-                    {col.key === 'lifecycle' && <span>{vm.lifecycle}</span>}
-                    {col.key === 'os_family' && <span>{vm.os_family ?? 'unknown'}</span>}
+                    {col.key === 'status' && <Badge value={vm.status} type="status" />}
+                    {col.key === 'environment' && <Badge value={vm.environment} type="environment" />}
+                    {col.key === 'criticality' && <Badge value={vm.criticality} type="criticality" />}
+                    {col.key === 'lifecycle' && <Badge value={vm.lifecycle} type="lifecycle" />}
+                    {col.key === 'os_family' && <Badge value={vm.os_family ?? 'unknown'} type="os_family" />}
                     {col.key === 'owner' && <span className="truncate max-w-xs">{vm.owner ?? ''}</span>}
-                    {col.key === 'monitoring_enabled' && <span>{vm.monitoring_enabled ? 'Enabled' : 'Disabled'}</span>}
-                    {col.key === 'pmp_enabled' && <span>{vm.pmp_enabled ? 'Enabled' : 'Disabled'}</span>}
-                    {col.key === 'health' && <span>{vm.health_score >= 80 ? 'healthy' : vm.health_score >= 50 ? 'warning' : 'critical'}</span>}
+                    {col.key === 'monitoring_enabled' && <Badge value={vm.monitoring_enabled ? 'Enabled' : 'Disabled'} type="status" />}
+                    {col.key === 'pmp_enabled' && <Badge value={vm.pmp_enabled ? 'Enabled' : 'Disabled'} type="status" />}
+                    {col.key === 'health' && <Badge value={vm.health_score >= 80 ? 'healthy' : vm.health_score >= 50 ? 'warning' : 'critical'} type="status" />}
                     {col.key === 'resources' && (
                       <span className={cn(monoClass, "truncate max-w-[200px]")}>{vm.cpu_cores} vCPU · {formatMemory(vm.memory_mb)}</span>
                     )}
@@ -288,6 +303,16 @@ function VmTable({
                     )}
                   </td>
                 ))}
+                <td className="px-4 py-3">
+                  <div className="row-actions flex items-center justify-end gap-1">
+                    <Link href={`/inventory/${vm.id}`} className="px-2 py-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors" aria-label="View details">
+                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 8l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </Link>
+                    <Link href={`/inventory/${vm.id}/edit`} className="px-2 py-1.5 rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors" aria-label="Edit">
+                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M12 3l3 3-8 8H3l-1-5 5-1 8-8-3-3Z" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </Link>
+                  </div>
+                </td>
               </tr>
             );
           })}
@@ -305,7 +330,10 @@ export function InventoryPage() {
   const canCreateVm = user.role === 'editor' || user.role === 'admin';
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [activeVmId, setActiveVmId] = useState<string | null>(null);
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
+  const { presets, savePreset, deletePreset } = useFilterPresets<Filters, Record<string, string>>('inventory_presets');
+  const [saveName, setSaveName] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -377,6 +405,12 @@ export function InventoryPage() {
   }
 
   const items = vms.data?.items ?? [];
+  const stats = {
+    total: vms.data?.total ?? items.length,
+    running: items.filter((v) => v.status === 'running').length,
+    critical: items.filter((v) => v.criticality === 'critical').length,
+    avgHealth: items.length ? Math.round(items.reduce((sum, v) => sum + v.health_score, 0) / items.length) : null,
+  };
 
   return (
     <PageTransition>
@@ -394,19 +428,49 @@ export function InventoryPage() {
           }
         />
 
-        <FilterBar filters={filters} onApply={setFilters} />
+        {/* Bento quick-stats strip — scan the state of the fleet in 3 seconds */}
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className={statTileClass}>
+            <p className="eyebrow-label">Total VMs</p>
+            <p className={cn(monoClass, 'mt-1 text-2xl font-semibold text-[var(--color-text-primary)] dark:text-slate-50')}>{stats.total}</p>
+          </div>
+          <div className={statTileClass}>
+            <p className="eyebrow-label">Running</p>
+            <p className="mt-1 flex items-baseline gap-1.5">
+              <span className={cn(monoClass, 'text-2xl font-semibold')} style={{ color: 'var(--color-status-running)' } as React.CSSProperties}>{stats.running}</span>
+            </p>
+          </div>
+          <div className={statTileClass}>
+            <p className="eyebrow-label">Critical</p>
+            <p className="mt-1 flex items-baseline gap-1.5">
+              <span className={cn(monoClass, 'text-2xl font-semibold')} style={{ color: 'var(--color-criticality-critical)' } as React.CSSProperties}>{stats.critical}</span>
+            </p>
+          </div>
+          <div className={statTileClass}>
+            <p className="eyebrow-label">Avg Health</p>
+            <p className={cn(monoClass, 'mt-1 text-2xl font-semibold text-[var(--color-text-primary)] dark:text-slate-50')}>{stats.avgHealth !== null ? `${stats.avgHealth}%` : '—'}</p>
+          </div>
+        </div>
+
+        <InventoryToolbar
+          filters={filters}
+          onApply={setFilters}
+          columns={colPrefs}
+          onToggleColumn={toggleColumn}
+          onReorderColumns={reorderColumns}
+          onResetColumns={resetToDefault}
+        />
         <div className="mb-4 flex items-center justify-between">
           <p className="eyebrow-label">
-            {vms.data ? `${items.length} of ${vms.data.total} shown` : 'Loading…'}
+            {vms.data ? `${items.length} of ${stats.total} shown` : 'Loading…'}
           </p>
-          <ColumnEditor columns={colPrefs} onToggle={toggleColumn} onReorder={reorderColumns} onReset={resetToDefault} />
         </div>
 
         {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
         {vms.isLoading ? <TableSkeleton rows={8} cols={7} /> : null}
         {vms.data && vms.data.items.length > 0 ? (
           <div className="lg:flex lg:items-start lg:gap-5">
-            <div className={cn('lg:min-w-0', selectedIds.size > 0 ? 'lg:w-[70%]' : 'lg:w-full')}>
+            <div className="lg:w-[70%] lg:min-w-0">
               <div className="hidden lg:block">
                 <VmTable
                   vms={vms.data.items}
@@ -417,6 +481,8 @@ export function InventoryPage() {
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={handleSort}
+                  activeVmId={activeVmId}
+                  onActivate={(id) => setActiveVmId((prev) => (prev === id ? null : id))}
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
@@ -425,15 +491,16 @@ export function InventoryPage() {
                 ))}
               </div>
             </div>
-            {selectedIds.size > 0 && (
-              <div className="lg:w-[30%]">
-                <ContextPanel
-                  selectedCount={selectedIds.size}
-                  onExportSelected={exportSelected}
-                  onClearSelected={() => setSelectedIds(new Set())}
-                />
-              </div>
-            )}
+            <div className="lg:w-[30%]">
+              <ContextPanel
+                vms={vms.data.items}
+                activeVm={vms.data.items.find((v) => v.id === activeVmId) ?? null}
+                onCloseActive={() => setActiveVmId(null)}
+                selectedCount={selectedIds.size}
+                onExportSelected={exportSelected}
+                onClearSelected={() => setSelectedIds(new Set())}
+              />
+            </div>
           </div>
         ) : null}
         {vms.data && vms.data.items.length === 0 ? (
