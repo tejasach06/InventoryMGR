@@ -65,6 +65,20 @@ describe('InventoryPage', () => {
     expect(screen.queryByText('Avg Health')).not.toBeInTheDocument();
   });
 
+  it('renders no context panel and shows bulk actions when rows are selected', async () => {
+    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
+
+    await screen.findByText('1 of 1 shown');
+    expect(screen.queryByLabelText('Inventory context panel')).not.toBeInTheDocument();
+    expect(screen.queryByText('Fleet Pulse')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing previewed')).not.toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('checkbox', { name: 'Select web-01' }));
+    expect(await screen.findByRole('toolbar', { name: 'Bulk actions' })).toBeInTheDocument();
+  });
+
   it('shows the empty state when no VMs match', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
