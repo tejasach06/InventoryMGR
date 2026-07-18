@@ -98,7 +98,6 @@ function VmCard({ vm }: { vm: Vm }) {
         cardClass,
         'block p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-raised)] hover:border-[var(--color-accent)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950'
       )}
-      style={{ borderLeft: `3px solid var(--color-criticality-${vm.criticality})` } as React.CSSProperties}
     >
       {/* Primary row: name + status */}
       <div className="flex items-start justify-between gap-3">
@@ -106,7 +105,7 @@ function VmCard({ vm }: { vm: Vm }) {
           <h3 className="font-display font-semibold text-[0.9375rem] text-[var(--color-text-primary)] truncate">{vm.name}</h3>
           <p className={cn('mt-0.5 text-xs text-[var(--color-text-tertiary)]', monoClass)}>{vm.platform} · {vm.cluster}</p>
         </div>
-        <Badge value={vm.status} type="status" />
+        <span className="shrink-0 text-xs text-[var(--color-text-secondary)]">{vm.status.replace('_', ' ')}</span>
       </div>
 
       {/* Metric row: cpu / ram / storage, bento-tile mini-grid */}
@@ -127,10 +126,10 @@ function VmCard({ vm }: { vm: Vm }) {
 
       {/* Badge cluster */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <Badge value={vm.criticality} type="criticality" />
-        {vm.environment && <Badge value={vm.environment} type="environment" />}
-        {vm.lifecycle && <Badge value={vm.lifecycle} type="lifecycle" />}
-        {vm.os_family && <Badge value={vm.os_family} type="os_family" />}
+        <span className="text-[0.6875rem] text-[var(--color-text-secondary)]">{vm.criticality}</span>
+        {vm.environment && <span className="text-[0.6875rem] text-[var(--color-text-secondary)]">{vm.environment}</span>}
+        {vm.lifecycle && <span className="text-[0.6875rem] text-[var(--color-text-secondary)]">{vm.lifecycle}</span>}
+        {vm.os_family && <span className="text-[0.6875rem] text-[var(--color-text-secondary)]">{vm.os_family}</span>}
         {vm.owner && <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-secondary)] dark:bg-slate-800">{vm.owner}</span>}
         {vm.tags && vm.tags.length > 0 && (
           <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-tertiary)] dark:bg-slate-800">
@@ -246,7 +245,7 @@ function VmTable({
                   isSelected && 'bg-[var(--color-accent)]/10'
                 )}
               >
-                <td className="py-3 pl-3 pr-4" style={{ borderLeft: `3px solid var(--color-criticality-${vm.criticality})` } as React.CSSProperties}>
+                <td className="py-3 pl-3 pr-4">
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
@@ -265,15 +264,15 @@ function VmTable({
                     {col.key === 'platform' && <Badge value={vm.platform} type="platform" />}
                     {col.key === 'cluster' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.cluster}</span>}
                     {col.key === 'node' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.node}</span>}
-                    {col.key === 'status' && <Badge value={vm.status} type="status" />}
-                    {col.key === 'environment' && <Badge value={vm.environment} type="environment" />}
-                    {col.key === 'criticality' && <Badge value={vm.criticality} type="criticality" />}
-                    {col.key === 'lifecycle' && <Badge value={vm.lifecycle} type="lifecycle" />}
-                    {col.key === 'os_family' && <Badge value={vm.os_family ?? 'unknown'} type="os_family" />}
+                    {col.key === 'status' && <span>{vm.status.replace('_', ' ')}</span>}
+                    {col.key === 'environment' && <span>{vm.environment}</span>}
+                    {col.key === 'criticality' && <span>{vm.criticality}</span>}
+                    {col.key === 'lifecycle' && <span>{vm.lifecycle}</span>}
+                    {col.key === 'os_family' && <span>{vm.os_family ?? 'unknown'}</span>}
                     {col.key === 'owner' && <span className="truncate max-w-xs">{vm.owner ?? ''}</span>}
-                    {col.key === 'monitoring_enabled' && <Badge value={vm.monitoring_enabled ? 'Enabled' : 'Disabled'} type="status" />}
-                    {col.key === 'pmp_enabled' && <Badge value={vm.pmp_enabled ? 'Enabled' : 'Disabled'} type="status" />}
-                    {col.key === 'health' && <Badge value={vm.health_score >= 80 ? 'healthy' : vm.health_score >= 50 ? 'warning' : 'critical'} type="status" />}
+                    {col.key === 'monitoring_enabled' && <span>{vm.monitoring_enabled ? 'Enabled' : 'Disabled'}</span>}
+                    {col.key === 'pmp_enabled' && <span>{vm.pmp_enabled ? 'Enabled' : 'Disabled'}</span>}
+                    {col.key === 'health' && <span>{vm.health_score >= 80 ? 'healthy' : vm.health_score >= 50 ? 'warning' : 'critical'}</span>}
                     {col.key === 'resources' && (
                       <span className={cn(monoClass, "truncate max-w-[200px]")}>{vm.cpu_cores} vCPU · {formatMemory(vm.memory_mb)}</span>
                     )}
