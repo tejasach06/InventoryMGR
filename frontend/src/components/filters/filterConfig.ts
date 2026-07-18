@@ -71,13 +71,6 @@ export const dynamicFetchers: Record<DynamicFilterName, () => Promise<string[]>>
   application: api.listVmApplications,
 };
 
-export const presetFilters: { id: string; label: string; filters: Partial<Filters> }[] = [
-  { id: 'my-vms', label: 'My VMs', filters: { owner: ['me'] } },
-  { id: 'prod-critical', label: 'Production Critical', filters: { environment: ['production'], criticality: ['critical', 'high'] } },
-  { id: 'needs-attention', label: 'Needs Attention', filters: { status: ['suspended', 'archived'], health: ['warning', 'critical'] } },
-  { id: 'running-prod', label: 'Running in Prod', filters: { status: ['running'], environment: ['production'] } },
-];
-
 export const emptyFilterState: Filters = {
   q: [],
   platform: [],

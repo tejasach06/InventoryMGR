@@ -7,7 +7,6 @@ import {
   dynamicFilterNames,
   emptyFilterState,
   filterGroups,
-  presetFilters,
 } from '../components/filters/filterConfig';
 import { advancedFilterNames, filterNames } from '../routes/InventoryPage';
 
@@ -45,14 +44,6 @@ describe('filterConfig', () => {
   it('gives every filter name an empty array in the empty state', () => {
     for (const name of filterNames) {
       expect(emptyFilterState[name]).toEqual([]);
-    }
-  });
-
-  it('only references known filter names in presets', () => {
-    for (const preset of presetFilters) {
-      for (const key of Object.keys(preset.filters)) {
-        expect(filterNames).toContain(key);
-      }
     }
   });
 
