@@ -54,6 +54,17 @@ describe('InventoryPage', () => {
     expect(screen.getAllByText('db-02')).toHaveLength(2);
   });
 
+  it('does not render the redundant quick-stat tiles', async () => {
+    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
+
+    expect(await screen.findByText('1 of 1 shown')).toBeInTheDocument();
+    expect(screen.queryByText('Total VMs')).not.toBeInTheDocument();
+    expect(screen.queryByText('Running')).not.toBeInTheDocument();
+    expect(screen.queryByText('Critical')).not.toBeInTheDocument();
+    expect(screen.queryByText('Avg Health')).not.toBeInTheDocument();
+  });
+
   it('shows the empty state when no VMs match', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
