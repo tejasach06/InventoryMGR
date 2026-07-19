@@ -17,6 +17,8 @@ just web-test   # Vitest (frontend)
 just e2e        # Playwright
 just verify     # ruff + pytest + lint + typecheck + vitest + playwright — run before any PR
 just audit      # bun audit + uv audit + typecheck + ruff + tools/check-accepted-risks.sh
+
+just pm2-start  # also: pm2-stop/-restart/-kill/-logs/-status/-save/-startup (see docs/RUNBOOK.md)
 ```
 
 Single test:
@@ -102,8 +104,9 @@ separate runtime concept, served by `/api/settings/options`.
 
 `.claude/settings.json` (committed) pins plugins this repo relies on, adds
 `PostToolUse` hook running `graphify update` after any `.py`/`.ts`/`.tsx` edit,
-so graph never stale. No `.mcp.json` — MCP servers below come from plugins;
-duplicating them would create second source of truth.
+so graph never stale. Most MCP servers come from those plugins; only playwright
+is project-scoped in `.mcp.json`, which is gitignored — see below, a fresh clone
+must recreate it.
 
 ### graphify (PostToolUse project hook + PreToolUse global guard)
 
@@ -163,9 +166,11 @@ and reading `frontend/reports/*` or any log all belong in `ctx_execute`.
 
 ### playwright MCP — interactive browser checks
 
-Project-scoped in `.mcp.json` (gitignored). Complements `frontend/e2e/*.spec.ts`;
-it does not replace them — committed specs stay the regression suite. Use the MCP
-to *drive* the running app when verifying a change or chasing a UI bug.
+Project-scoped in `.mcp.json` (gitignored, so absent on a fresh clone — if the
+`browser_*` tools aren't in your tool list, that's why; recreate the file).
+Complements `frontend/e2e/*.spec.ts`; it does not replace them — committed specs
+stay the regression suite. Use the MCP to *drive* the running app when verifying
+a change or chasing a UI bug.
 
 **Always pass `filename`** on `browser_snapshot`, `browser_console_messages`, and
 `browser_network_requests`. Without it a snapshot dumps 10K–135K tokens. Then read
@@ -186,10 +191,16 @@ is not parallel-safe; don't fan it out across subagents.
 - **context7** — current docs for FastAPI, SQLAlchemy, Next.js, TanStack Query,
   Playwright. Prefer over web search or memory for library APIs.
 - **chrome-devtools** — drive running frontend, read console/network. Use
-  instead of ad-hoc `frontend/*.mjs` debug scripts.
+  instead of ad-hoc `frontend/*.mjs` debug scripts. ~15 of those scripts are
+  still lying around unremoved; don't add more, don't treat them as the pattern.
 
 ## Conventions
 
+- **Compact at 50% context.** Don't run a session to the wall — at 50% used,
+  stop at the next task boundary and compact. Long plan executions in this repo
+  (backend suite ~2 min per run, Playwright ~2.5 min) burn context faster than
+  they look like they will, and a compaction forced mid-task loses the state
+  needed to finish it. `/compact` is user-invoked; ask for it when you hit 50%.
 - ruff: line length 100, rules E/F/I/UP/B. TypeScript strict.
 - Deliberate simplifications carry `ponytail:` comment naming ceiling.
 - Accepted security tradeoffs go in `ACCEPTED_RISKS.md` with automated check
@@ -197,5 +208,7 @@ is not parallel-safe; don't fan it out across subagents.
 - `docs/RUNBOOK.md` = deployment/ops reference (PM2). `docs/CONTRIBUTING.md`
   sections between AUTO-GENERATED markers derived from `justfile`,
   `devbox.json`, `pyproject.toml`, `package.json` — update source, not doc.
-- `frontend/*.mjs`/`*.cjs` at root (`eval-runner`, `check-console`, …) =
-  one-off debugging scripts, not part of build.
+- `frontend/*.mjs`/`*.cjs` at root (`eval-runner`, `check-console`, `quick-eval`,
+  …) = one-off debugging scripts, not part of build. **Exceptions:**
+  `next.config.mjs` and `postcss.config.mjs` are real build config — don't sweep
+  them up when clearing the others out.

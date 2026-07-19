@@ -1,7 +1,8 @@
 {
   "enabledPlugins": {
     "ecc@ecc": true,
-    "context7@claude-plugins-official": true
+    "context7@claude-plugins-official": true,
+    "context-mode@context-mode": true
   },
   "hooks": {
     "PostToolUse": [
