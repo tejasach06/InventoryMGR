@@ -241,3 +241,47 @@ def test_csv_commit_wraps_unexpected_row_error_as_actionable_4xx(
     assert "simulated backend failure" in detail
     # nothing partially committed
     assert db_session.scalar(select(Vm).where(Vm.name == "Kaboom VM")) is None
+
+def test_partial_column_update_preserves_unmentioned_fields(
+    client, db_session: Session
+) -> None:
+    """A CSV that names only some columns must not blank the rest."""
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="Existing App",
+        external_id=None,
+        fqdn="existing-app.corp.example",
+        owner="alice",
+        description="payments api",
+        cpu_cores=8,
+        memory_mb=16384,
+        monitoring_enabled=True,
+    )
+    vm_id = vm.id
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,owner",
+            "Existing App,proxmox,pve-cluster-a,bob",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["summary"]["update"] == 1, body["summary"]
+
+    commit = client.post(f"/api/imports/{body['id']}/commit", headers=auth_headers(csrf))
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    refreshed = db_session.get(Vm, vm_id)
+    assert refreshed is not None
+    assert refreshed.owner == "bob"
+    assert refreshed.fqdn == "existing-app.corp.example"
+    assert refreshed.description == "payments api"
+    assert refreshed.cpu_cores == 8
+    assert refreshed.memory_mb == 16384
+    assert refreshed.monitoring_enabled is True
