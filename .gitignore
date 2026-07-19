@@ -30,7 +30,6 @@ frontend/.env*.local
 frontend/playwright-report/
 *.sqlite
 *.db
-docs/superpowers
 .serena
 .devbox
 AGENTS.md
