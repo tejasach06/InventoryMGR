@@ -1,8 +1,36 @@
+import re
+from pathlib import Path
+
 from sqlalchemy.orm import Session
 
+from app.api.routes.preferences import DEFAULT_COLUMNS
 from app.db.models import UserRole
 
 from .conftest import auth_headers, create_user, login
+
+FRONTEND_HOOK = (
+    Path(__file__).resolve().parents[2] / "frontend/src/hooks/useColumnPreferences.ts"
+)
+
+
+def test_frontend_default_columns_match_the_backend() -> None:
+    """The two lists are hand-maintained duplicates. Drift silently breaks columns:
+    a key the backend serves but the frontend cannot label, or vice versa."""
+    source = FRONTEND_HOOK.read_text()
+    block = source.split("DEFAULT_COLUMNS: ColumnConfig[] = [", 1)[1].split("];", 1)[0]
+    frontend = [
+        (key, visible == "true", int(order))
+        for key, visible, order in re.findall(
+            r"key: '([^']+)', visible: (true|false), order: (\d+)", block
+        )
+    ]
+    backend = [(c["key"], c["visible"], c["order"]) for c in DEFAULT_COLUMNS]
+
+    assert frontend == backend
+
+    labels = source.split("COLUMN_LABELS: Record<string, string> = {", 1)[1].split("};", 1)[0]
+    labelled = set(re.findall(r"(\w+):", labels))
+    assert {c["key"] for c in DEFAULT_COLUMNS} <= labelled
 
 
 def test_default_columns_include_new_optional_keys(client, db_session: Session) -> None:
