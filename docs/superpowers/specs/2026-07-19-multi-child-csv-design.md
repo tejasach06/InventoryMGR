@@ -1,7 +1,7 @@
 # Multi-Child CSV — Design
 
 Date: 2026-07-19
-Status: Approved, not yet implemented
+Status: Implemented (`f408fb3`, `dfe81aa`)
 Scope: Spec 3 of 3 (depends on spec 1 and spec 2, both implemented)
 
 ## Problem
@@ -153,3 +153,29 @@ on the VM is `unchanged`, because `changes` comes out empty.
 - **Gateway and VLAN in the CSV.** `VmNetwork` has both, but no flow asked for
   them and inline pairing for a four-field child would need a nested format.
   Revisit if reconcile needs it.
+
+## Notes from implementation
+
+1. **No implementation plan was written.** Specs 1 and 2 each got one. This
+   change is three functions in one backend file plus two cells in one
+   component, so the plan would have been longer than the diff. Decided
+   deliberately, not skipped.
+2. **The first draft of this spec was wrong about `_attach_children`**, claiming
+   the create and update branches built children separately and needed
+   unifying. `4ea90f8` had already unified them. Caught by reading the code
+   before planning and corrected in `6e905f5` — spec 2's plan shipped nine
+   deviations from exactly this failure to read first.
+3. **The frontend list-rendering work did not exist.** The spec called for the
+   expanded change detail to render a list instead of a scalar, but
+   `ImportCsvPage` has no expanded detail — it shows a field *count* per row and
+   a batch rollup of counts, both of which are indifferent to the value type.
+   The real frontend change was the preview table's disk and IP cells, which
+   showed one of each because one was all a row could carry.
+4. **`_parse_disks` takes `errors` as an optional keyword.** The spec's first
+   signature had it required, which the two non-validating call sites cannot
+   satisfy — they re-parse a cell `normalize_csv_row` already validated and have
+   no error list to pass.
+5. **Verification:** 67 backend tests, 172 Vitest, 29 Playwright, ruff clean.
+   The six new backend tests drive the real preview and commit endpoints against
+   real Postgres, so the multi-child path is exercised end to end rather than at
+   the unit level.
