@@ -64,45 +64,50 @@ between error and success.
 "backup_ip"}`. `TEMPLATE_HEADERS` follows without further work — headers already
 derive from a single source (`43f778e`).
 
-**Parsing.** One new helper, modelled directly on `_parse_int_list`, which
-already splits on `;` and accumulates errors:
+**Parsing.** One new helper, modelled on `_parse_int_list`, which already splits
+on `;` and accumulates errors:
 
 ```python
 def _parse_disks(
-    row: dict[str, str], field: str, errors: list[dict[str, str]]
-) -> list[tuple[str, int]] | None:
+    row: dict[str, str], field: str, errors: list[dict[str, str]] | None = None
+) -> list[tuple[str, int]]:
 ```
 
-Splits on `;`, then each part on the first `:`. Returns `None` when the cell is
-blank, so the caller omits the key and spec 1's skip semantics apply unchanged.
-On an empty name, a missing size, or a non-numeric size it appends
-`_error(field, "must be name:size pairs separated by ;")` and returns `None`;
+Splits on `;`, then each part on the first `:`. Returns `[]` for a blank cell,
+so a blank supplies nothing and spec 1's skip semantics hold. On an empty name,
+a missing size, or a non-numeric size it appends
+`_error(field, "must be name:size pairs separated by ;")` and returns `[]`;
 `normalize_csv_row` already returns `(None, errors)` when `errors` is non-empty,
 which is what marks the row an error and stops it committing.
+
+`errors` is optional because the two non-validating call sites
+(`diff_against_vm`, `_attach_children`) re-parse a cell that `normalize_csv_row`
+already proved valid, and have no error list to hand it.
 
 IPs need no new helper. `_parse_list` already splits on `;` and strips; the role
 is the column name.
 
 Duplicates within one cell dedupe, first occurrence wins.
 
-**Attachment.** The create and update branches currently build children
-separately. That divergence is what let disks and IPs be dropped on update until
-`4ea90f8` patched the update side. Both branches call one function instead:
+**Attachment.** `_attach_children(db, vm, raw)` already exists and is already
+called by both the create and update branches — `4ea90f8` unified them, and its
+`ponytail:` comment names this spec as the upgrade path. Nothing is unified
+here; the function's body widens from one disk and one IP to lists, and its
+signature is unchanged.
 
-```python
-def _attach_children(
-    vm: Vm,
-    disks: list[tuple[str, int]] | None,
-    ips_by_role: dict[NetworkRole, list[str]],
-) -> None:
-```
+New children keep the existing `sort_order=len(vm.disks)` idiom, incrementing as
+each is appended, so import order is stable and existing rows keep positions.
 
-New children append at `max(sort_order) + 1`, so import order is stable and
-existing rows keep their positions.
+**Where child values live.** Child columns stay in `raw`, never in `normalized`
+— `normalized` feeds `VmUpdate.model_validate`, and a `disks` key there would
+be rejected. `_parse_disks` is therefore a pure function over the raw cell,
+called at three sites: `normalize_csv_row` for validation only, `diff_against_vm`
+for classification, and `_attach_children` for the write.
 
-The create path's `size_gb=int(disk_gb) if str(disk_gb or "").strip().isdigit()
-else 0` fallback is removed. Sizes are validated during parsing now, so a junk
-size errors the row instead of silently becoming a 0GB disk.
+The `size_gb=int(disk_gb) if str(disk_gb or "").strip().isdigit() else 0`
+fallback inside `_attach_children` is removed. Sizes are validated during
+parsing now, so a junk size errors the row instead of silently becoming a 0GB
+disk.
 
 **Preview.** Added children appear in the existing `changes` JSON with a list
 value:
