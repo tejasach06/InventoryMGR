@@ -36,6 +36,8 @@ REQUIRED_HEADERS = set(REQUIRED_HEADERS_ORDER)
 EXCLUDED_FROM_CSV = {"disks", "networks", "vm_type"}
 # One column per child type. Disks pair inline as name:size; IPs take their
 # role from the column name. Both split on ";", matching tags.
+# Order is load-bearing: an address repeated under two roles keeps the first
+# listed here, not the first column in the CSV. Reordering changes precedence.
 IP_ROLE_HEADERS = {
     "private_ip": NetworkRole.private,
     "public_ip": NetworkRole.public,

@@ -685,6 +685,36 @@ def test_role_scoped_ip_columns_land_with_their_roles(client, db_session: Sessio
     }
 
 
+def test_same_ip_in_two_role_columns_takes_the_first_role(client, db_session: Session) -> None:
+    """One address is one network row, and private beats public beats backup.
+
+    An address cannot hold two roles, so the tie is broken by IP_ROLE_HEADERS
+    declaration order rather than left to whichever column the CSV lists first.
+    """
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+
+    # backup_ip is listed first in the CSV to prove column position does not decide.
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,backup_ip,public_ip,private_ip",
+            "Tied VM,proxmox,pve-cluster-a,10.0.0.5,10.0.0.5,10.0.0.5",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+    commit = client.post(
+        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
+    )
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    vm = db_session.scalar(select(Vm).where(Vm.name == "Tied VM"))
+    assert vm is not None
+    networks = db_session.scalars(select(VmNetwork).where(VmNetwork.vm_id == vm.id)).all()
+    assert [(n.ip_address, n.role.value) for n in networks] == [("10.0.0.5", "private")]
+
+
 def test_malformed_disks_cell_errors_the_row(client, db_session: Session) -> None:
     """A bad pair is a row error, not a silently dropped disk."""
     create_user(db_session, email="editor@example.local", role=UserRole.editor)
