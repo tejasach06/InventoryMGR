@@ -114,6 +114,7 @@ export function makeImportRow(overrides: Partial<ImportRow> = {}): ImportRow {
     action: 'create',
     target_vm_id: null,
     errors: [],
+    changes: {},
     ...overrides,
   };
 }
@@ -123,7 +124,9 @@ export function makeImportBatch(overrides: Partial<ImportBatch> = {}): ImportBat
     id: 'batch-1',
     filename: 'vms.csv',
     status: 'previewed',
-    summary: { create: 1, update: 0, conflict: 0, invalid: 0 },
+    summary: { create: 1, update: 0, unchanged: 0, conflict: 0, invalid: 0 },
+    ignored_columns: [],
+    field_changes: {},
     rows: [makeImportRow()],
     created_at: '2024-03-01T00:00:00Z',
     committed_at: null,

@@ -3,10 +3,18 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi.responses import PlainTextResponse
 
 from app.api.deps import Csrf, DbSession, EditorUser, ViewerUser
 from app.schemas.imports import ImportBatchRead, ImportCommitResult
-from app.services.csv_import import commit_batch, create_preview_batch, load_batch_or_404
+from app.services.csv_import import (
+    ALL_HEADERS,
+    REQUIRED_HEADERS,
+    REQUIRED_HEADERS_ORDER,
+    commit_batch,
+    create_preview_batch,
+    load_batch_or_404,
+)
 
 router = APIRouter()
 
@@ -45,6 +53,17 @@ async def preview_import(
         )
     return create_preview_batch(
         db, filename=file.filename or "upload.csv", content=content, user=current_user
+    )
+
+
+@router.get("/template", response_class=PlainTextResponse)
+def download_template(current_user: ViewerUser) -> PlainTextResponse:
+    """Serve the CSV header row, derived from the same set the importer accepts."""
+    ordered = list(REQUIRED_HEADERS_ORDER) + sorted(ALL_HEADERS - REQUIRED_HEADERS)
+    return PlainTextResponse(
+        ",".join(ordered) + "\n",
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="vm-import-template.csv"'},
     )
 
 

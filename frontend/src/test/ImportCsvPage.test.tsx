@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { api, ApiError } from '../api/client';
-import { ImportCsvPage, TEMPLATE_HEADERS } from '../routes/ImportCsvPage';
+import { ImportCsvPage } from '../routes/ImportCsvPage';
 import { makeImportBatch, makeImportRow, renderWithProviders } from './utils';
 
 function csvFile(name = 'vms.csv'): File {
@@ -39,7 +39,7 @@ describe('ImportCsvPage', () => {
     vi.spyOn(api, 'previewImport').mockResolvedValue(
       makeImportBatch({
         id: 'batch-9',
-        summary: { create: 1, update: 0, conflict: 0, invalid: 0 },
+        summary: { create: 1, update: 0, unchanged: 0, conflict: 0, invalid: 0 },
         rows: [makeImportRow({ row_number: 2, action: 'create', normalized: { name: 'web-01', platform: 'proxmox', cluster: 'cluster-a' } })],
       }),
     );
@@ -64,7 +64,7 @@ describe('ImportCsvPage', () => {
   it('blocks commit when the preview has conflict or invalid rows', async () => {
     vi.spyOn(api, 'previewImport').mockResolvedValue(
       makeImportBatch({
-        summary: { create: 0, update: 0, conflict: 1, invalid: 0 },
+        summary: { create: 0, update: 0, unchanged: 0, conflict: 1, invalid: 0 },
         rows: [makeImportRow({ action: 'conflict', errors: [{ field: 'identity', message: 'duplicate CSV identity' }] })],
       }),
     );
@@ -100,26 +100,56 @@ describe('ImportCsvPage', () => {
     expect(screen.getByRole('button', { name: 'Preview CSV' })).toBeEnabled();
   });
 
-  it('downloads a CSV template without a network call', () => {
-    const createUrl = vi.fn(() => 'blob:template');
-    const revokeUrl = vi.fn();
-    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: createUrl, revokeObjectURL: revokeUrl }));
+  it('downloads the CSV template from the API endpoint', () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     renderWithProviders(<ImportCsvPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Download template' }));
 
-    expect(createUrl).toHaveBeenCalledTimes(1);
     expect(clickSpy).toHaveBeenCalledTimes(1);
-    expect(revokeUrl).toHaveBeenCalledTimes(1);
-    vi.unstubAllGlobals();
   });
 
-  it('exposes template headers including sr_id, os_family, backup_enabled, backup_location and not backup_status', () => {
-    expect(TEMPLATE_HEADERS).toContain('sr_id');
-    expect(TEMPLATE_HEADERS).toContain('os_family');
-    expect(TEMPLATE_HEADERS).toContain('backup_enabled');
-    expect(TEMPLATE_HEADERS).toContain('backup_location');
-    expect(TEMPLATE_HEADERS).not.toContain('backup_status');
+
+  it('shows unchanged rows in their own summary card', async () => {
+    vi.spyOn(api, 'previewImport').mockResolvedValue(
+      makeImportBatch({ summary: { create: 0, update: 0, unchanged: 2, conflict: 0, invalid: 0 } }),
+    );
+    renderWithProviders(<ImportCsvPage />);
+
+    fireEvent.change(screen.getByLabelText('CSV file'), { target: { files: [csvFile()] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview CSV' }));
+
+    const card = await screen.findByTestId('summary-unchanged');
+    expect(within(card).getByText('2')).toBeInTheDocument();
+  });
+
+  it('summarizes which fields the import will change', async () => {
+    vi.spyOn(api, 'previewImport').mockResolvedValue(
+      makeImportBatch({
+        summary: { create: 0, update: 40, unchanged: 0, conflict: 0, invalid: 0 },
+        field_changes: { owner: 40, status: 3 },
+      }),
+    );
+    renderWithProviders(<ImportCsvPage />);
+
+    fireEvent.change(screen.getByLabelText('CSV file'), { target: { files: [csvFile()] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview CSV' }));
+
+    expect(await screen.findByText(/owner/)).toBeInTheDocument();
+    expect(screen.getByText(/on 40 VMs/i)).toBeInTheDocument();
+    expect(screen.getByText(/on 3 VMs/i)).toBeInTheDocument();
+  });
+
+  it('warns about ignored columns', async () => {
+    vi.spyOn(api, 'previewImport').mockResolvedValue(
+      makeImportBatch({ ignored_columns: ['vmid', 'maxmem'] }),
+    );
+    renderWithProviders(<ImportCsvPage />);
+
+    fireEvent.change(screen.getByLabelText('CSV file'), { target: { files: [csvFile()] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview CSV' }));
+
+    expect(await screen.findByText(/2 columns ignored/i)).toBeInTheDocument();
+    expect(screen.getByText(/vmid, maxmem/)).toBeInTheDocument();
   });
 });

@@ -553,3 +553,20 @@ def test_repeated_import_does_not_duplicate_children(client, db_session: Session
     db_session.expire_all()
     disks = db_session.scalars(select(VmDisk).where(VmDisk.vm_id == vm_id)).all()
     assert len(disks) == 1
+
+
+def test_template_endpoint_serves_importable_headers(client, db_session: Session) -> None:
+    """The template must round-trip: every header it offers must be one the
+    preview endpoint accepts."""
+    from app.services.csv_import import ALL_HEADERS
+
+    create_user(db_session, email="viewer@example.local", role=UserRole.viewer)
+    login(client, "viewer@example.local")
+
+    response = client.get("/api/imports/template")
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith("text/csv")
+
+    headers = response.text.strip().split(",")
+    assert set(headers) == ALL_HEADERS
+    assert headers[:3] == ["name", "platform", "cluster"]
