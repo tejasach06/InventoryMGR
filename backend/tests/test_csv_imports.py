@@ -35,7 +35,7 @@ def test_csv_preview_persists_classification_for_create_update_conflict_and_inva
 
     assert response.status_code == 201, response.text
     body = response.json()
-    assert body["summary"] == {"create": 1, "update": 1, "conflict": 1, "invalid": 1}
+    assert body["summary"] == {"create": 1, "update": 1, "unchanged": 0, "conflict": 1, "invalid": 1}
     rows = sorted(body["rows"], key=lambda row: row["row_number"])
     assert [row["action"] for row in rows] == [
         ImportAction.update.value,
@@ -93,7 +93,7 @@ def test_csv_commit_uses_persisted_rows_and_rolls_back_when_later_upsert_fails(
     preview = upload_csv(client, csrf, csv_content)
     assert preview.status_code == 201, preview.text
     batch_id = preview.json()["id"]
-    assert preview.json()["summary"] == {"create": 1, "update": 1, "conflict": 0, "invalid": 0}
+    assert preview.json()["summary"] == {"create": 1, "update": 1, "unchanged": 0, "conflict": 0, "invalid": 0}
 
     # Simulate a concurrent identity change after preview. Commit must use the persisted
     # normalized rows, detect that the update target no longer matches, and leave no partial create.
@@ -170,7 +170,7 @@ def test_csv_preview_normalizes_sr_id_os_family_and_backup_enabled(
 
     assert response.status_code == 201, response.text
     body = response.json()
-    assert body["summary"] == {"create": 1, "update": 0, "conflict": 0, "invalid": 1}
+    assert body["summary"] == {"create": 1, "update": 0, "unchanged": 0, "conflict": 0, "invalid": 1}
     rows = sorted(body["rows"], key=lambda row: row["row_number"])
 
     created = rows[0]
@@ -197,7 +197,7 @@ def test_csv_commit_persists_sr_id_os_family_and_backup_enabled(
     )
     preview = upload_csv(client, csrf, csv_content)
     assert preview.status_code == 201, preview.text
-    assert preview.json()["summary"] == {"create": 1, "update": 0, "conflict": 0, "invalid": 0}
+    assert preview.json()["summary"] == {"create": 1, "update": 0, "unchanged": 0, "conflict": 0, "invalid": 0}
 
     commit = client.post(
         f"/api/imports/{preview.json()['id']}/commit", headers=auth_headers(csrf)
@@ -406,3 +406,90 @@ def test_backup_location_is_importable(client, db_session: Session) -> None:
     created = db_session.scalar(select(Vm).where(Vm.name == "Backed Up"))
     assert created is not None
     assert created.backup_location == "veeam-repo-01"
+
+
+def test_unrecognized_columns_are_ignored_and_reported(
+    client, db_session: Session
+) -> None:
+    """Hypervisor exports carry columns we do not model. Import what we
+    recognize; name what we skipped so a typo'd header is visible."""
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,owner,vmid,maxmem,uptime",
+            "Exported VM,proxmox,pve-cluster-a,alice,101,8589934592,864000",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert sorted(body["ignored_columns"]) == ["maxmem", "uptime", "vmid"]
+    assert body["summary"]["create"] == 1
+
+    commit = client.post(f"/api/imports/{body['id']}/commit", headers=auth_headers(csrf))
+    assert commit.status_code == 200, commit.text
+
+    created = db_session.scalar(select(Vm).where(Vm.name == "Exported VM"))
+    assert created is not None
+    assert created.owner == "alice"
+
+
+def test_unchanged_rows_are_classified_separately(client, db_session: Session) -> None:
+    """Re-importing an unmodified export must not read as N updates."""
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    create_vm_row(
+        db_session,
+        editor,
+        name="Existing App",
+        external_id=None,
+        cluster="pve-cluster-a",
+        owner="alice",
+        cpu_cores=8,
+    )
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,owner,cpu_cores",
+            "Existing App,proxmox,pve-cluster-a,alice,8",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["summary"]["unchanged"] == 1
+    assert body["summary"]["update"] == 0
+    assert body["rows"][0]["action"] == "unchanged"
+    assert body["rows"][0]["changes"] == {}
+
+
+def test_update_rows_record_changed_fields(client, db_session: Session) -> None:
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    create_vm_row(
+        db_session,
+        editor,
+        name="Existing App",
+        external_id=None,
+        cluster="pve-cluster-a",
+        owner="alice",
+        cpu_cores=8,
+    )
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,owner,cpu_cores",
+            "Existing App,proxmox,pve-cluster-a,bob,16",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["summary"]["update"] == 1
+    assert body["rows"][0]["changes"] == {"owner": ["alice", "bob"], "cpu_cores": [8, 16]}
+    assert body["field_changes"] == {"owner": 1, "cpu_cores": 1}

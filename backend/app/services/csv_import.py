@@ -2,6 +2,7 @@ import csv
 import io
 import uuid
 from datetime import UTC, date, datetime
+from enum import StrEnum
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -270,7 +271,7 @@ def find_matching_vm(db: Session, normalized: dict[str, Any]) -> Vm | None:
     )
 
 
-def parse_csv_bytes(content: bytes) -> list[dict[str, Any]]:
+def parse_csv_bytes(content: bytes) -> tuple[list[dict[str, Any]], list[str]]:
     if not content:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CSV file is empty")
     try:
@@ -289,12 +290,7 @@ def parse_csv_bytes(content: bytes) -> list[dict[str, Any]]:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"CSV missing required headers: {', '.join(missing)}",
         )
-    unsupported = sorted(headers - ALL_HEADERS)
-    if unsupported:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"CSV has unsupported headers: {', '.join(unsupported)}",
-        )
+    ignored = sorted(headers - ALL_HEADERS)
     rows = list(reader)
     if not rows:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CSV file is empty")
@@ -302,7 +298,7 @@ def parse_csv_bytes(content: bytes) -> list[dict[str, Any]]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="CSV row count exceeds 5000"
         )
-    return rows
+    return rows, ignored
 
 
 def create_preview_batch(
@@ -312,19 +308,25 @@ def create_preview_batch(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="CSV file exceeds 5 MiB"
         )
-    rows = parse_csv_bytes(content)
+    rows, ignored_columns = parse_csv_bytes(content)
     batch = CsvImportBatch(
-        filename=filename, created_by_id=user.id, status=ImportStatus.previewed, summary={}
+        filename=filename,
+        created_by_id=user.id,
+        status=ImportStatus.previewed,
+        summary={},
+        ignored_columns=ignored_columns,
     )
     db.add(batch)
     db.flush()
 
     seen: set[tuple[str, str, str, str]] = set()
-    summary = {"create": 0, "update": 0, "conflict": 0, "invalid": 0}
+    summary = {"create": 0, "update": 0, "unchanged": 0, "conflict": 0, "invalid": 0}
+    field_changes: dict[str, int] = {}
     for idx, raw in enumerate(rows, start=2):
         normalized, errors = normalize_csv_row(raw)
         action = ImportAction.invalid
         target_vm_id: uuid.UUID | None = None
+        changes: dict[str, list[Any]] = {}
         if normalized is not None:
             key = identity_key(normalized)
             if key in seen:
@@ -336,8 +338,11 @@ def create_preview_batch(
                 if match is None:
                     action = ImportAction.create
                 else:
-                    action = ImportAction.update
                     target_vm_id = match.id
+                    changes = diff_against_vm(normalized, match)
+                    action = ImportAction.update if changes else ImportAction.unchanged
+                    for field in changes:
+                        field_changes[field] = field_changes.get(field, 0) + 1
         summary[action.value] += 1
         db.add(
             CsvImportRow(
@@ -348,11 +353,35 @@ def create_preview_batch(
                 action=action,
                 target_vm_id=target_vm_id,
                 errors=errors,
+                changes=changes,
             )
         )
     batch.summary = summary
+    batch.field_changes = field_changes
     db.commit()
     return load_batch_or_404(db, batch.id, user)
+
+
+def diff_against_vm(normalized: dict[str, Any], vm: Vm) -> dict[str, list[Any]]:
+    """Supplied values that differ from the VM's current state, as {field: [old, new]}.
+
+    Only keys present in `normalized` are considered — an absent column can
+    never register as a change.
+    """
+    changes: dict[str, list[Any]] = {}
+    for field, new_value in normalized.items():
+        if field in CHILD_HEADERS:
+            continue
+        if not hasattr(vm, field):
+            continue
+        old_value = getattr(vm, field)
+        # StrEnum and date columns compare cleanly against their string form.
+        old_comparable = old_value.value if isinstance(old_value, StrEnum) else old_value
+        if isinstance(old_comparable, date):
+            old_comparable = old_comparable.isoformat()
+        if old_comparable != new_value:
+            changes[field] = [old_comparable, new_value]
+    return changes
 
 
 def load_batch_or_404(db: Session, batch_id: uuid.UUID, user: User) -> CsvImportBatch:
@@ -421,6 +450,8 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
     updated = 0
     touched_vms: list[Vm] = []
     for row in batch.rows:
+        if row.action == ImportAction.unchanged:
+            continue
         try:
             action, vm = _commit_row(db, row, user)
             touched_vms.append(vm)
