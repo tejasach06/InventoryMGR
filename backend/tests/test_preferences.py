@@ -46,6 +46,59 @@ def test_put_rejects_unknown_column_key(client, db_session: Session) -> None:
     assert response.status_code == 422
 
 
+def test_saved_ip_address_reads_back_as_private_ip(client, db_session: Session) -> None:
+    """ip_address predates roles. Saved layouts must survive, not duplicate or reset."""
+    create_user(db_session, email="viewer@example.com", role=UserRole.viewer)
+    csrf = login(client, "viewer@example.com")
+
+    payload = {
+        "columns": [
+            {"key": "name", "visible": True, "order": 0},
+            {"key": "ip_address", "visible": True, "order": 6},
+        ]
+    }
+    response = client.put(
+        "/api/user/preferences/inventory", json=payload, headers=auth_headers(csrf)
+    )
+    assert response.status_code == 200, response.text
+
+    response = client.get("/api/user/preferences/inventory")
+    assert response.status_code == 200
+    columns = response.json()["columns"]
+    keys = [c["key"] for c in columns]
+
+    # Rewritten on read, keeping its slot and visibility.
+    assert "ip_address" not in keys
+    assert keys.count("private_ip") == 1
+    private_ip = next(c for c in columns if c["key"] == "private_ip")
+    assert private_ip["visible"] is True
+    assert private_ip["order"] == 6
+
+    # The merge must not also append private_ip as a new hidden column, which
+    # would make the layout unsaveable on the duplicate-key check.
+    response = client.put(
+        "/api/user/preferences/inventory", json={"columns": columns}, headers=auth_headers(csrf)
+    )
+    assert response.status_code == 200, response.text
+
+
+def test_role_ip_columns_are_valid_keys(client, db_session: Session) -> None:
+    create_user(db_session, email="viewer@example.com", role=UserRole.viewer)
+    csrf = login(client, "viewer@example.com")
+
+    payload = {
+        "columns": [
+            {"key": "private_ip", "visible": True, "order": 6},
+            {"key": "public_ip", "visible": False, "order": 7},
+            {"key": "backup_ip", "visible": False, "order": 8},
+        ]
+    }
+    response = client.put(
+        "/api/user/preferences/inventory", json=payload, headers=auth_headers(csrf)
+    )
+    assert response.status_code == 200, response.text
+
+
 def test_saved_prefs_are_merged_with_newly_added_columns(client, db_session: Session) -> None:
     create_user(db_session, email="viewer@example.com", role=UserRole.viewer)
     csrf = login(client, "viewer@example.com")

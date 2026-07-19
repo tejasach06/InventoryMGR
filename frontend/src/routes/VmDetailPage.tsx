@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { api, detailMessage, Vm } from '../api/client';
+import { api, detailMessage, NetworkRole, Vm } from '../api/client';
 import {
   Alert, Badge, PageHeader, PageTransition, Skeleton, Spinner,
   cardClass, dangerButtonClass, monoClass, secondaryButtonClass, sectionTitleClass,
@@ -130,7 +130,8 @@ function NetworksPanel({ vm }: { vm: Vm }) {
   const qc = useQueryClient();
   const addMut = useMutation({
     mutationFn: (v: Record<string, string>) => api.addNetwork(vm.id, {
-      ip_address: v.ip_address, vlan: v.vlan ? Number(v.vlan) : null,
+      ip_address: v.ip_address, role: (v.role as NetworkRole) || 'private',
+      vlan: v.vlan ? Number(v.vlan) : null,
       gateway: v.gateway || null, sort_order: vm.networks.length,
     }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),

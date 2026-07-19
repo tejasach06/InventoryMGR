@@ -47,10 +47,13 @@ export interface Disk {
   sort_order: number;
 }
 
+export type NetworkRole = 'private' | 'public' | 'backup';
+
 export interface Network {
   id: string;
   vm_id: string;
   ip_address: string;
+  role: NetworkRole;
   vlan: number | null;
   gateway: string | null;
   sort_order: number;

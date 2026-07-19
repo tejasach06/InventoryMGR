@@ -278,7 +278,9 @@ function VmTable({
                       <span className={cn(monoClass, "truncate max-w-[200px]")}>{vm.cpu_cores} vCPU · {formatMemory(vm.memory_mb)}</span>
                     )}
                     {col.key === 'fqdn' && <span className={cn(monoClass, "truncate max-w-xs")}>{vm.fqdn ?? ''}</span>}
-                    {col.key === 'ip_address' && <span className={monoClass}>{vm.networks?.[0]?.ip_address ?? ''}</span>}
+                    {col.key === 'private_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'private')?.ip_address ?? '—'}</span>}
+                    {col.key === 'public_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'public')?.ip_address ?? '—'}</span>}
+                    {col.key === 'backup_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'backup')?.ip_address ?? '—'}</span>}
                     {col.key === 'tags' && vm.tags?.length && (
                       <span className="inline-flex items-center gap-1 flex-wrap">
                         {vm.tags.slice(0, 3).map((t) => (
