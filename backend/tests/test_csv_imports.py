@@ -507,8 +507,8 @@ def test_disk_and_ip_attach_additively_on_update(client, db_session: Session) ->
 
     csv_content = "\n".join(
         [
-            "name,platform,cluster,disk_name,disk_gb,ip_address",
-            "Existing App,proxmox,pve-cluster-a,data,500,10.0.0.6",
+            "name,platform,cluster,disks,private_ip",
+            "Existing App,proxmox,pve-cluster-a,data:500,10.0.0.6",
         ]
     )
     response = upload_csv(client, csrf, csv_content)
@@ -539,8 +539,8 @@ def test_repeated_import_does_not_duplicate_children(client, db_session: Session
     # Same disk name, different size and case — same disk, no second row.
     csv_content = "\n".join(
         [
-            "name,platform,cluster,disk_name,disk_gb",
-            "Existing App,proxmox,pve-cluster-a,OS,100",
+            "name,platform,cluster,disks",
+            "Existing App,proxmox,pve-cluster-a,OS:100",
         ]
     )
     response = upload_csv(client, csrf, csv_content)
@@ -553,6 +553,177 @@ def test_repeated_import_does_not_duplicate_children(client, db_session: Session
     db_session.expire_all()
     disks = db_session.scalars(select(VmDisk).where(VmDisk.vm_id == vm_id)).all()
     assert len(disks) == 1
+
+
+def test_multi_disk_row_creates_every_disk(client, db_session: Session) -> None:
+    """One row, several disks: the whole point of spec 3."""
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,disks",
+            "Multi Disk,proxmox,pve-cluster-a,os:100;data:500;logs:50",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+    commit = client.post(
+        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
+    )
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    vm = db_session.scalar(select(Vm).where(Vm.name == "Multi Disk"))
+    assert vm is not None
+    disks = db_session.scalars(
+        select(VmDisk).where(VmDisk.vm_id == vm.id).order_by(VmDisk.sort_order)
+    ).all()
+    assert [(d.disk_name, d.size_gb) for d in disks] == [
+        ("os", 100),
+        ("data", 500),
+        ("logs", 50),
+    ]
+
+
+def test_multi_disk_update_adds_only_unmatched_and_never_resizes(
+    client, db_session: Session
+) -> None:
+    """Additive means additive: a matched disk keeps its size even when the CSV disagrees."""
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None)
+    db_session.add(VmDisk(vm_id=vm.id, disk_name="os", size_gb=250, sort_order=0))
+    db_session.commit()
+    vm_id = vm.id
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,disks",
+            "Existing App,proxmox,pve-cluster-a,os:100;data:500",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+    commit = client.post(
+        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
+    )
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    disks = db_session.scalars(select(VmDisk).where(VmDisk.vm_id == vm_id)).all()
+    sizes = {d.disk_name: d.size_gb for d in disks}
+    assert sizes == {"os": 250, "data": 500}
+
+
+def test_role_scoped_ip_columns_land_with_their_roles(client, db_session: Session) -> None:
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,private_ip,public_ip,backup_ip",
+            "Roled VM,proxmox,pve-cluster-a,10.0.0.5;10.0.0.6,203.0.113.4,192.168.9.9",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+    commit = client.post(
+        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
+    )
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    vm = db_session.scalar(select(Vm).where(Vm.name == "Roled VM"))
+    assert vm is not None
+    networks = db_session.scalars(select(VmNetwork).where(VmNetwork.vm_id == vm.id)).all()
+    by_ip = {n.ip_address: n.role.value for n in networks}
+    assert by_ip == {
+        "10.0.0.5": "private",
+        "10.0.0.6": "private",
+        "203.0.113.4": "public",
+        "192.168.9.9": "backup",
+    }
+
+
+def test_malformed_disks_cell_errors_the_row(client, db_session: Session) -> None:
+    """A bad pair is a row error, not a silently dropped disk."""
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,disks",
+            "No Size,proxmox,pve-cluster-a,os:100;data",
+            "Bad Size,proxmox,pve-cluster-a,os:abc",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+
+    rows = response.json()["rows"]
+    assert [r["action"] for r in rows] == [ImportAction.invalid, ImportAction.invalid]
+    assert all(any(e["field"] == "disks" for e in r["errors"]) for r in rows)
+
+    commit = client.post(
+        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
+    )
+    assert commit.status_code == 409, commit.text
+    db_session.expire_all()
+    assert db_session.scalar(select(Vm).where(Vm.name == "No Size")) is None
+
+
+def test_blank_disks_cell_on_update_touches_no_children(client, db_session: Session) -> None:
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None)
+    db_session.add(VmDisk(vm_id=vm.id, disk_name="os", size_gb=50, sort_order=0))
+    db_session.commit()
+    vm_id = vm.id
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,disks,owner",
+            "Existing App,proxmox,pve-cluster-a,,bob",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+    commit = client.post(
+        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
+    )
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    disks = db_session.scalars(select(VmDisk).where(VmDisk.vm_id == vm_id)).all()
+    assert [(d.disk_name, d.size_gb) for d in disks] == [("os", 50)]
+
+
+def test_retired_child_headers_are_ignored_and_reported(client, db_session: Session) -> None:
+    """Old CSVs keep importing their VM fields; the dropped columns are named, not silent."""
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,owner,disk_name,disk_gb,ip_address",
+            "Legacy CSV,proxmox,pve-cluster-a,bob,os,100,10.0.0.5",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+
+    body = response.json()
+    assert body["ignored_columns"] == ["disk_gb", "disk_name", "ip_address"]
+
+    commit = client.post(f"/api/imports/{body['id']}/commit", headers=auth_headers(csrf))
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    vm = db_session.scalar(select(Vm).where(Vm.name == "Legacy CSV"))
+    assert vm is not None
+    assert vm.owner == "bob"
+    assert db_session.scalars(select(VmDisk).where(VmDisk.vm_id == vm.id)).all() == []
 
 
 def test_template_endpoint_serves_importable_headers(client, db_session: Session) -> None:

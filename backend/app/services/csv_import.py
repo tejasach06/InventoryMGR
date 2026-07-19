@@ -14,6 +14,7 @@ from app.db.models import (
     CsvImportRow,
     ImportAction,
     ImportStatus,
+    NetworkRole,
     Platform,
     User,
     Vm,
@@ -33,11 +34,16 @@ REQUIRED_HEADERS = set(REQUIRED_HEADERS_ORDER)
 # letting an import set it is out of scope. disks/networks are child collections
 # expressed through CHILD_HEADERS instead.
 EXCLUDED_FROM_CSV = {"disks", "networks", "vm_type"}
-CHILD_HEADERS = {"disk_name", "disk_gb", "ip_address"}
+# One column per child type. Disks pair inline as name:size; IPs take their
+# role from the column name. Both split on ";", matching tags.
+IP_ROLE_HEADERS = {
+    "private_ip": NetworkRole.private,
+    "public_ip": NetworkRole.public,
+    "backup_ip": NetworkRole.backup,
+}
+CHILD_HEADERS = {"disks"} | set(IP_ROLE_HEADERS)
 
-OPTIONAL_HEADERS = (
-    set(VmBase.model_fields) - EXCLUDED_FROM_CSV - REQUIRED_HEADERS
-) | CHILD_HEADERS
+OPTIONAL_HEADERS = (set(VmBase.model_fields) - EXCLUDED_FROM_CSV - REQUIRED_HEADERS) | CHILD_HEADERS
 ALL_HEADERS = REQUIRED_HEADERS | OPTIONAL_HEADERS
 
 PLATFORM_ALIASES = {
@@ -138,6 +144,37 @@ def _parse_int_list(row: dict[str, str], field: str, errors: list[dict[str, str]
     return result
 
 
+def _parse_disks(
+    row: dict[str, str], field: str = "disks", errors: list[dict[str, str]] | None = None
+) -> list[tuple[str, int]]:
+    """Parse a `name:size;name:size` cell into (name, size_gb) pairs.
+
+    Returns [] for a blank cell, so a blank supplies nothing and the skip
+    semantics hold. `errors` is optional because the classification and attach
+    call sites re-parse a cell normalize_csv_row already proved valid.
+    """
+    raw = str(row.get(field) or "").strip()
+    if not raw:
+        return []
+    pairs: list[tuple[str, int]] = []
+    seen: set[str] = set()
+    for part in raw.split(";"):
+        cleaned = part.strip()
+        if not cleaned:
+            continue
+        name, separator, size = cleaned.partition(":")
+        name, size = name.strip(), size.strip()
+        if not separator or not name or not size.isdigit():
+            if errors is not None:
+                errors.append(_error(field, "must be name:size pairs separated by ;"))
+            return []
+        if name.lower() in seen:
+            continue
+        seen.add(name.lower())
+        pairs.append((name, int(size)))
+    return pairs
+
+
 def _parse_date(row: dict[str, str], field: str, errors: list[dict[str, str]]) -> str | None:
     raw = row.get(field, "")
     if raw == "":
@@ -233,6 +270,10 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
         items = _parse_list(clean, field)
         if items is not None:
             normalized[field] = items
+
+    # Validation only. Child values stay in `raw` — `normalized` feeds
+    # VmUpdate.model_validate, which would reject a `disks` key.
+    _parse_disks(clean, "disks", errors)
 
     for field in DATE_HEADERS:
         stamp = _parse_date(clean, field, errors)
@@ -376,12 +417,20 @@ def diff_against_vm(
     """
     changes: dict[str, list[Any]] = {}
     if raw is not None:
-        disk_name = str(raw.get("disk_name") or "").strip()
-        if disk_name and disk_name.lower() not in {(d.disk_name or "").lower() for d in vm.disks}:
-            changes["disk_name"] = [None, disk_name]
-        ip_address = str(raw.get("ip_address") or "").strip()
-        if ip_address and ip_address not in {n.ip_address for n in vm.networks}:
-            changes["ip_address"] = [None, ip_address]
+        clean = _clean_row(raw)
+        existing_disks = {(d.disk_name or "").lower() for d in vm.disks}
+        added_disks = [
+            f"{name}:{size}"
+            for name, size in _parse_disks(clean)
+            if name.lower() not in existing_disks
+        ]
+        if added_disks:
+            changes["disks"] = [None, added_disks]
+        existing_ips = {n.ip_address for n in vm.networks}
+        for header in IP_ROLE_HEADERS:
+            added_ips = [ip for ip in (_parse_list(clean, header) or []) if ip not in existing_ips]
+            if added_ips:
+                changes[header] = [None, added_ips]
     for field, new_value in normalized.items():
         if field in CHILD_HEADERS:
             continue
@@ -413,43 +462,45 @@ def load_batch_or_404(db: Session, batch_id: uuid.UUID, user: User) -> CsvImport
 
 
 def _attach_children(db: Session, vm: Vm, raw: dict[str, Any]) -> None:
-    """Attach the row's disk and IP if the VM has no matching one.
+    """Attach the row's disks and IPs that the VM has no matching child for.
 
-    Additive only: existing children are never modified or removed. One CSV
-    row carries at most one disk and one IP, so a replace would delete
-    children the import never mentioned.
+    Additive only: existing children are never modified or removed. A row that
+    omits a disk must not delete it, so there is no replace mode.
 
     ponytail: matches disk on name and IP on address; a size change on an
-    existing disk is ignored rather than applied. Multi-disk VMs are managed
-    in the VM form until spec 3 lands multi-value columns.
+    existing disk is ignored rather than applied. Editing a child is a VM-form
+    job — the CSV only ever adds.
     """
-    disk_name = str(raw.get("disk_name") or "").strip()
-    disk_gb = raw.get("disk_gb")
-    ip_address = str(raw.get("ip_address") or "").strip()
+    clean = _clean_row(raw)
 
-    if disk_name:
-        existing = {(d.disk_name or "").lower() for d in vm.disks}
-        if disk_name.lower() not in existing:
-            db.add(
-                VmDisk(
-                    vm_id=vm.id,
-                    disk_name=disk_name,
-                    size_gb=int(disk_gb) if str(disk_gb or "").strip().isdigit() else 0,
-                    sort_order=len(vm.disks),
-                )
-            )
+    existing_disks = {(d.disk_name or "").lower() for d in vm.disks}
+    disk_order = len(vm.disks)
+    for disk_name, size_gb in _parse_disks(clean):
+        if disk_name.lower() in existing_disks:
+            continue
+        existing_disks.add(disk_name.lower())
+        db.add(VmDisk(vm_id=vm.id, disk_name=disk_name, size_gb=size_gb, sort_order=disk_order))
+        disk_order += 1
 
-    if ip_address:
-        existing_ips = {n.ip_address for n in vm.networks}
-        if ip_address not in existing_ips:
-            db.add(VmNetwork(vm_id=vm.id, ip_address=ip_address, sort_order=len(vm.networks)))
+    existing_ips = {n.ip_address for n in vm.networks}
+    ip_order = len(vm.networks)
+    for header, role in IP_ROLE_HEADERS.items():
+        for ip_address in _parse_list(clean, header) or []:
+            if ip_address in existing_ips:
+                continue
+            existing_ips.add(ip_address)
+            db.add(VmNetwork(vm_id=vm.id, ip_address=ip_address, role=role, sort_order=ip_order))
+            ip_order += 1
 
 
 def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
     assert row.normalized is not None
     normalized = row.normalized.copy()
     date_fields = (
-        "last_patch_date", "last_vuln_scan_date", "decommission_date", "last_verified_at"
+        "last_patch_date",
+        "last_vuln_scan_date",
+        "decommission_date",
+        "last_verified_at",
     )
     for date_field in date_fields:
         if normalized.get(date_field):
