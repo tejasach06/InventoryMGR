@@ -339,7 +339,7 @@ def create_preview_batch(
                     action = ImportAction.create
                 else:
                     target_vm_id = match.id
-                    changes = diff_against_vm(normalized, match)
+                    changes = diff_against_vm(normalized, match, raw)
                     action = ImportAction.update if changes else ImportAction.unchanged
                     for field in changes:
                         field_changes[field] = field_changes.get(field, 0) + 1
@@ -362,13 +362,26 @@ def create_preview_batch(
     return load_batch_or_404(db, batch.id, user)
 
 
-def diff_against_vm(normalized: dict[str, Any], vm: Vm) -> dict[str, list[Any]]:
+def diff_against_vm(
+    normalized: dict[str, Any], vm: Vm, raw: dict[str, Any] | None = None
+) -> dict[str, list[Any]]:
     """Supplied values that differ from the VM's current state, as {field: [old, new]}.
 
     Only keys present in `normalized` are considered — an absent column can
     never register as a change.
+
+    Child columns live in `raw`, not `normalized`, and count as a change only
+    when the VM has no matching child — otherwise a row whose sole content is
+    a disk it already has would classify as an update on every import.
     """
     changes: dict[str, list[Any]] = {}
+    if raw is not None:
+        disk_name = str(raw.get("disk_name") or "").strip()
+        if disk_name and disk_name.lower() not in {(d.disk_name or "").lower() for d in vm.disks}:
+            changes["disk_name"] = [None, disk_name]
+        ip_address = str(raw.get("ip_address") or "").strip()
+        if ip_address and ip_address not in {n.ip_address for n in vm.networks}:
+            changes["ip_address"] = [None, ip_address]
     for field, new_value in normalized.items():
         if field in CHILD_HEADERS:
             continue
@@ -399,6 +412,39 @@ def load_batch_or_404(db: Session, batch_id: uuid.UUID, user: User) -> CsvImport
     return batch
 
 
+def _attach_children(db: Session, vm: Vm, raw: dict[str, Any]) -> None:
+    """Attach the row's disk and IP if the VM has no matching one.
+
+    Additive only: existing children are never modified or removed. One CSV
+    row carries at most one disk and one IP, so a replace would delete
+    children the import never mentioned.
+
+    ponytail: matches disk on name and IP on address; a size change on an
+    existing disk is ignored rather than applied. Multi-disk VMs are managed
+    in the VM form until spec 3 lands multi-value columns.
+    """
+    disk_name = str(raw.get("disk_name") or "").strip()
+    disk_gb = raw.get("disk_gb")
+    ip_address = str(raw.get("ip_address") or "").strip()
+
+    if disk_name:
+        existing = {(d.disk_name or "").lower() for d in vm.disks}
+        if disk_name.lower() not in existing:
+            db.add(
+                VmDisk(
+                    vm_id=vm.id,
+                    disk_name=disk_name,
+                    size_gb=int(disk_gb) if str(disk_gb or "").strip().isdigit() else 0,
+                    sort_order=len(vm.disks),
+                )
+            )
+
+    if ip_address:
+        existing_ips = {n.ip_address for n in vm.networks}
+        if ip_address not in existing_ips:
+            db.add(VmNetwork(vm_id=vm.id, ip_address=ip_address, sort_order=len(vm.networks)))
+
+
 def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
     assert row.normalized is not None
     normalized = row.normalized.copy()
@@ -411,17 +457,7 @@ def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
     if row.action == ImportAction.create:
         vm = create_vm(db, VmCreate.model_validate({**DEFAULTS, **normalized}), user, commit=False)
         db.flush()
-        disk_name = str(row.raw.get("disk_name") or "").strip()
-        disk_gb = row.raw.get("disk_gb")
-        ip_address = str(row.raw.get("ip_address") or "").strip()
-        if disk_name:
-            db.add(VmDisk(
-                vm_id=vm.id, disk_name=disk_name,
-                size_gb=int(disk_gb) if str(disk_gb or "").strip().isdigit() else 0,
-                sort_order=0,
-            ))
-        if ip_address:
-            db.add(VmNetwork(vm_id=vm.id, ip_address=ip_address, sort_order=0))
+        _attach_children(db, vm, row.raw)
         return "create", vm
     if row.target_vm_id is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
@@ -429,6 +465,7 @@ def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
     if vm is None or find_matching_vm(db, row.normalized) != vm:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
     update_vm(db, vm, VmUpdate.model_validate(normalized), user, commit=False)
+    _attach_children(db, vm, row.raw)
     return "update", vm
 
 

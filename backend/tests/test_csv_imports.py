@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import ImportAction, ImportStatus, UserRole, Vm
+from app.db.models import ImportAction, ImportStatus, UserRole, Vm, VmDisk, VmNetwork
 
 from .conftest import auth_headers, create_user, create_vm_row, login
 
@@ -493,3 +493,63 @@ def test_update_rows_record_changed_fields(client, db_session: Session) -> None:
     assert body["summary"]["update"] == 1
     assert body["rows"][0]["changes"] == {"owner": ["alice", "bob"], "cpu_cores": [8, 16]}
     assert body["field_changes"] == {"owner": 1, "cpu_cores": 1}
+
+
+def test_disk_and_ip_attach_additively_on_update(client, db_session: Session) -> None:
+    """Children were parsed and previewed on update, then discarded at commit."""
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None)
+    db_session.add(VmDisk(vm_id=vm.id, disk_name="os", size_gb=50, sort_order=0))
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.5", sort_order=0))
+    db_session.commit()
+    vm_id = vm.id
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,disk_name,disk_gb,ip_address",
+            "Existing App,proxmox,pve-cluster-a,data,500,10.0.0.6",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+
+    commit = client.post(
+        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
+    )
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    disks = db_session.scalars(select(VmDisk).where(VmDisk.vm_id == vm_id)).all()
+    networks = db_session.scalars(select(VmNetwork).where(VmNetwork.vm_id == vm_id)).all()
+
+    # Added, and the pre-existing children survive.
+    assert sorted(d.disk_name for d in disks) == ["data", "os"]
+    assert sorted(n.ip_address for n in networks) == ["10.0.0.5", "10.0.0.6"]
+
+
+def test_repeated_import_does_not_duplicate_children(client, db_session: Session) -> None:
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None)
+    db_session.add(VmDisk(vm_id=vm.id, disk_name="os", size_gb=50, sort_order=0))
+    db_session.commit()
+    vm_id = vm.id
+    csrf = login(client, "editor@example.local")
+
+    # Same disk name, different size and case — same disk, no second row.
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,disk_name,disk_gb",
+            "Existing App,proxmox,pve-cluster-a,OS,100",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+    commit = client.post(
+        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
+    )
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    disks = db_session.scalars(select(VmDisk).where(VmDisk.vm_id == vm_id)).all()
+    assert len(disks) == 1
