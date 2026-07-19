@@ -13,7 +13,6 @@ import {
   coreFilterTypes,
   dynamicFetchers,
   filterGroups,
-  presetFilters,
   type AdvancedFilterName,
   type CoreFilterName,
   type DynamicFilterName,
@@ -76,10 +75,6 @@ export function FilterDrawer({
 
   function setField(name: AdvancedFilterName, values: string[]) {
     setStaged((prev) => ({ ...prev, [name]: values }));
-  }
-
-  function applyPreset(preset: Partial<Filters>) {
-    setStaged((prev) => ({ ...prev, ...preset }));
   }
 
   function handleApply() {
@@ -200,22 +195,6 @@ export function FilterDrawer({
       }
     >
       <div className="space-y-6">
-        <section className="space-y-2">
-          <span className={labelClass}>Presets</span>
-          <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Filter presets">
-            {presetFilters.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => applyPreset(preset.filters)}
-                className={cn(secondaryButtonClass, 'w-full justify-start text-left')}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </section>
-
         {filterGroups.map((group) => (
           <fieldset key={group.label} className="space-y-4">
             <legend className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-tertiary)] dark:text-slate-400">

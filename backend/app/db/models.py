@@ -90,9 +90,16 @@ class ImportStatus(StrEnum):
     cancelled = "cancelled"
 
 
+class NetworkRole(StrEnum):
+    private = "private"
+    public = "public"
+    backup = "backup"
+
+
 class ImportAction(StrEnum):
     create = "create"
     update = "update"
+    unchanged = "unchanged"
     conflict = "conflict"
     invalid = "invalid"
 
@@ -269,6 +276,9 @@ class VmNetwork(Base):
         UUID(as_uuid=True), ForeignKey("vms.id", ondelete="CASCADE"), nullable=False
     )
     ip_address: Mapped[str] = mapped_column(String(50), nullable=False)
+    role: Mapped[NetworkRole] = mapped_column(
+        Enum(NetworkRole, name="network_role"), nullable=False, default=NetworkRole.private
+    )
     vlan: Mapped[int | None] = mapped_column(Integer, nullable=True)
     gateway: Mapped[str | None] = mapped_column(String(50), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -343,6 +353,8 @@ class CsvImportBatch(Base):
         Enum(ImportStatus, name="import_status"), nullable=False, default=ImportStatus.previewed
     )
     summary: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    ignored_columns: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    field_changes: Mapped[dict[str, int]] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now_utc, nullable=False
     )
@@ -374,6 +386,7 @@ class CsvImportRow(Base):
         UUID(as_uuid=True), ForeignKey("vms.id", ondelete="SET NULL"), nullable=True
     )
     errors: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False, default=list)
+    changes: Mapped[dict[str, list[Any]]] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now_utc, nullable=False
     )

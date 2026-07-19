@@ -16,7 +16,7 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'status', visible: true, order: 3 },
   { key: 'resources', visible: true, order: 4 },
   { key: 'criticality', visible: true, order: 5 },
-  { key: 'ip_address', visible: true, order: 6 },
+  { key: 'private_ip', visible: true, order: 6 },
   { key: 'updated_at', visible: true, order: 7 },
   { key: 'fqdn', visible: false, order: 8 },
   { key: 'environment', visible: false, order: 9 },
@@ -35,6 +35,8 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'health_score', visible: false, order: 22 },
   { key: 'tags', visible: false, order: 23 },
   { key: 'created_at', visible: false, order: 24 },
+  { key: 'public_ip', visible: false, order: 25 },
+  { key: 'backup_ip', visible: false, order: 26 },
 ];
 
 export const COLUMN_LABELS: Record<string, string> = {
@@ -44,7 +46,9 @@ export const COLUMN_LABELS: Record<string, string> = {
   status: 'Status',
   resources: 'Resources',
   criticality: 'Criticality',
-  ip_address: 'IP Address',
+  private_ip: 'Private IP',
+  public_ip: 'Public IP',
+  backup_ip: 'Backup IP',
   updated_at: 'Updated',
   fqdn: 'FQDN',
   environment: 'Environment',

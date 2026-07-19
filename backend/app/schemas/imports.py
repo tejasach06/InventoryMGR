@@ -17,6 +17,7 @@ class ImportRowRead(BaseModel):
     action: ImportAction
     target_vm_id: uuid.UUID | None
     errors: list[dict[str, str]]
+    changes: dict[str, list[Any]]
     created_at: datetime
 
 
@@ -28,6 +29,8 @@ class ImportBatchRead(BaseModel):
     created_by_id: uuid.UUID
     status: ImportStatus
     summary: dict[str, Any]
+    ignored_columns: list[str]
+    field_changes: dict[str, int]
     created_at: datetime
     committed_at: datetime | None
     rows: list[ImportRowRead]

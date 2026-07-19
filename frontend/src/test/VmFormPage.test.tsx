@@ -73,6 +73,26 @@ describe('VmFormPage', () => {
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/inventory/vm-99'));
   });
 
+  it('defaults an IP row to the private role and submits the chosen role', async () => {
+    const createSpy = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-55' }));
+    renderWithProviders(<VmFormPage mode="create" />);
+    await screen.findByRole('heading', { name: 'New VM' });
+
+    fillRequiredCreateFields();
+    const role = screen.getByLabelText('IP role 1');
+    expect(role).toHaveValue('private');
+
+    fireEvent.change(screen.getByLabelText('IP address 1'), { target: { value: '203.0.113.4' } });
+    fireEvent.change(role, { target: { value: 'public' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+
+    await waitFor(() => expect(createSpy).toHaveBeenCalledTimes(1));
+    expect(createSpy.mock.calls[0][0].networks?.[0]).toMatchObject({
+      ip_address: '203.0.113.4',
+      role: 'public',
+    });
+  });
+
   it('sends backup_enabled true when the backup checkbox is toggled on', async () => {
     const createSpy = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-77' }));
     renderWithProviders(<VmFormPage mode="create" />);

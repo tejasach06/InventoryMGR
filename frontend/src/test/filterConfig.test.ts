@@ -7,7 +7,6 @@ import {
   dynamicFilterNames,
   emptyFilterState,
   filterGroups,
-  presetFilters,
 } from '../components/filters/filterConfig';
 import { advancedFilterNames, filterNames } from '../routes/InventoryPage';
 
@@ -18,6 +17,14 @@ describe('filterConfig', () => {
       expect(advancedFilterConfig[name], `config for ${name}`).toBeDefined();
       expect(advancedFilterLabels[name], `label for ${name}`).toBeTruthy();
     }
+  });
+
+  it('offers ip_role as a multi-select of the three roles', () => {
+    expect(advancedFilterConfig.ip_role).toEqual({
+      kind: 'multiSelect',
+      options: ['private', 'public', 'backup'],
+    });
+    expect(advancedFilterLabels.ip_role).toBe('IP Role');
   });
 
   it('places every non-search filter in exactly one drawer group', () => {
@@ -45,14 +52,6 @@ describe('filterConfig', () => {
   it('gives every filter name an empty array in the empty state', () => {
     for (const name of filterNames) {
       expect(emptyFilterState[name]).toEqual([]);
-    }
-  });
-
-  it('only references known filter names in presets', () => {
-    for (const preset of presetFilters) {
-      for (const key of Object.keys(preset.filters)) {
-        expect(filterNames).toContain(key);
-      }
     }
   });
 

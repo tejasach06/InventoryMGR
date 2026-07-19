@@ -92,8 +92,8 @@ export function makeVm(overrides: Partial<Vm> = {}): Vm {
     last_verified_at: '2024-03-01',
     disks: [],
     networks: [
-      { id: 'net-1', vm_id: 'vm-1', ip_address: '10.0.0.10', vlan: null, gateway: null, sort_order: 0 },
-      { id: 'net-2', vm_id: 'vm-1', ip_address: '10.0.0.11', vlan: null, gateway: null, sort_order: 1 },
+      { id: 'net-1', vm_id: 'vm-1', ip_address: '10.0.0.10', role: 'private', vlan: null, gateway: null, sort_order: 0 },
+      { id: 'net-2', vm_id: 'vm-1', ip_address: '10.0.0.11', role: 'private', vlan: null, gateway: null, sort_order: 1 },
     ],
     applications: [],
     health_score: 50,
@@ -114,6 +114,7 @@ export function makeImportRow(overrides: Partial<ImportRow> = {}): ImportRow {
     action: 'create',
     target_vm_id: null,
     errors: [],
+    changes: {},
     ...overrides,
   };
 }
@@ -123,7 +124,9 @@ export function makeImportBatch(overrides: Partial<ImportBatch> = {}): ImportBat
     id: 'batch-1',
     filename: 'vms.csv',
     status: 'previewed',
-    summary: { create: 1, update: 0, conflict: 0, invalid: 0 },
+    summary: { create: 1, update: 0, unchanged: 0, conflict: 0, invalid: 0 },
+    ignored_columns: [],
+    field_changes: {},
     rows: [makeImportRow()],
     created_at: '2024-03-01T00:00:00Z',
     committed_at: null,

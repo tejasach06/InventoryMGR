@@ -23,6 +23,7 @@ export const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfi
   tag: { kind: 'dynamicMultiSelect' },
   monitoring_enabled: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Enabled', false: 'Disabled' } },
   pmp_enabled: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Enabled', false: 'Disabled' } },
+  ip_role: { kind: 'multiSelect', options: ['private', 'public', 'backup'] as const },
   health: { kind: 'multiSelect', options: ['healthy', 'warning', 'critical', 'unknown'] as const },
 };
 
@@ -40,6 +41,7 @@ export const advancedFilterLabels: Record<AdvancedFilterName, string> = {
   tag: 'Tag',
   monitoring_enabled: 'Monitoring',
   pmp_enabled: 'PMP',
+  ip_role: 'IP Role',
   health: 'Health',
 };
 
@@ -47,7 +49,7 @@ export const advancedFilterLabels: Record<AdvancedFilterName, string> = {
 // the core three as well — nothing is rendered inline in the card any more.
 export const filterGroups: { label: string; filters: AdvancedFilterName[] }[] = [
   { label: 'Core', filters: ['status', 'platform', 'criticality'] },
-  { label: 'Infrastructure', filters: ['cluster', 'node'] },
+  { label: 'Infrastructure', filters: ['cluster', 'node', 'ip_role'] },
   { label: 'Lifecycle & State', filters: ['lifecycle', 'health'] },
   { label: 'Ownership & Environment', filters: ['environment', 'owner', 'os_family', 'application', 'tag'] },
   { label: 'Features', filters: ['monitoring_enabled', 'pmp_enabled'] },
@@ -71,13 +73,6 @@ export const dynamicFetchers: Record<DynamicFilterName, () => Promise<string[]>>
   application: api.listVmApplications,
 };
 
-export const presetFilters: { id: string; label: string; filters: Partial<Filters> }[] = [
-  { id: 'my-vms', label: 'My VMs', filters: { owner: ['me'] } },
-  { id: 'prod-critical', label: 'Production Critical', filters: { environment: ['production'], criticality: ['critical', 'high'] } },
-  { id: 'needs-attention', label: 'Needs Attention', filters: { status: ['suspended', 'archived'], health: ['warning', 'critical'] } },
-  { id: 'running-prod', label: 'Running in Prod', filters: { status: ['running'], environment: ['production'] } },
-];
-
 export const emptyFilterState: Filters = {
   q: [],
   platform: [],
@@ -93,6 +88,7 @@ export const emptyFilterState: Filters = {
   pmp_enabled: [],
   tag: [],
   application: [],
+  ip_role: [],
   health: [],
 };
 

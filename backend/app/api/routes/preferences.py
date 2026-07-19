@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import Csrf, CurrentUser, DbSession
@@ -12,7 +14,7 @@ DEFAULT_COLUMNS = [
     {"key": "status", "visible": True, "order": 3},
     {"key": "resources", "visible": True, "order": 4},
     {"key": "criticality", "visible": True, "order": 5},
-    {"key": "ip_address", "visible": True, "order": 6},
+    {"key": "private_ip", "visible": True, "order": 6},
     {"key": "updated_at", "visible": True, "order": 7},
     {"key": "fqdn", "visible": False, "order": 8},
     {"key": "environment", "visible": False, "order": 9},
@@ -31,9 +33,17 @@ DEFAULT_COLUMNS = [
     {"key": "health_score", "visible": False, "order": 22},
     {"key": "tags", "visible": False, "order": 23},
     {"key": "created_at", "visible": False, "order": 24},
+    {"key": "public_ip", "visible": False, "order": 25},
+    {"key": "backup_ip", "visible": False, "order": 26},
 ]
 
-ALL_COLUMN_KEYS = {c["key"] for c in DEFAULT_COLUMNS}
+# ip_address predates IP roles. Saved layouts still contain it, so reads rewrite
+# it to private_ip in place — before the merge below, or the merge would append
+# private_ip as a second entry and the duplicate check would reject the layout.
+LEGACY_COLUMN_KEYS = {"ip_address": "private_ip"}
+
+# Still accepted on write so a browser holding pre-deploy JS does not 422 mid-session.
+ALL_COLUMN_KEYS = {c["key"] for c in DEFAULT_COLUMNS} | set(LEGACY_COLUMN_KEYS)
 
 
 @router.get("/preferences/{page_key}", response_model=ColumnPreferencesRead)
@@ -42,8 +52,20 @@ def get_columns(page_key: str, user: CurrentUser) -> ColumnPreferencesRead:
     columns = prefs.get(f"columns_{page_key}")
     if not columns:
         return ColumnPreferencesRead(columns=DEFAULT_COLUMNS)
+    # Rewrite and dedupe together: a layout holding both ip_address and
+    # private_ip would otherwise yield the key twice, and every later save
+    # would fail the duplicate check with no way for the UI to recover.
+    rewritten: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
+    for col in columns:
+        key = LEGACY_COLUMN_KEYS.get(col["key"], col["key"])
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        rewritten.append({**col, "key": key})
+    columns = rewritten
     # Merge in columns added after the user saved their preferences.
-    saved_keys = {c["key"] for c in columns}
+    saved_keys = set(seen_keys)
     next_order = max((c["order"] for c in columns), default=-1) + 1
     for default in DEFAULT_COLUMNS:
         if default["key"] not in saved_keys:

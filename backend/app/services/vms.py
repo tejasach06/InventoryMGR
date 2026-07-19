@@ -13,6 +13,7 @@ from app.db.models import (
     Criticality,
     Environment,
     Lifecycle,
+    NetworkRole,
     OsFamily,
     Platform,
     User,
@@ -60,6 +61,7 @@ def _sync_networks(db: Session, vm: Vm, networks: list[NetworkCreate]) -> None:
         db.add(VmNetwork(
             vm_id=vm.id,
             ip_address=network.ip_address,
+            role=network.role,
             vlan=network.vlan,
             gateway=network.gateway,
             sort_order=network.sort_order if network.sort_order is not None else i,
@@ -194,7 +196,7 @@ def clone_vm(db: Session, vm: Vm, user: User) -> Vm:
         ))
     for net in vm.networks:
         db.add(VmNetwork(
-            vm_id=cloned.id, ip_address=net.ip_address, vlan=net.vlan,
+            vm_id=cloned.id, ip_address=net.ip_address, role=net.role, vlan=net.vlan,
             gateway=net.gateway, sort_order=net.sort_order,
         ))
     for app in vm.applications:
@@ -269,8 +271,15 @@ def apply_vm_filters(
     tag_op: FilterOperator = FilterOperator.eq,
     application: list[str] | None = None,
     application_op: FilterOperator = FilterOperator.contains,
+    ip_role: list[NetworkRole] | None = None,
     health: str | None = None,
 ) -> Select[tuple[Vm]]:
+    if ip_role:
+        # EXISTS, not a join: a VM with several IPs in the role must appear once.
+        stmt = stmt.where(exists(select(VmNetwork.vm_id).where(
+            VmNetwork.vm_id == Vm.id,
+            VmNetwork.role.in_(ip_role),
+        )))
     if q:
         pattern = f"%{q.strip().lower()}%"
         net_subq = exists(select(VmNetwork.vm_id).where(

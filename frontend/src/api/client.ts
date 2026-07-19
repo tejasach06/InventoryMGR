@@ -5,7 +5,7 @@ export type Criticality = 'low' | 'medium' | 'high' | 'critical';
 export type Lifecycle = 'planned' | 'active' | 'retiring' | 'retired';
 export type VmType = 'permanent' | 'temporary';
 export type Environment = 'production' | 'development' | 'testing' | 'uat' | 'dr' | 'staging' | 'sandbox';
-export type ImportAction = 'create' | 'update' | 'conflict' | 'invalid';
+export type ImportAction = 'create' | 'update' | 'unchanged' | 'conflict' | 'invalid';
 export type DropdownCategory = 'cpu' | 'datacenter' | 'disk' | 'os';
 export type OsFamily = 'linux' | 'windows';
 
@@ -47,10 +47,13 @@ export interface Disk {
   sort_order: number;
 }
 
+export type NetworkRole = 'private' | 'public' | 'backup';
+
 export interface Network {
   id: string;
   vm_id: string;
   ip_address: string;
+  role: NetworkRole;
   vlan: number | null;
   gateway: string | null;
   sort_order: number;
@@ -167,6 +170,7 @@ export interface ImportRow {
   action: ImportAction;
   target_vm_id: string | null;
   errors: ImportRowError[];
+  changes: Record<string, [unknown, unknown]>;
 }
 
 export interface ImportBatch {
@@ -174,6 +178,8 @@ export interface ImportBatch {
   filename: string;
   status: 'previewed' | 'committed' | 'cancelled';
   summary: Record<ImportAction, number> & Record<string, number>;
+  ignored_columns: string[];
+  field_changes: Record<string, number>;
   rows: ImportRow[];
   created_at: string;
   committed_at: string | null;

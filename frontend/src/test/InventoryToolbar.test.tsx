@@ -106,7 +106,7 @@ describe('InventoryToolbar filter drawer', () => {
     expect(within(dialog).getByRole('group', { name: 'Status' })).toBeInTheDocument();
     expect(within(dialog).getByRole('group', { name: 'Platform' })).toBeInTheDocument();
     expect(within(dialog).getByRole('group', { name: 'Criticality' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('group', { name: 'Filter presets' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('group', { name: 'Filter presets' })).not.toBeInTheDocument();
   });
 
   it('stages edits and only applies them when Apply is pressed', async () => {
@@ -137,18 +137,6 @@ describe('InventoryToolbar filter drawer', () => {
     expect(within(reopened).getByRole('button', { name: 'Apply (0)' })).toBeInTheDocument();
   });
 
-  it('stages a preset instead of applying it immediately', async () => {
-    const { onApply } = renderToolbar();
-    await userEvent.click(screen.getByRole('button', { name: /Filters/ }));
-    const dialog = await screen.findByRole('dialog');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Running in Prod' }));
-
-    expect(onApply).not.toHaveBeenCalled();
-    await userEvent.click(within(dialog).getByRole('button', { name: /^Apply/ }));
-    const applied = onApply.mock.calls.at(-1)![0] as Filters;
-    expect(applied.status).toEqual(['running']);
-    expect(applied.environment).toEqual(['production']);
-  });
 });
 
 describe('InventoryToolbar column drawer', () => {

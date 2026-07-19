@@ -53,10 +53,10 @@ function resetThemeDom() {
 describe('CSV preview summary rendering', () => {
   it('renders create/update/conflict/invalid counts from a persisted preview fixture', () => {
     const batch = {
-      summary: { create: 1, update: 1, conflict: 0, invalid: 0 },
+      summary: { create: 1, update: 1, unchanged: 0, conflict: 0, invalid: 0 },
       rows: [
-        { id: 'row-1', row_number: 2, raw: {}, normalized: { name: 'new-vm' }, action: 'create', target_vm_id: null, errors: [] },
-        { id: 'row-2', row_number: 3, raw: {}, normalized: { name: 'existing-vm' }, action: 'update', target_vm_id: 'vm-1', errors: [] },
+        { id: 'row-1', row_number: 2, raw: {}, normalized: { name: 'new-vm' }, action: 'create', target_vm_id: null, errors: [], changes: {} },
+        { id: 'row-2', row_number: 3, raw: {}, normalized: { name: 'existing-vm' }, action: 'update', target_vm_id: 'vm-1', errors: [], changes: {} },
       ],
     } satisfies Pick<ImportBatch, 'summary' | 'rows'>;
 
@@ -78,7 +78,7 @@ describe('CSV preview summary rendering', () => {
       ],
     } as unknown as Pick<ImportBatch, 'summary' | 'rows'>);
 
-    expect(summary).toEqual({ create: 0, update: 0, conflict: 1, invalid: 1 });
+    expect(summary).toEqual({ create: 0, update: 0, unchanged: 0, conflict: 1, invalid: 1 });
   });
 });
 

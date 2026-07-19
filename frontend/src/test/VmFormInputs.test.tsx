@@ -140,7 +140,7 @@ describe('VmFormPage disk/network detail fields', () => {
       disk_name: 'os-disk', size_gb: 40, storage_name: 'ssd-pool', storage_type: 'thin', sort_order: 0,
     }]);
     expect(payload.networks).toEqual([{
-      ip_address: '10.0.0.5', vlan: 100, gateway: '10.0.0.1', sort_order: 0,
+      ip_address: '10.0.0.5', role: 'private', vlan: 100, gateway: '10.0.0.1', sort_order: 0,
     }]);
   });
 });

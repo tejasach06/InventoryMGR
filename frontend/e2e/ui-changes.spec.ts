@@ -182,7 +182,10 @@ test('Columns button toggles the column editor and hides/shows a table column', 
   await columnsButton.click();
   await expect(columnsButton).toHaveAttribute('aria-expanded', 'true');
 
-  const platformToggle = page.getByRole('checkbox', { name: 'Platform' });
+  // Column toggles live inside the Columns drawer.
+  const drawer = page.getByRole('dialog');
+  await expect(drawer).toBeVisible();
+  const platformToggle = drawer.getByRole('checkbox', { name: 'Platform' });
   await expect(platformToggle).toBeVisible();
 
   // Hiding the Platform column removes its header from the table.
@@ -193,8 +196,9 @@ test('Columns button toggles the column editor and hides/shows a table column', 
   await platformToggle.check();
   await expect(table.getByRole('columnheader', { name: 'Platform' })).toBeVisible();
 
-  // Clicking outside closes the panel.
-  await page.getByRole('heading', { level: 1 }).first().click();
+  // Closing the drawer collapses the trigger again.
+  await drawer.getByRole('button', { name: /Close/ }).click();
+  await expect(drawer).toBeHidden();
   await expect(columnsButton).toHaveAttribute('aria-expanded', 'false');
 });
 

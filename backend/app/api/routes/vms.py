@@ -14,6 +14,7 @@ from app.db.models import (
     Criticality,
     Environment,
     Lifecycle,
+    NetworkRole,
     OsFamily,
     Platform,
     Vm,
@@ -72,6 +73,7 @@ class VmFilterParams:
     tag_op: FilterOperator = FilterOperator.eq
     application: Annotated[list[str] | None, Query()] = None
     application_op: FilterOperator = FilterOperator.contains
+    ip_role: Annotated[list[NetworkRole] | None, Query()] = None
     health: Annotated[str | None, Query(pattern="^(below_50|below_75|complete)$")] = None
 
 
