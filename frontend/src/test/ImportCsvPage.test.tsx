@@ -152,4 +152,33 @@ describe('ImportCsvPage', () => {
     expect(await screen.findByText(/2 columns ignored/i)).toBeInTheDocument();
     expect(screen.getByText(/vmid, maxmem/)).toBeInTheDocument();
   });
+
+  it('previews every disk and every role-scoped IP in the row', async () => {
+    vi.spyOn(api, 'previewImport').mockResolvedValue(
+      makeImportBatch({
+        rows: [
+          makeImportRow({
+            action: 'create',
+            raw: {
+              name: 'web-01',
+              platform: 'proxmox',
+              cluster: 'cluster-a',
+              disks: 'os:100;data:500',
+              private_ip: '10.0.0.5;10.0.0.6',
+              public_ip: '203.0.113.4',
+              backup_ip: '',
+            },
+          }),
+        ],
+      }),
+    );
+    renderWithProviders(<ImportCsvPage />);
+
+    fireEvent.change(screen.getByLabelText('CSV file'), { target: { files: [csvFile()] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview CSV' }));
+
+    expect(await screen.findByText('os:100;data:500')).toBeInTheDocument();
+    // All three role columns collapse into one cell; the empty one is skipped.
+    expect(screen.getByText('10.0.0.5;10.0.0.6, 203.0.113.4')).toBeInTheDocument();
+  });
 });

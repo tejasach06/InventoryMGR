@@ -33,6 +33,8 @@ export function summarizePreview(batch: Pick<ImportBatch, 'summary' | 'rows'> | 
   return counts;
 }
 
+const IP_ROLE_HEADERS = ['private_ip', 'public_ip', 'backup_ip'] as const;
+
 function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
   return (
     <tr className={tableRowClass}>
@@ -48,8 +50,8 @@ function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
       <td className={tableCellClass}>{row.normalized?.name ?? String(row.raw.name ?? '—')}</td>
       <td className={tableCellClass}>{row.normalized?.platform ?? String(row.raw.platform ?? '—')}</td>
       <td className={tableCellClass}>{row.normalized?.cluster ?? String(row.raw.cluster ?? '—')}</td>
-      <td className={tableCellClass}>{row.raw.disk_name ? `${row.raw.disk_name}${row.raw.disk_gb ? ` (${row.raw.disk_gb} GB)` : ''}` : '—'}</td>
-      <td className={tableCellClass}>{String(row.raw.ip_address ?? '—')}</td>
+      <td className={tableCellClass}>{String(row.raw.disks || '—')}</td>
+      <td className={tableCellClass}>{IP_ROLE_HEADERS.map((header) => row.raw[header]).filter(Boolean).join(', ') || '—'}</td>
       <td className="min-w-72 px-4 py-3 text-slate-700 dark:text-slate-300">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5 text-red-700 dark:text-red-300">{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
     </tr>
   );
@@ -140,8 +142,10 @@ export function ImportCsvPage() {
             <p id="csv-help" className={helpTextClass}>
               Required headers: name, platform, cluster. Maximum 5 MiB and 5000 rows.
               Blank cells are left unchanged on existing VMs and take default values on
-              new ones — importing never clears a field. Multi-disk VMs are managed in
-              the VM form.
+              new ones — importing never clears a field. List several disks as
+              name:size pairs (os:100;data:500) and several IPs in private_ip,
+              public_ip or backup_ip, separated by semicolons. Importing only ever adds
+              disks and IPs; removing one, or resizing a disk, is done in the VM form.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -211,8 +215,8 @@ export function ImportCsvPage() {
                       <th className="px-4 py-3" scope="col">Name</th>
                       <th className="px-4 py-3" scope="col">Platform</th>
                       <th className="px-4 py-3" scope="col">Cluster</th>
-                      <th className="px-4 py-3" scope="col">Disk</th>
-                      <th className="px-4 py-3" scope="col">IP</th>
+                      <th className="px-4 py-3" scope="col">Disks</th>
+                      <th className="px-4 py-3" scope="col">IPs</th>
                       <th className="px-4 py-3" scope="col">Errors</th>
                     </tr>
                   </thead>
