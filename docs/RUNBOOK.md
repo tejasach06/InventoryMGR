@@ -1,6 +1,6 @@
 # InventoryMGR Runbook
 
-<!-- AUTO-GENERATED: deployment steps, health checks, and env table generated from ecosystem.config.js, docker-compose.yml, backend/app/core/config.py -->
+<!-- AUTO-GENERATED: deployment steps, health checks, and env table generated from justfile, docker-compose.yml, frontend/package.json, backend/app/core/config.py -->
 
 ## Environment Variables
 
@@ -52,12 +52,31 @@ INVENTORYMGR_API_URL=http://127.0.0.1:8000 bun run build
 
 ### 5. Create `ecosystem.config.js`
 
-`ecosystem.config.js` is gitignored (it's host-specific and must never contain secrets —
-those come from `.env`, loaded by `backend/app/core/config.py`). Copy the template and
-adjust paths/env for your host:
+`ecosystem.config.js` is gitignored (host-specific, and must never contain secrets —
+those come from `.env`, loaded by `backend/app/core/config.py`). There is no template
+in the repo; write it at the repo root, adjusting `cwd` for your host:
 
-```bash
-cp ecosystem.config.example.js ecosystem.config.js
+```js
+module.exports = {
+  apps: [
+    {
+      name: 'inventorymgr-api',
+      cwd: './backend',
+      script: 'uv',
+      args: 'run uvicorn app.main:app --host 127.0.0.1 --port 8000',
+      interpreter: 'none',
+      env: { APP_ENV: 'production' },
+    },
+    {
+      name: 'inventorymgr-web',
+      cwd: './frontend',
+      script: 'bun',
+      args: 'run start',
+      interpreter: 'none',
+      env: { NODE_ENV: 'production' },
+    },
+  ],
+};
 ```
 
 ### 6. Start with PM2
