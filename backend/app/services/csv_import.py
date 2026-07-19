@@ -20,46 +20,23 @@ from app.db.models import (
     VmNetwork,
     compute_health_score,
 )
-from app.schemas.vms import VmCreate, VmUpdate
+from app.schemas.vms import VmBase, VmCreate, VmUpdate
 from app.services.vms import create_vm, update_vm
 
 MAX_CSV_BYTES = 5 * 1024 * 1024
 MAX_CSV_ROWS = 5000
-REQUIRED_HEADERS = {"name", "platform", "cluster"}
-OPTIONAL_HEADERS = {
-    "external_id",
-    "fqdn",
-    "description",
-    "datacenter",
-    "node",
-    "status",
-    "environment",
-    "cpu_cores",
-    "memory_mb",
-    "os_name",
-    "os_distribution",
-    "os_version",
-    "owner",
-    "business_owner",
-    "technical_owner",
-    "pmp_enabled",
-    "sr_id",
-    "os_family",
-    "monitoring_enabled",
-    "backup_enabled",
-    "ha_enabled",
-    "criticality",
-    "lifecycle",
-    "tags",
-    "last_patch_date",
-    "last_vuln_scan_date",
-    "security_remarks",
-    "decommission_date",
-    "last_verified_at",
-    "disk_name",
-    "disk_gb",
-    "ip_address",
-}
+REQUIRED_HEADERS_ORDER = ("name", "platform", "cluster")
+REQUIRED_HEADERS = set(REQUIRED_HEADERS_ORDER)
+
+# vm_type drives lifecycle gating in services/vms.py::_apply_vm_type_lifecycle;
+# letting an import set it is out of scope. disks/networks are child collections
+# expressed through CHILD_HEADERS instead.
+EXCLUDED_FROM_CSV = {"disks", "networks", "vm_type"}
+CHILD_HEADERS = {"disk_name", "disk_gb", "ip_address"}
+
+OPTIONAL_HEADERS = (
+    set(VmBase.model_fields) - EXCLUDED_FROM_CSV - REQUIRED_HEADERS
+) | CHILD_HEADERS
 ALL_HEADERS = REQUIRED_HEADERS | OPTIONAL_HEADERS
 
 PLATFORM_ALIASES = {

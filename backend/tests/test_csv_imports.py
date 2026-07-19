@@ -354,3 +354,55 @@ def test_create_with_blank_cells_still_applies_defaults(
     assert created.environment.value == "production"
     assert created.cpu_cores == 0
     assert created.monitoring_enabled is False
+
+
+def test_every_header_is_handled_by_a_typed_group() -> None:
+    """A new VmBase field must be classified, not silently ignored."""
+    from app.services.csv_import import (
+        ALL_HEADERS,
+        BOOL_HEADERS,
+        CHILD_HEADERS,
+        DATE_HEADERS,
+        ENUM_HEADERS,
+        INT_HEADERS,
+        LIST_HEADERS,
+        REQUIRED_HEADERS,
+        STRING_HEADERS,
+    )
+
+    handled = (
+        set(STRING_HEADERS)
+        | set(ENUM_HEADERS)
+        | set(INT_HEADERS)
+        | set(BOOL_HEADERS)
+        | set(DATE_HEADERS)
+        | set(LIST_HEADERS)
+        | set(CHILD_HEADERS)
+        | REQUIRED_HEADERS
+    )
+    assert handled == ALL_HEADERS
+
+
+def test_backup_location_is_importable(client, db_session: Session) -> None:
+    """Regression: backup_location shipped in migration 0010 but was never
+    added to the CSV header list, so the downloadable template was rejected."""
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,backup_location",
+            "Backed Up,proxmox,pve-cluster-a,veeam-repo-01",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+
+    commit = client.post(
+        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
+    )
+    assert commit.status_code == 200, commit.text
+
+    created = db_session.scalar(select(Vm).where(Vm.name == "Backed Up"))
+    assert created is not None
+    assert created.backup_location == "veeam-repo-01"
