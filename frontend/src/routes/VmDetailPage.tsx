@@ -55,21 +55,30 @@ function RemoveButton({ onClick, label }: { onClick: () => void; label: string }
 }
 
 function AddRowForm({ fields, onSubmit, pending }: {
-  fields: Array<{ name: string; placeholder: string; type?: string }>;
+  fields: Array<{ name: string; placeholder: string; type?: string; options?: readonly string[] }>;
   onSubmit: (values: Record<string, string>) => void;
   pending: boolean;
 }) {
-  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.name, ''])));
+  const blank = () => Object.fromEntries(fields.map((f) => [f.name, f.options?.[0] ?? '']));
+  const [values, setValues] = useState<Record<string, string>>(blank);
   function submit() {
     onSubmit(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()])));
-    setValues(Object.fromEntries(fields.map((f) => [f.name, ''])));
+    setValues(blank());
   }
   return (
     <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
       {fields.map((f) => (
-        <input key={f.name} type={f.type ?? 'text'} placeholder={f.placeholder} value={values[f.name]}
-          onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
-          className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-400" />
+        f.options ? (
+          <select key={f.name} aria-label={f.placeholder} value={values[f.name]}
+            onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
+            className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-blue-400 dark:focus:ring-blue-400">
+            {f.options.map((o) => <option key={o} value={o}>{o[0].toUpperCase() + o.slice(1)}</option>)}
+          </select>
+        ) : (
+          <input key={f.name} type={f.type ?? 'text'} placeholder={f.placeholder} value={values[f.name]}
+            onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
+            className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-400" />
+        )
       ))}
       <button type="button" onClick={submit} disabled={pending}
         className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
@@ -145,12 +154,13 @@ function NetworksPanel({ vm }: { vm: Vm }) {
       {vm.networks.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No network entries configured.</p> : (
         <table className="w-full text-sm"><thead>
           <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
-            <th className="pb-1 pr-4">IP Address</th><th className="pb-1 pr-4">VLAN</th><th className="pb-1 pr-4">Gateway</th><th />
+            <th className="pb-1 pr-4">IP Address</th><th className="pb-1 pr-4">Role</th><th className="pb-1 pr-4">VLAN</th><th className="pb-1 pr-4">Gateway</th><th />
           </tr></thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {vm.networks.map((n) => (
               <tr key={n.id}>
                 <td className="py-1.5 pr-4 font-mono">{n.ip_address}</td>
+                <td className="py-1.5 pr-4 capitalize text-slate-600 dark:text-slate-400">{n.role}</td>
                 <td className="py-1.5 pr-4 tabular-nums text-slate-600 dark:text-slate-400">{n.vlan ?? '—'}</td>
                 <td className="py-1.5 pr-4 font-mono text-slate-600 dark:text-slate-400">{n.gateway ?? '—'}</td>
                 <td className="py-1.5"><RemoveButton onClick={() => delMut.mutate(n.id)} label={`Remove ${n.ip_address}`} /></td>
@@ -161,6 +171,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
       )}
       <AddRowForm fields={[
         { name: 'ip_address', placeholder: 'IP address' },
+        { name: 'role', placeholder: 'IP role', options: ['private', 'public', 'backup'] as const },
         { name: 'vlan', placeholder: 'VLAN', type: 'number' },
         { name: 'gateway', placeholder: 'Gateway' },
       ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />

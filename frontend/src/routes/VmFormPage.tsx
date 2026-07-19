@@ -4,7 +4,7 @@ import { Dispatch, FormEvent, ReactNode, SetStateAction, useEffect, useMemo, use
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { api, detailMessage, VmPayload } from '../api/client';
+import { api, detailMessage, NetworkRole, VmPayload } from '../api/client';
 import {
   Alert, FieldError, PageHeader, PageTransition, Skeleton, Spinner,
   cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass,
@@ -146,7 +146,7 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
   );
 }
 
-type IpRow = { ip: string; vlan: string; gateway: string };
+type IpRow = { ip: string; role: NetworkRole; vlan: string; gateway: string };
 
 function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction<IpRow[]>> }) {
   const update = (i: number, patch: Partial<IpRow>) => setIps((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -158,6 +158,13 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
           <div key={i} className="flex items-end gap-2">
             <div className="flex-1">
               <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })} />
+            </div>
+            <div className="w-28">
+              <select aria-label={`IP role ${i + 1}`} className={selectClass} value={r.role} onChange={(e) => update(i, { role: e.target.value as NetworkRole })}>
+                <option value="private">Private</option>
+                <option value="public">Public</option>
+                <option value="backup">Backup</option>
+              </select>
             </div>
             <div className="w-24">
               <input aria-label={`VLAN ${i + 1}`} className={inputClass} type="number" min="0" placeholder="VLAN" value={r.vlan} onChange={(e) => update(i, { vlan: e.target.value })} />
@@ -171,7 +178,7 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
           </div>
         ))}
       </div>
-      <button type="button" className={rowAddClass} onClick={() => setIps((rows) => [...rows, { ip: '', vlan: '', gateway: '' }])}>
+      <button type="button" className={rowAddClass} onClick={() => setIps((rows) => [...rows, { ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }])}>
         <span aria-hidden="true">+</span> Add IP address
       </button>
     </div>
@@ -188,7 +195,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const [values, setValues] = useState<VmFormValues>(() => emptyVmFormValues());
   const [errors, setErrors] = useState<VmFormErrors>({});
   const [disks, setDisks] = useState<DiskRow[]>([{ name: '', size: '', unit: 'GB', storage: '', type: '' }]);
-  const [ips, setIps] = useState<IpRow[]>([{ ip: '', vlan: '', gateway: '' }]);
+  const [ips, setIps] = useState<IpRow[]>([{ ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }]);
 
   const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => api.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
   const optionsQuery = useQuery({ queryKey: ['settings', 'options'], queryFn: api.getDropdownOptions });
@@ -209,9 +216,10 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
       })) : [{ name: '', size: '', unit: 'GB' as const, storage: '', type: '' }]);
       setIps(vmQuery.data.networks.length > 0 ? vmQuery.data.networks.map((n) => ({
         ip: n.ip_address,
+        role: n.role,
         vlan: n.vlan !== null ? String(n.vlan) : '',
         gateway: n.gateway ?? '',
-      })) : [{ ip: '', vlan: '', gateway: '' }]);
+      })) : [{ ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }]);
     }
   }, [vmQuery.data]);
 
@@ -259,6 +267,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
           .filter((r) => r.ip.trim())
           .map((r, i) => ({
             ip_address: r.ip.trim(),
+            role: r.role,
             vlan: r.vlan.trim() ? Number(r.vlan) : null,
             gateway: r.gateway.trim() || null,
             sort_order: i,
