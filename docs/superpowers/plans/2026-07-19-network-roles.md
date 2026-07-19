@@ -730,3 +730,38 @@ The suite cannot see a reset column layout. Before merging:
 
 Step 2 is the one that matters — it is the only check that existing users'
 layouts survived.
+
+---
+
+## Deviations from this plan, as built
+
+The plan was written against an imperfect reading of the codebase. Where the
+code disagreed, the code won:
+
+1. **`backend/tests/test_vms.py` does not exist.** Task 1 and 2 tests went to a
+   new `backend/tests/test_vm_networks.py`, matching the per-topic pattern of
+   `test_vm_type_lifecycle.py`.
+2. **Task 4's alias design was wrong and would have broken saved layouts.**
+   Aliasing on the frontend leaves `get_columns` merging `private_ip` in as a
+   *second* entry, and the next save fails the server's duplicate-key check.
+   Built instead as a server-side rewrite in `get_columns`, applied *before*
+   the merge. No frontend alias function exists.
+3. **The preferences route is `/api/user/preferences/{page_key}`**, not
+   `/api/preferences/{page_key}`.
+4. **Tasks 4 and 6 were committed together** (`cba1d92`). Task 4 renames the
+   column key and Task 6 renders it; split, Task 4 alone leaves the inventory
+   IP column blank — `InventoryIpColumn.test.tsx` failed at exactly that point.
+5. **`ip_role` was declared on `VmFilterParams`**, not on the list endpoint
+   signature. Export shares that dependency, so the planned version would have
+   left CSV export silently ignoring the facet.
+6. **`role` is required, not optional, on the TS `Network` interface.** This
+   caught `VmDetailPage`'s add-IP mutation building a role-less network — an
+   optional field would have compiled and posted it.
+7. **`AddRowForm` gained optional `options` select fields** rather than the VM
+   detail page growing a second bespoke form.
+8. **`ip_role` had to be added to `filterGroups`.** `advancedFilterConfig` and
+   `advancedFilterLabels` are exhaustive `Record`s so TypeScript forces those,
+   but `filterGroups` is a plain array — a facet omitted from it compiles and
+   never renders.
+9. **`ui-changes.spec.ts:205` did not break** as Task 8 predicted. It fills the
+   add-IP row by placeholder and the role select defaults to private.

@@ -1,6 +1,9 @@
 # Spec 2 — Network roles
 
-**Status:** design, not yet approved
+**Status:** implemented on `feat/inventory-simplify` (913a1ef…c9f33be). Never
+formally approved — implementation proceeded on the user's instruction to
+continue. One manual check outstanding: a pre-existing saved column layout must
+be confirmed intact against real data (see the plan's Task 8, step 3).
 **Depends on:** spec 1 (CSV import correctness) — merged
 **Blocks:** spec 3 (multi-child CSV), which needs the role column to exist
 
