@@ -24,7 +24,8 @@ InventoryMGR is a full-stack virtual machine inventory application for small and
 - Dashboard with 9 infrastructure summary cards and recently added VMs.
 - 8 predefined downloadable CSV reports (Linux, Windows, Production, Monitoring, etc.).
 - CSV export of all VMs or a filtered subset.
-- CSV import with preview, column mapping, duplicate detection, and error report.
+- CSV import with preview, per-row change detail, duplicate detection, and error report.
+  Imports only ever add disks and IPs; blank cells never clear a field.
 - Admin-only user management.
 
 ## Project layout
@@ -200,6 +201,7 @@ All routes are prefixed with `/api`. Authentication uses a session cookie set on
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/imports/template` | Download a CSV template with every importable header |
 | POST | `/imports/preview` | Upload CSV and get import preview |
 | GET | `/imports/{batch_id}` | Get import batch details |
 | POST | `/imports/{batch_id}/commit` | Commit an import batch |

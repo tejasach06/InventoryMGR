@@ -33,11 +33,13 @@ just setup
 |---------|-------------|
 | `just setup` | Install all dependencies, run migrations (requires Docker PG running) |
 | `just db-up` | Start Docker PostgreSQL for E2E/tests |
+| `just api-dev` | FastAPI dev server on `127.0.0.1:8000` with reload |
 | `just web-dev` | Next.js dev server on `:3000` |
 | `just api-test` | Run backend pytest suite against the test database |
 | `just web-test` | Run frontend Vitest unit tests |
 | `just e2e` | Run Playwright end-to-end tests (requires Docker PG running) |
 | `just verify` | Full check: ruff + pytest + tsc + vitest + Playwright |
+| `just audit` | bun audit + uv audit + typecheck + ruff + accepted-risk check |
 | `just pm2-start` | Start backend + frontend via PM2 (production) |
 | `just pm2-stop` | Stop all PM2 processes |
 | `just pm2-restart` | Restart all PM2 processes |
@@ -59,7 +61,7 @@ just setup
 | `bun run test` | Vitest unit test suite |
 | `bun run lint` | TypeScript type check (no-emit) |
 | `bun run typecheck` | TypeScript type check (no-emit) |
-| `bunx playwright test` | Playwright E2E tests |
+| `bun run e2e` | Playwright E2E tests |
 
 ## Testing
 
