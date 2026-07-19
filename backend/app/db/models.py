@@ -90,6 +90,12 @@ class ImportStatus(StrEnum):
     cancelled = "cancelled"
 
 
+class NetworkRole(StrEnum):
+    private = "private"
+    public = "public"
+    backup = "backup"
+
+
 class ImportAction(StrEnum):
     create = "create"
     update = "update"
@@ -270,6 +276,9 @@ class VmNetwork(Base):
         UUID(as_uuid=True), ForeignKey("vms.id", ondelete="CASCADE"), nullable=False
     )
     ip_address: Mapped[str] = mapped_column(String(50), nullable=False)
+    role: Mapped[NetworkRole] = mapped_column(
+        Enum(NetworkRole, name="network_role"), nullable=False, default=NetworkRole.private
+    )
     vlan: Mapped[int | None] = mapped_column(Integer, nullable=True)
     gateway: Mapped[str | None] = mapped_column(String(50), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
