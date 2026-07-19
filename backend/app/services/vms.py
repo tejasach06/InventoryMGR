@@ -13,6 +13,7 @@ from app.db.models import (
     Criticality,
     Environment,
     Lifecycle,
+    NetworkRole,
     OsFamily,
     Platform,
     User,
@@ -270,8 +271,15 @@ def apply_vm_filters(
     tag_op: FilterOperator = FilterOperator.eq,
     application: list[str] | None = None,
     application_op: FilterOperator = FilterOperator.contains,
+    ip_role: list[NetworkRole] | None = None,
     health: str | None = None,
 ) -> Select[tuple[Vm]]:
+    if ip_role:
+        # EXISTS, not a join: a VM with several IPs in the role must appear once.
+        stmt = stmt.where(exists(select(VmNetwork.vm_id).where(
+            VmNetwork.vm_id == Vm.id,
+            VmNetwork.role.in_(ip_role),
+        )))
     if q:
         pattern = f"%{q.strip().lower()}%"
         net_subq = exists(select(VmNetwork.vm_id).where(
