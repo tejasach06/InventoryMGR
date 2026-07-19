@@ -285,3 +285,72 @@ def test_partial_column_update_preserves_unmentioned_fields(
     assert refreshed.cpu_cores == 8
     assert refreshed.memory_mb == 16384
     assert refreshed.monitoring_enabled is True
+
+
+def test_blank_cell_in_present_column_does_not_overwrite(
+    client, db_session: Session
+) -> None:
+    """Blank cell means "leave alone", exactly like an absent column."""
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="Existing App",
+        external_id=None,
+        fqdn="existing-app.corp.example",
+        owner="alice",
+        cpu_cores=8,
+        monitoring_enabled=True,
+    )
+    vm_id = vm.id
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,owner,fqdn,cpu_cores,monitoring_enabled",
+            "Existing App,proxmox,pve-cluster-a,bob,,,",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+    body = response.json()
+
+    commit = client.post(f"/api/imports/{body['id']}/commit", headers=auth_headers(csrf))
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    refreshed = db_session.get(Vm, vm_id)
+    assert refreshed is not None
+    assert refreshed.owner == "bob"
+    assert refreshed.fqdn == "existing-app.corp.example"
+    assert refreshed.cpu_cores == 8
+    assert refreshed.monitoring_enabled is True
+
+
+def test_create_with_blank_cells_still_applies_defaults(
+    client, db_session: Session
+) -> None:
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,status,criticality,cpu_cores,monitoring_enabled",
+            "Brand New,proxmox,pve-cluster-a,,,,",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["summary"]["create"] == 1
+
+    commit = client.post(f"/api/imports/{body['id']}/commit", headers=auth_headers(csrf))
+    assert commit.status_code == 200, commit.text
+
+    created = db_session.scalar(select(Vm).where(Vm.name == "Brand New"))
+    assert created is not None
+    assert created.status.value == "unknown"
+    assert created.criticality.value == "medium"
+    assert created.environment.value == "production"
+    assert created.cpu_cores == 0
+    assert created.monitoring_enabled is False

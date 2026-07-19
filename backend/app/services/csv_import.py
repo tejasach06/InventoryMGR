@@ -104,38 +104,38 @@ def _clean_row(row: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def _parse_int(row: dict[str, str], field: str, errors: list[dict[str, str]]) -> int:
+def _parse_int(row: dict[str, str], field: str, errors: list[dict[str, str]]) -> int | None:
     raw = row.get(field, "")
     if raw == "":
-        return DEFAULTS[field]
+        return None
     try:
         value = int(raw)
     except ValueError:
         errors.append(_error(field, "must be an integer >= 0"))
-        return 0
+        return None
     if value < 0:
         errors.append(_error(field, "must be an integer >= 0"))
-        return 0
+        return None
     return value
 
 
-def _parse_bool(row: dict[str, str], field: str, errors: list[dict[str, str]]) -> bool:
+def _parse_bool(row: dict[str, str], field: str, errors: list[dict[str, str]]) -> bool | None:
     raw = row.get(field, "")
     if raw == "":
-        return False
+        return None
     lowered = raw.lower()
     if lowered in {"true", "yes", "1"}:
         return True
     if lowered in {"false", "no", "0"}:
         return False
     errors.append(_error(field, "must be one of true, false, yes, no, 1, 0"))
-    return False
+    return None
 
 
-def _parse_list(row: dict[str, str], field: str) -> list[str]:
+def _parse_list(row: dict[str, str], field: str) -> list[str] | None:
     raw = row.get(field, "")
     if raw == "":
-        return []
+        return None
     return [part.strip() for part in raw.split(";") if part.strip()]
 
 
@@ -171,7 +171,42 @@ def _parse_date(row: dict[str, str], field: str, errors: list[dict[str, str]]) -
         return None
 
 
+STRING_HEADERS = (
+    "external_id",
+    "fqdn",
+    "description",
+    "datacenter",
+    "node",
+    "sr_id",
+    "os_name",
+    "os_distribution",
+    "os_version",
+    "owner",
+    "business_owner",
+    "technical_owner",
+    "security_remarks",
+    "backup_location",
+)
+ENUM_HEADERS = ("status", "environment", "criticality", "lifecycle", "os_family")
+INT_HEADERS = ("cpu_cores", "memory_mb")
+BOOL_HEADERS = ("monitoring_enabled", "ha_enabled", "backup_enabled", "pmp_enabled")
+DATE_HEADERS = (
+    "last_patch_date",
+    "last_vuln_scan_date",
+    "decommission_date",
+    "last_verified_at",
+)
+LIST_HEADERS = ("tags",)
+
+
 def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[dict[str, str]]]:
+    """Normalize one CSV row into supplied values only.
+
+    A value is supplied when its cell is non-blank. An absent column and a
+    blank cell are equivalent and both mean "leave this field alone" — the
+    caller decides whether to fall back to DEFAULTS (create) or to omit the
+    key entirely (update).
+    """
     clean = _clean_row(row)
     errors: list[dict[str, str]] = []
     normalized: dict[str, Any] = {}
@@ -192,41 +227,39 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
         else:
             normalized["platform"] = platform
 
-    for field in (
-        "external_id",
-        "fqdn",
-        "description",
-        "datacenter",
-        "node",
-        "sr_id",
-        "os_name",
-        "os_distribution",
-        "os_version",
-        "owner",
-        "business_owner",
-        "technical_owner",
-        "security_remarks",
-    ):
+    for field in STRING_HEADERS:
         value = clean.get(field, "")
-        normalized[field] = value or None
+        if value:
+            normalized[field] = value
 
-    for field in ("status", "environment", "criticality", "lifecycle", "os_family"):
-        value = clean.get(field, "").lower() or DEFAULTS[field]
-        if value is not None and value not in ENUM_VALUES[field]:
+    for field in ENUM_HEADERS:
+        value = clean.get(field, "").lower()
+        if not value:
+            continue
+        if value not in ENUM_VALUES[field]:
             errors.append(_error(field, f"must be one of {', '.join(sorted(ENUM_VALUES[field]))}"))
-        normalized[field] = value
+        else:
+            normalized[field] = value
 
-    for field in ("cpu_cores", "memory_mb"):
-        normalized[field] = _parse_int(clean, field, errors)
+    for field in INT_HEADERS:
+        number = _parse_int(clean, field, errors)
+        if number is not None:
+            normalized[field] = number
 
-    normalized["monitoring_enabled"] = _parse_bool(clean, "monitoring_enabled", errors)
-    normalized["ha_enabled"] = _parse_bool(clean, "ha_enabled", errors)
-    normalized["backup_enabled"] = _parse_bool(clean, "backup_enabled", errors)
-    normalized["pmp_enabled"] = _parse_bool(clean, "pmp_enabled", errors)
+    for field in BOOL_HEADERS:
+        flag = _parse_bool(clean, field, errors)
+        if flag is not None:
+            normalized[field] = flag
 
-    normalized["tags"] = _parse_list(clean, "tags")
-    for field in ("last_patch_date", "last_vuln_scan_date", "decommission_date", "last_verified_at"):
-        normalized[field] = _parse_date(clean, field, errors)
+    for field in LIST_HEADERS:
+        items = _parse_list(clean, field)
+        if items is not None:
+            normalized[field] = items
+
+    for field in DATE_HEADERS:
+        stamp = _parse_date(clean, field, errors)
+        if stamp is not None:
+            normalized[field] = stamp
 
     if errors:
         return None, errors
@@ -370,7 +403,7 @@ def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
         if normalized.get(date_field):
             normalized[date_field] = date.fromisoformat(normalized[date_field])
     if row.action == ImportAction.create:
-        vm = create_vm(db, VmCreate.model_validate(normalized), user, commit=False)
+        vm = create_vm(db, VmCreate.model_validate({**DEFAULTS, **normalized}), user, commit=False)
         db.flush()
         disk_name = str(row.raw.get("disk_name") or "").strip()
         disk_gb = row.raw.get("disk_gb")
