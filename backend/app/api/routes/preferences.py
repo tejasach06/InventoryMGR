@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import Csrf, CurrentUser, DbSession
@@ -50,10 +52,20 @@ def get_columns(page_key: str, user: CurrentUser) -> ColumnPreferencesRead:
     columns = prefs.get(f"columns_{page_key}")
     if not columns:
         return ColumnPreferencesRead(columns=DEFAULT_COLUMNS)
+    # Rewrite and dedupe together: a layout holding both ip_address and
+    # private_ip would otherwise yield the key twice, and every later save
+    # would fail the duplicate check with no way for the UI to recover.
+    rewritten: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
     for col in columns:
-        col["key"] = LEGACY_COLUMN_KEYS.get(col["key"], col["key"])
+        key = LEGACY_COLUMN_KEYS.get(col["key"], col["key"])
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        rewritten.append({**col, "key": key})
+    columns = rewritten
     # Merge in columns added after the user saved their preferences.
-    saved_keys = {c["key"] for c in columns}
+    saved_keys = set(seen_keys)
     next_order = max((c["order"] for c in columns), default=-1) + 1
     for default in DEFAULT_COLUMNS:
         if default["key"] not in saved_keys:

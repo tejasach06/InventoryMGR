@@ -426,9 +426,17 @@ def diff_against_vm(
         ]
         if added_disks:
             changes["disks"] = [None, added_disks]
-        existing_ips = {n.ip_address for n in vm.networks}
+        # Accumulate exactly as _attach_children does, so the preview and the
+        # batch rollup promise precisely what the commit will create. An address
+        # repeated in a cell, or under a second role, is one network row.
+        seen_ips = {n.ip_address for n in vm.networks}
         for header in IP_ROLE_HEADERS:
-            added_ips = [ip for ip in (_parse_list(clean, header) or []) if ip not in existing_ips]
+            added_ips = []
+            for ip_address in _parse_list(clean, header) or []:
+                if ip_address in seen_ips:
+                    continue
+                seen_ips.add(ip_address)
+                added_ips.append(ip_address)
             if added_ips:
                 changes[header] = [None, added_ips]
     for field, new_value in normalized.items():

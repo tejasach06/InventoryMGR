@@ -151,3 +151,45 @@ def test_saved_prefs_are_merged_with_newly_added_columns(client, db_session: Ses
     # New keys appended as hidden, ordered after saved ones.
     assert columns["fqdn"]["visible"] is False
     assert columns["fqdn"]["order"] > columns["status"]["order"]
+
+
+def test_layout_holding_both_ip_address_and_private_ip_stays_saveable(
+    client, db_session: Session
+) -> None:
+    """The legacy rewrite must not mint a duplicate key.
+
+    ip_address rewrites to private_ip on read. A layout already containing both
+    collapsed into two identical private_ip entries, and every later save then
+    failed the duplicate-key check with no way for the UI to recover.
+    """
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+
+    saved = client.put(
+        "/api/user/preferences/inventory",
+        json={
+            "columns": [
+                {"key": "ip_address", "visible": True, "order": 6},
+                {"key": "private_ip", "visible": False, "order": 7},
+            ]
+        },
+        headers=auth_headers(csrf),
+    )
+    assert saved.status_code == 200, saved.text
+
+    response = client.get("/api/user/preferences/inventory")
+    assert response.status_code == 200, response.text
+    columns = response.json()["columns"]
+    assert [c["key"] for c in columns].count("private_ip") == 1
+
+    # The first entry wins, so the legacy column keeps its position and visibility.
+    private_ip = next(c for c in columns if c["key"] == "private_ip")
+    assert private_ip == {"key": "private_ip", "visible": True, "order": 6}
+
+    # What the client just read must be saveable again.
+    resaved = client.put(
+        "/api/user/preferences/inventory",
+        json={"columns": columns},
+        headers=auth_headers(csrf),
+    )
+    assert resaved.status_code == 200, resaved.text

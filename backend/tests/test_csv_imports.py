@@ -555,6 +555,45 @@ def test_repeated_import_does_not_duplicate_children(client, db_session: Session
     assert len(disks) == 1
 
 
+def test_preview_promises_exactly_the_ips_commit_creates(client, db_session: Session) -> None:
+    """The rollup is spec 1's safety net for mass changes, so it must not overcount.
+
+    diff_against_vm compared each role column against the VM's original IP set
+    while _attach_children accumulated as it inserted, so a repeated address was
+    promised once per column and created once.
+    """
+    editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None)
+    db_session.commit()
+    vm_id = vm.id
+    csrf = login(client, "editor@example.local")
+
+    # 10.0.0.5 twice in one cell and again under another role; 10.0.0.7 only once.
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,private_ip,public_ip",
+            "Existing App,proxmox,pve-cluster-a,10.0.0.5;10.0.0.5;10.0.0.7,10.0.0.5",
+        ]
+    )
+    response = upload_csv(client, csrf, csv_content)
+    assert response.status_code == 201, response.text
+
+    body = response.json()
+    changes = body["rows"][0]["changes"]
+    assert changes == {"private_ip": [None, ["10.0.0.5", "10.0.0.7"]]}
+    assert body["field_changes"] == {"private_ip": 1}
+
+    commit = client.post(f"/api/imports/{body['id']}/commit", headers=auth_headers(csrf))
+    assert commit.status_code == 200, commit.text
+
+    db_session.expire_all()
+    networks = db_session.scalars(select(VmNetwork).where(VmNetwork.vm_id == vm_id)).all()
+    assert sorted((n.ip_address, n.role.value) for n in networks) == [
+        ("10.0.0.5", "private"),
+        ("10.0.0.7", "private"),
+    ]
+
+
 def test_multi_disk_row_creates_every_disk(client, db_session: Session) -> None:
     """One row, several disks: the whole point of spec 3."""
     create_user(db_session, email="editor@example.local", role=UserRole.editor)
