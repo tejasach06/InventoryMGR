@@ -30,7 +30,7 @@ import { formatMemory, formatDisks } from '../lib/units';
 import { InventoryToolbar } from '../components/InventoryToolbar';
 
 export const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
-export const advancedFilterNames = ['cluster', 'lifecycle', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'health'] as const;
+export const advancedFilterNames = ['cluster', 'lifecycle', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'ip_role', 'health'] as const;
 export const filterNames = [...coreFilterNames, ...advancedFilterNames] as const;
 
 export type FilterName = (typeof filterNames)[number];
@@ -52,6 +52,7 @@ function emptyFilters(): Filters {
     pmp_enabled: [],
     tag: [],
     application: [],
+    ip_role: [],
     health: [],
   };
 }

@@ -19,6 +19,14 @@ describe('filterConfig', () => {
     }
   });
 
+  it('offers ip_role as a multi-select of the three roles', () => {
+    expect(advancedFilterConfig.ip_role).toEqual({
+      kind: 'multiSelect',
+      options: ['private', 'public', 'backup'],
+    });
+    expect(advancedFilterLabels.ip_role).toBe('IP Role');
+  });
+
   it('places every non-search filter in exactly one drawer group', () => {
     const grouped = filterGroups.flatMap((g) => g.filters);
     const nonSearch = filterNames.filter((n) => n !== 'q');
