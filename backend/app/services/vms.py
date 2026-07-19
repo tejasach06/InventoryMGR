@@ -60,6 +60,7 @@ def _sync_networks(db: Session, vm: Vm, networks: list[NetworkCreate]) -> None:
         db.add(VmNetwork(
             vm_id=vm.id,
             ip_address=network.ip_address,
+            role=network.role,
             vlan=network.vlan,
             gateway=network.gateway,
             sort_order=network.sort_order if network.sort_order is not None else i,
@@ -194,7 +195,7 @@ def clone_vm(db: Session, vm: Vm, user: User) -> Vm:
         ))
     for net in vm.networks:
         db.add(VmNetwork(
-            vm_id=cloned.id, ip_address=net.ip_address, vlan=net.vlan,
+            vm_id=cloned.id, ip_address=net.ip_address, role=net.role, vlan=net.vlan,
             gateway=net.gateway, sort_order=net.sort_order,
         ))
     for app in vm.applications:

@@ -4,7 +4,16 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.db.models import Criticality, Environment, Lifecycle, OsFamily, Platform, VmStatus, VmType
+from app.db.models import (
+    Criticality,
+    Environment,
+    Lifecycle,
+    NetworkRole,
+    OsFamily,
+    Platform,
+    VmStatus,
+    VmType,
+)
 
 STRING_FIELDS = {
     "external_id",
@@ -147,6 +156,7 @@ class DiskRead(DiskCreate):
 
 class NetworkCreate(BaseModel):
     ip_address: str
+    role: NetworkRole = NetworkRole.private
     vlan: int | None = Field(default=None, ge=0, le=4094)
     gateway: str | None = None
     sort_order: int = 0
@@ -180,6 +190,7 @@ class DiskUpdate(BaseModel):
 
 class NetworkUpdate(BaseModel):
     ip_address: str | None = None
+    role: NetworkRole | None = None
     vlan: int | None = Field(default=None, ge=0, le=4094)
     gateway: str | None = None
     sort_order: int | None = None
