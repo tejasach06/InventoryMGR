@@ -45,27 +45,31 @@ def _apply_vm_type_lifecycle(vm: Vm) -> None:
 def _sync_disks(db: Session, vm: Vm, disks: list[DiskCreate]) -> None:
     db.query(VmDisk).filter(VmDisk.vm_id == vm.id).delete()
     for i, disk in enumerate(disks):
-        db.add(VmDisk(
-            vm_id=vm.id,
-            disk_name=disk.disk_name,
-            storage_name=disk.storage_name,
-            size_gb=disk.size_gb,
-            storage_type=disk.storage_type,
-            sort_order=disk.sort_order if disk.sort_order is not None else i,
-        ))
+        db.add(
+            VmDisk(
+                vm_id=vm.id,
+                disk_name=disk.disk_name,
+                storage_name=disk.storage_name,
+                size_gb=disk.size_gb,
+                storage_type=disk.storage_type,
+                sort_order=disk.sort_order if disk.sort_order is not None else i,
+            )
+        )
 
 
 def _sync_networks(db: Session, vm: Vm, networks: list[NetworkCreate]) -> None:
     db.query(VmNetwork).filter(VmNetwork.vm_id == vm.id).delete()
     for i, network in enumerate(networks):
-        db.add(VmNetwork(
-            vm_id=vm.id,
-            ip_address=network.ip_address,
-            role=network.role,
-            vlan=network.vlan,
-            gateway=network.gateway,
-            sort_order=network.sort_order if network.sort_order is not None else i,
-        ))
+        db.add(
+            VmNetwork(
+                vm_id=vm.id,
+                ip_address=network.ip_address,
+                role=network.role,
+                vlan=network.vlan,
+                gateway=network.gateway,
+                sort_order=network.sort_order if network.sort_order is not None else i,
+            )
+        )
 
 
 def create_vm(db: Session, payload: VmCreate, user: User, *, commit: bool = True) -> Vm:
@@ -94,14 +98,16 @@ def create_vm(db: Session, payload: VmCreate, user: User, *, commit: bool = True
 
 def _write_audit(db: Session, vm: Vm, user: User, changes: dict[str, tuple[Any, Any]]) -> None:
     for field, (old, new) in changes.items():
-        db.add(AuditLog(
-            vm_id=vm.id,
-            user_id=user.id,
-            field_name=field,
-            old_value=str(old) if old is not None else None,
-            new_value=str(new) if new is not None else None,
-            changed_at=now_utc(),
-        ))
+        db.add(
+            AuditLog(
+                vm_id=vm.id,
+                user_id=user.id,
+                field_name=field,
+                old_value=str(old) if old is not None else None,
+                new_value=str(new) if new is not None else None,
+                changed_at=now_utc(),
+            )
+        )
 
 
 def update_vm(db: Session, vm: Vm, payload: VmUpdate, user: User, *, commit: bool = True) -> Vm:
@@ -168,9 +174,9 @@ def to_vm_read(vm: Vm) -> VmRead:
 def recompute_health(db: Session, vm_id: uuid.UUID) -> None:
     """Load VM + children, recompute health_score, commit."""
     vm = db.scalar(
-        select(Vm).options(
-            selectinload(Vm.disks), selectinload(Vm.networks), selectinload(Vm.applications)
-        ).where(Vm.id == vm_id)
+        select(Vm)
+        .options(selectinload(Vm.disks), selectinload(Vm.networks), selectinload(Vm.applications))
+        .where(Vm.id == vm_id)
     )
     if vm is not None:
         vm.health_score = compute_health_score(vm)
@@ -180,9 +186,7 @@ def recompute_health(db: Session, vm_id: uuid.UUID) -> None:
 def clone_vm(db: Session, vm: Vm, user: User) -> Vm:
     exclude = {"id", "created_at", "updated_at", "created_by_id", "updated_by_id"}
     values = {
-        col.name: getattr(vm, col.name)
-        for col in Vm.__table__.columns
-        if col.name not in exclude
+        col.name: getattr(vm, col.name) for col in Vm.__table__.columns if col.name not in exclude
     }
     values["name"] = f"{vm.name}-copy"
     values["external_id"] = None
@@ -190,20 +194,36 @@ def clone_vm(db: Session, vm: Vm, user: User) -> Vm:
     db.add(cloned)
     db.flush()
     for disk in vm.disks:
-        db.add(VmDisk(
-            vm_id=cloned.id, disk_name=disk.disk_name, storage_name=disk.storage_name,
-            size_gb=disk.size_gb, storage_type=disk.storage_type, sort_order=disk.sort_order,
-        ))
+        db.add(
+            VmDisk(
+                vm_id=cloned.id,
+                disk_name=disk.disk_name,
+                storage_name=disk.storage_name,
+                size_gb=disk.size_gb,
+                storage_type=disk.storage_type,
+                sort_order=disk.sort_order,
+            )
+        )
     for net in vm.networks:
-        db.add(VmNetwork(
-            vm_id=cloned.id, ip_address=net.ip_address, role=net.role, vlan=net.vlan,
-            gateway=net.gateway, sort_order=net.sort_order,
-        ))
+        db.add(
+            VmNetwork(
+                vm_id=cloned.id,
+                ip_address=net.ip_address,
+                role=net.role,
+                vlan=net.vlan,
+                gateway=net.gateway,
+                sort_order=net.sort_order,
+            )
+        )
     for app in vm.applications:
-        db.add(VmApplication(
-            vm_id=cloned.id, app_name=app.app_name,
-            app_owner=app.app_owner, description=app.description,
-        ))
+        db.add(
+            VmApplication(
+                vm_id=cloned.id,
+                app_name=app.app_name,
+                app_owner=app.app_owner,
+                description=app.description,
+            )
+        )
     db.commit()
     cloned_full = get_vm_detail_or_404(db, cloned.id)
     cloned_full.health_score = compute_health_score(cloned_full)
@@ -276,38 +296,46 @@ def apply_vm_filters(
 ) -> Select[tuple[Vm]]:
     if ip_role:
         # EXISTS, not a join: a VM with several IPs in the role must appear once.
-        stmt = stmt.where(exists(select(VmNetwork.vm_id).where(
-            VmNetwork.vm_id == Vm.id,
-            VmNetwork.role.in_(ip_role),
-        )))
+        stmt = stmt.where(
+            exists(
+                select(VmNetwork.vm_id).where(
+                    VmNetwork.vm_id == Vm.id,
+                    VmNetwork.role.in_(ip_role),
+                )
+            )
+        )
     if q:
         pattern = f"%{q.strip().lower()}%"
-        net_subq = exists(select(VmNetwork.vm_id).where(
-            VmNetwork.vm_id == Vm.id,
-            func.lower(VmNetwork.ip_address).like(pattern),
-        ))
-        app_subq = exists(select(VmApplication.vm_id).where(
-            VmApplication.vm_id == Vm.id,
-            func.lower(VmApplication.app_name).like(pattern),
-        ))
-        stmt = stmt.where(or_(
-            func.lower(Vm.name).like(pattern),
-            func.lower(Vm.cluster).like(pattern),
-            func.lower(func.coalesce(Vm.owner, "")).like(pattern),
-            func.lower(func.coalesce(Vm.fqdn, "")).like(pattern),
-            func.lower(func.coalesce(Vm.external_id, "")).like(pattern),
-            func.lower(func.coalesce(Vm.sr_id, "")).like(pattern),
-            func.lower(func.coalesce(Vm.os_name, "")).like(pattern),
-            func.lower(func.coalesce(Vm.os_distribution, "")).like(pattern),
-            func.lower(func.coalesce(Vm.os_version, "")).like(pattern),
-            # ponytail: imprecise JSONB cast, fine for search
-            cast(Vm.tags, String).like(f"%{q.strip()}%"),
-            net_subq,
-            app_subq,
-        ))
-    FILTER_SPECS = (
-        (pmp_enabled, Vm.pmp_enabled, pmp_enabled_op, False),
-    )
+        net_subq = exists(
+            select(VmNetwork.vm_id).where(
+                VmNetwork.vm_id == Vm.id,
+                func.lower(VmNetwork.ip_address).like(pattern),
+            )
+        )
+        app_subq = exists(
+            select(VmApplication.vm_id).where(
+                VmApplication.vm_id == Vm.id,
+                func.lower(VmApplication.app_name).like(pattern),
+            )
+        )
+        stmt = stmt.where(
+            or_(
+                func.lower(Vm.name).like(pattern),
+                func.lower(Vm.cluster).like(pattern),
+                func.lower(func.coalesce(Vm.owner, "")).like(pattern),
+                func.lower(func.coalesce(Vm.fqdn, "")).like(pattern),
+                func.lower(func.coalesce(Vm.external_id, "")).like(pattern),
+                func.lower(func.coalesce(Vm.sr_id, "")).like(pattern),
+                func.lower(func.coalesce(Vm.os_name, "")).like(pattern),
+                func.lower(func.coalesce(Vm.os_distribution, "")).like(pattern),
+                func.lower(func.coalesce(Vm.os_version, "")).like(pattern),
+                # ponytail: imprecise JSONB cast, fine for search
+                cast(Vm.tags, String).like(f"%{q.strip()}%"),
+                net_subq,
+                app_subq,
+            )
+        )
+    FILTER_SPECS = ((pmp_enabled, Vm.pmp_enabled, pmp_enabled_op, False),)
     for value, column, operator, case_insensitive in FILTER_SPECS:
         if value is not None:
             stmt = stmt.where(
@@ -338,11 +366,13 @@ def apply_vm_filters(
         owner_matches = []
         for o in owner:
             needle = o.strip().lower()
-            owner_matches.append(or_(
-                func.lower(func.coalesce(Vm.owner, "")) == needle,
-                func.lower(func.coalesce(Vm.business_owner, "")) == needle,
-                func.lower(func.coalesce(Vm.technical_owner, "")) == needle,
-            ))
+            owner_matches.append(
+                or_(
+                    func.lower(func.coalesce(Vm.owner, "")) == needle,
+                    func.lower(func.coalesce(Vm.business_owner, "")) == needle,
+                    func.lower(func.coalesce(Vm.technical_owner, "")) == needle,
+                )
+            )
         owner_match = or_(*owner_matches)
         stmt = stmt.where(~owner_match if owner_op == FilterOperator.neq else owner_match)
     if tag:
@@ -352,12 +382,16 @@ def apply_vm_filters(
         app_matches = []
         for app in application:
             needle = app.strip().lower()
-            app_matches.append(exists(select(VmApplication.vm_id).where(
-                VmApplication.vm_id == Vm.id,
-                func.lower(VmApplication.app_name).like(f"%{needle}%")
-                if application_op == FilterOperator.contains
-                else func.lower(VmApplication.app_name) == needle,
-            )))
+            app_matches.append(
+                exists(
+                    select(VmApplication.vm_id).where(
+                        VmApplication.vm_id == Vm.id,
+                        func.lower(VmApplication.app_name).like(f"%{needle}%")
+                        if application_op == FilterOperator.contains
+                        else func.lower(VmApplication.app_name) == needle,
+                    )
+                )
+            )
         app_match = or_(*app_matches)
         stmt = stmt.where(~app_match if application_op == FilterOperator.neq else app_match)
     if health == "below_50":

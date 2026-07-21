@@ -8,9 +8,7 @@ from app.db.models import UserRole
 
 from .conftest import auth_headers, create_user, login
 
-FRONTEND_HOOK = (
-    Path(__file__).resolve().parents[2] / "frontend/src/hooks/useColumnPreferences.ts"
-)
+FRONTEND_HOOK = Path(__file__).resolve().parents[2] / "frontend/src/hooks/useColumnPreferences.ts"
 
 
 def test_frontend_default_columns_match_the_backend() -> None:

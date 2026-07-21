@@ -4,8 +4,10 @@ Revision ID: 0005
 Revises: 0004
 Create Date: 2026-06-29
 """
-from alembic import op
+
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0005"
 down_revision = "0004_frd_schema_expansion"
@@ -19,7 +21,9 @@ def upgrade() -> None:
     op.execute("ALTER TYPE vm_status ADD VALUE IF NOT EXISTS 'decommissioned'")
 
     # Add health_score column with default 0
-    op.add_column("vms", sa.Column("health_score", sa.Integer(), nullable=False, server_default="0"))
+    op.add_column(
+        "vms", sa.Column("health_score", sa.Integer(), nullable=False, server_default="0")
+    )
     op.create_index("ix_vms_health_score", "vms", ["health_score"])
 
     # Backfill: replicate the Python scoring weights in SQL

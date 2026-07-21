@@ -109,6 +109,12 @@ class DropdownCategory(StrEnum):
     datacenter = "datacenter"
     disk = "disk"
     os = "os"
+    cluster = "cluster"
+
+
+class StorageVendor(StrEnum):
+    synology = "synology"
+    netapp = "netapp"
 
 
 def now_utc() -> datetime:
@@ -410,3 +416,95 @@ class DecommissionAck(Base, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("vms.id", ondelete="CASCADE"), nullable=False
     )
     acked_date: Mapped[date] = mapped_column(Date, nullable=False)
+
+
+class StorageArray(Base, TimestampMixin):
+    __tablename__ = "storage_arrays"
+    __table_args__ = (
+        CheckConstraint("length(btrim(name)) > 0", name="ck_storage_arrays_name_nonempty"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    vendor: Mapped[StorageVendor] = mapped_column(
+        Enum(StorageVendor, name="storage_vendor"), nullable=False
+    )
+    model: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mgmt_host: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    datacenter: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    total_capacity_gb: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    used_capacity_gb: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    updated_by_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+
+    volumes: Mapped[list["StorageVolume"]] = relationship(
+        back_populates="array",
+        cascade="all, delete-orphan",
+        order_by="StorageVolume.sort_order",
+    )
+
+
+class StorageVolume(Base):
+    __tablename__ = "storage_volumes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    array_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("storage_arrays.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    capacity_gb: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    used_gb: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    array: Mapped[StorageArray] = relationship(back_populates="volumes")
+    luns: Mapped[list["StorageLun"]] = relationship(
+        back_populates="volume",
+        cascade="all, delete-orphan",
+        order_by="StorageLun.sort_order",
+    )
+    shares: Mapped[list["StorageNfsShare"]] = relationship(
+        back_populates="volume",
+        cascade="all, delete-orphan",
+        order_by="StorageNfsShare.sort_order",
+    )
+
+
+class StorageLun(Base):
+    __tablename__ = "storage_luns"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    volume_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("storage_volumes.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    size_gb: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    used_gb: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_iqn: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    cluster: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    volume: Mapped[StorageVolume] = relationship(back_populates="luns")
+
+
+class StorageNfsShare(Base):
+    __tablename__ = "storage_nfs_shares"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    volume_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("storage_volumes.id", ondelete="CASCADE"), nullable=False
+    )
+    export_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    used_gb: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    allowed_clients: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    volume: Mapped[StorageVolume] = relationship(back_populates="shares")

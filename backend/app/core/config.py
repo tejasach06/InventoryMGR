@@ -44,9 +44,6 @@ PLACEHOLDER_SECRET = "replace-with-32-byte-random-secret"
 
 def validate_production_settings(settings: Settings) -> None:
     if settings.app_env not in ("development", "test") and (
-        not settings.jwt_secret
-        or settings.jwt_secret == PLACEHOLDER_SECRET
+        not settings.jwt_secret or settings.jwt_secret == PLACEHOLDER_SECRET
     ):
-        raise RuntimeError(
-            "JWT_SECRET must be set to a strong random value in production"
-        )
+        raise RuntimeError("JWT_SECRET must be set to a strong random value in production")

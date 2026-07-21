@@ -35,7 +35,13 @@ def test_csv_preview_persists_classification_for_create_update_conflict_and_inva
 
     assert response.status_code == 201, response.text
     body = response.json()
-    assert body["summary"] == {"create": 1, "update": 1, "unchanged": 0, "conflict": 1, "invalid": 1}
+    assert body["summary"] == {
+        "create": 1,
+        "update": 1,
+        "unchanged": 0,
+        "conflict": 1,
+        "invalid": 1,
+    }
     rows = sorted(body["rows"], key=lambda row: row["row_number"])
     assert [row["action"] for row in rows] == [
         ImportAction.update.value,
@@ -79,9 +85,7 @@ def test_csv_commit_uses_persisted_rows_and_rolls_back_when_later_upsert_fails(
     client, db_session: Session
 ) -> None:
     editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
-    existing = create_vm_row(
-        db_session, editor, name="Manual Proxmox", external_id=None
-    )
+    existing = create_vm_row(db_session, editor, name="Manual Proxmox", external_id=None)
     csrf = login(client, "editor@example.local")
     csv_content = "\n".join(
         [
@@ -93,7 +97,13 @@ def test_csv_commit_uses_persisted_rows_and_rolls_back_when_later_upsert_fails(
     preview = upload_csv(client, csrf, csv_content)
     assert preview.status_code == 201, preview.text
     batch_id = preview.json()["id"]
-    assert preview.json()["summary"] == {"create": 1, "update": 1, "unchanged": 0, "conflict": 0, "invalid": 0}
+    assert preview.json()["summary"] == {
+        "create": 1,
+        "update": 1,
+        "unchanged": 0,
+        "conflict": 0,
+        "invalid": 0,
+    }
 
     # Simulate a concurrent identity change after preview. Commit must use the persisted
     # normalized rows, detect that the update target no longer matches, and leave no partial create.
@@ -170,7 +180,13 @@ def test_csv_preview_normalizes_sr_id_os_family_and_backup_enabled(
 
     assert response.status_code == 201, response.text
     body = response.json()
-    assert body["summary"] == {"create": 1, "update": 0, "unchanged": 0, "conflict": 0, "invalid": 1}
+    assert body["summary"] == {
+        "create": 1,
+        "update": 0,
+        "unchanged": 0,
+        "conflict": 0,
+        "invalid": 1,
+    }
     rows = sorted(body["rows"], key=lambda row: row["row_number"])
 
     created = rows[0]
@@ -197,11 +213,15 @@ def test_csv_commit_persists_sr_id_os_family_and_backup_enabled(
     )
     preview = upload_csv(client, csrf, csv_content)
     assert preview.status_code == 201, preview.text
-    assert preview.json()["summary"] == {"create": 1, "update": 0, "unchanged": 0, "conflict": 0, "invalid": 0}
+    assert preview.json()["summary"] == {
+        "create": 1,
+        "update": 0,
+        "unchanged": 0,
+        "conflict": 0,
+        "invalid": 0,
+    }
 
-    commit = client.post(
-        f"/api/imports/{preview.json()['id']}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{preview.json()['id']}/commit", headers=auth_headers(csrf))
     assert commit.status_code == 200, commit.text
     assert commit.json() == {"created": 1, "updated": 0}
 
@@ -231,9 +251,7 @@ def test_csv_commit_wraps_unexpected_row_error_as_actionable_4xx(
 
     monkeypatch.setattr("app.services.csv_import.create_vm", boom)
 
-    commit = client.post(
-        f"/api/imports/{batch_id}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{batch_id}/commit", headers=auth_headers(csrf))
 
     assert commit.status_code == 422, commit.text
     detail = commit.json()["detail"]
@@ -242,9 +260,8 @@ def test_csv_commit_wraps_unexpected_row_error_as_actionable_4xx(
     # nothing partially committed
     assert db_session.scalar(select(Vm).where(Vm.name == "Kaboom VM")) is None
 
-def test_partial_column_update_preserves_unmentioned_fields(
-    client, db_session: Session
-) -> None:
+
+def test_partial_column_update_preserves_unmentioned_fields(client, db_session: Session) -> None:
     """A CSV that names only some columns must not blank the rest."""
     editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
     vm = create_vm_row(
@@ -287,9 +304,7 @@ def test_partial_column_update_preserves_unmentioned_fields(
     assert refreshed.monitoring_enabled is True
 
 
-def test_blank_cell_in_present_column_does_not_overwrite(
-    client, db_session: Session
-) -> None:
+def test_blank_cell_in_present_column_does_not_overwrite(client, db_session: Session) -> None:
     """Blank cell means "leave alone", exactly like an absent column."""
     editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
     vm = create_vm_row(
@@ -327,9 +342,7 @@ def test_blank_cell_in_present_column_does_not_overwrite(
     assert refreshed.monitoring_enabled is True
 
 
-def test_create_with_blank_cells_still_applies_defaults(
-    client, db_session: Session
-) -> None:
+def test_create_with_blank_cells_still_applies_defaults(client, db_session: Session) -> None:
     create_user(db_session, email="editor@example.local", role=UserRole.editor)
     csrf = login(client, "editor@example.local")
 
@@ -398,9 +411,7 @@ def test_backup_location_is_importable(client, db_session: Session) -> None:
     response = upload_csv(client, csrf, csv_content)
     assert response.status_code == 201, response.text
 
-    commit = client.post(
-        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf))
     assert commit.status_code == 200, commit.text
 
     created = db_session.scalar(select(Vm).where(Vm.name == "Backed Up"))
@@ -408,9 +419,7 @@ def test_backup_location_is_importable(client, db_session: Session) -> None:
     assert created.backup_location == "veeam-repo-01"
 
 
-def test_unrecognized_columns_are_ignored_and_reported(
-    client, db_session: Session
-) -> None:
+def test_unrecognized_columns_are_ignored_and_reported(client, db_session: Session) -> None:
     """Hypervisor exports carry columns we do not model. Import what we
     recognize; name what we skipped so a typo'd header is visible."""
     create_user(db_session, email="editor@example.local", role=UserRole.editor)
@@ -514,9 +523,7 @@ def test_disk_and_ip_attach_additively_on_update(client, db_session: Session) ->
     response = upload_csv(client, csrf, csv_content)
     assert response.status_code == 201, response.text
 
-    commit = client.post(
-        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf))
     assert commit.status_code == 200, commit.text
 
     db_session.expire_all()
@@ -545,9 +552,7 @@ def test_repeated_import_does_not_duplicate_children(client, db_session: Session
     )
     response = upload_csv(client, csrf, csv_content)
     assert response.status_code == 201, response.text
-    commit = client.post(
-        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf))
     assert commit.status_code == 200, commit.text
 
     db_session.expire_all()
@@ -607,9 +612,7 @@ def test_multi_disk_row_creates_every_disk(client, db_session: Session) -> None:
     )
     response = upload_csv(client, csrf, csv_content)
     assert response.status_code == 201, response.text
-    commit = client.post(
-        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf))
     assert commit.status_code == 200, commit.text
 
     db_session.expire_all()
@@ -644,9 +647,7 @@ def test_multi_disk_update_adds_only_unmatched_and_never_resizes(
     )
     response = upload_csv(client, csrf, csv_content)
     assert response.status_code == 201, response.text
-    commit = client.post(
-        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf))
     assert commit.status_code == 200, commit.text
 
     db_session.expire_all()
@@ -667,9 +668,7 @@ def test_role_scoped_ip_columns_land_with_their_roles(client, db_session: Sessio
     )
     response = upload_csv(client, csrf, csv_content)
     assert response.status_code == 201, response.text
-    commit = client.post(
-        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf))
     assert commit.status_code == 200, commit.text
 
     db_session.expire_all()
@@ -703,9 +702,7 @@ def test_same_ip_in_two_role_columns_takes_the_first_role(client, db_session: Se
     )
     response = upload_csv(client, csrf, csv_content)
     assert response.status_code == 201, response.text
-    commit = client.post(
-        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf))
     assert commit.status_code == 200, commit.text
 
     db_session.expire_all()
@@ -734,9 +731,7 @@ def test_malformed_disks_cell_errors_the_row(client, db_session: Session) -> Non
     assert [r["action"] for r in rows] == [ImportAction.invalid, ImportAction.invalid]
     assert all(any(e["field"] == "disks" for e in r["errors"]) for r in rows)
 
-    commit = client.post(
-        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf))
     assert commit.status_code == 409, commit.text
     db_session.expire_all()
     assert db_session.scalar(select(Vm).where(Vm.name == "No Size")) is None
@@ -758,9 +753,7 @@ def test_blank_disks_cell_on_update_touches_no_children(client, db_session: Sess
     )
     response = upload_csv(client, csrf, csv_content)
     assert response.status_code == 201, response.text
-    commit = client.post(
-        f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf)
-    )
+    commit = client.post(f"/api/imports/{response.json()['id']}/commit", headers=auth_headers(csrf))
     assert commit.status_code == 200, commit.text
 
     db_session.expire_all()

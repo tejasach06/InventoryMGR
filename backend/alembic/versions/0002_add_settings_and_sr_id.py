@@ -10,8 +10,9 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0002_add_settings_and_sr_id"
 down_revision: str | None = "0001_initial"

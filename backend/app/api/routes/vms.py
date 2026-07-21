@@ -88,7 +88,9 @@ def list_inventory(
     items, total = list_vms(db, vars(filters), limit, offset)
     return VmList(
         items=[to_vm_read(item) for item in items],
-        total=total, limit=limit, offset=offset,
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 
@@ -138,11 +140,28 @@ def list_tags(db: DbSession, _: ViewerUser) -> list[str]:
 
 
 _EXPORT_COLS = [
-    "name", "fqdn", "platform", "cluster", "node", "environment", "status",
-    "criticality", "vcpu", "memory_gb", "os_family", "os_distribution", "os_version",
-    "business_owner", "technical_owner", "pmp_enabled",
-    "monitoring_enabled", "last_patch_date", "last_vuln_scan_date", "decommission_date",
-    "description", "tags",
+    "name",
+    "fqdn",
+    "platform",
+    "cluster",
+    "node",
+    "environment",
+    "status",
+    "criticality",
+    "vcpu",
+    "memory_gb",
+    "os_family",
+    "os_distribution",
+    "os_version",
+    "business_owner",
+    "technical_owner",
+    "pmp_enabled",
+    "monitoring_enabled",
+    "last_patch_date",
+    "last_vuln_scan_date",
+    "decommission_date",
+    "description",
+    "tags",
 ]
 
 
@@ -210,5 +229,3 @@ def update_vm(
 def delete_vm(vm_id: uuid.UUID, db: DbSession, _: AdminUser, __: Csrf) -> None:
     vm = get_vm_or_404(db, vm_id)
     delete_vm_service(db, vm)
-
-

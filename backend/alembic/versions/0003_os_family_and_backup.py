@@ -8,8 +8,9 @@ Create Date: 2026-06-24
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0003_os_family_and_backup"
 down_revision: str | None = "0002_add_settings_and_sr_id"

@@ -8,8 +8,9 @@ Create Date: 2026-06-13
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0001_initial"
 down_revision: str | None = None
@@ -21,7 +22,9 @@ platform = postgresql.ENUM("proxmox", "vmware", name="platform", create_type=Fal
 vm_status = postgresql.ENUM(
     "running", "stopped", "suspended", "unknown", name="vm_status", create_type=False
 )
-criticality = postgresql.ENUM("low", "medium", "high", "critical", name="criticality", create_type=False)
+criticality = postgresql.ENUM(
+    "low", "medium", "high", "critical", name="criticality", create_type=False
+)
 lifecycle = postgresql.ENUM(
     "planned", "active", "retiring", "retired", name="lifecycle", create_type=False
 )

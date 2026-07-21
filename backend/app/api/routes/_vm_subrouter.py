@@ -47,7 +47,12 @@ def make_vm_subrouter(
 
     @router.patch("/{item_id}", response_model=read_schema)
     def update_item(
-        vm_id: uuid.UUID, item_id: uuid.UUID, payload: update_schema, db: DbSession, _: EditorUser, __: Csrf  # type: ignore[valid-type]
+        vm_id: uuid.UUID,
+        item_id: uuid.UUID,
+        payload: update_schema,
+        db: DbSession,
+        _: EditorUser,
+        __: Csrf,  # type: ignore[valid-type]
     ):
         item = db.scalar(select(model).where(model.id == item_id, model.vm_id == vm_id))
         if item is None:
@@ -59,7 +64,9 @@ def make_vm_subrouter(
         return item
 
     @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-    def delete_item(vm_id: uuid.UUID, item_id: uuid.UUID, db: DbSession, _: EditorUser, __: Csrf) -> None:
+    def delete_item(
+        vm_id: uuid.UUID, item_id: uuid.UUID, db: DbSession, _: EditorUser, __: Csrf
+    ) -> None:
         item = db.scalar(select(model).where(model.id == item_id, model.vm_id == vm_id))
         if item is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=not_found_detail)

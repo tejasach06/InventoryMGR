@@ -5,6 +5,17 @@
     "context-mode@context-mode": true
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "grep -qP '\"file_path\"\\s*:\\s*\"[^\"]*/\\.env(?!\\.example)(\\.[a-z]+)?\"' && { echo 'Blocked: edit to real .env file (secrets). Edit .env.example instead.' >&2; exit 2; } || true"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
@@ -14,6 +25,12 @@
             "command": "grep -qE '\"file_path\" *: *\"[^\"]*\\.(py|ts|tsx)\"' && /home/tejas/.local/bin/graphify update \"${CLAUDE_PROJECT_DIR:-.}\" >/dev/null 2>&1 || true",
             "async": true,
             "statusMessage": "Updating graphify graph"
+          },
+          {
+            "type": "command",
+            "command": "grep -qE '\"file_path\" *: *\"[^\"]*\\.py\"' && (cd \"${CLAUDE_PROJECT_DIR:-.}/backend\" && uv run ruff format . && uv run ruff check --fix .) >/dev/null 2>&1 || true",
+            "async": true,
+            "statusMessage": "ruff format + fix"
           }
         ]
       }

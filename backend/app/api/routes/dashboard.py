@@ -29,9 +29,11 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
     ).one()
 
     cutoff = datetime.now(UTC) - timedelta(days=30)
-    recent = list(db.scalars(
-        select(Vm).where(Vm.created_at >= cutoff).order_by(Vm.created_at.desc()).limit(10)
-    ))
+    recent = list(
+        db.scalars(
+            select(Vm).where(Vm.created_at >= cutoff).order_by(Vm.created_at.desc()).limit(10)
+        )
+    )
 
     return DashboardStats(
         total=row.total,
