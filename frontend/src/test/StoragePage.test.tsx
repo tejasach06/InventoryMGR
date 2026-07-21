@@ -54,4 +54,17 @@ describe('StoragePage', () => {
 
     expect(await screen.findByText('No storage arrays yet.')).toBeInTheDocument();
   });
+
+  it('renders a dash for null usage and an error alert on failure', async () => {
+    vi.spyOn(api, 'listArrays').mockResolvedValue([
+      makeArray({ used_pct: null, over_threshold: false, datacenter: null }),
+    ]);
+    const { unmount } = renderWithProviders(<StoragePage />);
+    await screen.findByRole('link', { name: 'syn-01' });
+    unmount();
+
+    vi.spyOn(api, 'listArrays').mockRejectedValue(new Error('kaboom'));
+    renderWithProviders(<StoragePage />);
+    expect(await screen.findByText(/kaboom/i)).toBeInTheDocument();
+  });
 });
