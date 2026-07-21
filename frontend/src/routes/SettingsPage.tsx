@@ -7,12 +7,13 @@ import { Alert, Badge, PageHeader, PageTransition, Skeleton, Spinner, cardClass,
 import { cn } from '../lib/classNames';
 import { UsersPanel } from './UsersPage';
 
-const CATEGORY_ORDER: DropdownCategory[] = ['cpu', 'datacenter', 'disk', 'os'];
+const CATEGORY_ORDER: DropdownCategory[] = ['cpu', 'datacenter', 'disk', 'os', 'cluster'];
 const CATEGORY_LABELS: Record<DropdownCategory, string> = {
   cpu: 'CPU cores',
   datacenter: 'Datacenter',
   disk: 'Disk size (GB)',
   os: 'Operating system',
+  cluster: 'Cluster',
 };
 
 function OptionRow({ option }: { option: DropdownOption }) {
@@ -135,7 +136,7 @@ function NotificationsPanel() {
     if (settingsQuery.data && !touched.current) setDays(String(settingsQuery.data.decommission_notify_days));
   }, [settingsQuery.data]);
   const save = useMutation({
-    mutationFn: () => api.updateAppSettings(Number(days)),
+    mutationFn: () => api.updateAppSettings({ decommission_notify_days: Number(days) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'app'] }),
   });
   return (
@@ -164,7 +165,7 @@ export function SettingsPage() {
   const optionsQuery = useQuery({ queryKey: ['settings', 'options', 'all'], queryFn: api.getAllDropdownOptions });
 
   const grouped = useMemo(() => {
-    const map: Record<DropdownCategory, DropdownOption[]> = { cpu: [], datacenter: [], disk: [], os: [] };
+    const map: Record<DropdownCategory, DropdownOption[]> = { cpu: [], datacenter: [], disk: [], os: [], cluster: [] };
     for (const option of optionsQuery.data ?? []) {
       map[option.category].push(option);
     }

@@ -23,7 +23,7 @@ beforeEach(() => {
   pushMock.mockClear();
   // jsdom does not implement scrollIntoView, which the submit handler calls on the first invalid field.
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
-  vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({ cpu: [], datacenter: [], disk: [], os: [], os_by_family: { linux: [], windows: [] } });
+  vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({ cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] } });
   vi.spyOn(api, 'listVmOwners').mockResolvedValue([]);
 });
 

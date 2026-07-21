@@ -18,6 +18,7 @@ beforeEach(() => {
     cpu: ['8'],
     datacenter: ['dc-east-1', 'dc-east-2'],
     disk: [],
+    cluster: [],
     os: ['Debian 12', 'Ubuntu 22.04'],
     os_by_family: { linux: ['Alpine Linux'], windows: ['Windows Server 2022'] },
   });

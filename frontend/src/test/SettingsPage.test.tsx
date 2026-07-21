@@ -170,8 +170,8 @@ describe('SettingsPage', () => {
 
   it('saves the decommission notify window', async () => {
     vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
-    vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30 });
-    const updateSpy = vi.spyOn(api, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 60 });
+    vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
+    const updateSpy = vi.spyOn(api, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 60, storage_usage_warn_pct: 85 });
 
     renderWithProviders(<SettingsPage />);
 
@@ -180,6 +180,6 @@ describe('SettingsPage', () => {
     fireEvent.change(input, { target: { value: '60' } });
     fireEvent.click(screen.getByRole('button', { name: /save window/i }));
 
-    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith(60));
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith({ decommission_notify_days: 60 }));
   });
 });
