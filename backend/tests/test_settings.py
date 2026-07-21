@@ -15,8 +15,8 @@ def test_list_options_returns_all_categories_empty_initially(client, db_session:
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert set(body.keys()) == {"cpu", "datacenter", "disk", "os", "os_by_family"}
-    assert all(body[key] == [] for key in ("cpu", "datacenter", "disk", "os"))
+    assert set(body.keys()) == {"cpu", "datacenter", "disk", "os", "cluster", "os_by_family"}
+    assert all(body[key] == [] for key in ("cpu", "datacenter", "disk", "os", "cluster"))
     assert body["os_by_family"] == {"linux": [], "windows": []}
 
 

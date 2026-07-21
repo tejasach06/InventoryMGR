@@ -33,9 +33,10 @@ value is user-entered or CSV-imported.
 ## Database
 
 - Enums (`Platform`, `VmStatus`, `Environment`, `Criticality`, `Lifecycle`,
-  `OsFamily`, `VmType`) are Python `StrEnum`s in `db/models.py` — changing one
-  needs an Alembic migration. User-editable dropdown values are a **separate**
-  runtime concept served by `/api/settings/options`.
+  `OsFamily`, `VmType`, `StorageVendor`) are Python `StrEnum`s in `db/models.py`
+  — changing one needs an Alembic migration. User-editable dropdown values are a
+  **separate** runtime concept served by `/api/settings/options` (categories incl.
+  `cluster`, seeded from existing VM clusters).
 - `backend/tests/conftest.py` hits **real Postgres** (no SQLite), resets between
   tests. Helpers: `create_user`, `login` (returns CSRF), `auth_headers(csrf)`,
   `vm_payload`, `create_vm_row`.
