@@ -208,6 +208,7 @@ class Vm(Base, TimestampMixin):
         back_populates="vm", cascade="all, delete-orphan"
     )
 
+
 def compute_health_score(vm: "Vm") -> int:
     score = 0
     if vm.description:
@@ -225,7 +226,6 @@ def compute_health_score(vm: "Vm") -> int:
     if vm.decommission_date:
         score += 15
     return score
-
 
 
 Index(
@@ -288,9 +288,7 @@ class VmNetwork(Base):
 
 class VmApplication(Base):
     __tablename__ = "vm_applications"
-    __table_args__ = (
-        UniqueConstraint("vm_id", "app_name", name="uq_vm_applications_vm_app"),
-    )
+    __table_args__ = (UniqueConstraint("vm_id", "app_name", name="uq_vm_applications_vm_app"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vm_id: Mapped[uuid.UUID] = mapped_column(
@@ -329,9 +327,7 @@ Index("ix_audit_log_vm_id_changed_at", AuditLog.vm_id, AuditLog.changed_at)
 
 class DropdownOption(Base, TimestampMixin):
     __tablename__ = "dropdown_options"
-    __table_args__ = (
-        UniqueConstraint("category", "value", name="uq_dropdown_category_value"),
-    )
+    __table_args__ = (UniqueConstraint("category", "value", name="uq_dropdown_category_value"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     category: Mapped[DropdownCategory] = mapped_column(
@@ -393,3 +389,24 @@ class CsvImportRow(Base):
 
     batch: Mapped[CsvImportBatch] = relationship(back_populates="rows")
     target_vm: Mapped[Vm | None] = relationship()
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class DecommissionAck(Base, TimestampMixin):
+    __tablename__ = "decommission_acks"
+    __table_args__ = (UniqueConstraint("user_id", "vm_id", name="uq_decommission_ack_user_vm"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    vm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vms.id", ondelete="CASCADE"), nullable=False
+    )
+    acked_date: Mapped[date] = mapped_column(Date, nullable=False)
