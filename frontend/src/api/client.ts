@@ -190,6 +190,18 @@ export interface CommitResult {
   updated: number;
 }
 
+export interface DueVm {
+  vm_id: string;
+  name: string;
+  decommission_date: string;
+  days_remaining: number;
+  unread: boolean;
+}
+
+export interface AppSettings {
+  decommission_notify_days: number;
+}
+
 
 const API_PREFIX = '/api';
 const CSRF_COOKIE = 'inventorymgr_csrf';
@@ -365,4 +377,17 @@ export const api = {
     apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(
       `/user/preferences/${pageKey}`, { method: 'PUT', body: JSON.stringify({ columns }) },
     ),
+
+  decommissionNotifications: () => apiRequest<DueVm[]>('/notifications/decommissions'),
+  ackDecommissions: (vmIds?: string[]) =>
+    apiRequest<null>('/notifications/decommissions/ack', {
+      method: 'POST',
+      body: JSON.stringify({ vm_ids: vmIds ?? null }),
+    }),
+  getAppSettings: () => apiRequest<AppSettings>('/settings/app'),
+  updateAppSettings: (days: number) =>
+    apiRequest<AppSettings>('/settings/app', {
+      method: 'PATCH',
+      body: JSON.stringify({ decommission_notify_days: days }),
+    }),
 };

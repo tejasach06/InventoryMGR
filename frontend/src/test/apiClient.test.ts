@@ -259,4 +259,12 @@ describe('api client methods', () => {
     expect(url).toBe('/api/imports/preview');
     expect(init.body).toBeInstanceOf(FormData);
   });
+
+  it('ackDecommissions posts null vm_ids when omitted', async () => {
+    await api.ackDecommissions();
+    const [url, init] = lastFetchCall();
+    expect(url).toBe('/api/notifications/decommissions/ack');
+    expect(init.method).toBe('POST');
+    expect(init.body).toBe(JSON.stringify({ vm_ids: null }));
+  });
 });
