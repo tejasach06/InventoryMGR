@@ -14,16 +14,15 @@ down_revision = "0013"
 branch_labels = None
 depends_on = None
 
-# create_type=False: the type is created explicitly (guarded) in upgrade();
-# without this, op.create_table would emit a second unguarded CREATE TYPE.
-storage_vendor = sa.Enum("synology", "netapp", name="storage_vendor", create_type=False)
+storage_vendor = sa.Enum("synology", "netapp", name="storage_vendor")
 
 
 def upgrade() -> None:
     with op.get_context().autocommit_block():
         op.execute("ALTER TYPE dropdown_category ADD VALUE IF NOT EXISTS 'cluster'")
 
-    sa.Enum("synology", "netapp", name="storage_vendor").create(op.get_bind(), checkfirst=True)
+    # The first create_table below creates the storage_vendor type (create_type
+    # defaults True). No explicit .create() — that would double-emit CREATE TYPE.
     op.create_table(
         "storage_arrays",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
