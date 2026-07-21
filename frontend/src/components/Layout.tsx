@@ -7,6 +7,7 @@ import { api, User } from '../api/client';
 import { Logo, secondaryButtonClass } from './ui';
 import { AppNav } from './AppNav';
 import { ThemeSelect } from './ThemeProvider';
+import { NotificationBell } from './NotificationBell';
 
 interface LayoutProps {
   user: User;
@@ -39,6 +40,7 @@ export function AppLayout({ user, children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 lg:flex">
+      <NotificationBell />
       <aside className={`sticky top-0 z-20 border-b border-slate-100 bg-white/95 px-4 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
         <div className="flex items-center justify-between gap-4 lg:block">
           <div className={`flex items-center gap-2.5 ${collapsed ? 'lg:w-full lg:flex-col lg:items-center lg:gap-2' : ''}`}>
