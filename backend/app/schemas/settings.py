@@ -37,3 +37,11 @@ class GroupedDropdownOptions(BaseModel):
     disk: list[str] = Field(default_factory=list)
     os: list[str] = Field(default_factory=list)
     os_by_family: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class AppSettingsRead(BaseModel):
+    decommission_notify_days: int
+
+
+class AppSettingsUpdate(BaseModel):
+    decommission_notify_days: int = Field(..., ge=1, le=3650)

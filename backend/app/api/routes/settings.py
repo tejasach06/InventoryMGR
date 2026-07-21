@@ -8,11 +8,14 @@ from sqlalchemy.exc import IntegrityError
 from app.api.deps import AdminUser, Csrf, DbSession, ViewerUser
 from app.db.models import DropdownCategory, DropdownOption, OsFamily
 from app.schemas.settings import (
+    AppSettingsRead,
+    AppSettingsUpdate,
     DropdownOptionCreate,
     DropdownOptionRead,
     DropdownOptionUpdate,
     GroupedDropdownOptions,
 )
+from app.services import app_settings
 
 router = APIRouter()
 
@@ -100,3 +103,16 @@ def delete_option(option_id: uuid.UUID, db: DbSession, _: AdminUser, __: Csrf) -
         )
     db.delete(option)
     db.commit()
+
+
+@router.get("/app", response_model=AppSettingsRead)
+def get_app_settings(db: DbSession, _: ViewerUser) -> AppSettingsRead:
+    return AppSettingsRead(decommission_notify_days=app_settings.get_notify_days(db))
+
+
+@router.patch("/app", response_model=AppSettingsRead)
+def update_app_settings(
+    payload: AppSettingsUpdate, db: DbSession, _: AdminUser, __: Csrf
+) -> AppSettingsRead:
+    days = app_settings.set_notify_days(db, payload.decommission_notify_days)
+    return AppSettingsRead(decommission_notify_days=days)
