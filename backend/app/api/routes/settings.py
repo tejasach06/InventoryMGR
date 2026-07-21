@@ -107,12 +107,21 @@ def delete_option(option_id: uuid.UUID, db: DbSession, _: AdminUser, __: Csrf) -
 
 @router.get("/app", response_model=AppSettingsRead)
 def get_app_settings(db: DbSession, _: ViewerUser) -> AppSettingsRead:
-    return AppSettingsRead(decommission_notify_days=app_settings.get_notify_days(db))
+    return AppSettingsRead(
+        decommission_notify_days=app_settings.get_notify_days(db),
+        storage_usage_warn_pct=app_settings.get_warn_pct(db),
+    )
 
 
 @router.patch("/app", response_model=AppSettingsRead)
 def update_app_settings(
     payload: AppSettingsUpdate, db: DbSession, _: AdminUser, __: Csrf
 ) -> AppSettingsRead:
-    days = app_settings.set_notify_days(db, payload.decommission_notify_days)
-    return AppSettingsRead(decommission_notify_days=days)
+    if payload.decommission_notify_days is not None:
+        app_settings.set_notify_days(db, payload.decommission_notify_days)
+    if payload.storage_usage_warn_pct is not None:
+        app_settings.set_warn_pct(db, payload.storage_usage_warn_pct)
+    return AppSettingsRead(
+        decommission_notify_days=app_settings.get_notify_days(db),
+        storage_usage_warn_pct=app_settings.get_warn_pct(db),
+    )
