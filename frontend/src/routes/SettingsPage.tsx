@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, DropdownCategory, DropdownOption, OsFamily } from '../api/client';
 import { Alert, Badge, PageHeader, PageTransition, Skeleton, Spinner, cardClass, dangerButtonClass, inputClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
@@ -124,8 +124,43 @@ function CategoryPanel({ category, options }: { category: DropdownCategory; opti
   );
 }
 
+function NotificationsPanel() {
+  const queryClient = useQueryClient();
+  const settingsQuery = useQuery({ queryKey: ['settings', 'app'], queryFn: api.getAppSettings });
+  const [days, setDays] = useState('');
+  const touched = useRef(false);
+  useEffect(() => {
+    // Only seed from the query once — a background refetch (or the async resolution
+    // racing a user's own edit) must never clobber an in-progress edit.
+    if (settingsQuery.data && !touched.current) setDays(String(settingsQuery.data.decommission_notify_days));
+  }, [settingsQuery.data]);
+  const save = useMutation({
+    mutationFn: () => api.updateAppSettings(Number(days)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'app'] }),
+  });
+  return (
+    <div role="tabpanel" id="panel-notifications" aria-labelledby="tab-notifications" className="animate-fade-in">
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => { e.preventDefault(); if (Number(days) >= 1) save.mutate(); }}
+      >
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="notify-days">
+            Days before decommission to warn
+          </label>
+          <input id="notify-days" type="number" min={1} className={inputClass + ' max-w-32'} value={days} onChange={(e) => { touched.current = true; setDays(e.target.value); }} />
+        </div>
+        <button type="submit" className={primaryButtonClass} disabled={save.isPending || Number(days) < 1}>
+          {save.isPending ? <><Spinner /> Saving…</> : 'Save window'}
+        </button>
+        {save.isError ? <span className="text-sm font-medium text-red-700 dark:text-red-300" role="alert">{detailMessage(save.error)}</span> : null}
+      </form>
+    </div>
+  );
+}
+
 export function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<DropdownCategory | 'users'>('cpu');
+  const [activeTab, setActiveTab] = useState<DropdownCategory | 'users' | 'notifications'>('cpu');
   const optionsQuery = useQuery({ queryKey: ['settings', 'options', 'all'], queryFn: api.getAllDropdownOptions });
 
   const grouped = useMemo(() => {
@@ -188,11 +223,30 @@ export function SettingsPage() {
               >
                 Users
               </button>
+              <button
+                key="notifications"
+                type="button"
+                role="tab"
+                id="tab-notifications"
+                aria-selected={activeTab === 'notifications'}
+                aria-controls="panel-notifications"
+                onClick={() => setActiveTab('notifications')}
+                className={cn(
+                  '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+                  activeTab === 'notifications'
+                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
+                )}
+              >
+                Notifications
+              </button>
             </div>
             {activeTab === 'users' ? (
               <div role="tabpanel" id="panel-users" aria-labelledby="tab-users" className="animate-fade-in">
                 <UsersPanel />
               </div>
+            ) : activeTab === 'notifications' ? (
+              <NotificationsPanel />
             ) : (
               <CategoryPanel category={activeTab} options={grouped[activeTab]} />
             )}
