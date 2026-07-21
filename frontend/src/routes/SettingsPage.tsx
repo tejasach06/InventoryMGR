@@ -129,14 +129,21 @@ function NotificationsPanel() {
   const queryClient = useQueryClient();
   const settingsQuery = useQuery({ queryKey: ['settings', 'app'], queryFn: api.getAppSettings });
   const [days, setDays] = useState('');
+  const [warnPct, setWarnPct] = useState('');
   const touched = useRef(false);
+  const pctTouched = useRef(false);
   useEffect(() => {
     // Only seed from the query once — a background refetch (or the async resolution
     // racing a user's own edit) must never clobber an in-progress edit.
     if (settingsQuery.data && !touched.current) setDays(String(settingsQuery.data.decommission_notify_days));
+    if (settingsQuery.data && !pctTouched.current) setWarnPct(String(settingsQuery.data.storage_usage_warn_pct));
   }, [settingsQuery.data]);
   const save = useMutation({
     mutationFn: () => api.updateAppSettings({ decommission_notify_days: Number(days) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'app'] }),
+  });
+  const savePct = useMutation({
+    mutationFn: () => api.updateAppSettings({ storage_usage_warn_pct: Number(warnPct) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'app'] }),
   });
   return (
@@ -155,6 +162,22 @@ function NotificationsPanel() {
           {save.isPending ? <><Spinner /> Saving…</> : 'Save window'}
         </button>
         {save.isError ? <span className="text-sm font-medium text-red-700 dark:text-red-300" role="alert">{detailMessage(save.error)}</span> : null}
+      </form>
+
+      <form
+        className="mt-6 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-6 dark:border-slate-800"
+        onSubmit={(e) => { e.preventDefault(); if (Number(warnPct) >= 1 && Number(warnPct) <= 100) savePct.mutate(); }}
+      >
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="warn-pct">
+            Storage usage warning threshold (%)
+          </label>
+          <input id="warn-pct" type="number" min={1} max={100} className={inputClass + ' max-w-32'} value={warnPct} onChange={(e) => { pctTouched.current = true; setWarnPct(e.target.value); }} />
+        </div>
+        <button type="submit" className={primaryButtonClass} disabled={savePct.isPending || Number(warnPct) < 1 || Number(warnPct) > 100}>
+          {savePct.isPending ? <><Spinner /> Saving…</> : 'Save threshold'}
+        </button>
+        {savePct.isError ? <span className="text-sm font-medium text-red-700 dark:text-red-300" role="alert">{detailMessage(savePct.error)}</span> : null}
       </form>
     </div>
   );
