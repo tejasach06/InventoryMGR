@@ -278,6 +278,55 @@ export type ArrayPayload = Partial<Omit<StorageArray, 'id' | 'used_pct' | 'over_
   vendor: StorageVendor;
 };
 
+export interface NodeIpAddress {
+  label: string;
+  address: string;
+}
+
+export interface PhysicalNode {
+  id: string;
+  cluster_id: string;
+  name: string;
+  cpu_model: string | null;
+  cpu_cores: number;
+  cpu_threads: number;
+  ram_total_gb: number;
+  ram_used_gb: number | null;
+  storage_usable_gb: number;
+  datacenter: string | null;
+  rack: string | null;
+  rack_unit: string | null;
+  ip_addresses: NodeIpAddress[];
+  notes: string | null;
+  sort_order: number;
+}
+
+export interface PhysicalClusterListItem {
+  id: string;
+  name: string;
+  description: string | null;
+  node_count: number;
+  total_ram_gb: number;
+  total_storage_gb: number;
+}
+
+export interface PhysicalCluster {
+  id: string;
+  name: string;
+  description: string | null;
+  notes: string | null;
+  nodes: PhysicalNode[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type ClusterPayload = Partial<Omit<PhysicalCluster, 'id' | 'nodes' | 'created_at' | 'updated_at'>> & {
+  name: string;
+};
+
+export type NodePayload = Partial<Omit<PhysicalNode, 'id' | 'cluster_id'>> & {
+  name: string;
+};
 
 const API_PREFIX = '/api';
 const CSRF_COOKIE = 'inventorymgr_csrf';
@@ -436,36 +485,10 @@ export const api = {
     body.set('file', file);
     return apiRequest<ImportBatch>('/imports/preview', { method: 'POST', body });
   },
-  getImport: (id: string) => apiRequest<ImportBatch>(`/imports/${id}`),
-  commitImport: (id: string) => apiRequest<CommitResult>(`/imports/${id}/commit`, { method: 'POST' }),
-
-  getDropdownOptions: () => apiRequest<DropdownOptions>('/settings/options'),
-  getAllDropdownOptions: () => apiRequest<DropdownOption[]>('/settings/options/all'),
-  createDropdownOption: (category: DropdownCategory, value: string, family: OsFamily | null = null) =>
-    apiRequest<DropdownOption>('/settings/options', { method: 'POST', body: JSON.stringify({ category, value, family }) }),
-  updateDropdownOption: (id: string, value: string, family: OsFamily | null = null) =>
-    apiRequest<DropdownOption>(`/settings/options/${id}`, { method: 'PATCH', body: JSON.stringify({ value, family }) }),
-  deleteDropdownOption: (id: string) => apiRequest<null>(`/settings/options/${id}`, { method: 'DELETE' }),
-
-  getColumnPreferences: (pageKey: string) =>
-    apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(`/user/preferences/${pageKey}`),
-  updateColumnPreferences: (pageKey: string, columns: { key: string; visible: boolean; order: number }[]) =>
-    apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(
-      `/user/preferences/${pageKey}`, { method: 'PUT', body: JSON.stringify({ columns }) },
-    ),
-
-  decommissionNotifications: () => apiRequest<DueVm[]>('/notifications/decommissions'),
-  ackDecommissions: (vmIds?: string[]) =>
-    apiRequest<null>('/notifications/decommissions/ack', {
-      method: 'POST',
-      body: JSON.stringify({ vm_ids: vmIds ?? null }),
-    }),
-  getAppSettings: () => apiRequest<AppSettings>('/settings/app'),
-  updateAppSettings: (patch: { decommission_notify_days?: number; storage_usage_warn_pct?: number }) =>
-    apiRequest<AppSettings>('/settings/app', {
-      method: 'PATCH',
-      body: JSON.stringify(patch),
-    }),
+  addShare: (volumeId: string, payload: Partial<Omit<NfsShare, 'id' | 'volume_id'>> & { export_path: string }) =>
+    apiRequest<NfsShare>(`/storage/volumes/${volumeId}/shares`, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteShare: (volumeId: string, shareId: string) =>
+    apiRequest<null>(`/storage/volumes/${volumeId}/shares/${shareId}`, { method: 'DELETE' }),
 
   listArrays: () => apiRequest<StorageArrayListItem[]>('/storage/arrays'),
   getArray: (id: string) => apiRequest<StorageArray>(`/storage/arrays/${id}`),
@@ -489,4 +512,51 @@ export const api = {
     apiRequest<NfsShare>(`/storage/volumes/${volumeId}/shares`, { method: 'POST', body: JSON.stringify(payload) }),
   deleteShare: (volumeId: string, shareId: string) =>
     apiRequest<null>(`/storage/volumes/${volumeId}/shares/${shareId}`, { method: 'DELETE' }),
+
+  listClusters: () => apiRequest<PhysicalClusterListItem[]>('/clusters/'),
+  getCluster: (id: string) => apiRequest<PhysicalCluster>(`/clusters/${id}`),
+  createCluster: (payload: ClusterPayload) =>
+    apiRequest<PhysicalCluster>('/clusters/', { method: 'POST', body: JSON.stringify(payload) }),
+  updateCluster: (id: string, payload: Partial<ClusterPayload>) =>
+    apiRequest<PhysicalCluster>(`/clusters/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteCluster: (id: string) => apiRequest<null>(`/clusters/${id}`, { method: 'DELETE' }),
+
+  addNode: (clusterId: string, payload: NodePayload) =>
+    apiRequest<PhysicalNode>(`/clusters/${clusterId}/nodes/`, { method: 'POST', body: JSON.stringify(payload) }),
+  updateNode: (clusterId: string, nodeId: string, payload: Partial<NodePayload>) =>
+    apiRequest<PhysicalNode>(`/clusters/${clusterId}/nodes/${nodeId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteNode: (clusterId: string, nodeId: string) =>
+    apiRequest<null>(`/clusters/${clusterId}/nodes/${nodeId}`, { method: 'DELETE' }),
+
+  getDropdownOptions: () => apiRequest<DropdownOptions>('/settings/options'),
+  getAllDropdownOptions: () => apiRequest<DropdownOption[]>('/settings/options/all'),
+  createDropdownOption: (category: DropdownCategory, value: string, family: OsFamily | null = null) =>
+    apiRequest<DropdownOption>('/settings/options', { method: 'POST', body: JSON.stringify({ category, value, family }) }),
+  updateDropdownOption: (id: string, value: string, family: OsFamily | null = null) =>
+    apiRequest<DropdownOption>(`/settings/options/${id}`, { method: 'PATCH', body: JSON.stringify({ value, family }) }),
+  deleteDropdownOption: (id: string) => apiRequest<null>(`/settings/options/${id}`, { method: 'DELETE' }),
+
+  getColumnPreferences: (pageKey: string) =>
+    apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(`/user/preferences/${pageKey}`),
+  updateColumnPreferences: (pageKey: string, columns: { key: string; visible: boolean; order: number }[]) =>
+    apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(
+      `/user/preferences/${pageKey}`, { method: 'PUT', body: JSON.stringify({ columns }) },
+    ),
+
+  getAppSettings: () => apiRequest<AppSettings>('/settings/app'),
+  updateAppSettings: (patch: { decommission_notify_days?: number; storage_usage_warn_pct?: number }) =>
+    apiRequest<AppSettings>('/settings/app', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+
+  decommissionNotifications: () => apiRequest<DueVm[]>('/notifications/decommissions'),
+  ackDecommissions: (vmIds?: string[]) =>
+    apiRequest<null>('/notifications/decommissions/ack', {
+      method: 'POST',
+      body: JSON.stringify({ vm_ids: vmIds ?? null }),
+    }),
+
+  getImport: (id: string) => apiRequest<ImportBatch>(`/imports/${id}`),
+  commitImport: (id: string) => apiRequest<CommitResult>(`/imports/${id}/commit`, { method: 'POST' }),
 };

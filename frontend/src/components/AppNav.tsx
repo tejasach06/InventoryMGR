@@ -59,6 +59,14 @@ function IconStorage() {
   );
 }
 
+function IconCluster() {
+  return (
+    <svg className="h-4 w-4 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="2" width="5" height="5" rx="1" /><rect x="9" y="2" width="5" height="5" rx="1" /><rect x="2" y="9" width="5" height="5" rx="1" /><rect x="9" y="9" width="5" height="5" rx="1" />
+    </svg>
+  );
+}
+
 function IconReport() {
   return (
     <svg className="h-4 w-4 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -73,6 +81,7 @@ export function buildNavItems(user: Pick<User, 'role'>): NavItem[] {
   return [
     { to: '/inventory', label: 'Inventory', visible: true, icon: <IconGrid /> },
     { to: '/storage', label: 'Storage', visible: true, icon: <IconStorage /> },
+    { to: '/clusters', label: 'Clusters', visible: true, icon: <IconCluster /> },
     { to: '/imports/new', label: 'Import', visible: user.role === 'admin' || user.role === 'editor', icon: <IconUpload /> },
     { to: '/settings', label: 'Settings', visible: canSeeUsers(user.role), icon: <IconGear /> },
   ];
