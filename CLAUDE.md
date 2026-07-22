@@ -64,6 +64,13 @@ A global hook **blocks Read/Grep until graphify has oriented you**. Start with
   browser, not parallel-safe.
 - **context7** — prefer over memory/web for library API docs.
 
+## Design Context
+
+Register: **product** · Platform: **web**. Strategic context (users, purpose,
+personality, anti-references) lives in `PRODUCT.md`; the visual system (colors,
+typography, components) lives in `DESIGN.md` + `.impeccable/design.json`. Read
+both before any `/impeccable` design work.
+
 ## Conventions
 
 - **Compact at 50% context** — stop at the next task boundary and ask for

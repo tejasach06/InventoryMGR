@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-22T21:50:00Z",
+  "title": "Design System: InventoryMGR",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Indigo Accent", "canonical": "oklch(51% 0.23 275)", "tonalRamp": ["#1e1b4b", "#312e81", "#3730a3", "#4338ca", "#4f46e5", "#6366f1", "#818cf8", "#c7d2fe"] },
+      "surface": { "role": "neutral", "displayName": "Surface", "canonical": "oklch(100% 0 0)", "tonalRamp": ["#0f1222", "#4a4f63", "#9aa0b4", "#e3e6ef", "#eef0f7", "#f6f7fb", "#fbfbfd", "#ffffff"] },
+      "status-running": { "role": "semantic", "displayName": "Running Green", "canonical": "oklch(60% 0.14 155)", "tonalRamp": ["#064e3b", "#065f46", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#d1fae5"] },
+      "criticality-critical": { "role": "semantic", "displayName": "Critical Red", "canonical": "oklch(57% 0.22 25)", "tonalRamp": ["#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fca5a5", "#fee2e2"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Space Grotesk)", "purpose": "Page titles only — one per view, via PageHeader." },
+      "body": { "displayName": "Body (Inter)", "purpose": "Default UI text, table cells, labels — the workhorse face." },
+      "mono": { "displayName": "Technical Mono", "purpose": "Scannable technical values: IPs, UUIDs, sizes, counts. Tabular-nums always on." }
+    },
+    "shadows": [
+      { "name": "raised", "value": "0 1px 2px rgba(15,18,34,.04), 0 4px 12px -4px rgba(15,18,34,.08)", "purpose": "Resting state for cards, tables, stat tiles — barely visible separation cue." },
+      { "name": "overlay", "value": "0 8px 24px -6px rgba(15,18,34,.16), 0 2px 8px -2px rgba(15,18,34,.08)", "purpose": "Drawers, dialogs, dropdowns — anything floating above the page." }
+    ],
+    "motion": [
+      { "name": "ease-out-expo", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Default easing for row-action reveal, bento-tile hover lift, bulk-bar slide-up." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action per view (Save, Create).",
+      "html": "<button class=\"ds-btn-primary\">Save</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #4f46e5; color: #ffffff; font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 8px; border: none; transition: background 150ms; } .ds-btn-primary:hover { background: #4338ca; } .ds-btn-primary:focus-visible { outline: 2px solid #4f46e5; outline-offset: 2px; } .ds-btn-primary:disabled { cursor: not-allowed; opacity: 0.6; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Every non-primary action (Cancel, secondary nav).",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #ffffff; color: #4a4f63; font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 8px; border: 1px solid #e3e6ef; transition: background 150ms; } .ds-btn-secondary:hover { background: #eef0f7; } .ds-btn-secondary:focus-visible { outline: 2px solid #4f46e5; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Semantic status/criticality/environment indicator with a matching dot.",
+      "html": "<span class=\"ds-badge\"><span class=\"ds-badge-dot\"></span>Running</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.01em; line-height: 1; background: #d1fae5; color: #059669; } .ds-badge-dot { width: 6px; height: 6px; border-radius: 9999px; background: #059669; flex-shrink: 0; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Default container for grouped content — flat at rest.",
+      "html": "<div class=\"ds-card\">Card content</div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid rgba(227,230,239,0.7); border-radius: 12px; padding: 20px; box-shadow: 0 1px 2px rgba(15,18,34,.04), 0 4px 12px -4px rgba(15,18,34,.08); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Default form field with soft accent glow on focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"Enter a value\" />",
+      "css": ".ds-input { width: 100%; background: #ffffff; color: #0f1222; border: 1px solid #e3e6ef; border-radius: 8px; padding: 10px 12px; font-size: 14px; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: #9aa0b4; } .ds-input:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 4px rgba(79,70,229,0.12); }"
+    },
+    {
+      "name": "Table Row",
+      "kind": "custom",
+      "refersTo": "table-row",
+      "description": "Data row with hidden-until-hover actions and optional status-color left accent.",
+      "html": "<tr class=\"ds-row\" style=\"border-left: 3px solid #059669\"><td class=\"ds-cell\">vm-web-01</td><td class=\"ds-cell\"><span class=\"ds-row-actions\">Edit</span></td></tr>",
+      "css": ".ds-row { transition: background 200ms; } .ds-row:nth-child(odd) { background: #ffffff; } .ds-row:nth-child(even) { background: rgba(246,247,251,0.6); } .ds-row:hover { background: rgba(79,70,229,0.05); } .ds-cell { padding: 12px 16px; font-size: 14px; color: #0f1222; white-space: nowrap; } .ds-row-actions { opacity: 0; transform: translateX(2px); transition: opacity 150ms cubic-bezier(0.16,1,0.3,1), transform 150ms cubic-bezier(0.16,1,0.3,1); } .ds-row:hover .ds-row-actions { opacity: 1; transform: translateX(0); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Instrument Panel",
+    "overview": "InventoryMGR is read by sysadmins mid-task, not browsed by visitors being sold something. The system takes its cue from an instrument panel: calm, neutral chrome everywhere, with color used only where it encodes a real reading — a VM's status, a host's criticality, an environment tier. Nothing on screen competes with that signal. The palette outside the semantic layer is deliberately quiet (near-white surfaces, slate-toned text, a single indigo accent for interactive elements), so that when a badge turns red or amber, it reads immediately as meaning something, not as decoration. This explicitly rejects the bloated-enterprise-SaaS look — dense chrome, modal-on-modal flows, buried actions, decorative gradients. A two-second edit should never feel like a form wizard. Depth and motion are used the same way color is: sparingly, and only in response to state (hover, focus, a row revealing its actions), never as base decoration.",
+    "keyCharacteristics": [
+      "Neutral chrome, saturated signal — color is reserved for data meaning (status/criticality/environment/platform), never decoration",
+      "Flat by default; elevation appears only on interaction (hover lift, focus ring, drawer/overlay)",
+      "Dense information display (tables, badges, mono technical values) with enough breathing room to avoid feeling cramped",
+      "Full light/dark parity — every semantic color has a tuned dark-mode counterpart, not just an inverted background"
+    ],
+    "rules": [
+      { "name": "The Signal Rule", "body": "Saturated color appears only where it encodes a real, current data value — a VM's status, a host's criticality tier, an environment or platform badge. It never appears as page chrome, decoration, or emphasis-for-emphasis's-sake. If a color can't be traced to a specific field's value, it doesn't belong on screen.", "section": "colors" },
+      { "name": "The Tabular Rule", "body": "Any value a user might scan down a column (IP address, size, count, UUID) gets tabular-nums and the mono stack, so digits align vertically. Never render technical values in the body font.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Nothing gets a shadow just for existing. A card's shadow announces 'this is a distinct region,' not 'this is important.' Elevation increases only with genuine z-axis meaning: hover, overlay, never as a styling flourish on a static element.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do reserve saturated color for the six semantic categories (status, criticality, environment, platform, os_family, lifecycle) — every other surface stays neutral.",
+      "Do keep shadows nearly invisible at rest and reserve shadow-overlay for genuinely floating surfaces.",
+      "Do use the mono/tabular-nums stack for any scannable technical value.",
+      "Do keep the primary button to one per view.",
+      "Do hide row actions until hover/focus so tables stay dense and quiet until needed."
+    ],
+    "donts": [
+      "Don't build a bloated-enterprise-SaaS interface — no dense chrome, no modal-on-modal flows, no burying the primary action behind menus.",
+      "Don't use saturated color decoratively.",
+      "Don't add shadows to a static element 'for depth.'",
+      "Don't add a second left-border color accent pattern outside the existing status-row convention.",
+      "Don't turn a routine two-second edit into a multi-step wizard or add a confirmation modal where none is currently required."
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "target": "claude",
+  "stacks": ["python", "nodejs"],
+  "languages": ["python", "typescript"],
+  "profiles": ["backend-fastapi", "frontend-react"],
+  "skills": [
+    "ecc:python-reviewer",
+    "ecc:fastapi-reviewer",
+    "ecc:react-reviewer",
+    "ecc:typescript-reviewer",
+    "ecc:react-build-resolver",
+    "ecc:tdd-guide",
+    "ecc:database-reviewer",
+    "ecc:code-reviewer",
+    "ecc:security-reviewer",
+    "ecc:e2e-runner",
+    "ecc:simplify"
+  ],
+  "permissions": [
+    "Bash(just api-dev *)",
+    "Bash(just api-test *)",
+    "Bash(just web-dev *)",
+    "Bash(just web-test *)",
+    "Bash(just db-reset *)",
+    "Bash(uv run pytest *)",
+    "Bash(uv run ruff check *)",
+    "Bash(uv run mypy *)",
+    "Bash(bun run test *)",
+    "Bash(bun run build *)",
+    "Bash(bun run typecheck *)"
+  ],
+  "description": "InventoryMGR: Python/FastAPI backend + Next.js/React frontend + Playwright E2E testing"
+}
