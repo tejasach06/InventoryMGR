@@ -1,9 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import { api, detailMessage, StorageArrayListItem } from '../api/client';
-import { Alert, PageHeader, PageTransition, Skeleton, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass } from '../components/ui';
+import { useRouter } from 'next/navigation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, detailMessage, ArrayPayload, StorageArrayListItem } from '../api/client';
+import { Alert, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass } from '../components/ui';
+import { useCurrentUser } from '../components/AuthContext';
+import { ArrayForm } from '../components/ArrayForm';
 
 function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
   if (pct === null) return <span className="text-sm text-slate-400 dark:text-slate-500">—</span>;
@@ -29,12 +33,43 @@ function ThresholdBadge() {
 }
 
 export function StoragePage() {
+  const qc = useQueryClient();
+  const router = useRouter();
+  const user = useCurrentUser();
+  const canEdit = user.role === 'editor' || user.role === 'admin';
+  const [showForm, setShowForm] = useState(false);
+
   const arraysQ = useQuery({ queryKey: ['arrays'], queryFn: () => api.listArrays() });
   const arrays: StorageArrayListItem[] = arraysQ.data ?? [];
 
+  const createMut = useMutation({
+    mutationFn: (payload: ArrayPayload) => api.createArray(payload),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ['arrays'] });
+      setShowForm(false);
+      router.push(`/storage/${created.id}`);
+    },
+  });
+
   return (
     <PageTransition>
-      <PageHeader title="Storage" eyebrow="Infrastructure" />
+      <PageHeader title="Storage" eyebrow="Infrastructure" actions={
+        canEdit && !showForm ? (
+          <button className={primaryButtonClass} onClick={() => setShowForm(true)}>+ New array</button>
+        ) : null
+      } />
+
+      {canEdit && showForm ? (
+        <div className={`${cardClass} mb-6`}>
+          <ArrayForm
+            onSubmit={(payload) => createMut.mutate(payload)}
+            onCancel={() => setShowForm(false)}
+            pending={createMut.isPending}
+            submitLabel="Create array"
+          />
+          {createMut.isError ? <p className="mt-2 text-xs text-red-600">{detailMessage(createMut.error)}</p> : null}
+        </div>
+      ) : null}
 
       {arraysQ.isError ? <Alert>{detailMessage(arraysQ.error)}</Alert> : null}
 
