@@ -54,9 +54,7 @@ def test_application_eq_requires_exact_match(client, db_session: Session) -> Non
     db_session.commit()
     login(client, "editor@example.local")
 
-    response = client.get(
-        "/api/vms", params={"application": "payroll", "application_op": "eq"}
-    )
+    response = client.get("/api/vms", params={"application": "payroll", "application_op": "eq"})
 
     assert response.status_code == 200
     assert response.json()["items"] == []
@@ -107,9 +105,7 @@ def test_os_family_neq_includes_vms_with_unset_os_family(client, db_session: Ses
     create_vm_row(db_session, editor, name="os-unset", os_family=None)
     login(client, "editor@example.local")
 
-    response = client.get(
-        "/api/vms", params={"os_family": "linux", "os_family_op": "neq"}
-    )
+    response = client.get("/api/vms", params={"os_family": "linux", "os_family_op": "neq"})
 
     assert response.status_code == 200
     names = {item["name"] for item in response.json()["items"]}
@@ -120,12 +116,8 @@ def test_ip_role_filter_matches_vms_having_that_role(client, db_session: Session
     editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
     public_vm = create_vm_row(db_session, editor, name="Public VM", external_id=None)
     private_vm = create_vm_row(db_session, editor, name="Private VM", external_id=None)
-    db_session.add(
-        VmNetwork(vm_id=public_vm.id, ip_address="203.0.113.4", role=NetworkRole.public)
-    )
-    db_session.add(
-        VmNetwork(vm_id=private_vm.id, ip_address="10.0.0.5", role=NetworkRole.private)
-    )
+    db_session.add(VmNetwork(vm_id=public_vm.id, ip_address="203.0.113.4", role=NetworkRole.public))
+    db_session.add(VmNetwork(vm_id=private_vm.id, ip_address="10.0.0.5", role=NetworkRole.private))
     db_session.commit()
     login(client, "editor@example.local")
 

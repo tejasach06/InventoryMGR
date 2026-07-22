@@ -8,8 +8,9 @@ Create Date: 2026-06-27
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0004_frd_schema_expansion"
 down_revision: str | None = "0003_os_family_and_backup"
@@ -17,8 +18,15 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 environment_enum = postgresql.ENUM(
-    "production", "development", "testing", "uat", "dr", "staging", "sandbox",
-    name="environment", create_type=False,
+    "production",
+    "development",
+    "testing",
+    "uat",
+    "dr",
+    "staging",
+    "sandbox",
+    name="environment",
+    create_type=False,
 )
 
 
@@ -46,9 +54,7 @@ def upgrade() -> None:
     op.alter_column("vms", "environment", server_default=None)
     op.add_column(
         "vms",
-        sa.Column(
-            "monitoring_enabled", sa.Boolean(), nullable=False, server_default=sa.false()
-        ),
+        sa.Column("monitoring_enabled", sa.Boolean(), nullable=False, server_default=sa.false()),
     )
     op.alter_column("vms", "monitoring_enabled", server_default=None)
     op.add_column("vms", sa.Column("os_distribution", sa.String(255), nullable=True))

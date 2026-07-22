@@ -22,11 +22,13 @@ def get_audit_log(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[AuditLog]:
     get_vm_or_404(db, vm_id)
-    return list(db.scalars(
-        select(AuditLog)
-        .options(joinedload(AuditLog.user))
-        .where(AuditLog.vm_id == vm_id)
-        .order_by(AuditLog.changed_at.desc())
-        .limit(limit)
-        .offset(offset)
-    ))
+    return list(
+        db.scalars(
+            select(AuditLog)
+            .options(joinedload(AuditLog.user))
+            .where(AuditLog.vm_id == vm_id)
+            .order_by(AuditLog.changed_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    )

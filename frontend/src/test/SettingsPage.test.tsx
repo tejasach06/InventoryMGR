@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { api, ApiError } from '../api/client';
 import type { DropdownOption } from '../api/client';
@@ -166,5 +166,35 @@ describe('SettingsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(updateSpy).toHaveBeenCalledWith('o3', 'Ubuntu 22.04', 'windows'));
+  });
+
+  it('saves the decommission notify window', async () => {
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+    vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
+    const updateSpy = vi.spyOn(api, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 60, storage_usage_warn_pct: 85 });
+
+    renderWithProviders(<SettingsPage />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: /notifications/i }));
+    const input = await screen.findByLabelText(/days before decommission/i);
+    fireEvent.change(input, { target: { value: '60' } });
+    fireEvent.click(screen.getByRole('button', { name: /save window/i }));
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith({ decommission_notify_days: 60 }));
+  });
+
+  it('saves the storage usage warning threshold', async () => {
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+    vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
+    const updateSpy = vi.spyOn(api, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 90 });
+
+    renderWithProviders(<SettingsPage />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: /notifications/i }));
+    const input = await screen.findByLabelText(/storage usage warning threshold/i);
+    fireEvent.change(input, { target: { value: '90' } });
+    fireEvent.click(screen.getByRole('button', { name: /save threshold/i }));
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith({ storage_usage_warn_pct: 90 }));
   });
 });

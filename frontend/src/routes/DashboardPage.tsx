@@ -117,6 +117,8 @@ function tally(items: Vm[], key: (vm: Vm) => string | null | undefined): Record<
 export function DashboardPage() {
   const statsQ = useQuery({ queryKey: ['dashboard'], queryFn: api.getDashboard });
   const vmsQ = useQuery({ queryKey: ['vms', 'dashboard'], queryFn: () => api.listVms(ALL_PARAMS) });
+  const arraysQ = useQuery({ queryKey: ['arrays'], queryFn: () => api.listArrays() });
+  const arraysOverThreshold = (arraysQ.data ?? []).filter((a) => a.over_threshold).length;
 
   const derived = useMemo(() => {
     const items = vmsQ.data?.items ?? [];
@@ -197,6 +199,7 @@ export function DashboardPage() {
             <StatTile label="Allocated vCPU" value={fmtInt(derived.totalVcpu)} unit="cores" />
             <StatTile label="Allocated Memory" value={mem[0]} unit={mem[1]} />
             <StatTile label="Provisioned Storage" value={disk[0]} unit={disk[1]} />
+            <StatTile label="Storage alerts" value={fmtInt(arraysOverThreshold)} unit="arrays" href="/storage" hint="over usage threshold" />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">

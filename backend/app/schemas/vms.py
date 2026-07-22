@@ -82,7 +82,13 @@ class VmBase(BaseModel):
     networks: list["NetworkCreate"] = []
 
     @field_validator(
-        "platform", "status", "criticality", "lifecycle", "os_family", "environment", "vm_type",
+        "platform",
+        "status",
+        "criticality",
+        "lifecycle",
+        "os_family",
+        "environment",
+        "vm_type",
         mode="before",
     )
     @classmethod

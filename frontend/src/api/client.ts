@@ -6,7 +6,8 @@ export type Lifecycle = 'planned' | 'active' | 'retiring' | 'retired';
 export type VmType = 'permanent' | 'temporary';
 export type Environment = 'production' | 'development' | 'testing' | 'uat' | 'dr' | 'staging' | 'sandbox';
 export type ImportAction = 'create' | 'update' | 'unchanged' | 'conflict' | 'invalid';
-export type DropdownCategory = 'cpu' | 'datacenter' | 'disk' | 'os';
+export type DropdownCategory = 'cpu' | 'datacenter' | 'disk' | 'os' | 'cluster';
+export type StorageVendor = 'synology' | 'netapp';
 export type OsFamily = 'linux' | 'windows';
 
 export interface DropdownOption {
@@ -21,6 +22,7 @@ export interface DropdownOptions {
   datacenter: string[];
   disk: string[];
   os: string[];
+  cluster: string[];
   os_by_family: Record<OsFamily, string[]>;
 }
 
@@ -189,6 +191,92 @@ export interface CommitResult {
   created: number;
   updated: number;
 }
+
+export interface DueVm {
+  vm_id: string;
+  name: string;
+  decommission_date: string;
+  days_remaining: number;
+  unread: boolean;
+}
+
+export interface AppSettings {
+  decommission_notify_days: number;
+  storage_usage_warn_pct: number;
+}
+
+export interface Lun {
+  id: string;
+  volume_id: string;
+  name: string;
+  size_gb: number;
+  used_gb: number | null;
+  target_iqn: string | null;
+  cluster: string | null;
+  status: string | null;
+  sort_order: number;
+}
+
+export interface NfsShare {
+  id: string;
+  volume_id: string;
+  export_path: string;
+  used_gb: number | null;
+  allowed_clients: string | null;
+  notes: string | null;
+  sort_order: number;
+}
+
+export interface StorageVolume {
+  id: string;
+  array_id: string;
+  name: string;
+  capacity_gb: number;
+  used_gb: number;
+  notes: string | null;
+  sort_order: number;
+  used_pct: number | null;
+  over_threshold: boolean;
+  luns: Lun[];
+  shares: NfsShare[];
+}
+
+export interface StorageArray {
+  id: string;
+  name: string;
+  vendor: StorageVendor;
+  model: string | null;
+  mgmt_host: string | null;
+  datacenter: string | null;
+  description: string | null;
+  total_capacity_gb: number;
+  used_capacity_gb: number;
+  notes: string | null;
+  used_pct: number | null;
+  over_threshold: boolean;
+  volumes: StorageVolume[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StorageArrayListItem {
+  id: string;
+  name: string;
+  vendor: StorageVendor;
+  datacenter: string | null;
+  total_capacity_gb: number;
+  used_capacity_gb: number;
+  used_pct: number | null;
+  over_threshold: boolean;
+  volume_count: number;
+  lun_count: number;
+  share_count: number;
+}
+
+export type ArrayPayload = Partial<Omit<StorageArray, 'id' | 'used_pct' | 'over_threshold' | 'volumes' | 'created_at' | 'updated_at'>> & {
+  name: string;
+  vendor: StorageVendor;
+};
 
 
 const API_PREFIX = '/api';
@@ -365,4 +453,40 @@ export const api = {
     apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(
       `/user/preferences/${pageKey}`, { method: 'PUT', body: JSON.stringify({ columns }) },
     ),
+
+  decommissionNotifications: () => apiRequest<DueVm[]>('/notifications/decommissions'),
+  ackDecommissions: (vmIds?: string[]) =>
+    apiRequest<null>('/notifications/decommissions/ack', {
+      method: 'POST',
+      body: JSON.stringify({ vm_ids: vmIds ?? null }),
+    }),
+  getAppSettings: () => apiRequest<AppSettings>('/settings/app'),
+  updateAppSettings: (patch: { decommission_notify_days?: number; storage_usage_warn_pct?: number }) =>
+    apiRequest<AppSettings>('/settings/app', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+
+  listArrays: () => apiRequest<StorageArrayListItem[]>('/storage/arrays'),
+  getArray: (id: string) => apiRequest<StorageArray>(`/storage/arrays/${id}`),
+  createArray: (payload: ArrayPayload) =>
+    apiRequest<StorageArray>('/storage/arrays', { method: 'POST', body: JSON.stringify(payload) }),
+  updateArray: (id: string, payload: Partial<ArrayPayload>) =>
+    apiRequest<StorageArray>(`/storage/arrays/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteArray: (id: string) => apiRequest<null>(`/storage/arrays/${id}`, { method: 'DELETE' }),
+
+  addVolume: (arrayId: string, payload: Partial<Omit<StorageVolume, 'id' | 'array_id' | 'used_pct' | 'over_threshold' | 'luns' | 'shares'>> & { name: string }) =>
+    apiRequest<StorageVolume>(`/storage/arrays/${arrayId}/volumes`, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteVolume: (arrayId: string, volumeId: string) =>
+    apiRequest<null>(`/storage/arrays/${arrayId}/volumes/${volumeId}`, { method: 'DELETE' }),
+
+  addLun: (volumeId: string, payload: Partial<Omit<Lun, 'id' | 'volume_id'>> & { name: string }) =>
+    apiRequest<Lun>(`/storage/volumes/${volumeId}/luns`, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteLun: (volumeId: string, lunId: string) =>
+    apiRequest<null>(`/storage/volumes/${volumeId}/luns/${lunId}`, { method: 'DELETE' }),
+
+  addShare: (volumeId: string, payload: Partial<Omit<NfsShare, 'id' | 'volume_id'>> & { export_path: string }) =>
+    apiRequest<NfsShare>(`/storage/volumes/${volumeId}/shares`, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteShare: (volumeId: string, shareId: string) =>
+    apiRequest<null>(`/storage/volumes/${volumeId}/shares/${shareId}`, { method: 'DELETE' }),
 };

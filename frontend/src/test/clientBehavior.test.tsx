@@ -88,9 +88,9 @@ describe('role-based navigation', () => {
     expect(canSeeUsers('editor')).toBe(false);
     expect(canSeeUsers('viewer')).toBe(false);
 
-    expect(buildNavItems({ role: 'viewer' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory']);
-    expect(buildNavItems({ role: 'editor' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Import']);
-    expect(buildNavItems({ role: 'admin' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Import', 'Settings']);
+    expect(buildNavItems({ role: 'viewer' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage']);
+    expect(buildNavItems({ role: 'editor' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Import']);
+    expect(buildNavItems({ role: 'admin' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Import', 'Settings']);
   });
 
   it('renders Settings only for admins and never shows Users in nav', () => {

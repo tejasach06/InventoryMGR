@@ -276,6 +276,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
       const vm = await save.mutateAsync(payload as VmPayload);
       queryClient.invalidateQueries({ queryKey: ['vms'] });
       queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
+      queryClient.invalidateQueries({ queryKey: ['decommissions'] });
       queryClient.setQueryData(['vm', vm.id], vm);
       router.push(`/inventory/${vm.id}`);
     } catch { /* save.isError displayed above the form */ }

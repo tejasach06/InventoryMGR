@@ -36,6 +36,7 @@ def rate_limit(limit: str):
         if _is_test_env():
             return func
         return limiter.limit(limit)(func)
+
     return decorator
 
 
@@ -84,7 +85,10 @@ def _clear_auth_cookies(response: Response) -> None:
         settings.csrf_cookie_name, secure=settings.secure_cookies, samesite="lax"
     )
     response.delete_cookie(
-        REFRESH_COOKIE_NAME, secure=settings.secure_cookies, samesite="strict", path="/api/auth/refresh"
+        REFRESH_COOKIE_NAME,
+        secure=settings.secure_cookies,
+        samesite="strict",
+        path="/api/auth/refresh",
     )
 
 
@@ -99,7 +103,9 @@ def setup_status(db: DbSession) -> SetupStatusResponse:
 
 @router.post("/setup", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 @rate_limit(SETUP_RATE)
-def setup_admin(request: Request, payload: SetupAdminRequest, response: Response, db: DbSession) -> LoginResponse:
+def setup_admin(
+    request: Request, payload: SetupAdminRequest, response: Response, db: DbSession
+) -> LoginResponse:
     db.execute(text("LOCK TABLE users IN EXCLUSIVE MODE"))
     if _any_users_exist(db):
         db.rollback()
@@ -125,7 +131,9 @@ def setup_admin(request: Request, payload: SetupAdminRequest, response: Response
 
 @router.post("/login", response_model=LoginResponse)
 @rate_limit(LOGIN_RATE)
-def login(request: Request, payload: LoginRequest, response: Response, db: DbSession) -> LoginResponse:
+def login(
+    request: Request, payload: LoginRequest, response: Response, db: DbSession
+) -> LoginResponse:
     email = payload.email.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
     if (
@@ -152,10 +160,14 @@ def refresh(request: Request, response: Response, db: DbSession) -> LoginRespons
     try:
         payload = decode_refresh_token(refresh_cookie)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        )
     user_id = payload.get("sub")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        )
     user = db.get(User, user_id)
     if user is None or not user.is_active:
         raise HTTPException(

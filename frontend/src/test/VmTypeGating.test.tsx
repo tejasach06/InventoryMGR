@@ -15,7 +15,7 @@ beforeEach(() => {
   pushMock.mockReset();
   HTMLElement.prototype.scrollIntoView = vi.fn();
   vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
-    cpu: [], datacenter: [], disk: [], os: [], os_by_family: { linux: [], windows: [] },
+    cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] },
   });
   vi.spyOn(api, 'listVmOwners').mockResolvedValue([]);
 });
