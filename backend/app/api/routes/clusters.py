@@ -21,12 +21,12 @@ from app.services import clusters
 router = APIRouter()
 
 
-@router.get("/", response_model=list[PhysicalClusterListItem])
+@router.get("", response_model=list[PhysicalClusterListItem])
 def list_clusters(db: DbSession, _: ViewerUser) -> list[PhysicalClusterListItem]:
     return clusters.list_clusters(db)
 
 
-@router.post("/", response_model=PhysicalClusterDetail, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=PhysicalClusterDetail, status_code=status.HTTP_201_CREATED)
 def create_cluster(
     payload: PhysicalClusterCreate, db: DbSession, user: EditorUser, __: Csrf
 ) -> PhysicalClusterDetail:
@@ -79,7 +79,7 @@ def make_cluster_subrouter(
                 status_code=status.HTTP_404_NOT_FOUND, detail=parent_not_found_detail
             )
 
-    @router.get(f"/{{parent_id}}/{child_segment}/", response_model=list[read_schema])
+    @router.get(f"/{{parent_id}}/{child_segment}", response_model=list[read_schema])
     def list_items(parent_id: uuid.UUID, db: DbSession, _: ViewerUser) -> list:
         _require_parent(db, parent_id)
         return list(
@@ -89,15 +89,15 @@ def make_cluster_subrouter(
         )
 
     @router.post(
-        f"/{{parent_id}}/{child_segment}/",
+        f"/{{parent_id}}/{child_segment}",
         response_model=read_schema,
         status_code=status.HTTP_201_CREATED,
     )
     def add_item(
-        parent_id: uuid.UUID, payload: create_schema, db: DbSession, _: EditorUser, __: Csrf
+        parent_id: uuid.UUID, payload: create_schema, db: DbSession, user: EditorUser, __: Csrf
     ):  # type: ignore[valid-type]
         _require_parent(db, parent_id)
-        item = model(**{fk_attr: parent_id}, **payload.model_dump())
+        item = model(**{fk_attr: parent_id}, **payload.model_dump(), created_by_id=user.id, updated_by_id=user.id)
         db.add(item)
         db.commit()
         db.refresh(item)
@@ -109,7 +109,7 @@ def make_cluster_subrouter(
         item_id: uuid.UUID,
         payload: update_schema,
         db: DbSession,
-        _: EditorUser,
+        user: EditorUser,
         __: Csrf,  # type: ignore[valid-type]
     ):
         item = db.scalar(
@@ -119,6 +119,7 @@ def make_cluster_subrouter(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=not_found_detail)
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
+        item.updated_by_id = user.id
         db.commit()
         db.refresh(item)
         return item

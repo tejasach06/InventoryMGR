@@ -47,7 +47,9 @@ def upgrade() -> None:
         sa.Column("datacenter", sa.String(255)),
         sa.Column("rack", sa.String(100)),
         sa.Column("rack_unit", sa.String(50)),
-        sa.Column("ip_addresses", JSONB(astext_type=sa.Text()), nullable=False, server_default="[]"),
+        sa.Column(
+            "ip_addresses", JSONB(astext_type=sa.Text()), nullable=False, server_default="[]"
+        ),
         sa.Column("notes", sa.Text()),
         sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
         sa.CheckConstraint("length(btrim(name)) > 0", name="ck_physical_nodes_name_nonempty"),

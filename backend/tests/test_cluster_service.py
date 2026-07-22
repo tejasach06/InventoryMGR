@@ -1,5 +1,5 @@
 from app.core.security import hash_password
-from app.db.models import PhysicalCluster, PhysicalNode, User, UserRole
+from app.db.models import PhysicalNode, User, UserRole
 from app.schemas.clusters import PhysicalClusterCreate
 from app.services import clusters
 
@@ -15,8 +15,12 @@ def _user(db):
 def test_list_clusters_aggregates_nodes(db_session):
     u = _user(db_session)
     c = clusters.create_cluster(db_session, PhysicalClusterCreate(name="pve-a"), u)
-    db_session.add(PhysicalNode(cluster_id=c.id, name="n1", ram_total_gb=64, storage_usable_gb=1000))
-    db_session.add(PhysicalNode(cluster_id=c.id, name="n2", ram_total_gb=128, storage_usable_gb=2000))
+    db_session.add(
+        PhysicalNode(cluster_id=c.id, name="n1", ram_total_gb=64, storage_usable_gb=1000, created_by_id=u.id, updated_by_id=u.id)
+    )
+    db_session.add(
+        PhysicalNode(cluster_id=c.id, name="n2", ram_total_gb=128, storage_usable_gb=2000, created_by_id=u.id, updated_by_id=u.id)
+    )
     db_session.commit()
 
     items = clusters.list_clusters(db_session)
@@ -29,7 +33,7 @@ def test_list_clusters_aggregates_nodes(db_session):
 def test_to_cluster_detail_includes_nodes(db_session):
     u = _user(db_session)
     c = clusters.create_cluster(db_session, PhysicalClusterCreate(name="pve-b"), u)
-    db_session.add(PhysicalNode(cluster_id=c.id, name="n1"))
+    db_session.add(PhysicalNode(cluster_id=c.id, name="n1", created_by_id=u.id, updated_by_id=u.id))
     db_session.commit()
 
     detail = clusters.get_cluster_detail_or_404(db_session, c.id)
@@ -41,7 +45,7 @@ def test_to_cluster_detail_includes_nodes(db_session):
 def test_delete_cluster_cascades(db_session):
     u = _user(db_session)
     c = clusters.create_cluster(db_session, PhysicalClusterCreate(name="pve-c"), u)
-    db_session.add(PhysicalNode(cluster_id=c.id, name="n1"))
+    db_session.add(PhysicalNode(cluster_id=c.id, name="n1", created_by_id=u.id, updated_by_id=u.id))
     db_session.commit()
     clusters.delete_cluster(db_session, c)
     assert db_session.query(PhysicalNode).count() == 0

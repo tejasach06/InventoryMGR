@@ -561,5 +561,11 @@ class PhysicalNode(Base, TimestampMixin):
     ip_addresses: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False, default=list)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    updated_by_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
 
     cluster: Mapped[PhysicalCluster] = relationship(back_populates="nodes")

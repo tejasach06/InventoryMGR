@@ -1,5 +1,5 @@
-from tests.conftest import auth_headers, create_user, login
 from app.db.models import UserRole
+from tests.conftest import auth_headers, create_user, login
 
 
 def _mk(client, db, role=UserRole.editor):
@@ -76,9 +76,7 @@ def test_patch_node_partial_update(client, db_session):
 def test_delete_cluster_cascades_nodes(client, db_session):
     csrf = _mk(client, db_session)
     cid = _create_cluster(client, csrf).json()["id"]
-    client.post(
-        f"/api/clusters/{cid}/nodes/", headers=auth_headers(csrf), json={"name": "node-01"}
-    )
+    client.post(f"/api/clusters/{cid}/nodes/", headers=auth_headers(csrf), json={"name": "node-01"})
     r = client.delete(f"/api/clusters/{cid}", headers=auth_headers(csrf))
     assert r.status_code == 204
     assert client.get(f"/api/clusters/{cid}").status_code == 404

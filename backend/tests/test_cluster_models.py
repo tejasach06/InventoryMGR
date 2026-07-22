@@ -24,6 +24,8 @@ def test_cluster_cascades_to_nodes(db_session):
             ram_total_gb=128,
             storage_usable_gb=2000,
             ip_addresses=[{"label": "mgmt", "address": "10.0.1.5"}],
+            created_by_id=u.id,
+            updated_by_id=u.id,
         )
     )
     db_session.commit()
@@ -37,9 +39,11 @@ def test_node_ip_addresses_default_empty_list(db_session):
     c = PhysicalCluster(name="pve-cluster-b", created_by_id=u.id, updated_by_id=u.id)
     db_session.add(c)
     db_session.flush()
-    n = PhysicalNode(cluster_id=c.id, name="node-01")
+    n = PhysicalNode(cluster_id=c.id, name="node-01", created_by_id=u.id, updated_by_id=u.id)
     db_session.add(n)
     db_session.commit()
     db_session.refresh(n)
     assert n.ip_addresses == []
-    assert n.cpu_cores == 0 and n.cpu_threads == 0 and n.ram_total_gb == 0 and n.storage_usable_gb == 0
+    assert (
+        n.cpu_cores == 0 and n.cpu_threads == 0 and n.ram_total_gb == 0 and n.storage_usable_gb == 0
+    )

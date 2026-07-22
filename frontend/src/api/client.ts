@@ -485,10 +485,6 @@ export const api = {
     body.set('file', file);
     return apiRequest<ImportBatch>('/imports/preview', { method: 'POST', body });
   },
-  addShare: (volumeId: string, payload: Partial<Omit<NfsShare, 'id' | 'volume_id'>> & { export_path: string }) =>
-    apiRequest<NfsShare>(`/storage/volumes/${volumeId}/shares`, { method: 'POST', body: JSON.stringify(payload) }),
-  deleteShare: (volumeId: string, shareId: string) =>
-    apiRequest<null>(`/storage/volumes/${volumeId}/shares/${shareId}`, { method: 'DELETE' }),
 
   listArrays: () => apiRequest<StorageArrayListItem[]>('/storage/arrays'),
   getArray: (id: string) => apiRequest<StorageArray>(`/storage/arrays/${id}`),
@@ -513,16 +509,16 @@ export const api = {
   deleteShare: (volumeId: string, shareId: string) =>
     apiRequest<null>(`/storage/volumes/${volumeId}/shares/${shareId}`, { method: 'DELETE' }),
 
-  listClusters: () => apiRequest<PhysicalClusterListItem[]>('/clusters/'),
+  listClusters: () => apiRequest<PhysicalClusterListItem[]>('/clusters'),
   getCluster: (id: string) => apiRequest<PhysicalCluster>(`/clusters/${id}`),
   createCluster: (payload: ClusterPayload) =>
-    apiRequest<PhysicalCluster>('/clusters/', { method: 'POST', body: JSON.stringify(payload) }),
+    apiRequest<PhysicalCluster>('/clusters', { method: 'POST', body: JSON.stringify(payload) }),
   updateCluster: (id: string, payload: Partial<ClusterPayload>) =>
     apiRequest<PhysicalCluster>(`/clusters/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteCluster: (id: string) => apiRequest<null>(`/clusters/${id}`, { method: 'DELETE' }),
 
   addNode: (clusterId: string, payload: NodePayload) =>
-    apiRequest<PhysicalNode>(`/clusters/${clusterId}/nodes/`, { method: 'POST', body: JSON.stringify(payload) }),
+    apiRequest<PhysicalNode>(`/clusters/${clusterId}/nodes`, { method: 'POST', body: JSON.stringify(payload) }),
   updateNode: (clusterId: string, nodeId: string, payload: Partial<NodePayload>) =>
     apiRequest<PhysicalNode>(`/clusters/${clusterId}/nodes/${nodeId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteNode: (clusterId: string, nodeId: string) =>
