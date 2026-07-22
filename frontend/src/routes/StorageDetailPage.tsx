@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { api, detailMessage, StorageArray, StorageVolume } from '../api/client';
+import { api, detailMessage, ArrayPayload, StorageArray, StorageVolume } from '../api/client';
 import {
   Alert, PageHeader, PageTransition, Skeleton, Spinner,
-  dangerButtonClass, secondaryButtonClass, sectionTitleClass,
+  dangerButtonClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass,
 } from '../components/ui';
 import { useCurrentUser } from '../components/AuthContext';
+import { ArrayForm } from '../components/ArrayForm';
+import type { ArrayFormValues } from '../components/ArrayForm';
 
 interface FieldDef {
   name: string;
@@ -232,6 +234,16 @@ export function StorageDetailPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['arrays'] }); router.push('/storage'); },
   });
 
+  const [editing, setEditing] = useState(false);
+  const updateMut = useMutation({
+    mutationFn: (payload: ArrayPayload) => api.updateArray(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['array', id] });
+      qc.invalidateQueries({ queryKey: ['arrays'] });
+      setEditing(false);
+    },
+  });
+
   if (arrayQ.isLoading) return <PageTransition><Skeleton className="h-64 w-full" /></PageTransition>;
   if (arrayQ.isError) return <PageTransition><Alert>{detailMessage(arrayQ.error)}</Alert></PageTransition>;
   if (!array) return null;
@@ -255,15 +267,43 @@ export function StorageDetailPage() {
         {deleteMut.isError && <Alert>{detailMessage(deleteMut.error)}</Alert>}
 
         <section className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
-          <h2 className={sectionTitleClass}>Capacity</h2>
-          <div className="mt-3">
-            <UsageBar pct={array.used_pct} over={array.over_threshold} />
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {array.used_capacity_gb} / {array.total_capacity_gb} GB
-              {array.datacenter ? ` · ${array.datacenter}` : ''}
-              {array.model ? ` · ${array.model}` : ''}
-            </p>
+          <div className="flex items-center justify-between">
+            <h2 className={sectionTitleClass}>Capacity</h2>
+            {canEdit && !editing ? (
+              <button className={primaryButtonClass} onClick={() => setEditing(true)}>Edit</button>
+            ) : null}
           </div>
+          {editing ? (
+            <div className="mt-4">
+              <ArrayForm
+                initial={{
+                  name: array.name,
+                  vendor: array.vendor,
+                  model: array.model ?? '',
+                  mgmt_host: array.mgmt_host ?? '',
+                  datacenter: array.datacenter ?? '',
+                  total_capacity_gb: String(array.total_capacity_gb),
+                  used_capacity_gb: String(array.used_capacity_gb),
+                  description: array.description ?? '',
+                  notes: array.notes ?? '',
+                } as Partial<ArrayFormValues>}
+                onSubmit={(payload) => updateMut.mutate(payload)}
+                onCancel={() => setEditing(false)}
+                pending={updateMut.isPending}
+                submitLabel="Save changes"
+              />
+              {updateMut.isError ? <p className="mt-2 text-xs text-red-600">{detailMessage(updateMut.error)}</p> : null}
+            </div>
+          ) : (
+            <div className="mt-3">
+              <UsageBar pct={array.used_pct} over={array.over_threshold} />
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {array.used_capacity_gb} / {array.total_capacity_gb} GB
+                {array.datacenter ? ` · ${array.datacenter}` : ''}
+                {array.model ? ` · ${array.model}` : ''}
+              </p>
+            </div>
+          )}
         </section>
 
         <VolumesArea array={array} clusters={clusters} canEdit={canEdit} />

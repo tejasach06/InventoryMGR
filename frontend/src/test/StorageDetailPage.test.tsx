@@ -113,6 +113,41 @@ describe('StorageDetailPage', () => {
     });
   });
 
+  it('edits the array and calls api.updateArray (editor)', async () => {
+    vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
+    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+      cpu: [], datacenter: [], disk: [], cluster: ['pve-a'], os: [], os_by_family: { linux: [], windows: [] },
+    });
+    const updateSpy = vi.spyOn(api, 'updateArray').mockResolvedValue({ ...makeArray(), name: 'syn-renamed' });
+    renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'editor' }) });
+
+    fireEvent.click(await screen.findByRole('button', { name: /^edit$/i }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'syn-renamed' } });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith('a1', expect.objectContaining({ name: 'syn-renamed' })));
+  });
+
+  it('cancels editing and hides the Edit button for viewers', async () => {
+    vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
+    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+      cpu: [], datacenter: [], disk: [], cluster: ['pve-a'], os: [], os_by_family: { linux: [], windows: [] },
+    });
+    const { unmount } = renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'editor' }) });
+    fireEvent.click(await screen.findByRole('button', { name: /^edit$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+    expect(await screen.findByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+    unmount();
+
+    vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
+    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+      cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] },
+    });
+    renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'viewer' }) });
+    await screen.findByRole('heading', { name: 'syn-01' });
+    expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+  });
+
   it('renders an empty-volumes message and an error state', async () => {
     const empty = { ...makeArray(), volumes: [] };
     vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
