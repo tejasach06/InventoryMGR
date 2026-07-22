@@ -33,14 +33,16 @@ value is user-entered or CSV-imported.
 ## Database
 
 - Enums (`Platform`, `VmStatus`, `Environment`, `Criticality`, `Lifecycle`,
-  `OsFamily`, `VmType`, `StorageVendor`) are Python `StrEnum`s in `db/models.py`
-  — changing one needs an Alembic migration. User-editable dropdown values are a
-  **separate** runtime concept served by `/api/settings/options` (categories incl.
-  `cluster`, seeded from existing VM clusters).
+-   `OsFamily`, `VmType`, `StorageVendor`) are Python `StrEnum`s in `db/models.py`
+-   — changing one needs an Alembic migration. User-editable dropdown values are a
+-   **separate** runtime concept served by `/api/settings/options` (categories incl.
+-   `cluster`, seeded from existing VM clusters).
+- `PhysicalCluster`/`PhysicalNode` (`physical_clusters`/`physical_nodes` tables) are a
+-   documentation-only inventory of physical hardware — no VM linkage yet (planned
+-   integration phase). Mirrors the `StorageArray`/`StorageVolume` parent-child pattern.
 - `backend/tests/conftest.py` hits **real Postgres** (no SQLite), resets between
-  tests. Helpers: `create_user`, `login` (returns CSRF), `auth_headers(csrf)`,
-  `vm_payload`, `create_vm_row`.
-
+-   tests. Helpers: `create_user`, `login` (returns CSRF), `auth_headers(csrf)`,
+-   `vm_payload`, `create_vm_row`.
 ## graphify (PreToolUse guard)
 
 A global hook **blocks Read/Grep until graphify has oriented you**. Start with
