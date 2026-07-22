@@ -63,6 +63,29 @@ A global hook **blocks Read/Grep until graphify has oriented you**. Start with
   `browser_network_requests` — without it a snapshot dumps 10K–135K tokens. Single
   browser, not parallel-safe.
 - **context7** — prefer over memory/web for library API docs.
+- **serena** — project-scoped in `.mcp.json` (semantic code search/edit via LSP).
+  graphify stays first choice for architecture/relationship questions; reach for
+  serena on symbol-level rename/reference work graphify's subgraph doesn't cover.
+- **postgres** — project-scoped in `.mcp.json`, points at the dev DB
+  (`inventorymgr` on `127.0.0.1:54329`). Read-only inspection/ad-hoc queries;
+  schema changes still go through Alembic migrations, never direct DDL here.
+
+## Skills to reach for
+
+- **ecc:fastapi-reviewer** / **ecc:python-reviewer** — after backend changes
+  (`backend/app`), before considering a change done.
+- **ecc:react-reviewer** / **ecc:typescript-reviewer** — after frontend changes
+  (`frontend/src`).
+- **ecc:database-reviewer** — for migrations or schema/query changes.
+- **ecc:security-reviewer** — for auth, CSRF, RBAC, or anything touching
+  `api/deps.py`.
+- **ecc:e2e-runner** — driving/maintaining `frontend/e2e/*.spec.ts` Playwright
+  regression suite (see MCP notes above for the live-browser MCP).
+- **ecc:simplify** — pass over changed code for reuse/simplification before
+  calling a change final; pairs with the ponytail persona already active.
+- `ecc-install.json` is the source of truth for this project's intended skill
+  set — check it if a new skill category (e.g. build-error-resolver) seems
+  relevant and isn't listed above.
 
 ## Design Context
 

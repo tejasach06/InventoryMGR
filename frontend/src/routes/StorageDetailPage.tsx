@@ -5,9 +5,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, ArrayPayload, StorageArray, StorageVolume } from '../api/client';
 import {
-  Alert, PageHeader, PageTransition, Skeleton, Spinner,
+  Alert, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, cardClass, inputClass,
+  tableClass, tableBodyClass, tableCellClass, monoClass,
   dangerButtonClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass,
 } from '../components/ui';
+import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
 import { ArrayForm } from '../components/ArrayForm';
 import type { ArrayFormValues } from '../components/ArrayForm';
@@ -19,15 +21,6 @@ interface FieldDef {
   options?: readonly string[];
 }
 
-function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <button type="button" onClick={onClick} aria-label={label}
-      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-red-700 dark:hover:bg-red-500/10 dark:hover:text-red-400">
-      ×
-    </button>
-  );
-}
-
 function InlineAddForm({ fields, onSubmit, pending }: {
   fields: FieldDef[];
   onSubmit: (values: Record<string, string>) => void;
@@ -35,28 +28,27 @@ function InlineAddForm({ fields, onSubmit, pending }: {
 }) {
   const blank = () => Object.fromEntries(fields.map((f) => [f.name, '']));
   const [values, setValues] = useState<Record<string, string>>(blank);
-  const inputClass = 'min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-400';
+  const fieldClass = cn(inputClass, 'min-w-0 flex-1 py-2');
   function submit() {
     onSubmit(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()])));
     setValues(blank());
   }
   return (
-    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+    <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--color-border)] pt-3">
       {fields.map((f) => (
         f.options ? (
           <select key={f.name} aria-label={f.placeholder} value={values[f.name]}
-            onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))} className={inputClass}>
+            onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))} className={fieldClass}>
             <option value="">{f.placeholder}</option>
             {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         ) : (
           <input key={f.name} type={f.type ?? 'text'} placeholder={f.placeholder} value={values[f.name]}
             aria-label={f.placeholder}
-            onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))} className={inputClass} />
+            onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))} className={fieldClass} />
         )
       ))}
-      <button type="button" onClick={submit} disabled={pending}
-        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+      <button type="button" onClick={submit} disabled={pending} className={secondaryButtonClass}>
         {pending ? <Spinner /> : null}+ Add
       </button>
     </div>
@@ -66,11 +58,11 @@ function InlineAddForm({ fields, onSubmit, pending }: {
 function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-        <div className={`h-full rounded-full transition-all ${over ? 'bg-rose-500' : 'bg-indigo-500'}`}
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-tertiary)]">
+        <div className={cn('h-full rounded-full transition-all', over ? 'bg-[var(--color-criticality-critical)]' : 'bg-[var(--color-accent)]')}
           style={{ width: `${pct === null ? 0 : Math.min(100, pct)}%` }} />
       </div>
-      <span className="w-14 text-right text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+      <span className={cn(monoClass, 'w-14 text-right font-semibold')}>
         {pct === null ? '—' : `${pct}%`}
       </span>
     </div>
@@ -104,9 +96,9 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
   const delVolume = useMutation({ mutationFn: () => api.deleteVolume(volume.array_id, volume.id), onSuccess: invalidate });
 
   return (
-    <section className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-sm shadow-slate-900/[0.04] dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
+    <section className={cardClass}>
       <div className="flex items-center justify-between gap-4">
-        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{volume.name}</h3>
+        <h3 className="font-semibold text-[var(--color-text-primary)]">{volume.name}</h3>
         {canEdit && (
           <button className={dangerButtonClass} onClick={() => { if (confirm(`Delete volume ${volume.name}?`)) delVolume.mutate(); }} disabled={delVolume.isPending}>
             {delVolume.isPending && <Spinner />} Delete volume
@@ -115,29 +107,33 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
       </div>
       <div className="mt-3">
         <UsageBar pct={volume.used_pct} over={volume.over_threshold} />
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{volume.used_gb} / {volume.capacity_gb} GB</p>
+        <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">{volume.used_gb} / {volume.capacity_gb} GB</p>
       </div>
 
       <div className="mt-4">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">LUNs</h4>
-        {volume.luns.length === 0 ? <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">No LUNs.</p> : (
-          <table className="mt-1 w-full text-sm"><thead>
-            <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
-              <th className="pb-1 pr-4">Name</th><th className="pb-1 pr-4">Size (GB)</th><th className="pb-1 pr-4">Cluster</th><th className="pb-1 pr-4">Target IQN</th><th className="pb-1 pr-4">Status</th><th />
-            </tr></thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {volume.luns.map((l) => (
-                <tr key={l.id}>
-                  <td className="py-1.5 pr-4 font-mono text-slate-700 dark:text-slate-300">{l.name}</td>
-                  <td className="py-1.5 pr-4 tabular-nums">{l.size_gb}</td>
-                  <td className="py-1.5 pr-4 text-slate-600 dark:text-slate-400">{l.cluster ?? '—'}</td>
-                  <td className="py-1.5 pr-4 font-mono text-slate-600 dark:text-slate-400">{l.target_iqn ?? '—'}</td>
-                  <td className="py-1.5 pr-4 text-slate-600 dark:text-slate-400">{l.status ?? '—'}</td>
-                  <td className="py-1.5">{canEdit && <RemoveButton onClick={() => delLun.mutate(l.id)} label={`Remove LUN ${l.name}`} />}</td>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">LUNs</h4>
+        {volume.luns.length === 0 ? <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">No LUNs.</p> : (
+          <div className="mt-1 overflow-x-auto rounded-lg border border-[var(--color-border)]">
+            <table className={tableClass}>
+              <thead>
+                <tr className="text-left text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
+                  <th className={tableCellClass}>Name</th><th className={tableCellClass}>Size (GB)</th><th className={tableCellClass}>Cluster</th><th className={tableCellClass}>Target IQN</th><th className={tableCellClass}>Status</th><th className={tableCellClass} />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className={tableBodyClass}>
+                {volume.luns.map((l) => (
+                  <tr key={l.id} className="transition-colors hover:bg-[var(--color-accent)]/5">
+                    <td className={cn(tableCellClass, monoClass)}>{l.name}</td>
+                    <td className={cn(tableCellClass, 'tabular-nums')}>{l.size_gb}</td>
+                    <td className={tableCellClass}>{l.cluster ?? '—'}</td>
+                    <td className={cn(tableCellClass, monoClass)}>{l.target_iqn ?? '—'}</td>
+                    <td className={tableCellClass}>{l.status ?? '—'}</td>
+                    <td className={tableCellClass}>{canEdit && <RemoveButton onClick={() => delLun.mutate(l.id)} label={`Remove LUN ${l.name}`} />}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {canEdit && (
           <InlineAddForm fields={[
@@ -152,23 +148,27 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
       </div>
 
       <div className="mt-4">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">NFS shares</h4>
-        {volume.shares.length === 0 ? <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">No shares.</p> : (
-          <table className="mt-1 w-full text-sm"><thead>
-            <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
-              <th className="pb-1 pr-4">Export path</th><th className="pb-1 pr-4">Used (GB)</th><th className="pb-1 pr-4">Allowed clients</th><th />
-            </tr></thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {volume.shares.map((s) => (
-                <tr key={s.id}>
-                  <td className="py-1.5 pr-4 font-mono text-slate-700 dark:text-slate-300">{s.export_path}</td>
-                  <td className="py-1.5 pr-4 tabular-nums text-slate-600 dark:text-slate-400">{s.used_gb ?? '—'}</td>
-                  <td className="py-1.5 pr-4 text-slate-600 dark:text-slate-400">{s.allowed_clients ?? '—'}</td>
-                  <td className="py-1.5">{canEdit && <RemoveButton onClick={() => delShare.mutate(s.id)} label={`Remove share ${s.export_path}`} />}</td>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">NFS shares</h4>
+        {volume.shares.length === 0 ? <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">No shares.</p> : (
+          <div className="mt-1 overflow-x-auto rounded-lg border border-[var(--color-border)]">
+            <table className={tableClass}>
+              <thead>
+                <tr className="text-left text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
+                  <th className={tableCellClass}>Export path</th><th className={tableCellClass}>Used (GB)</th><th className={tableCellClass}>Allowed clients</th><th className={tableCellClass} />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className={tableBodyClass}>
+                {volume.shares.map((s) => (
+                  <tr key={s.id} className="transition-colors hover:bg-[var(--color-accent)]/5">
+                    <td className={cn(tableCellClass, monoClass)}>{s.export_path}</td>
+                    <td className={cn(tableCellClass, 'tabular-nums')}>{s.used_gb ?? '—'}</td>
+                    <td className={tableCellClass}>{s.allowed_clients ?? '—'}</td>
+                    <td className={tableCellClass}>{canEdit && <RemoveButton onClick={() => delShare.mutate(s.id)} label={`Remove share ${s.export_path}`} />}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {canEdit && (
           <InlineAddForm fields={[
@@ -266,7 +266,7 @@ export function StorageDetailPage() {
 
         {deleteMut.isError && <Alert>{detailMessage(deleteMut.error)}</Alert>}
 
-        <section className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
+        <section className={cardClass}>
           <div className="flex items-center justify-between">
             <h2 className={sectionTitleClass}>Capacity</h2>
             {canEdit && !editing ? (

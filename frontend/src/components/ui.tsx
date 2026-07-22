@@ -254,6 +254,16 @@ export function Drawer({
   );
 }
 
+/* RemoveButton — small destructive icon action for inline table/list rows */
+export function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label}
+      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-criticality-critical)]/40 hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] dark:bg-slate-800">
+      ×
+    </button>
+  );
+}
+
 /* Chip for filter bar */
 export function FilterChip({ label, value, onRemove, type = 'status' }: { label: string; value: string; onRemove: () => void; type?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle' }) {
   const normalized = value.toLowerCase().replace(/\s+/g, '_');

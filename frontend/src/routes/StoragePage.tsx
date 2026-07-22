@@ -10,16 +10,16 @@ import { useCurrentUser } from '../components/AuthContext';
 import { ArrayForm } from '../components/ArrayForm';
 
 function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
-  if (pct === null) return <span className="text-sm text-slate-400 dark:text-slate-500">—</span>;
+  if (pct === null) return <span className="text-sm text-[var(--color-text-tertiary)]">—</span>;
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[var(--color-surface-tertiary)]">
         <div
-          className={`h-full rounded-full transition-[width] duration-500 ${over ? 'bg-rose-500' : 'bg-indigo-500'}`}
+          className={`h-full rounded-full transition-[width] duration-500 ${over ? 'bg-[var(--color-criticality-critical)]' : 'bg-[var(--color-accent)]'}`}
           style={{ width: `${Math.min(100, pct)}%` }}
         />
       </div>
-      <span className="tech text-sm tabular-nums text-slate-600 dark:text-slate-300">{pct}%</span>
+      <span className="tech text-sm tabular-nums text-[var(--color-text-secondary)]">{pct}%</span>
     </div>
   );
 }

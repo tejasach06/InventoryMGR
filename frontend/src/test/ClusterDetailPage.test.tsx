@@ -43,7 +43,7 @@ describe('ClusterDetailPage', () => {
     vi.spyOn(api, 'addNode').mockResolvedValue(cluster.nodes[0]);
     renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'editor' }) });
     await screen.findByText('pve-cluster-a');
-    fireEvent.change(screen.getByPlaceholderText('Node name'), { target: { value: 'node-02' } });
+    fireEvent.change(screen.getByLabelText(/^node name$/i), { target: { value: 'node-02' } });
     fireEvent.click(screen.getByRole('button', { name: /\+ add/i }));
     await waitFor(() => expect(api.addNode).toHaveBeenCalledWith('c1', expect.objectContaining({ name: 'node-02' })));
   });
@@ -52,7 +52,7 @@ describe('ClusterDetailPage', () => {
     vi.spyOn(api, 'getCluster').mockResolvedValue(makeCluster());
     renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'viewer' }) });
     await screen.findByText('pve-cluster-a');
-    expect(screen.queryByPlaceholderText('Node name')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^node name$/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /remove node/i })).not.toBeInTheDocument();
   });
 
