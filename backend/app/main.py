@@ -11,6 +11,8 @@ from starlette.responses import Response
 from app.api.routes import auth, imports, users, vms
 from app.api.routes.audit import router as audit_router
 from app.api.routes.auth import limiter as auth_limiter
+from app.api.routes.clusters import nodes_router as cluster_nodes_router
+from app.api.routes.clusters import router as clusters_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.notifications import router as notifications_router
 from app.api.routes.preferences import router as preferences_router
@@ -77,6 +79,8 @@ def create_app() -> FastAPI:
     app.include_router(volumes_router, prefix="/api/storage/arrays", tags=["storage"])
     app.include_router(luns_router, prefix="/api/storage/volumes", tags=["storage"])
     app.include_router(shares_router, prefix="/api/storage/volumes", tags=["storage"])
+    app.include_router(clusters_router, prefix="/api/clusters", tags=["clusters"])
+    app.include_router(cluster_nodes_router, prefix="/api/clusters", tags=["clusters"])
     app.include_router(preferences_router, prefix="/api/user", tags=["user"])
     app.include_router(notifications_router, prefix="/api/notifications", tags=["notifications"])
 
