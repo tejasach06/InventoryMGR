@@ -508,3 +508,58 @@ class StorageNfsShare(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     volume: Mapped[StorageVolume] = relationship(back_populates="shares")
+
+
+class PhysicalCluster(Base, TimestampMixin):
+    __tablename__ = "physical_clusters"
+    __table_args__ = (
+        CheckConstraint("length(btrim(name)) > 0", name="ck_physical_clusters_name_nonempty"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    updated_by_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+
+    nodes: Mapped[list["PhysicalNode"]] = relationship(
+        back_populates="cluster",
+        cascade="all, delete-orphan",
+        order_by="PhysicalNode.sort_order",
+    )
+
+
+class PhysicalNode(Base, TimestampMixin):
+    __tablename__ = "physical_nodes"
+    __table_args__ = (
+        CheckConstraint("length(btrim(name)) > 0", name="ck_physical_nodes_name_nonempty"),
+        CheckConstraint("cpu_cores >= 0", name="ck_physical_nodes_cpu_cores_nonnegative"),
+        CheckConstraint("cpu_threads >= 0", name="ck_physical_nodes_cpu_threads_nonnegative"),
+        CheckConstraint("ram_total_gb >= 0", name="ck_physical_nodes_ram_total_nonnegative"),
+        CheckConstraint("storage_usable_gb >= 0", name="ck_physical_nodes_storage_nonnegative"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cluster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("physical_clusters.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    cpu_model: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    cpu_cores: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cpu_threads: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ram_total_gb: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ram_used_gb: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    storage_usable_gb: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    datacenter: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    rack: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    rack_unit: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    ip_addresses: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False, default=list)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    cluster: Mapped[PhysicalCluster] = relationship(back_populates="nodes")
