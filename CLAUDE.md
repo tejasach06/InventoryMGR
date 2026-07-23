@@ -112,3 +112,22 @@ both before any `/impeccable` design work.
 <!-- codeburn:begin read-edit-ratio -->
 Before editing any file, read it first. Before modifying a function, grep for all callers. Research before you edit.
 <!-- codeburn:end read-edit-ratio -->
+
+## Token-efficiency lessons (2026-07-22 session review)
+
+- **Before `/impeccable` or any page-polish pass, check every sub-view/form on
+  that page in one sweep** (list/detail/nested forms), not just the top-level
+  layout. A missed cramped-form issue found only after user re-report costs a
+  full second invocation.
+- **Before renaming/relabeling any form field or user-visible string, grep the
+  matching test file first** for the placeholder/label text it queries. Fixing
+  test breakage after the fact is a second debug loop that reading the test
+  first avoids entirely.
+- **Before refactoring a page, grep for near-duplicate pages first**
+  (`ClusterDetailPage`/`StorageDetailPage`/`StoragePage` share one
+  implementation pattern). Extract the shared component/pattern once, then
+  apply it — don't refactor each page independently and discover the overlap
+  afterward.
+- **Scaffolding a design system (`PRODUCT.md`/`DESIGN.md`/token CSS) is a
+  one-time cost** — don't regenerate or re-derive it per polish request; read
+  the existing files first.
