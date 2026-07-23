@@ -210,7 +210,7 @@ export function Logo({ className }: { className?: string }) {
       <path d="M8 12h16M8 16h12M8 20h8" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
       <defs>
         <linearGradient id="grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#4f46e5" />
+          <stop offset="0%" stopColor="var(--color-accent)" />
           <stop offset="100%" stopColor="#7c3aed" />
         </linearGradient>
       </defs>

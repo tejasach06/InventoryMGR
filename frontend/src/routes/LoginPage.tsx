@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { api, detailMessage, User } from '../api/client';
 import { ThemeSelect } from '../components/ThemeProvider';
-import { Alert, FieldError, Logo, Spinner, inputClass, labelClass, primaryButtonClass } from '../components/ui';
+import { Alert, FieldError, Logo, Spinner, cardClass, inputClass, labelClass, primaryButtonClass } from '../components/ui';
 
 function validateLogin(email: string, password: string) {
   return {
@@ -26,7 +26,7 @@ function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="relative min-h-screen lg:grid lg:grid-cols-[1.05fr_1fr]">
       <div className="absolute right-4 top-4 z-20"><ThemeSelect /></div>
-      <aside className="relative hidden overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+      <aside className="relative hidden overflow-hidden bg-gradient-to-br from-[var(--color-accent)] via-[var(--color-accent-hover)] to-violet-800 p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="pointer-events-none absolute inset-0 opacity-[0.18]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '28px 28px' }} aria-hidden="true" />
         <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
         <div className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-violet-400/20 blur-3xl" aria-hidden="true" />
@@ -38,17 +38,17 @@ function AuthShell({ children }: { children: ReactNode }) {
         </div>
         <div className="relative">
           <h2 className="font-display text-4xl font-semibold leading-[1.1] tracking-tight">Every virtual machine,<br />accounted for.</h2>
-          <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-indigo-100/90">A single source of truth for your Proxmox and VMware fleet — inventory, lifecycle, ownership, and bulk CSV import in one console.</p>
-          <ul className="mt-8 space-y-3 text-sm text-indigo-50/90">
+          <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-white/85">A single source of truth for your Proxmox and VMware fleet — inventory, lifecycle, ownership, and bulk CSV import in one console.</p>
+          <ul className="mt-8 space-y-3 text-sm text-white/80">
             {['Unified Proxmox + VMware inventory', 'Role-based access for every team', 'Preview-then-commit CSV import'].map((f) => (
               <li key={f} className="flex items-center gap-2.5">
-                <svg className="h-4 w-4 flex-shrink-0 text-indigo-200" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8.5l3.5 3.5L13 4" /></svg>
+                <svg className="h-4 w-4 flex-shrink-0 text-white/75" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8.5l3.5 3.5L13 4" /></svg>
                 {f}
               </li>
             ))}
           </ul>
         </div>
-        <p className="relative text-xs text-indigo-200/70">Secure, role-based VM inventory management.</p>
+        <p className="relative text-xs text-white/60">Secure, role-based VM inventory management.</p>
       </aside>
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12 dark:bg-slate-950">
         {children}
@@ -119,14 +119,12 @@ export function LoginPage() {
     return <div className="p-6" role="status">Checking setup status…</div>;
   }
 
-  const formCardClass = 'w-full max-w-md rounded-2xl border border-slate-200/70 bg-white p-8 shadow-xl shadow-slate-900/[0.06] animate-rise dark:border-slate-800 dark:bg-slate-900/80';
-
   if (setup.data?.setup_required) {
     return (
       <AuthShell>
-        <form className={formCardClass} onSubmit={submitSetup} noValidate>
+        <form className={`${cardClass} w-full max-w-md animate-rise`} onSubmit={submitSetup} noValidate>
           <div className="mb-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">InventoryMGR</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-accent)]">InventoryMGR</p>
             <h1 className="font-display mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-100">Create admin account</h1>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Create the first administrator for this deployment.</p>
           </div>
@@ -158,9 +156,9 @@ export function LoginPage() {
 
   return (
     <AuthShell>
-      <form className={formCardClass} onSubmit={submitLogin} noValidate>
+      <form className={`${cardClass} w-full max-w-md animate-rise`} onSubmit={submitLogin} noValidate>
         <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">InventoryMGR</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-accent)]">InventoryMGR</p>
           <h1 className="font-display mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-100">Sign in</h1>
           <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Use your administrator-provided account.</p>
         </div>
