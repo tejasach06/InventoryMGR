@@ -58,7 +58,7 @@ function UserCard({ user }: { user: User }) {
           <span className="font-semibold text-slate-950 dark:text-slate-100">{user.email}</span>
           <div className="mt-1 flex items-center gap-2">
             <Badge value={user.role} />
-            <span className={`inline-flex h-2 w-2 rounded-full ${user.is_active ? 'bg-emerald-500' : 'bg-red-500'}`} title={user.is_active ? 'Active' : 'Inactive'} />
+            <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: user.is_active ? 'var(--color-status-running)' : 'var(--color-criticality-critical)' }} title={user.is_active ? 'Active' : 'Inactive'} />
           </div>
         </div>
         <button type="button" className={secondaryButtonClass} onClick={() => setEditing(!editing)}>{editing ? 'Cancel' : 'Edit'}</button>
@@ -69,8 +69,8 @@ function UserCard({ user }: { user: User }) {
             <label className={labelClass} htmlFor={`card-role-${user.id}`}>Role</label>
             <select className={selectClass} id={`card-role-${user.id}`} value={role} onChange={(e) => setRole(e.target.value as UserRole)}>{roles.map((r) => <option key={r} value={r}>{r}</option>)}</select>
           </div>
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={`card-active-${user.id}`}>
-            <input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950 dark:focus:ring-blue-400" id={`card-active-${user.id}`} type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} /> Active
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor={`card-active-${user.id}`}>
+            <input className="h-4 w-4 rounded border-slate-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)] dark:border-slate-600 dark:bg-slate-950" id={`card-active-${user.id}`} type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} /> Active
           </label>
           <div>
             <label className={labelClass} htmlFor={`card-pw-${user.id}`}>New password</label>
@@ -102,8 +102,8 @@ function UserRow({ user }: { user: User }) {
           <select className={selectClass} id={`role-${user.id}`} value={role} onChange={(event) => setRole(event.target.value as UserRole)}>{roles.map((item) => <option key={item} value={item}>{item}</option>)}</select>
         </td>
         <td className="whitespace-nowrap px-4 py-3">
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={`active-${user.id}`}>
-            <input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950 dark:focus:ring-blue-400" id={`active-${user.id}`} type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> Active
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor={`active-${user.id}`}>
+            <input className="h-4 w-4 rounded border-slate-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)] dark:border-slate-600 dark:bg-slate-950" id={`active-${user.id}`} type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> Active
           </label>
         </td>
         <td className="whitespace-nowrap px-4 py-3">
@@ -171,7 +171,7 @@ export function UsersPanel() {
             <label className={labelClass} htmlFor="new-role">Role</label>
             <select className={selectClass} id="new-role" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as UserRole })}>{roles.map((role) => <option key={role} value={role}>{role}</option>)}</select>
           </div>
-          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300" htmlFor="new-active"><input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950 dark:focus:ring-blue-400" id="new-active" type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> Active</label>
+          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200" htmlFor="new-active"><input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950 dark:focus:ring-blue-400" id="new-active" type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> Active</label>
           <button className={primaryButtonClass} type="submit" disabled={create.isPending}>
             {create.isPending ? <><Spinner /> Creating…</> : 'Create user'}
           </button>
