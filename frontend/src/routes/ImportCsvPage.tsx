@@ -3,16 +3,16 @@
 import { DragEvent, FormEvent, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, ImportAction, ImportBatch } from '../api/client';
-import { Alert, Badge, EmptyState, PageHeader, PageTransition, Spinner, cardClass, helpTextClass, primaryButtonClass, secondaryButtonClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
+import { Alert, Badge, EmptyState, PageHeader, PageTransition, Spinner, cardClass, helpTextClass, primaryButtonClass, secondaryButtonClass, statTileClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
 
 const actions: ImportAction[] = ['create', 'update', 'unchanged', 'conflict', 'invalid'];
 
 const actionBorderColor: Record<ImportAction, string> = {
-  create: 'border-l-emerald-500',
-  update: 'border-l-blue-500',
-  unchanged: 'border-l-slate-400',
-  conflict: 'border-l-amber-500',
-  invalid: 'border-l-red-500',
+  create: 'var(--color-status-running)',
+  update: 'var(--color-accent)',
+  unchanged: 'var(--color-text-tertiary)',
+  conflict: 'var(--color-criticality-medium)',
+  invalid: 'var(--color-criticality-critical)',
 };
 
 export interface PreviewSummary {
@@ -52,7 +52,7 @@ function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
       <td className={tableCellClass}>{row.normalized?.cluster ?? String(row.raw.cluster ?? '—')}</td>
       <td className={tableCellClass}>{String(row.raw.disks || '—')}</td>
       <td className={tableCellClass}>{IP_ROLE_HEADERS.map((header) => row.raw[header]).filter(Boolean).join(', ') || '—'}</td>
-      <td className="min-w-72 px-4 py-3 text-slate-700 dark:text-slate-300">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5 text-red-700 dark:text-red-300">{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
+      <td className="min-w-72 px-4 py-3 text-slate-700 dark:text-slate-300">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5" style={{ color: 'var(--color-criticality-critical)' }}>{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
     </tr>
   );
 }
@@ -121,7 +121,7 @@ export function ImportCsvPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="csv-file">CSV file</label>
             <div
-              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 transition-colors ${dragging ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-500/10' : 'border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-600'}`}
+              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 transition-colors ${dragging ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5 dark:bg-[var(--color-accent)]/10' : 'border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-600'}`}
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
@@ -170,7 +170,7 @@ export function ImportCsvPage() {
           <div className={cardClass + ' space-y-5' + (batch.status === 'committed' ? ' opacity-75' : '')}>
             <div className="grid gap-4 sm:flex sm:items-start sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Batch {batch.id}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-accent)]">Batch {batch.id}</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-slate-100">{batch.filename}</h2>
               </div>
               <button className={primaryButtonClass} type="button" onClick={() => commit.mutate()} disabled={commit.isPending || hasBlockingRows || batch.status === 'committed'} aria-describedby={blockingReasonId}>
@@ -178,16 +178,16 @@ export function ImportCsvPage() {
               </button>
             </div>
             {hasBlockingRows ? <Alert><span id="import-blocking-reason">Commit disabled: {summary.conflict} conflict rows and {summary.invalid} invalid rows. Resolve the CSV and preview again before commit.</span></Alert> : null}
-            <div className="grid gap-3 sm:grid-cols-5" aria-label="Preview summary">
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Preview summary">
               {actions.map((action) => (
-                <div key={action} data-testid={`summary-${action}`} className={`summary-card rounded-xl border border-slate-200 border-l-4 ${actionBorderColor[action]} bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900`}>
+                <div key={action} data-testid={`summary-${action}`} className={statTileClass} style={{ borderLeftColor: actionBorderColor[action], borderLeftWidth: '4px' }}>
                   <span className="text-sm font-medium capitalize text-slate-500 dark:text-slate-400">{action}</span>
                   <strong className="mt-1 block text-2xl font-semibold text-slate-950 dark:text-slate-100">{summary[action]}</strong>
                 </div>
               ))}
             </div>
             {Object.keys(batch.field_changes ?? {}).length > 0 ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+              <div className={cardClass}>
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   This import will change:
                 </p>
