@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, NetworkRole, Vm } from '../api/client';
 import {
-  Alert, Badge, PageHeader, PageTransition, Skeleton, Spinner,
+  Alert, Badge, PageHeader, PageTransition, SectionCard, Skeleton, Spinner,
   cardClass, dangerButtonClass, monoClass, secondaryButtonClass, sectionTitleClass,
 } from '../components/ui';
 import { useCurrentUser } from '../components/AuthContext';
@@ -24,14 +24,6 @@ function Field({ label, value, mono = false }: { label: string; value: string | 
   );
 }
 
-function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-sm shadow-slate-900/[0.04] dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
-      <h2 className={sectionTitleClass}>{title}</h2>
-      <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">{children}</div>
-    </section>
-  );
-}
 
 function HealthScore({ score }: { score: number }) {
   const color = score >= 75 ? 'bg-green-500' : score >= 50 ? 'bg-yellow-400' : 'bg-red-500';
@@ -305,11 +297,11 @@ export function VmDetailPage() {
 
         {(cloneMut.isError || deleteMut.isError) && <Alert>{detailMessage(cloneMut.error ?? deleteMut.error)}</Alert>}
 
-        <DetailSection title="Documentation Health Score">
+        <SectionCard title="Documentation Health Score">
           <HealthScore score={vm.health_score} />
         </DetailSection>
 
-        <DetailSection title="General Information">
+        <SectionCard title="General Information">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Hostname" value={vm.name} />
             <Field label="FQDN" value={vm.fqdn} />
@@ -324,7 +316,7 @@ export function VmDetailPage() {
           </dl>
         </DetailSection>
 
-        <DetailSection title="Location">
+        <SectionCard title="Location">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Platform" value={vm.platform} />
             <Field label="Datacenter" value={vm.datacenter} />
@@ -335,22 +327,22 @@ export function VmDetailPage() {
           </dl>
         </DetailSection>
 
-        <DetailSection title="Hardware">
+        <SectionCard title="Hardware">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="vCPU" value={`${vm.cpu_cores} cores`} mono />
             <Field label="Memory" value={vm.memory_mb ? formatMemory(vm.memory_mb) : null} mono />
           </dl>
         </DetailSection>
 
-        <DetailSection title="Storage"><DisksPanel vm={vm} /></DetailSection>
-        <DetailSection title="Network">
+        <SectionCard title="Storage"><DisksPanel vm={vm} /></DetailSection>
+        <SectionCard title="Network">
           <dl className="mb-4 grid gap-x-8 gap-y-1 border-b border-slate-100 pb-2 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="IP addresses" value={vm.networks.map((n) => n.ip_address).join(', ') || null} mono />
           </dl>
           <NetworksPanel vm={vm} />
         </DetailSection>
 
-        <DetailSection title="Operating System">
+        <SectionCard title="Operating System">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="OS Family" value={vm.os_family ? vm.os_family.charAt(0).toUpperCase() + vm.os_family.slice(1) : null} />
             <Field label="OS Name" value={vm.os_name} />
@@ -359,7 +351,7 @@ export function VmDetailPage() {
           </dl>
         </DetailSection>
 
-        <DetailSection title="Ownership">
+        <SectionCard title="Ownership">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Owner" value={vm.owner} />
             <Field label="Business Owner" value={vm.business_owner} />
@@ -367,9 +359,9 @@ export function VmDetailPage() {
           </dl>
         </DetailSection>
 
-        <DetailSection title="Applications"><ApplicationsPanel vm={vm} /></DetailSection>
+        <SectionCard title="Applications"><ApplicationsPanel vm={vm} /></DetailSection>
 
-        <DetailSection title="Monitoring">
+        <SectionCard title="Monitoring">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Monitoring Enabled" value={vm.monitoring_enabled} />
             <Field label="Backup Enabled" value={vm.backup_enabled} />
@@ -379,7 +371,7 @@ export function VmDetailPage() {
           </dl>
         </DetailSection>
 
-        <DetailSection title="Security">
+        <SectionCard title="Security">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Last Patch Date" value={vm.last_patch_date} />
             <Field label="Last Vuln Scan" value={vm.last_vuln_scan_date} />
@@ -387,7 +379,7 @@ export function VmDetailPage() {
           </dl>
         </DetailSection>
 
-        <DetailSection title="Record">
+        <SectionCard title="Record">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="VM Type" value={vm.vm_type} />
             <Field label="Last Verified" value={vm.last_verified_at} />
@@ -397,7 +389,7 @@ export function VmDetailPage() {
           </dl>
         </DetailSection>
 
-        <DetailSection title="Audit Log"><AuditPanel vmId={vm.id} /></DetailSection>
+        <SectionCard title="Audit Log"><AuditPanel vmId={vm.id} /></DetailSection>
       </section>
     </PageTransition>
   );

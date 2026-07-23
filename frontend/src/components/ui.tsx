@@ -264,6 +264,16 @@ export function RemoveButton({ onClick, label }: { onClick: () => void; label: s
   );
 }
 
+/* SectionCard — shared wrapper for detail/form section cards */
+export function SectionCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className={cardClass}>
+      <h2 className={sectionTitleClass}>{title}</h2>
+      <div className="mt-3 border-t border-[var(--color-border)] pt-3">{children}</div>
+    </section>
+  );
+}
+
 /* Chip for filter bar */
 export function FilterChip({ label, value, onRemove, type = 'status' }: { label: string; value: string; onRemove: () => void; type?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle' }) {
   const normalized = value.toLowerCase().replace(/\s+/g, '_');

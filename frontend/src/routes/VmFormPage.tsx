@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, NetworkRole, VmPayload } from '../api/client';
 import {
-  Alert, FieldError, PageHeader, PageTransition, Skeleton, Spinner,
+  Alert, FieldError, PageHeader, PageTransition, SectionCard, Skeleton, Spinner,
   cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass,
   secondaryButtonClass, sectionTitleClass, selectClass, textareaClass,
 } from '../components/ui';
@@ -93,14 +93,6 @@ function CheckboxInput({ name, label, values, onChange }: BaseFieldProps) {
   );
 }
 
-function FormSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-sm shadow-slate-900/[0.04] dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
-      <h2 className={sectionTitleClass}>{title}</h2>
-      <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">{children}</div>
-    </section>
-  );
-}
 
 type DiskRow = { name: string; size: string; unit: 'GB' | 'TB'; storage: string; type: string };
 
@@ -295,7 +287,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
         <PageHeader title={title} />
         {save.isError ? <Alert>{detailMessage(save.error)}</Alert> : null}
         <form className="space-y-5 pb-20" onSubmit={submit} noValidate>
-          <FormSection title="Identity">
+          <SectionCard title="Identity">
             <div className="grid gap-4 lg:grid-cols-3">
               <TextInput name="name" label="Name" values={values} errors={errors} onChange={setField} required />
               <TextInput name="fqdn" label="FQDN" values={values} errors={errors} onChange={setField} />
@@ -312,7 +304,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             </div>
           </FormSection>
 
-          <FormSection title="Location">
+          <SectionCard title="Location">
             <div className="grid gap-4 lg:grid-cols-3">
               <ComboInput name="datacenter" label="Datacenter" values={values} errors={errors} onChange={setField} options={options.datacenter} />
               <TextInput name="cluster" label="Cluster" values={values} errors={errors} onChange={setField} required />
@@ -320,7 +312,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             </div>
           </FormSection>
 
-          <FormSection title="Hardware">
+          <SectionCard title="Hardware">
             <div className="grid gap-4 lg:grid-cols-3">
               <ComboInput name="cpu_cores" label="CPU cores" values={values} errors={errors} onChange={setField} options={options.cpu} type="number" required />
               <TextInput name="memory_mb" label="Memory GB" values={values} errors={errors} onChange={setField} type="number" required />
@@ -328,11 +320,11 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <DiskRows disks={disks} setDisks={setDisks} />
           </FormSection>
 
-          <FormSection title="Network">
+          <SectionCard title="Network">
             <IpRows ips={ips} setIps={setIps} />
           </FormSection>
 
-          <FormSection title="Operating System">
+          <SectionCard title="Operating System">
             <div className="grid gap-4 lg:grid-cols-3">
               <div>
                 <label className={labelClass} htmlFor="os_family">OS family</label>
@@ -348,14 +340,14 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             </div>
           </FormSection>
 
-          <FormSection title="Ownership">
+          <SectionCard title="Ownership">
             <div className="grid gap-4 lg:grid-cols-3">
               <ComboInput name="owner" label="Owner" values={values} errors={errors} onChange={setField} options={owners} />
               <TextInput name="business_owner" label="Business Owner" values={values} errors={errors} onChange={setField} />
             </div>
           </FormSection>
 
-          <FormSection title="Operations">
+          <SectionCard title="Operations">
             <div className="grid gap-4 lg:grid-cols-4">
               <CheckboxInput name="monitoring_enabled" label="Monitoring enabled" values={values} errors={errors} onChange={setField} />
               <CheckboxInput name="backup_enabled" label="Backup enabled" values={values} errors={errors} onChange={setField} />
@@ -373,7 +365,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             )}
           </FormSection>
 
-          <FormSection title="Security">
+          <SectionCard title="Security">
             <div className="grid gap-4 lg:grid-cols-3">
               <TextInput name="last_patch_date" label="Last Patch Date" values={values} errors={errors} onChange={setField} type="date" />
               <TextInput name="last_vuln_scan_date" label="Last Vuln Scan" values={values} errors={errors} onChange={setField} type="date" />
@@ -386,7 +378,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             </div>
           </FormSection>
 
-          <FormSection title="Notes & Tags">
+          <SectionCard title="Notes & Tags">
             <div className="grid gap-4">
               <TextInput name="tags" label="Tags (semicolon-separated)" values={values} errors={errors} onChange={setField} />
               <div>
