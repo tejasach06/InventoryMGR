@@ -55,14 +55,14 @@ function OptionRow({ option }: { option: DropdownOption }) {
           {update.isPending ? <><Spinner /> Saving…</> : 'Save'}
         </button>
         <button type="button" className={secondaryButtonClass} onClick={() => { setDraft(option.value); setEditing(false); }}>Cancel</button>
-        {update.isError ? <span className="text-sm font-medium text-red-700 dark:text-red-300" role="alert">{detailMessage(update.error)}</span> : null}
+        {update.isError ? <span className="text-sm font-medium text-[var(--color-criticality-critical)]" role="alert">{detailMessage(update.error)}</span> : null}
       </li>
     );
   }
 
   return (
     <li className="group flex flex-wrap items-center gap-2 py-2">
-      <span className="min-w-32 text-sm font-medium text-slate-800 dark:text-slate-200">{option.value}</span>
+      <span className="min-w-32 text-sm font-medium text-slate-900 dark:text-slate-100">{option.value}</span>
       {isOs && option.family ? <Badge value={option.family} /> : null}
       <div className="flex gap-2 lg:opacity-0 lg:transition-opacity lg:group-hover:opacity-100">
         <button type="button" className={secondaryButtonClass} onClick={() => setEditing(true)}>Edit</button>
@@ -70,7 +70,7 @@ function OptionRow({ option }: { option: DropdownOption }) {
           {remove.isPending ? <><Spinner /> Removing…</> : 'Remove'}
         </button>
       </div>
-      {remove.isError ? <span className="text-sm font-medium text-red-700 dark:text-red-300" role="alert">{detailMessage(remove.error)}</span> : null}
+      {remove.isError ? <span className="text-sm font-medium text-[var(--color-criticality-critical)]" role="alert">{detailMessage(remove.error)}</span> : null}
     </li>
   );
 }
@@ -112,14 +112,14 @@ function CategoryPanel({ category, options }: { category: DropdownCategory; opti
         <button type="submit" className={primaryButtonClass} disabled={create.isPending || !value.trim()}>
           {create.isPending ? <><Spinner /> Adding…</> : 'Add'}
         </button>
-        {create.isError ? <span className="text-sm font-medium text-red-700 dark:text-red-300" role="alert">{detailMessage(create.error)}</span> : null}
+        {create.isError ? <span className="text-sm font-medium text-[var(--color-criticality-critical)]" role="alert">{detailMessage(create.error)}</span> : null}
       </form>
       {options.length > 0 ? (
         <ul className="divide-y divide-slate-100 dark:divide-slate-800">
           {options.map((option) => <OptionRow key={option.id} option={option} />)}
         </ul>
       ) : (
-        <p className="py-4 text-sm text-slate-500 dark:text-slate-400">No options yet. Add the first one above.</p>
+        <p className="py-4 text-sm text-slate-600 dark:text-slate-400">No options yet. Add the first one above.</p>
       )}
     </div>
   );
@@ -153,7 +153,7 @@ function NotificationsPanel() {
         onSubmit={(e) => { e.preventDefault(); if (Number(days) >= 1) save.mutate(); }}
       >
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="notify-days">
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor="notify-days">
             Days before decommission to warn
           </label>
           <input id="notify-days" type="number" min={1} className={inputClass + ' max-w-32'} value={days} onChange={(e) => { touched.current = true; setDays(e.target.value); }} />
@@ -161,7 +161,7 @@ function NotificationsPanel() {
         <button type="submit" className={primaryButtonClass} disabled={save.isPending || Number(days) < 1}>
           {save.isPending ? <><Spinner /> Saving…</> : 'Save window'}
         </button>
-        {save.isError ? <span className="text-sm font-medium text-red-700 dark:text-red-300" role="alert">{detailMessage(save.error)}</span> : null}
+        {save.isError ? <span className="text-sm font-medium text-[var(--color-criticality-critical)]" role="alert">{detailMessage(save.error)}</span> : null}
       </form>
 
       <form
@@ -169,7 +169,7 @@ function NotificationsPanel() {
         onSubmit={(e) => { e.preventDefault(); if (Number(warnPct) >= 1 && Number(warnPct) <= 100) savePct.mutate(); }}
       >
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="warn-pct">
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor="warn-pct">
             Storage usage warning threshold (%)
           </label>
           <input id="warn-pct" type="number" min={1} max={100} className={inputClass + ' max-w-32'} value={warnPct} onChange={(e) => { pctTouched.current = true; setWarnPct(e.target.value); }} />
@@ -177,7 +177,7 @@ function NotificationsPanel() {
         <button type="submit" className={primaryButtonClass} disabled={savePct.isPending || Number(warnPct) < 1 || Number(warnPct) > 100}>
           {savePct.isPending ? <><Spinner /> Saving…</> : 'Save threshold'}
         </button>
-        {savePct.isError ? <span className="text-sm font-medium text-red-700 dark:text-red-300" role="alert">{detailMessage(savePct.error)}</span> : null}
+        {savePct.isError ? <span className="text-sm font-medium text-[var(--color-criticality-critical)]" role="alert">{detailMessage(savePct.error)}</span> : null}
       </form>
     </div>
   );
@@ -200,7 +200,7 @@ export function SettingsPage() {
     <PageTransition>
       <section>
         <PageHeader title="Settings" eyebrow="Admin only" />
-        <p className="mb-6 text-sm text-slate-600 dark:text-slate-400">Manage the quick-select options shown in the VM form. Users can still type a custom value when none of these fit.</p>
+        <p className="mb-6 text-sm text-slate-600 dark:text-slate-500">Manage the quick-select options shown in the VM form. Users can still type a custom value when none of these fit.</p>
         {optionsQuery.isError ? <Alert>{detailMessage(optionsQuery.error)}</Alert> : null}
         {optionsQuery.isLoading ? (
           <div className={cardClass} role="status" aria-label="Loading">
@@ -223,7 +223,7 @@ export function SettingsPage() {
                   className={cn(
                     '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                     activeTab === category
-                      ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                      ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                       : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
                   )}
                 >
