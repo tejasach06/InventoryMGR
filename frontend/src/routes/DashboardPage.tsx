@@ -54,7 +54,7 @@ function Donut({ segments, total }: { segments: Segment[]; total: number }) {
   );
 }
 
-function BarList({ rows }: { rows: { key: string; label: string; value: number; bar: string; href?: string }[] }) {
+function BarList({ rows }: { rows: { key: string; label: string; value: number; colorVar: string; href?: string }[] }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
     <ul className="space-y-3">

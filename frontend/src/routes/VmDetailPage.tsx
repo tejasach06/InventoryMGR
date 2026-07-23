@@ -95,7 +95,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
   });
   return (
     <div>
-      {vm.disks.length === 0 ? <EmptyState text="No disks configured." /> : (
+      {vm.disks.length === 0 ? <EmptyState title="No disks configured" body="Add a disk below to start tracking storage for this VM." /> : (
         <table className="w-full text-sm"><thead>
           <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
             <th className="pb-1 pr-4">Name</th><th className="pb-1 pr-4">Storage</th><th className="pb-1 pr-4">Size (GB)</th><th className="pb-1 pr-4">Type</th><th />
@@ -140,7 +140,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
   });
   return (
     <div>
-      {vm.networks.length === 0 ? <EmptyState text="No network entries configured." /> : (
+      {vm.networks.length === 0 ? <EmptyState title="No network entries configured" body="Add an IP address below to start tracking network configuration." /> : (
         <table className="w-full text-sm"><thead>
           <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
             <th className="pb-1 pr-4">IP Address</th><th className="pb-1 pr-4">Role</th><th className="pb-1 pr-4">VLAN</th><th className="pb-1 pr-4">Gateway</th><th />
@@ -183,7 +183,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
   });
   return (
     <div>
-      {vm.applications.length === 0 ? <EmptyState text="No applications linked." /> : (
+      {vm.applications.length === 0 ? <EmptyState title="No applications linked" body="Add an application below to track what runs on this VM." /> : (
         <ul className="space-y-1">
           {vm.applications.map((a) => (
             <li key={a.id} className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 py-2">
@@ -208,7 +208,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
 function AuditPanel({ vmId }: { vmId: string }) {
   const auditQ = useQuery({ queryKey: ['audit', vmId], queryFn: () => api.getAuditLog(vmId) });
   if (auditQ.isLoading) return <Skeleton className="h-24" />;
-  if (!auditQ.data?.length) return <EmptyState text="No changes recorded yet." />;
+  if (!auditQ.data?.length) return <EmptyState title="No changes recorded yet" body="Audit entries appear here as this VM's fields are edited." />;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm"><thead>

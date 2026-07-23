@@ -312,7 +312,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
                   include the "*" suffix. Add `required` back only if a test switches to regex. */}
               <SelectInput name="vm_type" label="VM Type" values={values} errors={errors} onChange={setField} options={vmTypes} />
             </div>
-          </FormSection>
+          </SectionCard>
 
           <SectionCard title="Location">
             <div className="grid gap-4 lg:grid-cols-3">
@@ -320,7 +320,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
               <TextInput name="cluster" label="Cluster" values={values} errors={errors} onChange={setField} required />
               <TextInput name="node" label="Node" values={values} errors={errors} onChange={setField} />
             </div>
-          </FormSection>
+          </SectionCard>
 
           <SectionCard title="Hardware">
             <div className="grid gap-4 lg:grid-cols-3">
@@ -328,11 +328,11 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
               <TextInput name="memory_mb" label="Memory GB" values={values} errors={errors} onChange={setField} type="number" required />
             </div>
             <DiskRows disks={disks} setDisks={setDisks} />
-          </FormSection>
+          </SectionCard>
 
           <SectionCard title="Network">
             <IpRows ips={ips} setIps={setIps} />
-          </FormSection>
+          </SectionCard>
 
           <SectionCard title="Operating System">
             <div className="grid gap-4 lg:grid-cols-3">
@@ -348,14 +348,14 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
                 options={values.os_family === 'linux' || values.os_family === 'windows' ? options.os_by_family[values.os_family] : options.os} />
               <TextInput name="os_version" label="Version" values={values} errors={errors} onChange={setField} />
             </div>
-          </FormSection>
+          </SectionCard>
 
           <SectionCard title="Ownership">
             <div className="grid gap-4 lg:grid-cols-3">
               <ComboInput name="owner" label="Owner" values={values} errors={errors} onChange={setField} options={owners} />
               <TextInput name="business_owner" label="Business Owner" values={values} errors={errors} onChange={setField} />
             </div>
-          </FormSection>
+          </SectionCard>
 
           <SectionCard title="Operations">
             <div className="grid gap-4 lg:grid-cols-4">
@@ -373,7 +373,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
                   onChange={(e) => setField('backup_location', e.target.value)} />
               </div>
             )}
-          </FormSection>
+          </SectionCard>
 
           <SectionCard title="Security">
             <div className="grid gap-4 lg:grid-cols-3">
@@ -386,7 +386,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
                 <textarea className={textareaClass} id="security_remarks" name="security_remarks" value={values.security_remarks} onChange={(e) => setField('security_remarks', e.target.value)} rows={2} />
               </div>
             </div>
-          </FormSection>
+          </SectionCard>
 
           <SectionCard title="Notes & Tags">
             <div className="grid gap-4">
@@ -397,7 +397,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
               </div>
             </div>
             <p className={helpTextClass}>Applications are managed on the VM detail page.</p>
-          </FormSection>
+          </SectionCard>
 
           <div className="sticky bottom-0 flex items-center gap-3 rounded-xl border border-slate-200/70 bg-white/85 px-5 py-3 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/85">
             <button className={primaryButtonClass} type="submit" disabled={save.isPending}>
