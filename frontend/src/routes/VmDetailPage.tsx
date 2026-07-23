@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, NetworkRole, Vm } from '../api/client';
 import {
-  Alert, Badge, PageHeader, PageTransition, SectionCard, Skeleton, Spinner,
-  cardClass, dangerButtonClass, monoClass, secondaryButtonClass, sectionTitleClass,
+  Alert, Badge, EmptyState, PageHeader, PageTransition, RemoveButton, SectionCard, Skeleton, Spinner,
+  cardClass, dangerButtonClass, inputClass, labelClass, monoClass, secondaryButtonClass, selectClass,
 } from '../components/ui';
 import { useCurrentUser } from '../components/AuthContext';
 import { formatMemory } from '../lib/units';
@@ -18,31 +18,22 @@ function Field({ label, value, mono = false }: { label: string; value: string | 
   const empty = display === '—';
   return (
     <div className="py-2">
-      <dt className="text-[0.7rem] font-medium uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{label}</dt>
-      <dd className={`mt-1 ${mono && !empty ? monoClass : ''} ${empty ? 'text-slate-400 dark:text-slate-600' : 'text-slate-900 dark:text-slate-100'}`}>{display}</dd>
+      <dt className={`text-[0.7rem] font-medium uppercase tracking-[0.08em] ${labelClass}`}>{label}</dt>
+      <dd className={`mt-1 ${mono && !empty ? monoClass : ''} ${empty ? 'text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]'}`}>{display}</dd>
     </div>
   );
 }
 
 
 function HealthScore({ score }: { score: number }) {
-  const color = score >= 75 ? 'bg-green-500' : score >= 50 ? 'bg-yellow-400' : 'bg-red-500';
+  const colorVar = score >= 75 ? 'var(--color-status-running)' : score >= 50 ? 'var(--color-criticality-medium)' : 'var(--color-criticality-critical)';
   return (
     <div className="flex items-center gap-3">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${score}%` }} />
+      <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--color-surface-tertiary)' }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, backgroundColor: colorVar }} />
       </div>
-      <span className="w-10 text-right text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-300">{score}%</span>
+      <span className="w-10 text-right text-sm font-semibold tabular-nums text-[var(--color-text-secondary)]">{score}%</span>
     </div>
-  );
-}
-
-function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <button type="button" onClick={onClick} aria-label={label}
-      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-red-700 dark:hover:bg-red-500/10 dark:hover:text-red-400">
-      ×
-    </button>
   );
 }
 
@@ -58,22 +49,28 @@ function AddRowForm({ fields, onSubmit, pending }: {
     setValues(blank());
   }
   return (
-    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-      {fields.map((f) => (
-        f.options ? (
-          <select key={f.name} aria-label={f.placeholder} value={values[f.name]}
-            onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
-            className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-blue-400 dark:focus:ring-blue-400">
-            {f.options.map((o) => <option key={o} value={o}>{o[0].toUpperCase() + o.slice(1)}</option>)}
-          </select>
-        ) : (
-          <input key={f.name} type={f.type ?? 'text'} placeholder={f.placeholder} value={values[f.name]}
-            onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
-            className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-400" />
-        )
-      ))}
+    <div className="mt-3 border-t border-[var(--color-border)] pt-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {fields.map((f) => (
+          <label key={f.name} className="flex flex-col gap-1">
+            <span className={labelClass}>{f.placeholder}</span>
+            {f.options ? (
+              <select value={values[f.name]}
+                onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
+                className={selectClass}>
+                {f.options.map((o) => <option key={o} value={o}>{o[0].toUpperCase() + o.slice(1)}</option>)}
+              </select>
+            ) : (
+              <input type={f.type ?? 'text'} value={values[f.name]}
+                onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
+                placeholder={f.placeholder}
+                className={inputClass} />
+            )}
+          </label>
+        ))}
+      </div>
       <button type="button" onClick={submit} disabled={pending}
-        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+        className={`${secondaryButtonClass} mt-3`}>
         {pending ? <Spinner /> : null}+ Add
       </button>
     </div>
@@ -98,18 +95,18 @@ function DisksPanel({ vm }: { vm: Vm }) {
   });
   return (
     <div>
-      {vm.disks.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No disks configured.</p> : (
+      {vm.disks.length === 0 ? <EmptyState text="No disks configured." /> : (
         <table className="w-full text-sm"><thead>
-          <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
+          <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
             <th className="pb-1 pr-4">Name</th><th className="pb-1 pr-4">Storage</th><th className="pb-1 pr-4">Size (GB)</th><th className="pb-1 pr-4">Type</th><th />
           </tr></thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-[var(--color-border)]">
             {vm.disks.map((d) => (
               <tr key={d.id}>
-                <td className="py-1.5 pr-4 font-mono text-slate-700 dark:text-slate-300">{d.disk_name}</td>
-                <td className="py-1.5 pr-4 text-slate-600 dark:text-slate-400">{d.storage_name ?? '—'}</td>
-                <td className="py-1.5 pr-4 tabular-nums">{d.size_gb}</td>
-                <td className="py-1.5 pr-4 text-slate-600 dark:text-slate-400">{d.storage_type ?? '—'}</td>
+                <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">{d.disk_name}</td>
+                <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_name ?? '—'}</td>
+                <td className="py-1.5 pr-4 tabular-nums text-[var(--color-text-primary)]">{d.size_gb}</td>
+                <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_type ?? '—'}</td>
                 <td className="py-1.5"><RemoveButton onClick={() => delMut.mutate(d.id)} label={`Remove ${d.disk_name}`} /></td>
               </tr>
             ))}
@@ -143,18 +140,18 @@ function NetworksPanel({ vm }: { vm: Vm }) {
   });
   return (
     <div>
-      {vm.networks.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No network entries configured.</p> : (
+      {vm.networks.length === 0 ? <EmptyState text="No network entries configured." /> : (
         <table className="w-full text-sm"><thead>
-          <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
+          <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
             <th className="pb-1 pr-4">IP Address</th><th className="pb-1 pr-4">Role</th><th className="pb-1 pr-4">VLAN</th><th className="pb-1 pr-4">Gateway</th><th />
           </tr></thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-[var(--color-border)]">
             {vm.networks.map((n) => (
               <tr key={n.id}>
-                <td className="py-1.5 pr-4 font-mono">{n.ip_address}</td>
-                <td className="py-1.5 pr-4 capitalize text-slate-600 dark:text-slate-400">{n.role}</td>
-                <td className="py-1.5 pr-4 tabular-nums text-slate-600 dark:text-slate-400">{n.vlan ?? '—'}</td>
-                <td className="py-1.5 pr-4 font-mono text-slate-600 dark:text-slate-400">{n.gateway ?? '—'}</td>
+                <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">{n.ip_address}</td>
+                <td className="py-1.5 pr-4 capitalize text-[var(--color-text-secondary)]">{n.role}</td>
+                <td className="py-1.5 pr-4 tabular-nums text-[var(--color-text-secondary)]">{n.vlan ?? '—'}</td>
+                <td className="py-1.5 pr-4 font-mono text-[var(--color-text-secondary)]">{n.gateway ?? '—'}</td>
                 <td className="py-1.5"><RemoveButton onClick={() => delMut.mutate(n.id)} label={`Remove ${n.ip_address}`} /></td>
               </tr>
             ))}
@@ -186,13 +183,13 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
   });
   return (
     <div>
-      {vm.applications.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No applications linked.</p> : (
+      {vm.applications.length === 0 ? <EmptyState text="No applications linked." /> : (
         <ul className="space-y-1">
           {vm.applications.map((a) => (
-            <li key={a.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/60">
+            <li key={a.id} className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 py-2">
               <div>
-                <span className="font-medium text-slate-900 dark:text-slate-100">{a.app_name}</span>
-                {a.description && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{a.description}</p>}
+                <span className="font-medium text-[var(--color-text-primary)]">{a.app_name}</span>
+                {a.description && <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">{a.description}</p>}
               </div>
               <RemoveButton onClick={() => delMut.mutate(a.id)} label={`Remove ${a.app_name}`} />
             </li>
@@ -211,21 +208,21 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
 function AuditPanel({ vmId }: { vmId: string }) {
   const auditQ = useQuery({ queryKey: ['audit', vmId], queryFn: () => api.getAuditLog(vmId) });
   if (auditQ.isLoading) return <Skeleton className="h-24" />;
-  if (!auditQ.data?.length) return <p className="text-sm text-slate-500 dark:text-slate-400">No changes recorded yet.</p>;
+  if (!auditQ.data?.length) return <EmptyState text="No changes recorded yet." />;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm"><thead>
-        <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
+        <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
           <th className="pb-1 pr-4">Date</th><th className="pb-1 pr-4">User</th><th className="pb-1 pr-4">Field</th><th className="pb-1 pr-4">Old</th><th className="pb-1">New</th>
         </tr></thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        <tbody className="divide-y divide-[var(--color-border)]">
           {auditQ.data.map((e) => (
             <tr key={e.id}>
-              <td className="py-1.5 pr-4 whitespace-nowrap tabular-nums text-slate-500 dark:text-slate-400">{new Date(e.changed_at).toLocaleString()}</td>
-              <td className="py-1.5 pr-4 text-slate-700 dark:text-slate-300">{e.user?.email ?? '—'}</td>
-              <td className="py-1.5 pr-4 font-mono text-slate-700 dark:text-slate-300">{e.field_name}</td>
-              <td className="max-w-xs truncate py-1.5 pr-4 text-slate-500 dark:text-slate-400">{e.old_value ?? '—'}</td>
-              <td className="max-w-xs truncate py-1.5 text-slate-700 dark:text-slate-300">{e.new_value ?? '—'}</td>
+              <td className="py-1.5 pr-4 whitespace-nowrap tabular-nums text-[var(--color-text-tertiary)]">{new Date(e.changed_at).toLocaleString()}</td>
+              <td className="py-1.5 pr-4 text-[var(--color-text-primary)]">{e.user?.email ?? '—'}</td>
+              <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">{e.field_name}</td>
+              <td className="max-w-xs truncate py-1.5 pr-4 text-[var(--color-text-secondary)]">{e.old_value ?? '—'}</td>
+              <td className="max-w-xs truncate py-1.5 text-[var(--color-text-primary)]">{e.new_value ?? '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -299,7 +296,7 @@ export function VmDetailPage() {
 
         <SectionCard title="Documentation Health Score">
           <HealthScore score={vm.health_score} />
-        </DetailSection>
+        </SectionCard>
 
         <SectionCard title="General Information">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
@@ -310,11 +307,11 @@ export function VmDetailPage() {
             <Field label="Lifecycle" value={vm.lifecycle} />
             <Field label="Tags" value={vm.tags.join(', ') || null} />
             {vm.description && <div className="sm:col-span-2 xl:col-span-3 py-2">
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Description</dt>
-              <dd className="mt-1 text-slate-900 dark:text-slate-100">{vm.description}</dd>
+              <dt className={`text-xs font-medium uppercase tracking-wide ${labelClass}`}>Description</dt>
+              <dd className="mt-1 text-[var(--color-text-primary)]">{vm.description}</dd>
             </div>}
           </dl>
-        </DetailSection>
+        </SectionCard>
 
         <SectionCard title="Location">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
@@ -325,22 +322,22 @@ export function VmDetailPage() {
             <Field label="VM ID" value={vm.external_id} />
             <Field label="SR-ID" value={vm.sr_id} />
           </dl>
-        </DetailSection>
+        </SectionCard>
 
         <SectionCard title="Hardware">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="vCPU" value={`${vm.cpu_cores} cores`} mono />
             <Field label="Memory" value={vm.memory_mb ? formatMemory(vm.memory_mb) : null} mono />
           </dl>
-        </DetailSection>
+        </SectionCard>
 
-        <SectionCard title="Storage"><DisksPanel vm={vm} /></DetailSection>
+        <SectionCard title="Storage"><DisksPanel vm={vm} /></SectionCard>
         <SectionCard title="Network">
           <dl className="mb-4 grid gap-x-8 gap-y-1 border-b border-slate-100 pb-2 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="IP addresses" value={vm.networks.map((n) => n.ip_address).join(', ') || null} mono />
           </dl>
           <NetworksPanel vm={vm} />
-        </DetailSection>
+        </SectionCard>
 
         <SectionCard title="Operating System">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
@@ -349,7 +346,7 @@ export function VmDetailPage() {
             <Field label="Distribution" value={vm.os_distribution} />
             <Field label="Version" value={vm.os_version} />
           </dl>
-        </DetailSection>
+        </SectionCard>
 
         <SectionCard title="Ownership">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
@@ -357,9 +354,9 @@ export function VmDetailPage() {
             <Field label="Business Owner" value={vm.business_owner} />
             <Field label="Technical Owner" value={vm.technical_owner} />
           </dl>
-        </DetailSection>
+        </SectionCard>
 
-        <SectionCard title="Applications"><ApplicationsPanel vm={vm} /></DetailSection>
+        <SectionCard title="Applications"><ApplicationsPanel vm={vm} /></SectionCard>
 
         <SectionCard title="Monitoring">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
@@ -369,7 +366,7 @@ export function VmDetailPage() {
             <Field label="HA Enabled" value={vm.ha_enabled} />
             <Field label="PMP Access" value={vm.pmp_enabled} />
           </dl>
-        </DetailSection>
+        </SectionCard>
 
         <SectionCard title="Security">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
@@ -377,7 +374,7 @@ export function VmDetailPage() {
             <Field label="Last Vuln Scan" value={vm.last_vuln_scan_date} />
             <Field label="Remarks" value={vm.security_remarks} />
           </dl>
-        </DetailSection>
+        </SectionCard>
 
         <SectionCard title="Record">
           <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
@@ -387,9 +384,9 @@ export function VmDetailPage() {
             <Field label="Created" value={new Date(vm.created_at).toLocaleDateString()} />
             <Field label="Last Updated" value={new Date(vm.updated_at).toLocaleDateString()} />
           </dl>
-        </DetailSection>
+        </SectionCard>
 
-        <SectionCard title="Audit Log"><AuditPanel vmId={vm.id} /></DetailSection>
+        <SectionCard title="Audit Log"><AuditPanel vmId={vm.id} /></SectionCard>
       </section>
     </PageTransition>
   );
