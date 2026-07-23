@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, detailMessage, Vm } from '../api/client';
-import { Alert, PageHeader, PageTransition, Skeleton, cardClass, monoClass, secondaryButtonClass } from '../components/ui';
+import { Alert, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, secondaryButtonClass } from '../components/ui';
 
 const ALL_PARAMS = new URLSearchParams({ limit: '200', offset: '0' });
 
@@ -77,8 +77,8 @@ export function ReportsPage() {
                   )}
                 </div>
               </div>
-              <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div className="h-full rounded-full bg-indigo-500 transition-[width] duration-500" style={{ width: `${pct}%` }} />
+              <div className="mt-4">
+                <ProgressBar value={pct} />
               </div>
               <div className="mt-4 flex justify-end border-t border-slate-100 pt-3 dark:border-slate-800">
                 <a href={api.reportUrl(r.name)} download={`${r.name}.csv`}

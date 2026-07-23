@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ReactNode, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, detailMessage, Vm } from '../api/client';
-import { Alert, Badge, PageHeader, PageTransition, Skeleton, cardClass, monoClass } from '../components/ui';
+import { Alert, Badge, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass } from '../components/ui';
 
 const ALL_PARAMS = new URLSearchParams({ limit: '200', offset: '0' });
 
@@ -66,9 +66,7 @@ function BarList({ rows }: { rows: { key: string; label: string; value: number; 
               <span className="truncate text-sm font-medium capitalize text-slate-700 group-hover:text-slate-950 dark:text-slate-300 dark:group-hover:text-white">{r.label}</span>
               <span className={monoClass}>{fmtInt(r.value)}</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div className={`h-full rounded-full ${r.bar} transition-[width] duration-500`} style={{ width: `${pct}%` }} />
-            </div>
+            <ProgressBar value={pct} colorVar={r.colorVar} />
           </>
         );
         return (
@@ -158,14 +156,14 @@ export function DashboardPage() {
 
   const envBars = Object.entries(derived.byEnv)
     .sort((a, b) => b[1] - a[1])
-    .map(([key, value]) => ({ key, label: key, value, bar: 'bg-indigo-500', href: `/inventory?environment=${key}` }));
+    .map(([key, value]) => ({ key, label: key, value, colorVar: 'var(--color-accent)', href: `/inventory?environment=${key}` }));
 
   const critOrder = ['critical', 'high', 'medium', 'low'];
   const critBars = critOrder.filter((k) => derived.byCrit[k]).map((key) => ({
     key,
     label: key,
     value: derived.byCrit[key],
-    bar: key === 'critical' ? 'bg-red-500' : key === 'high' ? 'bg-amber-500' : key === 'medium' ? 'bg-blue-500' : 'bg-emerald-500',
+    colorVar: key === 'critical' ? 'var(--color-criticality-critical)' : key === 'high' ? 'var(--color-criticality-high)' : key === 'medium' ? 'var(--color-criticality-medium)' : 'var(--color-criticality-low)',
     href: `/inventory?criticality=${key}`,
   }));
 

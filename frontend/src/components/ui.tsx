@@ -274,6 +274,16 @@ export function SectionCard({ title, children }: { title: string; children: Reac
   );
 }
 
+/* ProgressBar — progress indicator with semantic color */
+export function ProgressBar({ value, colorVar = 'var(--color-accent)' }: { value: number; colorVar?: string }) {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div className="h-2 w-full rounded-full" style={{ backgroundColor: 'var(--color-surface-tertiary)' }}>
+      <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: colorVar }} />
+    </div>
+  );
+}
+
 /* Chip for filter bar */
 export function FilterChip({ label, value, onRemove, type = 'status' }: { label: string; value: string; onRemove: () => void; type?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle' }) {
   const normalized = value.toLowerCase().replace(/\s+/g, '_');
