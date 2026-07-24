@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, ClusterPayload, PhysicalClusterListItem } from '../api/client';
-import { Alert, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass } from '../components/ui';
+import { Alert, EmptyState, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass } from '../components/ui';
 import { useCurrentUser } from '../components/AuthContext';
 import { ClusterForm } from '../components/ClusterForm';
 
@@ -44,7 +44,7 @@ export function ClustersPage() {
             pending={createMut.isPending}
             submitLabel="Create cluster"
           />
-          {createMut.isError ? <p className="mt-2 text-xs text-red-600">{detailMessage(createMut.error)}</p> : null}
+          {createMut.isError ? <Alert>{detailMessage(createMut.error)}</Alert> : null}
         </div>
       ) : null}
 
@@ -53,26 +53,24 @@ export function ClustersPage() {
       {clustersQ.isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : clusters.length === 0 ? (
-        <div className={`${cardClass} text-center text-sm text-slate-500 dark:text-slate-400`}>
-          No clusters yet.
-        </div>
+        <EmptyState title="No clusters yet" body="Create the first physical cluster to start tracking nodes." />
       ) : (
         <div className={tableWrapClass}>
           <table className={tableClass}>
             <thead className={tableHeadClass}>
               <tr>
-                <th className={`${tableCellClass} text-left font-semibold`}>Name</th>
-                <th className={`${tableCellClass} text-left font-semibold`}>Description</th>
-                <th className={`${tableCellClass} text-right font-semibold`}>Nodes</th>
-                <th className={`${tableCellClass} text-right font-semibold`}>Total RAM (GB)</th>
-                <th className={`${tableCellClass} text-right font-semibold`}>Total storage (GB)</th>
+                <th className={`${tableCellClass} text-left font-semibold`} scope="col">Name</th>
+                <th className={`${tableCellClass} text-left font-semibold`} scope="col">Description</th>
+                <th className={`${tableCellClass} text-right font-semibold`} scope="col">Nodes</th>
+                <th className={`${tableCellClass} text-right font-semibold`} scope="col">Total RAM (GB)</th>
+                <th className={`${tableCellClass} text-right font-semibold`} scope="col">Total storage (GB)</th>
               </tr>
             </thead>
             <tbody className={tableBodyClass}>
               {clusters.map((c) => (
                 <tr key={c.id} className={tableRowClass}>
                   <td className={tableCellClass}>
-                    <Link href={`/clusters/${c.id}`} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                    <Link href={`/clusters/${c.id}`} className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>
                       {c.name}
                     </Link>
                   </td>

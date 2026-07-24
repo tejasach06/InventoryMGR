@@ -1,12 +1,12 @@
 'use client';
 
-import { Dispatch, FormEvent, ReactNode, SetStateAction, useEffect, useMemo, useState } from 'react';
+import { Dispatch, FormEvent, ReactNode, SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, NetworkRole, VmPayload } from '../api/client';
 import {
-  Alert, FieldError, PageHeader, PageTransition, RemoveButton, SectionCard, Skeleton, Spinner,
+  Alert, FieldError, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass,
   secondaryButtonClass, sectionTitleClass, selectClass, textareaClass,
 } from '../components/ui';
@@ -14,6 +14,7 @@ import {
   collectErrors, criticalities, emptyVmFormValues, environments,
   platforms, statuses, VmFormErrors, VmFormValues, vmFormSchema, vmToFormValues, vmTypes,
 } from '../lib/vmForm';
+import { cn } from '../lib/classNames';
 
 type FieldChange = (name: keyof VmFormValues, value: string | boolean) => void;
 
@@ -59,21 +60,42 @@ function SelectInput({ name, label, values, errors, onChange, options, required 
 
 function ComboInput({ name, label, values, errors, onChange, options, required = false, type = 'text' }: BaseFieldProps & { options: string[]; type?: string }) {
   const errorId = `${String(name)}-error`;
+  const listId = `${String(name)}-listbox`;
   const value = values[name];
   const raw = typeof value === 'boolean' ? '' : String(value ?? '');
   const query = raw.trim().toLowerCase();
   const matches = query.length > 0 ? options.filter((o) => o.toLowerCase().includes(query) && o.toLowerCase() !== query).slice(0, 8) : [];
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const activeId = activeIndex >= 0 && activeIndex < matches.length ? `${String(name)}-option-${activeIndex}` : undefined;
+
+  function selectMatch(m: string) {
+    onChange(name, m);
+    setActiveIndex(-1);
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (matches.length === 0) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex((i) => (i + 1) % matches.length); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex((i) => (i <= 0 ? matches.length - 1 : i - 1)); }
+    else if (e.key === 'Enter' && activeIndex >= 0) { e.preventDefault(); selectMatch(matches[activeIndex]); }
+    else if (e.key === 'Escape') { setActiveIndex(-1); }
+  }
+
   return (
     <div>
       <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
       <input className={inputClass} id={String(name)} name={String(name)} type={type} autoComplete="off" value={raw}
-        onChange={(e) => onChange(name, e.target.value)}
+        role="combobox" aria-expanded={matches.length > 0} aria-controls={listId} aria-activedescendant={activeId} aria-autocomplete="list"
+        onChange={(e) => { onChange(name, e.target.value); setActiveIndex(-1); }}
+        onKeyDown={onKeyDown}
         aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])} />
       {matches.length > 0 && (
-        <ul className="mt-1 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-surface)]">
-          {matches.map((m) => (
-            <li key={m}><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onChange(name, m)}
-              className="block w-full px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-tertiary)]">{m}</button></li>
+        <ul id={listId} role="listbox" className="mt-1 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-surface)]">
+          {matches.map((m, i) => (
+            <li key={m} id={`${String(name)}-option-${i}`} role="option" aria-selected={i === activeIndex}>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => selectMatch(m)}
+                className={cn('block w-full px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-tertiary)]', i === activeIndex && 'bg-[var(--color-surface-tertiary)]')}>{m}</button>
+            </li>
           ))}
         </ul>
       )}
@@ -96,17 +118,35 @@ function CheckboxInput({ name, label, values, onChange }: BaseFieldProps) {
 
 type DiskRow = { name: string; size: string; unit: 'GB' | 'TB'; storage: string; type: string };
 
+function parseDiskPaste(text: string): DiskRow[] | null {
+  const parts = text.split(';').map((s) => s.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  const rows: DiskRow[] = [];
+  for (const part of parts) {
+    const [name, size] = part.split(':').map((s) => s.trim());
+    if (!name || !size || !Number.isFinite(Number(size)) || Number(size) <= 0) return null;
+    rows.push({ name, size, unit: 'GB', storage: '', type: '' });
+  }
+  return rows;
+}
+
 function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<SetStateAction<DiskRow[]>> }) {
   const update = (i: number, patch: Partial<DiskRow>) => setDisks((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   return (
     <div className="mt-4 border-t border-[var(--color-border)] pt-4">
       <p className={labelClass}>Disks</p>
-      <div className="space-y-3">
+      <p className={helpTextClass}>Paste a semicolon-separated list (e.g. os:100;data:500) into the first disk name field to add several at once.</p>
+      <div className="mt-3 space-y-3">
         {disks.map((d, i) => (
           <div key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end">
             <label className="flex flex-col gap-1">
               <span className={labelClass}>Disk {i + 1} name</span>
-              <input aria-label={`Disk ${i + 1} name`} className={inputClass} type="text" placeholder="Disk name" value={d.name} onChange={(e) => update(i, { name: e.target.value })} />
+              <input aria-label={`Disk ${i + 1} name`} className={inputClass} type="text" placeholder="Disk name" value={d.name} onChange={(e) => update(i, { name: e.target.value })}
+                onPaste={i === 0 ? (e) => {
+                  const parsed = parseDiskPaste(e.clipboardData.getData('text'));
+                  const isPristine = disks.length === 1 && !disks[0].name && !disks[0].size && !disks[0].storage && !disks[0].type;
+                  if (parsed && isPristine) { e.preventDefault(); setDisks(parsed); }
+                } : undefined} />
             </label>
             <label className="flex flex-col gap-1">
               <span className={labelClass}>Size</span>
@@ -144,17 +184,29 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
 
 type IpRow = { ip: string; role: NetworkRole; vlan: string; gateway: string };
 
+function parseIpPaste(text: string): IpRow[] | null {
+  const parts = text.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  return parts.map((ip) => ({ ip, role: 'private' as NetworkRole, vlan: '', gateway: '' }));
+}
+
 function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction<IpRow[]>> }) {
   const update = (i: number, patch: Partial<IpRow>) => setIps((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   return (
     <div>
       <p className={labelClass}>IP addresses</p>
-      <div className="space-y-3">
+      <p className={helpTextClass}>Paste a semicolon- or comma-separated list into the first address field to add several at once.</p>
+      <div className="mt-3 space-y-3">
         {ips.map((r, i) => (
           <div key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-end">
             <label className="flex flex-col gap-1">
               <span className={labelClass}>IP Address {i + 1}</span>
-              <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })} />
+              <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })}
+                onPaste={i === 0 ? (e) => {
+                  const parsed = parseIpPaste(e.clipboardData.getData('text'));
+                  const isPristine = ips.length === 1 && !ips[0].ip && !ips[0].vlan && !ips[0].gateway;
+                  if (parsed && isPristine) { e.preventDefault(); setIps(parsed); }
+                } : undefined} />
             </label>
             <label className="flex flex-col gap-1">
               <span className={labelClass}>Role</span>
@@ -198,6 +250,8 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const [errors, setErrors] = useState<VmFormErrors>({});
   const [disks, setDisks] = useState<DiskRow[]>([{ name: '', size: '', unit: 'GB', storage: '', type: '' }]);
   const [ips, setIps] = useState<IpRow[]>([{ ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }]);
+  const initialSnapshot = useRef<string>(JSON.stringify({ values, disks, ips }));
+  const isDirty = JSON.stringify({ values, disks, ips }) !== initialSnapshot.current;
 
   const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => api.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
   const optionsQuery = useQuery({ queryKey: ['settings', 'options'], queryFn: api.getDropdownOptions });
@@ -208,22 +262,33 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
 
   useEffect(() => {
     if (vmQuery.data) {
-      setValues(vmToFormValues(vmQuery.data));
-      setDisks(vmQuery.data.disks.length > 0 ? vmQuery.data.disks.map((d) => ({
+      const loadedValues = vmToFormValues(vmQuery.data);
+      const loadedDisks = vmQuery.data.disks.length > 0 ? vmQuery.data.disks.map((d) => ({
         name: d.disk_name,
         size: String(d.size_gb >= 1024 ? d.size_gb / 1024 : d.size_gb),
         unit: (d.size_gb >= 1024 ? 'TB' : 'GB') as 'GB' | 'TB',
         storage: d.storage_name ?? '',
         type: d.storage_type ?? '',
-      })) : [{ name: '', size: '', unit: 'GB' as const, storage: '', type: '' }]);
-      setIps(vmQuery.data.networks.length > 0 ? vmQuery.data.networks.map((n) => ({
+      })) : [{ name: '', size: '', unit: 'GB' as const, storage: '', type: '' }];
+      const loadedIps = vmQuery.data.networks.length > 0 ? vmQuery.data.networks.map((n) => ({
         ip: n.ip_address,
         role: n.role,
         vlan: n.vlan !== null ? String(n.vlan) : '',
         gateway: n.gateway ?? '',
-      })) : [{ ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }]);
+      })) : [{ ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }];
+      setValues(loadedValues);
+      setDisks(loadedDisks);
+      setIps(loadedIps);
+      initialSnapshot.current = JSON.stringify({ values: loadedValues, disks: loadedDisks, ips: loadedIps });
     }
   }, [vmQuery.data]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const save = useMutation({
     mutationFn: (payload: VmPayload) => (mode === 'create' ? api.createVm(payload) : api.updateVm(id ?? '', payload)),
@@ -276,6 +341,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
           })),
       };
       const vm = await save.mutateAsync(payload as VmPayload);
+      initialSnapshot.current = JSON.stringify({ values, disks, ips });
       queryClient.invalidateQueries({ queryKey: ['vms'] });
       queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
       queryClient.invalidateQueries({ queryKey: ['decommissions'] });
@@ -296,6 +362,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
       <section className="mx-auto w-full max-w-5xl 2xl:max-w-6xl">
         <PageHeader title={title} />
         {save.isError ? <Alert>{detailMessage(save.error)}</Alert> : null}
+        <SectionNav titles={['Identity', 'Location', 'Hardware', 'Network', 'Operating System', 'Ownership', 'Operations', 'Security', 'Notes & Tags']} />
         <form className="space-y-5 pb-20" onSubmit={submit} noValidate>
           <SectionCard title="Identity">
             <div className="grid gap-4 lg:grid-cols-3">
@@ -403,7 +470,8 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <button className={primaryButtonClass} type="submit" disabled={save.isPending}>
               {save.isPending ? <><Spinner /> Saving…</> : 'Save VM'}
             </button>
-            <Link className={secondaryButtonClass} href={id ? `/inventory/${id}` : '/inventory'}>Cancel</Link>
+            <Link className={secondaryButtonClass} href={id ? `/inventory/${id}` : '/inventory'}
+              onClick={(e) => { if (isDirty && !confirm('Discard unsaved changes?')) e.preventDefault(); }}>Cancel</Link>
           </div>
         </form>
       </section>

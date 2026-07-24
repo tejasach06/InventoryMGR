@@ -167,7 +167,7 @@ export function LoginPage() {
         <div className="space-y-4">
           <div>
             <label className={labelClass} htmlFor="email">Email</label>
-            <input className={inputClass} id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-describedby={emailError ? 'email-error' : undefined} autoComplete="email" />
+            <input className={inputClass} id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-describedby={emailError ? 'email-error' : undefined} autoComplete="email" autoFocus />
             <FieldError id="email-error" message={emailError} />
           </div>
           <div>

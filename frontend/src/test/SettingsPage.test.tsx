@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { api, ApiError } from '../api/client';
 import type { DropdownOption } from '../api/client';
 import { SettingsPage } from '../routes/SettingsPage';
-import { renderWithProviders } from './utils';
+import { makeUser, renderWithProviders } from './utils';
 
 const cpuOptions: DropdownOption[] = [{ id: 'o1', category: 'cpu', value: '8', family: null }];
 
@@ -19,7 +19,7 @@ describe('SettingsPage', () => {
     // a later microtask, so asserting before any await observes the loading state.
     vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
@@ -28,22 +28,22 @@ describe('SettingsPage', () => {
   it('renders an error alert when the options query rejects', async () => {
     vi.spyOn(api, 'getAllDropdownOptions').mockRejectedValue(new ApiError(500, 'Boom'));
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Boom');
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
-  it('renders every category tab plus the users tab and lists the cpu option', async () => {
+  it('renders every category tab plus a link to the Users page and lists the cpu option', async () => {
     vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     expect(await screen.findByRole('tab', { name: 'CPU cores' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Datacenter' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Disk size (GB)' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Operating system' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /users/i })).toHaveAttribute('href', '/users');
     expect(screen.getByText('8')).toBeInTheDocument();
   });
 
@@ -51,7 +51,7 @@ describe('SettingsPage', () => {
     vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
     const user = userEvent.setup();
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     const cpuTab = await screen.findByRole('tab', { name: 'CPU cores' });
     expect(cpuTab).toHaveAttribute('aria-selected', 'true');
@@ -73,7 +73,7 @@ describe('SettingsPage', () => {
       .mockResolvedValue({ id: 'o2', category: 'cpu', value: '16', family: null });
     const user = userEvent.setup();
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     await screen.findByRole('tab', { name: 'CPU cores' });
     await user.type(screen.getByLabelText('Add CPU cores option'), '16');
@@ -89,7 +89,7 @@ describe('SettingsPage', () => {
       .mockResolvedValue({ id: 'o1', category: 'cpu', value: '12', family: null });
     const user = userEvent.setup();
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     await screen.findByRole('tab', { name: 'CPU cores' });
     await user.click(screen.getByRole('button', { name: 'Edit' }));
@@ -108,7 +108,7 @@ describe('SettingsPage', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = userEvent.setup();
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     await screen.findByRole('tab', { name: 'CPU cores' });
     await user.click(screen.getByRole('button', { name: 'Remove' }));
@@ -116,18 +116,13 @@ describe('SettingsPage', () => {
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('o1'));
   });
 
-  it('shows the users panel when the Users tab is selected', async () => {
+  it('links to the standalone Users page instead of duplicating it as a tab', async () => {
     vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
-    vi.spyOn(api, 'listUsers').mockResolvedValue([]);
-    const user = userEvent.setup();
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
-    const usersTab = await screen.findByRole('tab', { name: 'Users' });
-    await user.click(usersTab);
-
-    expect(usersTab).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panel-users');
+    const usersLink = await screen.findByRole('link', { name: /users/i });
+    expect(usersLink).toHaveAttribute('href', '/users');
   });
 
   it('creates an OS option with the selected family from the add form', async () => {
@@ -139,7 +134,7 @@ describe('SettingsPage', () => {
       .mockResolvedValue({ id: 'o4', category: 'os', value: 'Debian 12', family: 'linux' });
     const user = userEvent.setup();
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     await user.click(await screen.findByRole('tab', { name: 'Operating system' }));
     await user.selectOptions(screen.getByLabelText('OS family'), 'Linux');
@@ -158,7 +153,7 @@ describe('SettingsPage', () => {
       .mockResolvedValue({ id: 'o3', category: 'os', value: 'Ubuntu 22.04', family: 'windows' });
     const user = userEvent.setup();
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     await user.click(await screen.findByRole('tab', { name: 'Operating system' }));
     await user.click(screen.getByRole('button', { name: 'Edit' }));
@@ -173,7 +168,7 @@ describe('SettingsPage', () => {
     vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
     const updateSpy = vi.spyOn(api, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 60, storage_usage_warn_pct: 85 });
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     fireEvent.click(await screen.findByRole('tab', { name: /notifications/i }));
     const input = await screen.findByLabelText(/days before decommission/i);
@@ -188,7 +183,7 @@ describe('SettingsPage', () => {
     vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
     const updateSpy = vi.spyOn(api, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 90 });
 
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     fireEvent.click(await screen.findByRole('tab', { name: /notifications/i }));
     const input = await screen.findByLabelText(/storage usage warning threshold/i);

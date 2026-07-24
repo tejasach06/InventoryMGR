@@ -43,8 +43,9 @@ describe('ClusterDetailPage', () => {
     vi.spyOn(api, 'addNode').mockResolvedValue(cluster.nodes[0]);
     renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'editor' }) });
     await screen.findByText('pve-cluster-a');
+    fireEvent.click(screen.getByRole('button', { name: '+ Add node' }));
     fireEvent.change(screen.getByLabelText(/^node name$/i), { target: { value: 'node-02' } });
-    fireEvent.click(screen.getByRole('button', { name: /\+ add/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^\+ add node$/i }));
     await waitFor(() => expect(api.addNode).toHaveBeenCalledWith('c1', expect.objectContaining({ name: 'node-02' })));
   });
 
@@ -57,7 +58,6 @@ describe('ClusterDetailPage', () => {
   });
 
   it('deletes a node and the cluster (editor)', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.spyOn(api, 'getCluster').mockResolvedValue(makeCluster());
     vi.spyOn(api, 'deleteNode').mockResolvedValue(null);
     vi.spyOn(api, 'deleteCluster').mockResolvedValue(null);
@@ -66,6 +66,7 @@ describe('ClusterDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /remove node node-01/i }));
     await waitFor(() => expect(api.deleteNode).toHaveBeenCalledWith('c1', 'n1'));
     fireEvent.click(screen.getByRole('button', { name: /delete cluster/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(api.deleteCluster).toHaveBeenCalledWith('c1'));
     await waitFor(() => expect(hoisted.pushMock).toHaveBeenCalledWith('/clusters'));
   });

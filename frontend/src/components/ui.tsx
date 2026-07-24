@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useRef } from 'react';
 import { cn } from '../lib/classNames';
 
 export const primaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-all duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-slate-950';
@@ -254,6 +254,60 @@ export function Drawer({
   );
 }
 
+/* ConfirmDialog — styled replacement for native confirm() on destructive actions */
+export function ConfirmDialog({
+  open, title, body, confirmLabel = 'Delete', pending = false, onConfirm, onCancel,
+}: {
+  open: boolean;
+  title: string;
+  body: string;
+  confirmLabel?: string;
+  pending?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    restoreFocusRef.current = document.activeElement as HTMLElement | null;
+    cancelRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onCancel(); return; }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const next = document.activeElement === cancelRef.current ? confirmRef.current : cancelRef.current;
+        next?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      restoreFocusRef.current?.focus();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onCancel} aria-hidden="true" />
+      <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-950 animate-rise">
+        <h2 id="confirm-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)] dark:text-slate-100">{title}</h2>
+        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{body}</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button ref={cancelRef} type="button" className={secondaryButtonClass} onClick={onCancel} disabled={pending}>Cancel</button>
+          <button ref={confirmRef} type="button" className={dangerButtonClass} onClick={onConfirm} disabled={pending}>
+            {pending ? <Spinner /> : null}{confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* RemoveButton — small destructive icon action for inline table/list rows */
 export function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
@@ -264,13 +318,34 @@ export function RemoveButton({ onClick, label }: { onClick: () => void; label: s
   );
 }
 
+export function slugifyTitle(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 /* SectionCard — shared wrapper for detail/form section cards */
 export function SectionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className={cardClass}>
+    <section id={slugifyTitle(title)} className={cn(cardClass, 'scroll-mt-20')}>
       <h2 className={sectionTitleClass}>{title}</h2>
       <div className="mt-3 border-t border-[var(--color-border)] pt-3">{children}</div>
     </section>
+  );
+}
+
+/* SectionNav — sticky jump-nav for pages with many stacked SectionCards */
+export function SectionNav({ titles }: { titles: string[] }) {
+  return (
+    <nav aria-label="Jump to section" className="sticky top-0 z-10 -mx-1 mb-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 px-1 py-2 backdrop-blur">
+      <ul className="flex gap-1 whitespace-nowrap text-sm">
+        {titles.map((title) => (
+          <li key={title}>
+            <a href={`#${slugifyTitle(title)}`} className="inline-block rounded-md px-2.5 py-1 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]">
+              {title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 

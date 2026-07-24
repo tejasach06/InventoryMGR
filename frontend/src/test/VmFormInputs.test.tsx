@@ -72,7 +72,7 @@ describe('VmFormPage disk rows', () => {
     fireEvent.change(screen.getByLabelText('Disk 1 size'), { target: { value: '40' } });
     expect(screen.getByLabelText('Disk 1 size')).toHaveValue(40);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add another disk' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Add another disk' }));
     expect(screen.getByLabelText('Disk 2 size')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Disk 2 unit'), { target: { value: 'TB' } });
@@ -90,7 +90,7 @@ describe('VmFormPage IP rows', () => {
     fireEvent.change(screen.getByLabelText('IP address 1'), { target: { value: '10.0.0.1' } });
     expect(screen.getByLabelText('IP address 1')).toHaveValue('10.0.0.1');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add IP address' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Add IP address' }));
     const second = screen.getByLabelText('IP address 2');
     fireEvent.change(second, { target: { value: '10.0.0.2' } });
 

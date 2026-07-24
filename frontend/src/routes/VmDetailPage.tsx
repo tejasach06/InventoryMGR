@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, NetworkRole, Vm } from '../api/client';
 import {
-  Alert, Badge, EmptyState, PageHeader, PageTransition, RemoveButton, SectionCard, Skeleton, Spinner,
+  Alert, Badge, ConfirmDialog, EmptyState, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, dangerButtonClass, inputClass, labelClass, monoClass, secondaryButtonClass, selectClass,
 } from '../components/ui';
 import { useCurrentUser } from '../components/AuthContext';
@@ -119,7 +119,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
         { name: 'size_gb', placeholder: 'Size GB', type: 'number' },
         { name: 'storage_type', placeholder: 'Type' },
       ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
-      {addMut.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addMut.error)}</p>}
+      {addMut.isError && <Alert>{detailMessage(addMut.error)}</Alert>}
     </div>
   );
 }
@@ -164,7 +164,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
         { name: 'vlan', placeholder: 'VLAN', type: 'number' },
         { name: 'gateway', placeholder: 'Gateway' },
       ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
-      {addMut.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addMut.error)}</p>}
+      {addMut.isError && <Alert>{detailMessage(addMut.error)}</Alert>}
     </div>
   );
 }
@@ -200,7 +200,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
         { name: 'app_name', placeholder: 'Application name' },
         { name: 'description', placeholder: 'Description' },
       ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
-      {addMut.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addMut.error)}</p>}
+      {addMut.isError && <Alert>{detailMessage(addMut.error)}</Alert>}
     </div>
   );
 }
@@ -251,6 +251,8 @@ export function VmDetailPage() {
   const user = useCurrentUser();
   const canEdit = user.role === 'editor' || user.role === 'admin';
   const canDelete = user.role === 'admin';
+  const [confirmClone, setConfirmClone] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (vmQ.isLoading) return (
     <PageTransition>
@@ -280,12 +282,12 @@ export function VmDetailPage() {
             <button className={secondaryButtonClass} onClick={() => router.push('/inventory')}>← Back</button>
             {canEdit && <Link className={secondaryButtonClass} href={`/inventory/${id}/edit`}>Edit</Link>}
             {canEdit && (
-              <button className={secondaryButtonClass} onClick={() => cloneMut.mutate()} disabled={cloneMut.isPending}>
+              <button className={secondaryButtonClass} onClick={() => setConfirmClone(true)} disabled={cloneMut.isPending}>
                 {cloneMut.isPending && <Spinner />} Clone
               </button>
             )}
             {canDelete && (
-              <button className={dangerButtonClass} onClick={() => { if (confirm(`Delete VM ${vm.name}? This cannot be undone.`)) deleteMut.mutate(); }} disabled={deleteMut.isPending}>
+              <button className={dangerButtonClass} onClick={() => setConfirmDelete(true)} disabled={deleteMut.isPending}>
                 {deleteMut.isPending && <Spinner />} Delete
               </button>
             )}
@@ -293,6 +295,23 @@ export function VmDetailPage() {
         } />
 
         {(cloneMut.isError || deleteMut.isError) && <Alert>{detailMessage(cloneMut.error ?? deleteMut.error)}</Alert>}
+
+        <ConfirmDialog open={confirmClone} title="Clone VM" confirmLabel="Clone"
+          body={`Create a copy of ${vm.name} with the same hardware, network, and OS settings? You'll be taken to the new VM's record afterward.`}
+          pending={cloneMut.isPending}
+          onConfirm={() => cloneMut.mutate()}
+          onCancel={() => setConfirmClone(false)} />
+
+        <ConfirmDialog open={confirmDelete} title="Delete VM" confirmLabel="Delete VM"
+          body={`Delete VM ${vm.name}? This cannot be undone.`}
+          pending={deleteMut.isPending}
+          onConfirm={() => deleteMut.mutate()}
+          onCancel={() => setConfirmDelete(false)} />
+
+        <SectionNav titles={[
+          'Documentation Health Score', 'General Information', 'Location', 'Hardware', 'Storage', 'Network',
+          'Operating System', 'Ownership', 'Applications', 'Monitoring', 'Security', 'Record', 'Audit Log',
+        ]} />
 
         <SectionCard title="Documentation Health Score">
           <HealthScore score={vm.health_score} />

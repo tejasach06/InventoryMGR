@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, ClusterPayload, PhysicalCluster, PhysicalNode } from '../api/client';
 import {
-  Alert, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, cardClass, inputClass, labelClass,
+  Alert, ConfirmDialog, FieldError, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, cardClass, inputClass, labelClass,
   tableClass, tableBodyClass, tableCellClass, monoClass,
   dangerButtonClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass,
 } from '../components/ui';
@@ -53,9 +53,12 @@ function NodeAddForm({ onSubmit, pending }: {
 }) {
   const blank = () => Object.fromEntries(NODE_FIELDS.map((f) => [f.name, '']));
   const [values, setValues] = useState<Record<string, string>>(blank);
+  const [nameError, setNameError] = useState<string | undefined>();
 
   function submit() {
     const v = values;
+    if (!v.name.trim()) { setNameError('Node name is required.'); return; }
+    setNameError(undefined);
     const ip_addresses = v.ip_label.trim() && v.ip_address.trim()
       ? [{ label: v.ip_label.trim(), address: v.ip_address.trim() }]
       : [];
@@ -83,9 +86,14 @@ function NodeAddForm({ onSubmit, pending }: {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {g.fields.map((f) => (
               <label key={f.name} className="grid gap-1">
+                {/* ponytail: no required-marker span on name label — getByLabelText(/^node name$/i)
+                    in ClusterDetailPage.test.tsx does an exact match that a trailing "*" would break. */}
                 <span className={labelClass}>{f.label}</span>
                 <input type={f.type ?? 'text'} placeholder={f.placeholder} value={values[f.name]}
-                  onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))} className={inputClass} />
+                  aria-describedby={f.name === 'name' && nameError ? 'node-name-error' : undefined}
+                  aria-invalid={f.name === 'name' ? Boolean(nameError) : undefined}
+                  onChange={(e) => { setValues((c) => ({ ...c, [f.name]: e.target.value })); if (f.name === 'name') setNameError(undefined); }} className={inputClass} />
+                {f.name === 'name' && <FieldError id="node-name-error" message={nameError} />}
               </label>
             ))}
           </div>
@@ -115,6 +123,7 @@ function RamBar({ used, total }: { used: number | null; total: number }) {
 }
 
 function NodesArea({ cluster, canEdit }: { cluster: PhysicalCluster; canEdit: boolean }) {
+  const [showAdd, setShowAdd] = useState(false);
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ['cluster', cluster.id] });
   const addNode = useMutation({
@@ -128,7 +137,14 @@ function NodesArea({ cluster, canEdit }: { cluster: PhysicalCluster; canEdit: bo
 
   return (
     <div className="space-y-4">
-      <h2 className={sectionTitleClass}>Nodes</h2>
+      <div className="flex items-center justify-between">
+        <h2 className={sectionTitleClass}>Nodes</h2>
+        {canEdit && (
+          <button type="button" className={secondaryButtonClass} onClick={() => setShowAdd((v) => !v)}>
+            {showAdd ? 'Cancel' : '+ Add node'}
+          </button>
+        )}
+      </div>
       {cluster.nodes.length === 0 ? (
         <p className="text-sm text-[var(--color-text-tertiary)]">No nodes yet.</p>
       ) : (
@@ -162,8 +178,8 @@ function NodesArea({ cluster, canEdit }: { cluster: PhysicalCluster; canEdit: bo
           </table>
         </div>
       )}
-      {canEdit && <NodeAddForm onSubmit={(v) => addNode.mutate(v)} pending={addNode.isPending} />}
-      {addNode.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addNode.error)}</p>}
+      {canEdit && showAdd && <NodeAddForm onSubmit={(v) => addNode.mutate(v)} pending={addNode.isPending} />}
+      {addNode.isError && <Alert>{detailMessage(addNode.error)}</Alert>}
     </div>
   );
 }
@@ -185,6 +201,7 @@ export function ClusterDetailPage() {
   });
 
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const updateMut = useMutation({
     mutationFn: (payload: ClusterPayload) => api.updateCluster(id, payload),
     onSuccess: () => {
@@ -206,13 +223,19 @@ export function ClusterDetailPage() {
             <button className={secondaryButtonClass} onClick={() => router.push('/clusters')}>← Back</button>
             {canEdit && (
               <button className={dangerButtonClass}
-                onClick={() => { if (confirm(`Delete cluster ${cluster.name} and all its nodes? This cannot be undone.`)) deleteMut.mutate(); }}
+                onClick={() => setConfirmDelete(true)}
                 disabled={deleteMut.isPending}>
                 {deleteMut.isPending && <Spinner />} Delete cluster
               </button>
             )}
           </>
         } />
+
+        <ConfirmDialog open={confirmDelete} title="Delete cluster"
+          body={`Delete cluster ${cluster.name} and all its nodes? This cannot be undone.`}
+          pending={deleteMut.isPending}
+          onConfirm={() => deleteMut.mutate()}
+          onCancel={() => setConfirmDelete(false)} />
 
         {deleteMut.isError && <Alert>{detailMessage(deleteMut.error)}</Alert>}
 
@@ -236,7 +259,7 @@ export function ClusterDetailPage() {
                 pending={updateMut.isPending}
                 submitLabel="Save changes"
               />
-              {updateMut.isError ? <p className="mt-2 text-xs text-red-600">{detailMessage(updateMut.error)}</p> : null}
+              {updateMut.isError ? <Alert>{detailMessage(updateMut.error)}</Alert> : null}
             </div>
           ) : (
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">{cluster.description || 'No description.'}</p>

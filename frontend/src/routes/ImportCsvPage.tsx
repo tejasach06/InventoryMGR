@@ -7,14 +7,6 @@ import { Alert, Badge, EmptyState, PageHeader, PageTransition, Spinner, cardClas
 
 const actions: ImportAction[] = ['create', 'update', 'unchanged', 'conflict', 'invalid'];
 
-const actionBorderColor: Record<ImportAction, string> = {
-  create: 'var(--color-status-running)',
-  update: 'var(--color-accent)',
-  unchanged: 'var(--color-text-tertiary)',
-  conflict: 'var(--color-criticality-medium)',
-  invalid: 'var(--color-criticality-critical)',
-};
-
 export interface PreviewSummary {
   create: number;
   update: number;
@@ -180,8 +172,8 @@ export function ImportCsvPage() {
             {hasBlockingRows ? <Alert><span id="import-blocking-reason">Commit disabled: {summary.conflict} conflict rows and {summary.invalid} invalid rows. Resolve the CSV and preview again before commit.</span></Alert> : null}
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Preview summary">
               {actions.map((action) => (
-                <div key={action} data-testid={`summary-${action}`} className={statTileClass} style={{ borderLeftColor: actionBorderColor[action], borderLeftWidth: '4px' }}>
-                  <span className="text-sm font-medium capitalize text-slate-500 dark:text-slate-400">{action}</span>
+                <div key={action} data-testid={`summary-${action}`} className={statTileClass}>
+                  <Badge value={action} />
                   <strong className="mt-1 block text-2xl font-semibold text-slate-950 dark:text-slate-100">{summary[action]}</strong>
                 </div>
               ))}

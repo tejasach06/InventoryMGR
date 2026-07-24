@@ -3,9 +3,9 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, DropdownCategory, DropdownOption, OsFamily } from '../api/client';
+import Link from 'next/link';
 import { Alert, Badge, PageHeader, PageTransition, Skeleton, Spinner, cardClass, dangerButtonClass, inputClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
 import { cn } from '../lib/classNames';
-import { UsersPanel } from './UsersPage';
 
 const CATEGORY_ORDER: DropdownCategory[] = ['cpu', 'datacenter', 'disk', 'os', 'cluster'];
 const CATEGORY_LABELS: Record<DropdownCategory, string> = {
@@ -184,7 +184,7 @@ function NotificationsPanel() {
 }
 
 export function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<DropdownCategory | 'users' | 'notifications'>('cpu');
+  const [activeTab, setActiveTab] = useState<DropdownCategory | 'notifications'>('cpu');
   const optionsQuery = useQuery({ queryKey: ['settings', 'options', 'all'], queryFn: api.getAllDropdownOptions });
 
   const grouped = useMemo(() => {
@@ -230,23 +230,12 @@ export function SettingsPage() {
                   {CATEGORY_LABELS[category]}
                 </button>
               ))}
-              <button
-                key="users"
-                type="button"
-                role="tab"
-                id="tab-users"
-                aria-selected={activeTab === 'users'}
-                aria-controls="panel-users"
-                onClick={() => setActiveTab('users')}
-                className={cn(
-                  '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
-                  activeTab === 'users'
-                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
-                )}
+              <Link
+                href="/users"
+                className="-mb-px flex items-center gap-1 border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
               >
-                Users
-              </button>
+                Users ↗
+              </Link>
               <button
                 key="notifications"
                 type="button"
@@ -258,18 +247,14 @@ export function SettingsPage() {
                 className={cn(
                   '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                   activeTab === 'notifications'
-                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                    ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                     : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
                 )}
               >
                 Notifications
               </button>
             </div>
-            {activeTab === 'users' ? (
-              <div role="tabpanel" id="panel-users" aria-labelledby="tab-users" className="animate-fade-in">
-                <UsersPanel />
-              </div>
-            ) : activeTab === 'notifications' ? (
+            {activeTab === 'notifications' ? (
               <NotificationsPanel />
             ) : (
               <CategoryPanel category={activeTab} options={grouped[activeTab]} />

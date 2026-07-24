@@ -3,9 +3,15 @@
 import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, User, UserRole } from '../api/client';
-import { Alert, Badge, EmptyState, FieldError, PageHeader, PageTransition, Spinner, TableSkeleton, cardClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
+import { Alert, Badge, EmptyState, FieldError, PageHeader, PageTransition, Spinner, TableSkeleton, cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
+import { useCurrentUser } from '../components/AuthContext';
 
 const roles: UserRole[] = ['viewer', 'editor', 'admin'];
+const roleDescriptions: Record<UserRole, string> = {
+  viewer: 'Read-only access to all inventory.',
+  editor: 'Can create and edit VM, cluster, and storage records.',
+  admin: 'Editor access plus user management and settings.',
+};
 
 interface NewUserForm {
   email: string;
@@ -41,7 +47,7 @@ function buildUpdateUserMutation(
   };
 }
 
-function UserCard({ user }: { user: User }) {
+function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [role, setRole] = useState<UserRole>(user.role);
@@ -67,11 +73,16 @@ function UserCard({ user }: { user: User }) {
         <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
           <div>
             <label className={labelClass} htmlFor={`card-role-${user.id}`}>Role</label>
-            <select className={selectClass} id={`card-role-${user.id}`} value={role} onChange={(e) => setRole(e.target.value as UserRole)}>{roles.map((r) => <option key={r} value={r}>{r}</option>)}</select>
+            <select className={selectClass} id={`card-role-${user.id}`} value={role} disabled={isSelf}
+              title={isSelf ? "You can't change your own role." : undefined}
+              onChange={(e) => setRole(e.target.value as UserRole)}>{roles.map((r) => <option key={r} value={r} title={roleDescriptions[r]}>{r}</option>)}</select>
           </div>
           <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor={`card-active-${user.id}`}>
-            <input className="h-4 w-4 rounded border-slate-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)] dark:border-slate-600 dark:bg-slate-950" id={`card-active-${user.id}`} type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} /> Active
+            <input className="h-4 w-4 rounded border-slate-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)] dark:border-slate-600 dark:bg-slate-950" id={`card-active-${user.id}`} type="checkbox" checked={isActive} disabled={isSelf}
+              title={isSelf ? "You can't deactivate your own account." : undefined}
+              onChange={(e) => setIsActive(e.target.checked)} /> Active
           </label>
+          {isSelf && <p className="text-xs text-[var(--color-text-tertiary)]">You can't change your own role or active status.</p>}
           <div>
             <label className={labelClass} htmlFor={`card-pw-${user.id}`}>New password</label>
             <input className={inputClass} id={`card-pw-${user.id}`} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Leave unchanged" />
@@ -86,7 +97,7 @@ function UserCard({ user }: { user: User }) {
   );
 }
 
-function UserRow({ user }: { user: User }) {
+function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
   const queryClient = useQueryClient();
   const [role, setRole] = useState<UserRole>(user.role);
   const [isActive, setIsActive] = useState(user.is_active);
@@ -99,11 +110,15 @@ function UserRow({ user }: { user: User }) {
         <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-900 dark:text-slate-100" scope="row">{user.email}</th>
         <td className="whitespace-nowrap px-4 py-3">
           <label className="sr-only" htmlFor={`role-${user.id}`}>Role for {user.email}</label>
-          <select className={selectClass} id={`role-${user.id}`} value={role} onChange={(event) => setRole(event.target.value as UserRole)}>{roles.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+          <select className={selectClass} id={`role-${user.id}`} value={role} disabled={isSelf}
+            title={isSelf ? "You can't change your own role." : undefined}
+            onChange={(event) => setRole(event.target.value as UserRole)}>{roles.map((item) => <option key={item} value={item} title={roleDescriptions[item]}>{item}</option>)}</select>
         </td>
         <td className="whitespace-nowrap px-4 py-3">
           <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor={`active-${user.id}`}>
-            <input className="h-4 w-4 rounded border-slate-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)] dark:border-slate-600 dark:bg-slate-950" id={`active-${user.id}`} type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> Active
+            <input className="h-4 w-4 rounded border-slate-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)] dark:border-slate-600 dark:bg-slate-950" id={`active-${user.id}`} type="checkbox" checked={isActive} disabled={isSelf}
+              title={isSelf ? "You can't deactivate your own account." : undefined}
+              onChange={(event) => setIsActive(event.target.checked)} /> Active
           </label>
         </td>
         <td className="whitespace-nowrap px-4 py-3">
@@ -124,6 +139,7 @@ function UserRow({ user }: { user: User }) {
 }
 
 export function UsersPanel() {
+  const currentUser = useCurrentUser();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<NewUserForm>(() => defaultNewUser());
   const [submitted, setSubmitted] = useState(false);
@@ -169,9 +185,10 @@ export function UsersPanel() {
           </div>
           <div>
             <label className={labelClass} htmlFor="new-role">Role</label>
-            <select className={selectClass} id="new-role" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as UserRole })}>{roles.map((role) => <option key={role} value={role}>{role}</option>)}</select>
+            <select className={selectClass} id="new-role" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as UserRole })}>{roles.map((role) => <option key={role} value={role} title={roleDescriptions[role]}>{role}</option>)}</select>
+            <p className={helpTextClass}>{roleDescriptions[form.role]}</p>
           </div>
-          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200" htmlFor="new-active"><input className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950 dark:focus:ring-blue-400" id="new-active" type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> Active</label>
+          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200" htmlFor="new-active"><input className="h-4 w-4 rounded border-slate-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)] dark:border-slate-600 dark:bg-slate-950" id="new-active" type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> Active</label>
           <button className={primaryButtonClass} type="submit" disabled={create.isPending}>
             {create.isPending ? <><Spinner /> Creating…</> : 'Create user'}
           </button>
@@ -195,12 +212,12 @@ export function UsersPanel() {
                     <th className="px-4 py-3" scope="col">Action</th>
                   </tr>
                 </thead>
-                <tbody className={tableBodyClass}>{users.data.map((user) => <UserRow key={user.id} user={user} />)}</tbody>
+                <tbody className={tableBodyClass}>{users.data.map((user) => <UserRow key={user.id} user={user} isSelf={user.id === currentUser.id} />)}</tbody>
               </table>
             </div>
           </div>
           <div className="grid gap-3 lg:hidden">
-            {users.data.map((user) => <UserCard key={user.id} user={user} />)}
+            {users.data.map((user) => <UserCard key={user.id} user={user} isSelf={user.id === currentUser.id} />)}
           </div>
         </>
       ) : null}

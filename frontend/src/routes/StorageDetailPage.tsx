@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, ArrayPayload, StorageArray, StorageVolume } from '../api/client';
 import {
-  Alert, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, cardClass, inputClass,
+  Alert, ConfirmDialog, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, cardClass, inputClass,
   tableClass, tableBodyClass, tableCellClass, monoClass,
   dangerButtonClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass,
 } from '../components/ui';
@@ -19,6 +19,7 @@ interface FieldDef {
   placeholder: string;
   type?: string;
   options?: readonly string[];
+  required?: boolean;
 }
 
 function InlineAddForm({ fields, onSubmit, pending }: {
@@ -28,29 +29,38 @@ function InlineAddForm({ fields, onSubmit, pending }: {
 }) {
   const blank = () => Object.fromEntries(fields.map((f) => [f.name, '']));
   const [values, setValues] = useState<Record<string, string>>(blank);
+  const [error, setError] = useState<string | undefined>();
   const fieldClass = cn(inputClass, 'min-w-0 flex-1 py-2');
   function submit() {
+    const missing = fields.filter((f) => f.required && !values[f.name].trim());
+    if (missing.length > 0) { setError(`${missing.map((f) => f.placeholder).join(', ')} required.`); return; }
+    const nonPositive = fields.filter((f) => f.required && f.type === 'number' && Number(values[f.name]) <= 0);
+    if (nonPositive.length > 0) { setError(`${nonPositive.map((f) => f.placeholder).join(', ')} must be greater than 0.`); return; }
+    setError(undefined);
     onSubmit(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()])));
     setValues(blank());
   }
   return (
-    <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--color-border)] pt-3">
-      {fields.map((f) => (
-        f.options ? (
-          <select key={f.name} aria-label={f.placeholder} value={values[f.name]}
-            onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))} className={fieldClass}>
-            <option value="">{f.placeholder}</option>
-            {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-        ) : (
-          <input key={f.name} type={f.type ?? 'text'} placeholder={f.placeholder} value={values[f.name]}
-            aria-label={f.placeholder}
-            onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))} className={fieldClass} />
-        )
-      ))}
-      <button type="button" onClick={submit} disabled={pending} className={secondaryButtonClass}>
-        {pending ? <Spinner /> : null}+ Add
-      </button>
+    <div className="mt-3 border-t border-[var(--color-border)] pt-3">
+      <div className="flex flex-wrap gap-2">
+        {fields.map((f) => (
+          f.options ? (
+            <select key={f.name} aria-label={f.placeholder} value={values[f.name]}
+              onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))} className={fieldClass}>
+              <option value="">{f.placeholder}</option>
+              {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          ) : (
+            <input key={f.name} type={f.type ?? 'text'} placeholder={f.required ? `${f.placeholder} *` : f.placeholder} value={values[f.name]}
+              aria-label={f.placeholder} aria-invalid={error ? true : undefined}
+              onChange={(e) => { setValues((c) => ({ ...c, [f.name]: e.target.value })); setError(undefined); }} className={fieldClass} />
+          )
+        ))}
+        <button type="button" onClick={submit} disabled={pending} className={secondaryButtonClass}>
+          {pending ? <Spinner /> : null}+ Add
+        </button>
+      </div>
+      {error && <p className="mt-1.5 text-sm" style={{ color: 'var(--color-criticality-critical)' } as React.CSSProperties}>{error}</p>}
     </div>
   );
 }
@@ -70,6 +80,8 @@ function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
 }
 
 function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clusters: string[]; canEdit: boolean }) {
+  const [showAddLun, setShowAddLun] = useState(false);
+  const [showAddShare, setShowAddShare] = useState(false);
   const qc = useQueryClient();
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['array', volume.array_id] });
@@ -93,25 +105,40 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
     onSuccess: invalidate,
   });
   const delShare = useMutation({ mutationFn: (id: string) => api.deleteShare(volume.id, id), onSuccess: invalidate });
-  const delVolume = useMutation({ mutationFn: () => api.deleteVolume(volume.array_id, volume.id), onSuccess: invalidate });
+  const [confirmDelVolume, setConfirmDelVolume] = useState(false);
+  const delVolume = useMutation({
+    mutationFn: () => api.deleteVolume(volume.array_id, volume.id),
+    onSuccess: () => { setConfirmDelVolume(false); invalidate(); },
+  });
 
   return (
     <section className={cardClass}>
       <div className="flex items-center justify-between gap-4">
         <h3 className="font-semibold text-[var(--color-text-primary)]">{volume.name}</h3>
         {canEdit && (
-          <button className={dangerButtonClass} onClick={() => { if (confirm(`Delete volume ${volume.name}?`)) delVolume.mutate(); }} disabled={delVolume.isPending}>
+          <button className={dangerButtonClass} onClick={() => setConfirmDelVolume(true)} disabled={delVolume.isPending}>
             {delVolume.isPending && <Spinner />} Delete volume
           </button>
         )}
       </div>
+      <ConfirmDialog open={confirmDelVolume} title="Delete volume" body={`Delete volume ${volume.name}?`}
+        pending={delVolume.isPending}
+        onConfirm={() => delVolume.mutate()}
+        onCancel={() => setConfirmDelVolume(false)} />
       <div className="mt-3">
         <UsageBar pct={volume.used_pct} over={volume.over_threshold} />
         <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">{volume.used_gb} / {volume.capacity_gb} GB</p>
       </div>
 
       <div className="mt-4">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">LUNs</h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">LUNs</h4>
+          {canEdit && (
+            <button type="button" className={secondaryButtonClass} onClick={() => setShowAddLun((v) => !v)}>
+              {showAddLun ? 'Cancel' : '+ Add LUN'}
+            </button>
+          )}
+        </div>
         {volume.luns.length === 0 ? <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">No LUNs.</p> : (
           <div className="mt-1 overflow-x-auto rounded-lg border border-[var(--color-border)]">
             <table className={tableClass}>
@@ -135,20 +162,27 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
             </table>
           </div>
         )}
-        {canEdit && (
+        {canEdit && showAddLun && (
           <InlineAddForm fields={[
-            { name: 'name', placeholder: 'LUN name' },
-            { name: 'size_gb', placeholder: 'Size GB', type: 'number' },
+            { name: 'name', placeholder: 'LUN name', required: true },
+            { name: 'size_gb', placeholder: 'Size GB', type: 'number', required: true },
             { name: 'cluster', placeholder: 'Cluster', options: clusters },
             { name: 'target_iqn', placeholder: 'Target IQN' },
             { name: 'status', placeholder: 'Status' },
           ]} onSubmit={(v) => addLun.mutate(v)} pending={addLun.isPending} />
         )}
-        {addLun.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addLun.error)}</p>}
+        {addLun.isError && <Alert>{detailMessage(addLun.error)}</Alert>}
       </div>
 
       <div className="mt-4">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">NFS shares</h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">NFS shares</h4>
+          {canEdit && (
+            <button type="button" className={secondaryButtonClass} onClick={() => setShowAddShare((v) => !v)}>
+              {showAddShare ? 'Cancel' : '+ Add share'}
+            </button>
+          )}
+        </div>
         {volume.shares.length === 0 ? <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">No shares.</p> : (
           <div className="mt-1 overflow-x-auto rounded-lg border border-[var(--color-border)]">
             <table className={tableClass}>
@@ -170,20 +204,21 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
             </table>
           </div>
         )}
-        {canEdit && (
+        {canEdit && showAddShare && (
           <InlineAddForm fields={[
-            { name: 'export_path', placeholder: 'Export path' },
+            { name: 'export_path', placeholder: 'Export path', required: true },
             { name: 'used_gb', placeholder: 'Used GB', type: 'number' },
             { name: 'allowed_clients', placeholder: 'Allowed clients' },
           ]} onSubmit={(v) => addShare.mutate(v)} pending={addShare.isPending} />
         )}
-        {addShare.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addShare.error)}</p>}
+        {addShare.isError && <Alert>{detailMessage(addShare.error)}</Alert>}
       </div>
     </section>
   );
 }
 
 function VolumesArea({ array, clusters, canEdit }: { array: StorageArray; clusters: string[]; canEdit: boolean }) {
+  const [showAddVolume, setShowAddVolume] = useState(false);
   const qc = useQueryClient();
   const addVolume = useMutation({
     mutationFn: (v: Record<string, string>) => api.addVolume(array.id, {
@@ -199,17 +234,22 @@ function VolumesArea({ array, clusters, canEdit }: { array: StorageArray; cluste
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className={sectionTitleClass}>Volumes</h2>
+        {canEdit && (
+          <button type="button" className={secondaryButtonClass} onClick={() => setShowAddVolume((v) => !v)}>
+            {showAddVolume ? 'Cancel' : '+ Add volume'}
+          </button>
+        )}
       </div>
       {array.volumes.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No volumes yet.</p> : null}
       {array.volumes.map((v) => <VolumePanel key={v.id} volume={v} clusters={clusters} canEdit={canEdit} />)}
-      {canEdit && (
+      {canEdit && showAddVolume && (
         <div className="rounded-xl border border-dashed border-slate-200 p-4 dark:border-slate-700">
           <InlineAddForm fields={[
-            { name: 'name', placeholder: 'Volume name' },
-            { name: 'capacity_gb', placeholder: 'Capacity GB', type: 'number' },
+            { name: 'name', placeholder: 'Volume name', required: true },
+            { name: 'capacity_gb', placeholder: 'Capacity GB', type: 'number', required: true },
             { name: 'used_gb', placeholder: 'Used GB', type: 'number' },
           ]} onSubmit={(v) => addVolume.mutate(v)} pending={addVolume.isPending} />
-          {addVolume.isError && <p className="mt-1 text-xs text-red-600">{detailMessage(addVolume.error)}</p>}
+          {addVolume.isError && <Alert>{detailMessage(addVolume.error)}</Alert>}
         </div>
       )}
     </div>
@@ -235,6 +275,7 @@ export function StorageDetailPage() {
   });
 
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const updateMut = useMutation({
     mutationFn: (payload: ArrayPayload) => api.updateArray(id, payload),
     onSuccess: () => {
@@ -256,13 +297,19 @@ export function StorageDetailPage() {
             <button className={secondaryButtonClass} onClick={() => router.push('/storage')}>← Back</button>
             {canEdit && (
               <button className={dangerButtonClass}
-                onClick={() => { if (confirm(`Delete array ${array.name} and all its volumes? This cannot be undone.`)) deleteMut.mutate(); }}
+                onClick={() => setConfirmDelete(true)}
                 disabled={deleteMut.isPending}>
                 {deleteMut.isPending && <Spinner />} Delete array
               </button>
             )}
           </>
         } />
+
+        <ConfirmDialog open={confirmDelete} title="Delete array"
+          body={`Delete array ${array.name} and all its volumes? This cannot be undone.`}
+          pending={deleteMut.isPending}
+          onConfirm={() => deleteMut.mutate()}
+          onCancel={() => setConfirmDelete(false)} />
 
         {deleteMut.isError && <Alert>{detailMessage(deleteMut.error)}</Alert>}
 
@@ -292,7 +339,7 @@ export function StorageDetailPage() {
                 pending={updateMut.isPending}
                 submitLabel="Save changes"
               />
-              {updateMut.isError ? <p className="mt-2 text-xs text-red-600">{detailMessage(updateMut.error)}</p> : null}
+              {updateMut.isError ? <Alert>{detailMessage(updateMut.error)}</Alert> : null}
             </div>
           ) : (
             <div className="mt-3">

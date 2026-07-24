@@ -43,7 +43,7 @@ describe('VmDetailPage', () => {
     expect(screen.getByText('10.0.0.10, 10.0.0.11')).toBeInTheDocument();
     expect(screen.getByText('running')).toBeInTheDocument();
     expect(screen.getByText('high')).toBeInTheDocument();
-    expect(screen.getByText('Record')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Record' })).toBeInTheDocument();
     expect(screen.getByText('Linux')).toBeInTheDocument();
     expect(screen.getAllByText('Yes').length).toBeGreaterThanOrEqual(2);
   });
@@ -99,13 +99,13 @@ describe('VmDetailPage', () => {
   it('deletes the VM and navigates home when delete is confirmed', async () => {
     vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
     const deleteSpy = vi.spyOn(api, 'deleteVm').mockResolvedValue(null);
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderWithProviders(<VmDetailPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findByRole('heading', { name: 'web-01' });
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(await screen.findByText('Delete VM web-01? This cannot be undone.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete VM' }));
 
-    expect(confirmSpy).toHaveBeenCalledWith('Delete VM web-01? This cannot be undone.');
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('vm-1'));
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/inventory'));
   });
@@ -113,11 +113,11 @@ describe('VmDetailPage', () => {
   it('does not delete when the confirmation is dismissed', async () => {
     vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
     const deleteSpy = vi.spyOn(api, 'deleteVm').mockResolvedValue(null);
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderWithProviders(<VmDetailPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findByRole('heading', { name: 'web-01' });
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
 
     expect(deleteSpy).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
@@ -126,11 +126,11 @@ describe('VmDetailPage', () => {
   it('shows an alert when the delete mutation fails', async () => {
     vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
     vi.spyOn(api, 'deleteVm').mockRejectedValue(new ApiError(500, 'Delete failed'));
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderWithProviders(<VmDetailPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findByRole('heading', { name: 'web-01' });
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete VM' }));
 
     expect(await screen.findByText('Delete failed')).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();

@@ -193,6 +193,11 @@ function VmTable({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = selectedIds.size > 0 && selectedIds.size < vms.length;
+  }, [selectedIds, vms.length]);
+
   const sorted = sortKey
     ? [...vms].sort((a, b) => {
         const av = sortValue(a, sortKey);
@@ -209,6 +214,7 @@ function VmTable({
           <tr className={tableHeadClass}>
             <th className="px-4 py-3 w-10">
               <input
+                ref={selectAllRef}
                 type="checkbox"
                 className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
                 checked={selectedIds.size === vms.length && vms.length > 0}
@@ -219,8 +225,9 @@ function VmTable({
             {columns.map((col) => {
               const sortable = SORTABLE_COLUMNS.has(col.key);
               const active = sortKey === col.key;
+              const ariaSort = sortable ? (active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined;
               return (
-                <th key={col.key} className="px-4 py-3">
+                <th key={col.key} className="px-4 py-3" aria-sort={ariaSort}>
                   {sortable ? (
                     <button
                       type="button"

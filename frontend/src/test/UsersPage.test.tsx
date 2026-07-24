@@ -18,20 +18,20 @@ describe('UsersPanel query states', () => {
   it('shows the loading skeleton while listUsers is pending', () => {
     vi.spyOn(api, 'listUsers').mockReturnValue(new Promise<User[]>(() => {}));
 
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
 
     expect(screen.getByRole('table', { name: 'Loading data' })).toBeInTheDocument();
   });
 
   it('renders an error alert when listUsers rejects', async () => {
     vi.spyOn(api, 'listUsers').mockRejectedValue(new ApiError(500, 'Server explosion'));
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
     expect(await screen.findByRole('alert')).toHaveTextContent('Server explosion');
   });
   it('shows the empty state when listUsers resolves no users', async () => {
     vi.spyOn(api, 'listUsers').mockResolvedValue([]);
 
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
 
     expect(await screen.findByText('No users')).toBeInTheDocument();
     expect(screen.getByText('Create the first managed user account.')).toBeInTheDocument();
@@ -39,7 +39,7 @@ describe('UsersPanel query states', () => {
 
   it('shows the loading skeleton while listUsers is pending', () => {
     vi.spyOn(api, 'listUsers').mockImplementation(() => new Promise(() => {}));
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
     expect(screen.getByRole('table', { name: 'Loading data' })).toBeInTheDocument();
   });
 
@@ -48,7 +48,7 @@ describe('UsersPanel query states', () => {
       makeUser({ id: 'u1', email: 'a@b.c', role: 'viewer' }),
     ]);
 
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
 
     // Both the desktop table row and the mobile card render in jsdom.
     expect(await screen.findAllByText('a@b.c')).toHaveLength(2);
@@ -60,7 +60,7 @@ describe('UsersPanel create flow', () => {
   it('reveals the create form when New user is clicked', async () => {
     vi.spyOn(api, 'listUsers').mockResolvedValue([]);
 
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
 
     expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'New user' }));
@@ -72,7 +72,7 @@ describe('UsersPanel create flow', () => {
     vi.spyOn(api, 'listUsers').mockResolvedValue([]);
     const createSpy = vi.spyOn(api, 'createUser').mockResolvedValue(makeUser());
 
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
 
     fireEvent.click(screen.getByRole('button', { name: 'New user' }));
     fireEvent.click(screen.getByRole('button', { name: 'Create user' }));
@@ -86,7 +86,7 @@ describe('UsersPanel create flow', () => {
     vi.spyOn(api, 'listUsers').mockResolvedValue([]);
     const createSpy = vi.spyOn(api, 'createUser').mockResolvedValue(makeUser());
 
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
 
     fireEvent.click(screen.getByRole('button', { name: 'New user' }));
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@user.io' } });
@@ -102,7 +102,7 @@ describe('UsersPanel create flow', () => {
     vi.spyOn(api, 'listUsers').mockResolvedValue([]);
     const createSpy = vi.spyOn(api, 'createUser').mockResolvedValue(makeUser());
 
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
 
     fireEvent.click(screen.getByRole('button', { name: 'New user' }));
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@user.io' } });
@@ -131,7 +131,7 @@ describe('UsersPanel update flow', () => {
       makeUser({ id: 'u1', email: 'a@b.c', role: 'editor', is_active: false }),
     );
 
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
 
     const roleSelect = await screen.findByLabelText('Role for a@b.c');
     fireEvent.change(roleSelect, { target: { value: 'editor' } });
@@ -155,7 +155,7 @@ describe('UsersPanel update flow', () => {
       makeUser({ id: 'u1', email: 'a@b.c', role: 'admin', is_active: true }),
     );
 
-    renderWithProviders(<UsersPanel />);
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
 
     const editButton = await screen.findByRole('button', { name: 'Edit' });
     fireEvent.click(editButton);

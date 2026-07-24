@@ -55,9 +55,10 @@ describe('StorageDetailPage', () => {
     });
     renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'editor' }) });
 
+    fireEvent.click(await screen.findByRole('button', { name: '+ Add LUN' }));
     fireEvent.change(await screen.findByLabelText('LUN name'), { target: { value: 'lun1' } });
     fireEvent.change(screen.getByLabelText('Size GB'), { target: { value: '50' } });
-    fireEvent.click(screen.getAllByRole('button', { name: /add/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /^\+ add$/i }));
 
     await waitFor(() => expect(addSpy).toHaveBeenCalledWith('v1', expect.objectContaining({ name: 'lun1', size_gb: 50 })));
   });
@@ -76,7 +77,6 @@ describe('StorageDetailPage', () => {
   });
 
   it('deletes a LUN, share, volume, and the array (editor)', async () => {
-    vi.stubGlobal('confirm', () => true);
     vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
     vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
       cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] },
@@ -96,12 +96,17 @@ describe('StorageDetailPage', () => {
     fireEvent.click(await screen.findByLabelText('Remove LUN lun0'));
     fireEvent.click(screen.getByLabelText('Remove share /vol1/share'));
     fireEvent.click(screen.getByRole('button', { name: /delete volume/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
     fireEvent.click(screen.getByRole('button', { name: /delete array/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
 
+    fireEvent.click(screen.getByRole('button', { name: '+ Add share' }));
     fireEvent.change(screen.getByLabelText('Export path'), { target: { value: '/new' } });
-    fireEvent.click(screen.getAllByRole('button', { name: /^\+ add$/i })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: /^\+ add$/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: '+ Add volume' }));
     fireEvent.change(screen.getByLabelText('Volume name'), { target: { value: 'vol2' } });
-    fireEvent.click(screen.getAllByRole('button', { name: /^\+ add$/i })[2]);
+    fireEvent.change(screen.getByLabelText('Capacity GB'), { target: { value: '100' } });
+    fireEvent.click(screen.getAllByRole('button', { name: /^\+ add$/i })[1]);
 
     await waitFor(() => {
       expect(delLun).toHaveBeenCalledWith('v1', 'l1');

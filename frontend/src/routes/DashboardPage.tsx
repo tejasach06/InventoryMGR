@@ -146,6 +146,7 @@ export function DashboardPage() {
 
   const loading = statsQ.isLoading || vmsQ.isLoading;
   const d = statsQ.data;
+  const capped = (vmsQ.data?.total ?? 0) > derived.items.length;
 
   const getColorVar = (status: string): string => {
     switch (status) {
@@ -201,12 +202,17 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="space-y-6">
+          {capped && (
+            <p className="text-xs text-[var(--color-text-tertiary)]">
+              Running, vCPU, memory, and storage totals below reflect the first {fmtInt(derived.items.length)} of {fmtInt(vmsQ.data?.total ?? 0)} VMs. Total VMs is exact.
+            </p>
+          )}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <StatTile label="Total VMs" value={fmtInt(d?.total ?? derived.items.length)} href="/inventory" hint={`${d?.linux ?? derived.byOs.linux ?? 0} Linux · ${d?.windows ?? derived.byOs.windows ?? 0} Windows`} />
-            <StatTile label="Running" value={fmtInt(derived.byStatus.running ?? 0)} href="/inventory?status=running" hint={`${derived.byStatus.powered_off ?? 0} powered off`} />
-            <StatTile label="Allocated vCPU" value={fmtInt(derived.totalVcpu)} unit="cores" />
-            <StatTile label="Allocated Memory" value={mem[0]} unit={mem[1]} />
-            <StatTile label="Provisioned Storage" value={disk[0]} unit={disk[1]} />
+            <StatTile label="Running" value={fmtInt(derived.byStatus.running ?? 0)} href="/inventory?status=running" hint={`${derived.byStatus.powered_off ?? 0} powered off${capped ? ' · of first 200' : ''}`} />
+            <StatTile label="Allocated vCPU" value={fmtInt(derived.totalVcpu)} unit="cores" hint={capped ? 'of first 200 VMs' : undefined} />
+            <StatTile label="Allocated Memory" value={mem[0]} unit={mem[1]} hint={capped ? 'of first 200 VMs' : undefined} />
+            <StatTile label="Provisioned Storage" value={disk[0]} unit={disk[1]} hint={capped ? 'of first 200 VMs' : undefined} />
             <StatTile label="Storage alerts" value={fmtInt(arraysOverThreshold)} unit="arrays" href="/storage" hint="over usage threshold" />
           </div>
 

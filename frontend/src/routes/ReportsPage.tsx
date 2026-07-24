@@ -37,6 +37,7 @@ function DownloadIcon() {
 export function ReportsPage() {
   const vmsQ = useQuery({ queryKey: ['vms', 'reports'], queryFn: () => api.listVms(ALL_PARAMS) });
   const items = useMemo(() => vmsQ.data?.items ?? [], [vmsQ.data]);
+  const capped = (vmsQ.data?.total ?? 0) > items.length;
   const max = useMemo(() => Math.max(1, ...REPORTS.map((r) => r.metric(items))), [items]);
 
   return (
@@ -89,7 +90,10 @@ export function ReportsPage() {
           );
         })}
       </div>
-      <p className={`${monoClass} mt-4 text-center`}>{vmsQ.isLoading ? 'loading…' : `${items.length} VMs across ${REPORTS.length} report views`}</p>
+      <p className={`${monoClass} mt-4 text-center`}>
+        {vmsQ.isLoading ? 'loading…' : `${items.length} VMs across ${REPORTS.length} report views`}
+        {capped ? ` (of ${vmsQ.data?.total} total — reports below reflect the first ${items.length} only)` : ''}
+      </p>
     </PageTransition>
   );
 }

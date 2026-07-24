@@ -10,23 +10,25 @@ import { useCurrentUser } from '../components/AuthContext';
 import { ArrayForm } from '../components/ArrayForm';
 
 function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
-  if (pct === null) return <span className="text-sm text-[var(--color-text-tertiary)]">—</span>;
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[var(--color-surface-tertiary)]">
-        <div
-          className={`h-full rounded-full transition-[width] duration-500 ${over ? 'bg-[var(--color-criticality-critical)]' : 'bg-[var(--color-accent)]'}`}
-          style={{ width: `${Math.min(100, pct)}%` }}
-        />
+        {pct !== null && (
+          <div
+            className={`h-full rounded-full transition-[width] duration-500 ${over ? 'bg-[var(--color-criticality-critical)]' : 'bg-[var(--color-accent)]'}`}
+            style={{ width: `${Math.min(100, pct)}%` }}
+          />
+        )}
       </div>
-      <span className="tech text-sm tabular-nums text-[var(--color-text-secondary)]">{pct}%</span>
+      <span className="tech text-sm tabular-nums text-[var(--color-text-secondary)]">{pct === null ? '—' : `${pct}%`}</span>
     </div>
   );
 }
 
 function ThresholdBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-rose-100 px-2 py-1 text-[0.6875rem] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">
+    <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-semibold"
+      style={{ backgroundColor: 'color-mix(in srgb, var(--color-criticality-critical) 15%, transparent)', color: 'var(--color-criticality-critical)' }}>
       Over threshold
     </span>
   );
@@ -67,7 +69,7 @@ export function StoragePage() {
             pending={createMut.isPending}
             submitLabel="Create array"
           />
-          {createMut.isError ? <p className="mt-2 text-xs text-red-600">{detailMessage(createMut.error)}</p> : null}
+          {createMut.isError ? <Alert>{detailMessage(createMut.error)}</Alert> : null}
         </div>
       ) : null}
 
@@ -84,20 +86,20 @@ export function StoragePage() {
           <table className={tableClass}>
             <thead className={tableHeadClass}>
               <tr>
-                <th className={`${tableCellClass} text-left font-semibold`}>Name</th>
-                <th className={`${tableCellClass} text-left font-semibold`}>Vendor</th>
-                <th className={`${tableCellClass} text-left font-semibold`}>Datacenter</th>
-                <th className={`${tableCellClass} text-left font-semibold`}>Usage</th>
-                <th className={`${tableCellClass} text-right font-semibold`}>Volumes</th>
-                <th className={`${tableCellClass} text-right font-semibold`}>LUNs</th>
-                <th className={`${tableCellClass} text-right font-semibold`}>Shares</th>
+                <th className={`${tableCellClass} text-left font-semibold`} scope="col">Name</th>
+                <th className={`${tableCellClass} text-left font-semibold`} scope="col">Vendor</th>
+                <th className={`${tableCellClass} text-left font-semibold`} scope="col">Datacenter</th>
+                <th className={`${tableCellClass} text-left font-semibold`} scope="col">Usage</th>
+                <th className={`${tableCellClass} text-right font-semibold`} scope="col">Volumes</th>
+                <th className={`${tableCellClass} text-right font-semibold`} scope="col">LUNs</th>
+                <th className={`${tableCellClass} text-right font-semibold`} scope="col">Shares</th>
               </tr>
             </thead>
             <tbody className={tableBodyClass}>
               {arrays.map((a) => (
                 <tr key={a.id} className={tableRowClass}>
                   <td className={tableCellClass}>
-                    <Link href={`/storage/${a.id}`} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                    <Link href={`/storage/${a.id}`} className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>
                       {a.name}
                     </Link>
                     {a.over_threshold ? <span className="ml-2"><ThresholdBadge /></span> : null}
