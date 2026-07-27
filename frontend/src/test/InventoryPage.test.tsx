@@ -195,4 +195,12 @@ describe('InventoryPage', () => {
     expect(lastCall.get('sort')).toBe('name');
     expect(lastCall.get('dir')).toBe('asc');
   });
+  it('renders Export CSV and Export Excel links', async () => {
+    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
+    const csvLink = await screen.findByRole('link', { name: 'Export CSV' });
+    const excelLink = await screen.findByRole('link', { name: 'Export Excel' });
+    expect(csvLink).toHaveAttribute('href', expect.stringContaining('/api/vms/export'));
+    expect(excelLink).toHaveAttribute('href', expect.stringContaining('format=xlsx'));
+  });
 });

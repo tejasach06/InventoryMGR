@@ -250,7 +250,7 @@ def _xlsx_response(vms: list[Vm]) -> Response:
                 sheet.write_datetime(row_index, column_index, value.replace(tzinfo=None), date_format)
             elif isinstance(value, date):
                 sheet.write_datetime(row_index, column_index, value, date_format)
-            elif isinstance(value, int) and not isinstance(value, bool):
+            elif isinstance(value, (int, float)) and not isinstance(value, bool):
                 sheet.write_number(row_index, column_index, value)
             else:
                 sheet.write_string(row_index, column_index, str(value))

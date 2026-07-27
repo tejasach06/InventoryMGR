@@ -36,7 +36,7 @@ os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("JWT_SECRET", "test-secret-that-is-long-enough-for-jwt-signing")
 os.environ.setdefault(
     "TEST_DATABASE_URL",
-    "sqlite:///./test.db",
+    "postgresql+psycopg://inventorymgr@127.0.0.1:54329/inventorymgr_test",
 )
 os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
 
