@@ -18,6 +18,7 @@ from app.db.models import (
     Platform,
     User,
     Vm,
+    VmApplication,
     VmDisk,
     VmNetwork,
     compute_health_score,
@@ -43,7 +44,7 @@ IP_ROLE_HEADERS = {
     "public_ip": NetworkRole.public,
     "backup_ip": NetworkRole.backup,
 }
-CHILD_HEADERS = {"disks"} | set(IP_ROLE_HEADERS)
+CHILD_HEADERS = {"disks", "applications"} | set(IP_ROLE_HEADERS)
 
 OPTIONAL_HEADERS = (set(VmBase.model_fields) - EXCLUDED_FROM_CSV - REQUIRED_HEADERS) | CHILD_HEADERS
 ALL_HEADERS = REQUIRED_HEADERS | OPTIONAL_HEADERS
@@ -176,6 +177,34 @@ def _parse_disks(
         seen.add(name.lower())
         pairs.append((name, int(size)))
     return pairs
+def _parse_applications(
+    row: dict[str, str], field: str = "applications", errors: list[dict[str, str]] | None = None
+) -> list[tuple[str, str | None]]:
+    """Parse a `name:owner;name` cell into (app_name, app_owner) pairs.
+
+    Owner is optional. Duplicate names inside one cell collapse to the first,
+    matching the uq_vm_applications_vm_app constraint.
+    """
+    raw = str(row.get(field) or "").strip()
+    if not raw:
+        return []
+    pairs: list[tuple[str, str | None]] = []
+    seen: set[str] = set()
+    for part in raw.split(";"):
+        cleaned = part.strip()
+        if not cleaned:
+            continue
+        name, _, owner = cleaned.partition(":")
+        name, owner = name.strip(), owner.strip()
+        if not name:
+            if errors is not None:
+                errors.append(_error(field, "must be name or name:owner entries separated by ;"))
+            return []
+        if name.lower() in seen:
+            continue
+        seen.add(name.lower())
+        pairs.append((name, owner or None))
+    return pairs
 
 
 def _parse_date(row: dict[str, str], field: str, errors: list[dict[str, str]]) -> str | None:
@@ -277,6 +306,7 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
     # Validation only. Child values stay in `raw` — `normalized` feeds
     # VmUpdate.model_validate, which would reject a `disks` key.
     _parse_disks(clean, "disks", errors)
+    _parse_applications(clean, "applications", errors)
 
     for field in DATE_HEADERS:
         stamp = _parse_date(clean, field, errors)
@@ -429,6 +459,12 @@ def diff_against_vm(
         ]
         if added_disks:
             changes["disks"] = [None, added_disks]
+        existing_apps = {(a.app_name or "").lower() for a in vm.applications}
+        added_apps = [
+            name for name, _owner in _parse_applications(clean) if name.lower() not in existing_apps
+        ]
+        if added_apps:
+            changes["applications"] = [None, added_apps]
         # Accumulate exactly as _attach_children does, so the preview and the
         # batch rollup promise precisely what the commit will create. An address
         # repeated in a cell, or under a second role, is one network row.
@@ -502,6 +538,12 @@ def _attach_children(db: Session, vm: Vm, raw: dict[str, Any]) -> None:
             existing_ips.add(ip_address)
             db.add(VmNetwork(vm_id=vm.id, ip_address=ip_address, role=role, sort_order=ip_order))
             ip_order += 1
+    existing_apps = {(a.app_name or "").lower() for a in vm.applications}
+    for app_name, app_owner in _parse_applications(clean):
+        if app_name.lower() in existing_apps:
+            continue
+        existing_apps.add(app_name.lower())
+        db.add(VmApplication(vm_id=vm.id, app_name=app_name, app_owner=app_owner))
 
 
 def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:

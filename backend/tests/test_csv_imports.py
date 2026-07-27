@@ -1,5 +1,5 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.db.models import ImportAction, ImportStatus, UserRole, Vm, VmDisk, VmNetwork
 
@@ -835,3 +835,31 @@ def test_template_offers_vm_type(client, db_session: Session) -> None:
     headers = client.get("/api/imports/template").text.strip().split(",")
 
     assert "vm_type" in headers
+def test_applications_column_creates_children_and_is_idempotent(
+    client, db_session: Session
+) -> None:
+    user = create_user(db_session, email="editor@example.com", role=UserRole.editor)
+    csrf = login(client, user.email)
+    csv_bytes = (
+        b"name,platform,cluster,applications\n"
+        b"app-01,proxmox,pve-cluster-01,nginx:web-team;postgres\n"
+    )
+
+    for _ in range(2):
+        preview = client.post(
+            "/api/imports/preview",
+            files={"file": ("vms.csv", csv_bytes, "text/csv")},
+            headers=auth_headers(csrf),
+        ).json()
+        assert preview["rows"][0]["errors"] == []
+        client.post(f"/api/imports/{preview['id']}/commit", headers=auth_headers(csrf))
+
+    vm = db_session.scalar(
+        select(Vm).options(selectinload(Vm.applications)).where(Vm.name == "app-01")
+    )
+    assert vm is not None
+    # Second import must not duplicate: uq_vm_applications_vm_app would raise.
+    assert sorted((a.app_name, a.app_owner) for a in vm.applications) == [
+        ("nginx", "web-team"),
+        ("postgres", None),
+    ]
