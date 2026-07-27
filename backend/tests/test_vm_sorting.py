@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from tests.conftest import auth_headers, create_user, create_vm_row, login
+from tests.conftest import create_user, create_vm_row, login
 
 
 def _seed(db: Session, user) -> None:

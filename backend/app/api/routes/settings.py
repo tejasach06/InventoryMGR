@@ -23,7 +23,8 @@ OPTION_CONFLICT = "Dropdown option already exists for this category"
 
 
 def _raise_option_conflict(exc: IntegrityError) -> None:
-    if isinstance(exc.orig, UniqueViolation) or "uq_dropdown_category_value" in str(exc.orig):
+    msg = str(exc.orig) if exc.orig else str(exc)
+    if isinstance(exc.orig, UniqueViolation) or "uq_dropdown_category_value" in msg or "UNIQUE constraint failed" in msg:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=OPTION_CONFLICT) from exc
     raise exc
 

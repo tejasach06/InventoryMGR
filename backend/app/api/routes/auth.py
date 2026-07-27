@@ -106,7 +106,8 @@ def setup_status(db: DbSession) -> SetupStatusResponse:
 def setup_admin(
     request: Request, payload: SetupAdminRequest, response: Response, db: DbSession
 ) -> LoginResponse:
-    db.execute(text("LOCK TABLE users IN EXCLUSIVE MODE"))
+    if db.bind is not None and db.bind.dialect.name != "sqlite":
+        db.execute(text("LOCK TABLE users IN EXCLUSIVE MODE"))
     if _any_users_exist(db):
         db.rollback()
         raise HTTPException(

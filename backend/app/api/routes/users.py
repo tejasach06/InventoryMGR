@@ -28,7 +28,8 @@ def _is_last_active_admin(db: DbSession, user: User) -> bool:
 
 
 def _raise_unique_email(exc: IntegrityError) -> None:
-    if isinstance(exc.orig, UniqueViolation) or "users_email" in str(exc.orig):
+    msg = str(exc.orig) if exc.orig else str(exc)
+    if isinstance(exc.orig, UniqueViolation) or "users_email" in msg or "UNIQUE constraint failed" in msg:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="User email already exists"
         ) from exc

@@ -1,3 +1,4 @@
+import json
 import os
 from collections.abc import Generator
 from datetime import date
@@ -5,17 +6,17 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.ext.compiler import compiles
+from sqlalchemy import create_engine, event
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.sql.expression import BinaryExpression, bindparam
+
 
 @compiles(JSONB, "sqlite")
 def compile_jsonb_sqlite(type_, compiler, **kw):
     return "JSON"
-from sqlalchemy.sql.expression import BinaryExpression
 
-import json
-from sqlalchemy.sql.expression import bindparam
 
 @compiles(BinaryExpression, "sqlite")
 def compile_binary_sqlite(element, compiler, **kw):
@@ -30,7 +31,6 @@ def compile_binary_sqlite(element, compiler, **kw):
         return f"{left} LIKE '%' || {right} || '%'"
     return compiler.visit_binary(element, **kw)
 
-from sqlalchemy.orm import Session, sessionmaker
 
 os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("JWT_SECRET", "test-secret-that-is-long-enough-for-jwt-signing")
@@ -44,7 +44,6 @@ from app.api import deps  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.db import session as session_module  # noqa: E402
-
 from app.db.models import Base, User, UserRole, Vm  # noqa: E402
 from app.main import app  # noqa: E402
 
@@ -55,7 +54,7 @@ engine = create_engine(
     TEST_DATABASE_URL, pool_pre_ping=True, connect_args=connect_args
 )
 
-from sqlalchemy import event
+
 
 @event.listens_for(engine, "connect")
 def connect(dbapi_connection, connection_record):

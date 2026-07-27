@@ -32,7 +32,8 @@ IDENTITY_ERROR = "VM identity already exists"
 
 
 def _raise_identity_conflict(exc: IntegrityError) -> None:
-    if isinstance(exc.orig, UniqueViolation) or "uq_vms_platform" in str(exc.orig):
+    msg = str(exc.orig) if exc.orig else str(exc)
+    if isinstance(exc.orig, UniqueViolation) or "uq_vms_platform" in msg or "UNIQUE constraint failed" in msg:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=IDENTITY_ERROR) from exc
     raise exc
 

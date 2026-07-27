@@ -23,9 +23,8 @@ InventoryMGR is a full-stack virtual machine inventory application for small and
 - Audit log recording every field change with old/new values and the acting user.
 - Dashboard with 9 infrastructure summary cards and recently added VMs.
 - 8 predefined downloadable CSV reports (Linux, Windows, Production, Monitoring, etc.).
-- CSV export of all VMs or a filtered subset.
-- CSV import with preview, per-row change detail, duplicate detection, and error report.
-  Imports only ever add disks and IPs; blank cells never clear a field.
+- CSV/XLSX export of all VMs or a filtered subset (`format=csv` or `format=xlsx`).
+- CSV import with preview, per-row change detail, duplicate detection, and error report. Supports all VM fields including `vm_type`, `applications` (`Name;Owner;Desc`), extended disk cell format (`Name:Storage:Size:Type`), and IP cell format (`IP/VLAN/Role/GW`). Imports only ever add disks, IPs, and applications; blank cells never clear a field.
 - Admin-only user management.
 
 ## Project layout
@@ -134,14 +133,15 @@ All routes are prefixed with `/api`. Authentication uses a session cookie set on
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/vms` | List VMs (`q`, `platform`, `status`, `environment`, `criticality`, `lifecycle`, `monitoring_enabled`, `health`, `limit`, `offset`) |
+| GET | `/vms` | List VMs (`q`, `platform`, `status`, `environment`, `criticality`, `lifecycle`, `vm_type`, `monitoring_enabled`, `health`, `sort_by`, `sort_order`, `limit`, `offset`) |
 | POST | `/vms` | Create VM |
 | GET | `/vms/owners` | List distinct owner names |
 | GET | `/vms/{vm_id}` | Get VM with all sub-resources |
 | PATCH | `/vms/{vm_id}` | Update VM |
 | DELETE | `/vms/{vm_id}` | Delete VM |
 | POST | `/vms/{vm_id}/clone` | Clone VM record |
-| GET | `/vms/export` | Stream filtered VMs as CSV (`status`, `health`, `ids`) |
+| GET | `/vms/export` | Stream filtered VMs as CSV or XLSX (`status`, `health`, `ids`, `format=csv|xlsx`) |
+ | PATCH | `/vms/bulk` | Bulk update matching or selected VMs (`patch`, `filters`, `all_matching`, `vm_ids`) |
 
 ### Disks
 

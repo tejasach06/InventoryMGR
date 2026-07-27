@@ -83,3 +83,28 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
   await expect(proxmoxRow).toContainText('powered off');
   await expect(proxmoxRow).toContainText('12 GB');
 });
+test('pages through the inventory and changes rows per page', async ({ page }) => {
+  await loginAsAdmin(page);
+  await page.goto('/inventory');
+
+  await page.getByLabel('Rows per page').selectOption('25');
+  await expect(page).toHaveURL(/size=25/);
+
+  const firstName = await page.locator('[data-testid="cell-name"]').first().innerText();
+  await page.getByRole('button', { name: 'Next page' }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(page.locator('[data-testid="cell-name"]').first()).not.toHaveText(firstName);
+});
+
+test('bulk edits the selected rows', async ({ page }) => {
+  await loginAsAdmin(page);
+  await page.goto('/inventory');
+
+  await page.getByLabel('Select all').check();
+  await page.getByRole('button', { name: 'Edit' }).click();
+  await page.getByLabel('Criticality').selectOption('high');
+  await page.getByRole('button', { name: /^Apply to/ }).click();
+
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('[data-testid="cell-criticality"]').first()).toHaveText(/high/i);
+});
