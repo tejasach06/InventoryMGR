@@ -22,6 +22,7 @@ from app.db.models import (
     VmStatus,
 )
 from app.schemas.vms import VmCreate, VmList, VmRead, VmUpdate
+from app.services.csv_import import IP_ROLE_HEADERS
 from app.services.vms import (
     SORT_PATTERN,
     FilterOperator,
@@ -142,30 +143,77 @@ def list_tags(db: DbSession, _: ViewerUser) -> list[str]:
     return [t for t in rows if t]
 
 
-_EXPORT_COLS = [
+# Ordered for a human reading the sheet left-to-right: identity, placement,
+# classification, capacity, OS, ownership, operations, dates, derived.
+_EXPORT_SCALAR_COLS = [
     "name",
+    "external_id",
     "fqdn",
     "platform",
+    "datacenter",
+    "sr_id",
     "cluster",
     "node",
-    "environment",
     "status",
+    "environment",
     "criticality",
-    "vcpu",
-    "memory_gb",
+    "lifecycle",
+    "vm_type",
+    "cpu_cores",
+    "memory_mb",
     "os_family",
+    "os_name",
     "os_distribution",
     "os_version",
+    "owner",
     "business_owner",
     "technical_owner",
     "pmp_enabled",
     "monitoring_enabled",
+    "backup_enabled",
+    "backup_location",
+    "ha_enabled",
+    "tags",
     "last_patch_date",
     "last_vuln_scan_date",
+    "security_remarks",
     "decommission_date",
+    "last_verified_at",
     "description",
-    "tags",
+    "health_score",
+    "created_at",
+    "updated_at",
 ]
+# Child cells reuse the importer's formats, so an export re-imports losslessly.
+_EXPORT_CHILD_COLS = ["disks", *IP_ROLE_HEADERS, "applications"]
+_EXPORT_COLS = [*_EXPORT_SCALAR_COLS, *_EXPORT_CHILD_COLS]
+
+
+def _join_fields(*fields: object) -> str:
+    """Join child sub-fields on ':', dropping empty trailing ones."""
+    parts = ["" if field is None else str(field) for field in fields]
+    while parts and parts[-1] == "":
+        parts.pop()
+    return ":".join(parts)
+
+
+def _export_row(vm: Vm) -> dict[str, object]:
+    row: dict[str, object] = {col: getattr(vm, col) for col in _EXPORT_SCALAR_COLS}
+    row["tags"] = ";".join(vm.tags or [])
+    # true/false, not Yes/No: _parse_bool accepts these, so the round-trip holds.
+    for flag in ("pmp_enabled", "monitoring_enabled", "backup_enabled", "ha_enabled"):
+        row[flag] = "true" if getattr(vm, flag) else "false"
+    row["disks"] = ";".join(
+        _join_fields(d.disk_name, d.size_gb, d.storage_name, d.storage_type) for d in vm.disks
+    )
+    for header, role in IP_ROLE_HEADERS.items():
+        row[header] = ";".join(
+            _join_fields(n.ip_address, n.vlan, n.gateway) for n in vm.networks if n.role == role
+        )
+    row["applications"] = ";".join(
+        _join_fields(a.app_name, a.app_owner) for a in vm.applications
+    )
+    return row
 
 
 @router.get("/export", response_class=StreamingResponse)
@@ -182,21 +230,25 @@ def export_vms(
         base_q = select(Vm)
     else:
         base_q = apply_vm_filters(select(Vm), **vars(filters))
-    vms = list(db.scalars(base_q.options(selectinload(Vm.applications)).order_by(Vm.name.asc())))
+    vms = list(
+        db.scalars(
+            base_q.options(
+                selectinload(Vm.applications),
+                selectinload(Vm.disks),
+                selectinload(Vm.networks),
+            ).order_by(Vm.name.asc())
+        )
+    )
 
     def generate():
         buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=_EXPORT_COLS + ["applications"])
+        writer = csv.DictWriter(buf, fieldnames=_EXPORT_COLS)
         writer.writeheader()
         yield buf.getvalue()
         for vm in vms:
             buf.seek(0)
             buf.truncate()
-            row = {col: getattr(vm, col, None) for col in _EXPORT_COLS}
-            row["tags"] = ",".join(vm.tags or [])
-            row["monitoring_enabled"] = "Yes" if vm.monitoring_enabled else "No"
-            row["applications"] = ",".join(a.app_name for a in vm.applications)
-            writer.writerow(row)
+            writer.writerow(_export_row(vm))
             yield buf.getvalue()
 
     return StreamingResponse(
