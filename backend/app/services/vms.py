@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from psycopg.errors import UniqueViolation
-from sqlalchemy import Select, String, cast, exists, func, or_, select
+from sqlalchemy import Select, String, case, cast, exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -403,16 +403,72 @@ def apply_vm_filters(
     return stmt
 
 
-def list_vms(db: Session, filters: dict[str, Any], limit: int, offset: int) -> tuple[list[Vm], int]:
+# Enum columns sort by meaning, not by spelling: alphabetically `critical` would
+# land between `archived` and `high`, which reads as a broken sort.
+_CRITICALITY_ORDER = case(
+    {
+        Criticality.critical: 0,
+        Criticality.high: 1,
+        Criticality.medium: 2,
+        Criticality.low: 3,
+    },
+    value=Vm.criticality,
+)
+_STATUS_ORDER = case(
+    {
+        VmStatus.running: 0,
+        VmStatus.suspended: 1,
+        VmStatus.powered_off: 2,
+        VmStatus.unknown: 3,
+        VmStatus.archived: 4,
+        VmStatus.decommissioned: 5,
+    },
+    value=Vm.status,
+)
+
+# The single source of truth for sortable keys: the route pattern and the
+# frontend column whitelist both derive from it, so they cannot drift.
+SORT_COLUMNS: dict[str, Any] = {
+    "name": Vm.name,
+    "status": _STATUS_ORDER,
+    "criticality": _CRITICALITY_ORDER,
+    "health": Vm.health_score,
+    "updated_at": Vm.updated_at,
+    "cluster": Vm.cluster,
+    "platform": Vm.platform,
+    "environment": Vm.environment,
+    "lifecycle": Vm.lifecycle,
+    "cpu_cores": Vm.cpu_cores,
+    "memory_mb": Vm.memory_mb,
+    "owner": Vm.owner,
+}
+SORT_PATTERN = "^(" + "|".join(SORT_COLUMNS) + ")$"
+
+
+def list_vms(
+    db: Session,
+    filters: dict[str, Any],
+    limit: int,
+    offset: int,
+    sort: str | None = None,
+    direction: str = "asc",
+) -> tuple[list[Vm], int]:
     base = apply_vm_filters(select(Vm), **filters)
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    if sort is None:
+        ordering = [Vm.updated_at.desc()]
+    else:
+        column = SORT_COLUMNS[sort]
+        ordering = [column.desc() if direction == "desc" else column.asc()]
     items = db.scalars(
         base.options(
             selectinload(Vm.disks),
             selectinload(Vm.networks),
             selectinload(Vm.applications),
         )
-        .order_by(Vm.updated_at.desc(), Vm.name.asc())
+        # Vm.name is the final tie-break on every ordering. Without a total order
+        # Postgres may repeat or skip rows between pages.
+        .order_by(*ordering, Vm.name.asc())
         .limit(limit)
         .offset(offset)
     ).all()

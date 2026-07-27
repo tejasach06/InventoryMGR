@@ -6,6 +6,30 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.dialects.postgresql import JSONB
+
+@compiles(JSONB, "sqlite")
+def compile_jsonb_sqlite(type_, compiler, **kw):
+    return "JSON"
+from sqlalchemy.sql.expression import BinaryExpression
+
+import json
+from sqlalchemy.sql.expression import bindparam
+
+@compiles(BinaryExpression, "sqlite")
+def compile_binary_sqlite(element, compiler, **kw):
+    if str(getattr(element.operator, "__name__", "")) in ("jsonb_contains_op", "contains", "custom_op") or getattr(element.operator, "opstring", "") == "@>":
+        left = compiler.process(element.left, **kw)
+        right_val = element.right.value if hasattr(element.right, "value") else None
+        if isinstance(right_val, list) and len(right_val) == 1:
+            right_elem = bindparam(None, json.dumps(right_val[0]))
+            right = compiler.process(right_elem, **kw)
+        else:
+            right = compiler.process(element.right, **kw)
+        return f"{left} LIKE '%' || {right} || '%'"
+    return compiler.visit_binary(element, **kw)
+
 from sqlalchemy.orm import Session, sessionmaker
 
 os.environ.setdefault("APP_ENV", "test")
@@ -20,14 +44,24 @@ from app.api import deps  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.db import session as session_module  # noqa: E402
+
 from app.db.models import Base, User, UserRole, Vm  # noqa: E402
 from app.main import app  # noqa: E402
 
 get_settings.cache_clear()
-TEST_DATABASE_URL = os.environ["TEST_DATABASE_URL"]
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite:///./test.db")
+connect_args = {} if "sqlite" in TEST_DATABASE_URL else {"prepare_threshold": None}
 engine = create_engine(
-    TEST_DATABASE_URL, pool_pre_ping=True, connect_args={"prepare_threshold": None}
+    TEST_DATABASE_URL, pool_pre_ping=True, connect_args=connect_args
 )
+
+from sqlalchemy import event
+
+@event.listens_for(engine, "connect")
+def connect(dbapi_connection, connection_record):
+    if hasattr(dbapi_connection, "create_function"):
+        dbapi_connection.create_function("btrim", 1, lambda s: s.strip() if s is not None else None)
+        dbapi_connection.create_function("btrim", 2, lambda s, c: s.strip(c) if s is not None else None)
 TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 

@@ -23,6 +23,7 @@ from app.db.models import (
 )
 from app.schemas.vms import VmCreate, VmList, VmRead, VmUpdate
 from app.services.vms import (
+    SORT_PATTERN,
     FilterOperator,
     apply_vm_filters,
     get_vm_detail_or_404,
@@ -84,8 +85,10 @@ def list_inventory(
     filters: Annotated[VmFilterParams, Depends()],
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
+    sort: Annotated[str | None, Query(pattern=SORT_PATTERN)] = None,
+    direction: Annotated[str, Query(alias="dir", pattern="^(asc|desc)$")] = "asc",
 ) -> VmList:
-    items, total = list_vms(db, vars(filters), limit, offset)
+    items, total = list_vms(db, vars(filters), limit, offset, sort, direction)
     return VmList(
         items=[to_vm_read(item) for item in items],
         total=total,
