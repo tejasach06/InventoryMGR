@@ -41,3 +41,34 @@ def test_export_carries_values_and_children(client: TestClient, db_session: Sess
     assert row["private_ip"] == "10.0.0.5:42:10.0.0.1"
     assert row["applications"] == "nginx:web-team"
     assert row["monitoring_enabled"] in {"true", "false"}
+def test_xlsx_export_has_a_header_row_for_every_column(
+    client: TestClient, db_session: Session
+) -> None:
+    import zipfile
+
+    user = create_user(db_session, email="admin@example.com", role="admin")
+    create_vm_row(db_session, user, name="ex-01")
+    login(client, user.email)
+
+    response = client.get("/api/vms/export", params={"format": "xlsx"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert "vm-inventory.xlsx" in response.headers["content-disposition"]
+    # A valid xlsx is a zip holding the workbook part; shared strings must carry
+    # the header labels.
+    archive = zipfile.ZipFile(io.BytesIO(response.content))
+    shared = archive.read("xl/sharedStrings.xml").decode()
+    for column in ("name", "cpu_cores", "applications"):
+        assert f"<t>{column}</t>" in shared
+
+
+def test_csv_stays_the_default_format(client: TestClient, db_session: Session) -> None:
+    user = create_user(db_session, email="admin@example.com", role="admin")
+    login(client, user.email)
+
+    response = client.get("/api/vms/export")
+
+    assert response.headers["content-type"].startswith("text/csv")

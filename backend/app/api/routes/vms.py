@@ -2,9 +2,10 @@ import csv
 import io
 import uuid
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -216,14 +217,64 @@ def _export_row(vm: Vm) -> dict[str, object]:
     return row
 
 
-@router.get("/export", response_class=StreamingResponse)
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _xlsx_response(vms: list[Vm]) -> Response:
+    """Build a single-sheet workbook in memory.
+
+    constant_memory keeps rows from accumulating as Python objects — they are
+    flushed to the archive as each row is written, so a 200-row page and a
+    full-fleet export cost roughly the same resident memory.
+    """
+    import xlsxwriter
+
+    buffer = io.BytesIO()
+    workbook = xlsxwriter.Workbook(buffer, {"constant_memory": True, "in_memory": True})
+    sheet = workbook.add_worksheet("Inventory")
+    header_format = workbook.add_format({"bold": True})
+    date_format = workbook.add_format({"num_format": "yyyy-mm-dd"})
+
+    for index, column in enumerate(_EXPORT_COLS):
+        sheet.write_string(0, index, column, header_format)
+        sheet.set_column(index, index, max(12, min(len(column) + 4, 40)))
+    sheet.freeze_panes(1, 0)
+
+    for row_index, vm in enumerate(vms, start=1):
+        row = _export_row(vm)
+        for column_index, column in enumerate(_EXPORT_COLS):
+            value = row[column]
+            if value is None:
+                continue
+            if isinstance(value, datetime):
+                sheet.write_datetime(row_index, column_index, value.replace(tzinfo=None), date_format)
+            elif isinstance(value, date):
+                sheet.write_datetime(row_index, column_index, value, date_format)
+            elif isinstance(value, int) and not isinstance(value, bool):
+                sheet.write_number(row_index, column_index, value)
+            else:
+                sheet.write_string(row_index, column_index, str(value))
+
+    # autofilter after the data so the range covers every written row.
+    sheet.autofilter(0, 0, max(len(vms), 1), len(_EXPORT_COLS) - 1)
+    workbook.close()
+    buffer.seek(0)
+    return Response(
+        content=buffer.getvalue(),
+        media_type=XLSX_MEDIA_TYPE,
+        headers={"Content-Disposition": 'attachment; filename="vm-inventory.xlsx"'},
+    )
+
+
+@router.get("/export")
 def export_vms(
     db: DbSession,
     _: ViewerUser,
     filters: Annotated[VmFilterParams, Depends()],
     ids: Annotated[list[uuid.UUID] | None, Query()] = None,
     all_vms: Annotated[bool, Query(alias="all")] = False,
-) -> StreamingResponse:
+    export_format: Annotated[str, Query(alias="format", pattern="^(csv|xlsx)$")] = "csv",
+) -> Response:
     if ids:
         base_q = select(Vm).where(Vm.id.in_(ids))
     elif all_vms:
@@ -239,6 +290,9 @@ def export_vms(
             ).order_by(Vm.name.asc())
         )
     )
+
+    if export_format == "xlsx":
+        return _xlsx_response(vms)
 
     def generate():
         buf = io.StringIO()

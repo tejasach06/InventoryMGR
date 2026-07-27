@@ -267,4 +267,10 @@ describe('api client methods', () => {
     expect(init.method).toBe('POST');
     expect(init.body).toBe(JSON.stringify({ vm_ids: null }));
   });
+  it('builds export URLs for csv and xlsx formats', () => {
+    expect(api.exportVmsUrl(new URLSearchParams({ q: 'test' }))).toBe('/api/vms/export?q=test');
+    expect(api.exportVmsUrl(new URLSearchParams({ q: 'test' }), 'xlsx')).toBe('/api/vms/export?q=test&format=xlsx');
+    expect(api.exportSelectedUrl(['id1', 'id2'])).toBe('/api/vms/export?ids=id1&ids=id2');
+    expect(api.exportSelectedUrl(['id1', 'id2'], 'xlsx')).toBe('/api/vms/export?ids=id1&ids=id2&format=xlsx');
+  });
 });

@@ -446,10 +446,16 @@ export const api = {
     apiRequest<Vm>(`/vms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteVm: (id: string) => apiRequest<null>(`/vms/${id}`, { method: 'DELETE' }),
   cloneVm: (id: string) => apiRequest<Vm>(`/vms/${id}/clone`, { method: 'POST' }),
-  exportVmsUrl: (params?: URLSearchParams) =>
-    params && params.toString() ? `${API_PREFIX}/vms/export?${params.toString()}` : `${API_PREFIX}/vms/export`,
-  exportSelectedUrl: (ids: string[]) =>
-    `${API_PREFIX}/vms/export?${ids.map(id => `ids=${encodeURIComponent(id)}`).join('&')}`,
+  exportVmsUrl: (params?: URLSearchParams, format: 'csv' | 'xlsx' = 'csv') => {
+    const query = new URLSearchParams(params ?? undefined);
+    if (format !== 'csv') query.set('format', format);
+    return query.toString() ? `${API_PREFIX}/vms/export?${query.toString()}` : `${API_PREFIX}/vms/export`;
+  },
+  exportSelectedUrl: (ids: string[], format: 'csv' | 'xlsx' = 'csv') => {
+    const query = new URLSearchParams(ids.map((id) => ['ids', id]));
+    if (format !== 'csv') query.set('format', format);
+    return `${API_PREFIX}/vms/export?${query.toString()}`;
+  },
   listVmOwners: () => apiRequest<string[]>('/vms/owners'),
   listVmClusters: () => apiRequest<string[]>('/vms/clusters'),
   listVmNodes: () => apiRequest<string[]>('/vms/nodes'),

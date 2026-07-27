@@ -391,10 +391,9 @@ export function InventoryPage() {
     () => queryParamsFor(filtersFromParams(searchParams), viewFromParams(searchParams)),
     [searchParams],
   );
-  const exportFilteredUrl = api.exportVmsUrl(queryParams);
-  function exportSelected() {
+  function exportSelected(format: 'csv' | 'xlsx' = 'csv') {
     if (selectedIds.size === 0) return;
-    window.location.href = api.exportSelectedUrl([...selectedIds]);
+    window.location.href = api.exportSelectedUrl([...selectedIds], format);
   }
   const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => api.listVms(queryParams) });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -449,8 +448,11 @@ export function InventoryPage() {
           eyebrow="Infrastructure"
           actions={
             <div className="flex items-center gap-2">
-              <a href={exportFilteredUrl} download="vm-inventory.csv" className={secondaryButtonClass}>
-                Export filtered
+              <a href={api.exportVmsUrl(queryParams, 'csv')} download="vm-inventory.csv" className={secondaryButtonClass}>
+                Export CSV
+              </a>
+              <a href={api.exportVmsUrl(queryParams, 'xlsx')} download="vm-inventory.xlsx" className={secondaryButtonClass}>
+                Export Excel
               </a>
               {canCreateVm && <Link className={primaryButtonClass} href="/inventory/new">New VM</Link>}
             </div>
@@ -538,8 +540,11 @@ export function InventoryPage() {
           <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-text-primary)] px-4 py-2.5 text-white shadow-[var(--shadow-overlay)] dark:bg-slate-800 dark:border-slate-700">
             <span className="text-sm font-semibold tabular-nums">{selectedIds.size} selected</span>
             <div className="h-4 w-px bg-white/20" aria-hidden="true" />
-            <button type="button" onClick={exportSelected} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
-              Export
+            <button type="button" onClick={() => exportSelected('csv')} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
+              CSV
+            </button>
+            <button type="button" onClick={() => exportSelected('xlsx')} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
+              Excel
             </button>
             <button type="button" onClick={() => setSelectedIds(new Set())} className="text-sm font-medium text-white/60 hover:text-white transition-colors">
               Clear
