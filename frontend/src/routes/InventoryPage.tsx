@@ -1,10 +1,11 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api, detailMessage, Vm } from '../api/client';
+import { BulkEditDrawer, BulkPatch } from '../components/BulkEditDrawer';
 import { useCurrentUser } from '../components/AuthContext';
 import { cn } from '../lib/classNames';
 import {
@@ -341,6 +342,10 @@ export function InventoryPage() {
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [view, setView] = useState<ViewState>(() => viewFromParams(searchParams));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkError, setBulkError] = useState<string | undefined>();
+  const queryClient = useQueryClient();
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
 
   useEffect(() => {
@@ -367,11 +372,13 @@ export function InventoryPage() {
     // /api/preferences if page size must follow the account across devices.
     pushView({ ...view, size, page: 1 });
     setSelectedIds(new Set());
+    setSelectAllMatching(false);
   }
 
   function handlePageChange(page: number) {
     pushView({ ...view, page });
     setSelectedIds(new Set());
+    setSelectAllMatching(false);
   }
 
   function toggleSelect(id: string) {
@@ -381,10 +388,11 @@ export function InventoryPage() {
       else next.add(id);
       return next;
     });
+    setSelectAllMatching(false);
   }
-
   function toggleSelectAll(ids: string[]) {
     setSelectedIds((prev) => (prev.size === ids.length ? new Set() : new Set(ids)));
+    setSelectAllMatching(false);
   }
 
   const queryParams = useMemo(
@@ -432,6 +440,40 @@ export function InventoryPage() {
 
   const items = vms.data?.items ?? [];
   const total = vms.data?.total ?? items.length;
+  const pageFullySelected = items.length > 0 && selectedIds.size === items.length;
+  const targetCount = selectAllMatching ? total : selectedIds.size;
+  const targetLabel = selectAllMatching
+    ? `all ${total.toLocaleString()} matching VMs`
+    : `${selectedIds.size} VM${selectedIds.size === 1 ? '' : 's'}`;
+
+  function bulkFilters(): Record<string, unknown> {
+    const active = filtersFromParams(searchParams);
+    const payload: Record<string, unknown> = {};
+    for (const name of filterNames) {
+      if (active[name].length === 0) continue;
+      payload[name] = name === 'q' ? active[name][0] : active[name];
+    }
+    return payload;
+  }
+
+  const bulkMutation = useMutation({
+    mutationFn: (patch: BulkPatch) =>
+      api.bulkUpdateVms(
+        selectAllMatching ? { filters: bulkFilters(), patch } : { ids: [...selectedIds], patch },
+      ),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['vms'] });
+      setBulkOpen(false);
+      setSelectedIds(new Set());
+      setSelectAllMatching(false);
+      setBulkError(
+        result.failed.length > 0
+          ? `${result.updated} updated, ${result.failed.length} failed`
+          : undefined,
+      );
+    },
+    onError: (error) => setBulkError(detailMessage(error)),
+  });
 
   // A stale deep link can point past the end of a shrunken result set.
   useEffect(() => {
@@ -474,6 +516,7 @@ export function InventoryPage() {
         ) : null}
 
         {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
+        {bulkError ? <Alert>{bulkError}</Alert> : null}
         {vms.isLoading ? <TableSkeleton rows={8} cols={7} /> : null}
         {vms.data && vms.data.items.length > 0 ? (
           <>
@@ -535,10 +578,22 @@ export function InventoryPage() {
 
       {/* Bulk action bar — the only surface for bulk actions now that the
           context panel is gone. */}
-      {selectedIds.size > 0 && (
+      {(selectedIds.size > 0 || selectAllMatching) && (
         <div className="fixed bottom-6 right-4 sm:right-6 z-40 bulk-bar" role="toolbar" aria-label="Bulk actions">
           <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-text-primary)] px-4 py-2.5 text-white shadow-[var(--shadow-overlay)] dark:bg-slate-800 dark:border-slate-700">
-            <span className="text-sm font-semibold tabular-nums">{selectedIds.size} selected</span>
+            <span className="text-sm font-semibold tabular-nums">
+              {selectAllMatching ? `All ${total.toLocaleString()} matching filters` : `${selectedIds.size} selected`}
+            </span>
+            {!selectAllMatching && pageFullySelected && total > items.length && (
+              <button type="button" onClick={() => setSelectAllMatching(true)} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
+                Select all {total.toLocaleString()} matching filters
+              </button>
+            )}
+            {canCreateVm && targetCount > 0 && (
+              <button type="button" onClick={() => { setBulkError(undefined); setBulkOpen(true); }} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
+                Edit
+              </button>
+            )}
             <div className="h-4 w-px bg-white/20" aria-hidden="true" />
             <button type="button" onClick={() => exportSelected('csv')} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
               CSV
@@ -546,12 +601,21 @@ export function InventoryPage() {
             <button type="button" onClick={() => exportSelected('xlsx')} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
               Excel
             </button>
-            <button type="button" onClick={() => setSelectedIds(new Set())} className="text-sm font-medium text-white/60 hover:text-white transition-colors">
+            <button type="button" onClick={() => { setSelectedIds(new Set()); setSelectAllMatching(false); }} className="text-sm font-medium text-white/60 hover:text-white transition-colors">
               Clear
             </button>
           </div>
         </div>
       )}
+
+      <BulkEditDrawer
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        targetLabel={targetLabel}
+        onSubmit={(patch) => bulkMutation.mutate(patch)}
+        pending={bulkMutation.isPending}
+        error={bulkError}
+      />
     </PageTransition>
   );
 }

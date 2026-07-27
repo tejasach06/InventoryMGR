@@ -137,6 +137,11 @@ export interface VmList {
   limit: number;
   offset: number;
 }
+export type BulkPatch = Record<string, string | boolean | string[]>;
+export interface BulkResult {
+  updated: number;
+  failed: { id: string; message: string }[];
+}
 
 export interface DashboardVmSummary {
   id: string;
@@ -446,6 +451,11 @@ export const api = {
     apiRequest<Vm>(`/vms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteVm: (id: string) => apiRequest<null>(`/vms/${id}`, { method: 'DELETE' }),
   cloneVm: (id: string) => apiRequest<Vm>(`/vms/${id}/clone`, { method: 'POST' }),
+  bulkUpdateVms: (body: { ids?: string[]; filters?: Record<string, unknown>; patch: BulkPatch }) =>
+    apiRequest<BulkResult>('/vms/bulk', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   exportVmsUrl: (params?: URLSearchParams, format: 'csv' | 'xlsx' = 'csv') => {
     const query = new URLSearchParams(params ?? undefined);
     if (format !== 'csv') query.set('format', format);

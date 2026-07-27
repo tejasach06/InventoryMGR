@@ -203,4 +203,57 @@ describe('InventoryPage', () => {
     expect(csvLink).toHaveAttribute('href', expect.stringContaining('/api/vms/export'));
     expect(excelLink).toHaveAttribute('href', expect.stringContaining('format=xlsx'));
   });
+  it('sends ids when editing a page selection', async () => {
+    vi.spyOn(api, 'listVms').mockResolvedValue(
+      makeVmList({ items: [makeVm({ id: 'vm-01-id', name: 'vm-01' })], total: 1 }),
+    );
+    vi.spyOn(api, 'bulkUpdateVms').mockResolvedValue({ updated: 1, failed: [] });
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
+
+    await userEvent.click(await screen.findByLabelText('Select vm-01'));
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    await userEvent.selectOptions(screen.getByLabelText('Status'), 'running');
+    await userEvent.click(screen.getByRole('button', { name: /^Apply to 1 VM$/ }));
+
+    expect(vi.mocked(api.bulkUpdateVms)).toHaveBeenCalledWith({
+      ids: ['vm-01-id'],
+      patch: { status: 'running' },
+    });
+  });
+
+  it('sends filters after selecting everything matching', async () => {
+    vi.spyOn(api, 'listVms').mockResolvedValue(
+      makeVmList({ items: [makeVm({ id: 'vm-01-id', name: 'vm-01' })], total: 120 }),
+    );
+    vi.spyOn(api, 'bulkUpdateVms').mockResolvedValue({ updated: 120, failed: [] });
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
+
+    await userEvent.click(await screen.findByLabelText('Select all'));
+    await userEvent.click(screen.getByRole('button', { name: /Select all .* matching filters/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    await userEvent.selectOptions(screen.getByLabelText('Criticality'), 'high');
+    await userEvent.click(screen.getByRole('button', { name: /^Apply to all/ }));
+
+    const body = vi.mocked(api.bulkUpdateVms).mock.calls.at(-1)![0];
+    expect(body.ids).toBeUndefined();
+    expect(body.patch).toEqual({ criticality: 'high' });
+  });
+
+  it('renders bulk error alert when bulk update has failures', async () => {
+    vi.spyOn(api, 'listVms').mockResolvedValue(
+      makeVmList({ items: [makeVm({ id: 'vm-01-id', name: 'vm-01' })], total: 1 }),
+    );
+    vi.spyOn(api, 'bulkUpdateVms').mockResolvedValue({
+      updated: 0,
+      failed: [{ id: 'vm-01-id', message: 'Update failed' }],
+    });
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
+
+    await userEvent.click(await screen.findByLabelText('Select vm-01'));
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    await userEvent.selectOptions(screen.getByLabelText('Status'), 'running');
+    await userEvent.click(screen.getByRole('button', { name: /^Apply to 1 VM$/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('0 updated, 1 failed');
+  });
 });
