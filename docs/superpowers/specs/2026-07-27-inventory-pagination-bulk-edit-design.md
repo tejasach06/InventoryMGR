@@ -45,7 +45,7 @@ arguments and builds the `ORDER BY`.
 Sortable keys (whitelist; anything else → 422 via the `Query(pattern=…)`
 constraint already used for `health`):
 
-`name`, `status`, `criticality`, `health_score`, `updated_at`, `cluster`,
+`name`, `status`, `criticality`, `health`, `updated_at`, `cluster`,
 `platform`, `environment`, `lifecycle`, `cpu_cores`, `memory_mb`, `owner`.
 
 - `dir` is `asc` | `desc`, default `asc`. Default sort stays the current
