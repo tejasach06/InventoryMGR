@@ -28,6 +28,7 @@ import {
 import { useColumnPreferences, COLUMN_LABELS } from '../hooks/useColumnPreferences';
 import { formatMemory, formatDisks } from '../lib/units';
 import { InventoryToolbar } from '../components/InventoryToolbar';
+import { PaginationFooter } from '../components/PaginationFooter';
 
 export const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
 export const advancedFilterNames = ['cluster', 'lifecycle', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'ip_role', 'health'] as const;
@@ -57,7 +58,36 @@ function emptyFilters(): Filters {
   };
 }
 
-function paramsFromFilters(filters: Filters): URLSearchParams {
+export const PAGE_SIZES = [25, 50, 100, 200] as const;
+export const DEFAULT_PAGE_SIZE = 50;
+export const PAGE_SIZE_STORAGE_KEY = 'inventory-page-size';
+
+export type ViewState = { page: number; size: number; sort: string | null; dir: 'asc' | 'desc' };
+
+// Keys the API accepts (services/vms.py::SORT_COLUMNS). 'health' maps to
+// health_score server-side; keeping one list here stops the two from drifting.
+const SORTABLE_COLUMNS = new Set([
+  'name', 'status', 'criticality', 'health', 'updated_at',
+  'cluster', 'platform', 'environment', 'lifecycle',
+  'cpu_cores', 'memory_mb', 'owner',
+]);
+
+function storedPageSize(): number {
+  if (typeof window === 'undefined') return DEFAULT_PAGE_SIZE;
+  const stored = Number(window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
+  return PAGE_SIZES.includes(stored as (typeof PAGE_SIZES)[number]) ? stored : DEFAULT_PAGE_SIZE;
+}
+
+export function viewFromParams(params: URLSearchParams): ViewState {
+  const page = Math.max(1, Number(params.get('page')) || 1);
+  const rawSize = Number(params.get('size'));
+  const size = PAGE_SIZES.includes(rawSize as (typeof PAGE_SIZES)[number]) ? rawSize : storedPageSize();
+  const sort = params.get('sort');
+  const dir = params.get('dir') === 'desc' ? 'desc' : 'asc';
+  return { page, size, sort: sort && SORTABLE_COLUMNS.has(sort) ? sort : null, dir };
+}
+
+function paramsFromFilters(filters: Filters, view: ViewState): URLSearchParams {
   const params = new URLSearchParams();
   for (const name of filterNames) {
     const values = filters[name];
@@ -65,8 +95,22 @@ function paramsFromFilters(filters: Filters): URLSearchParams {
       values.forEach((v) => params.append(name, v));
     }
   }
-  params.set('limit', '50');
-  params.set('offset', '0');
+  if (view.page > 1) params.set('page', String(view.page));
+  if (view.size !== DEFAULT_PAGE_SIZE) params.set('size', String(view.size));
+  if (view.sort) {
+    params.set('sort', view.sort);
+    params.set('dir', view.dir);
+  }
+  return params;
+}
+
+// The wire format the API wants: page/size become limit/offset, page/size drop out.
+function queryParamsFor(filters: Filters, view: ViewState): URLSearchParams {
+  const params = paramsFromFilters(filters, view);
+  params.delete('page');
+  params.delete('size');
+  params.set('limit', String(view.size));
+  params.set('offset', String((view.page - 1) * view.size));
   return params;
 }
 
@@ -146,18 +190,6 @@ function VmCard({ vm }: { vm: Vm }) {
   );
 }
 
-const SORTABLE_COLUMNS = new Set(['name', 'status', 'criticality', 'health', 'updated_at']);
-
-function sortValue(vm: Vm, key: string): string | number {
-  switch (key) {
-    case 'health':
-      return vm.health_score;
-    case 'updated_at':
-      return vm.updated_at;
-    default:
-      return String((vm as unknown as Record<string, unknown>)[key] ?? '').toLowerCase();
-  }
-}
 
 function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
   return (
@@ -198,14 +230,6 @@ function VmTable({
     if (selectAllRef.current) selectAllRef.current.indeterminate = selectedIds.size > 0 && selectedIds.size < vms.length;
   }, [selectedIds, vms.length]);
 
-  const sorted = sortKey
-    ? [...vms].sort((a, b) => {
-        const av = sortValue(a, sortKey);
-        const bv = sortValue(b, sortKey);
-        const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-        return sortDir === 'asc' ? cmp : -cmp;
-      })
-    : vms;
 
   return (
     <div className={tableWrapClass}>
@@ -246,7 +270,7 @@ function VmTable({
           </tr>
         </thead>
         <tbody className={tableBodyClass}>
-          {sorted.map((vm, index) => {
+          {vms.map((vm, index) => {
             const isSelected = selectedIds.has(vm.id);
 
             return (
@@ -315,20 +339,39 @@ export function InventoryPage() {
   const searchParams = useSearchParams();
   const canCreateVm = user.role === 'editor' || user.role === 'admin';
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
+  const [view, setView] = useState<ViewState>(() => viewFromParams(searchParams));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  useEffect(() => {
+    setFilters(filtersFromParams(searchParams));
+    setView(viewFromParams(searchParams));
+  }, [searchParams]);
+
+  function pushView(next: ViewState) {
+    setView(next);
+    const params = paramsFromFilters(filters, next);
+    router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
+  }
 
   function handleSort(key: string) {
-    if (sortKey !== key) {
-      setSortKey(key);
-      setSortDir('asc');
-    } else if (sortDir === 'asc') {
-      setSortDir('desc');
-    } else {
-      setSortKey(null);
-    }
+    // asc -> desc -> unsorted, the existing three-state cycle.
+    if (view.sort !== key) pushView({ ...view, sort: key, dir: 'asc', page: 1 });
+    else if (view.dir === 'asc') pushView({ ...view, dir: 'desc', page: 1 });
+    else pushView({ ...view, sort: null, dir: 'asc', page: 1 });
+  }
+
+  function handleSizeChange(size: number) {
+    window.localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(size));
+    // ponytail: localStorage, not the user-preferences JSONB — upgrade to
+    // /api/preferences if page size must follow the account across devices.
+    pushView({ ...view, size, page: 1 });
+    setSelectedIds(new Set());
+  }
+
+  function handlePageChange(page: number) {
+    pushView({ ...view, page });
+    setSelectedIds(new Set());
   }
 
   function toggleSelect(id: string) {
@@ -344,27 +387,23 @@ export function InventoryPage() {
     setSelectedIds((prev) => (prev.size === ids.length ? new Set() : new Set(ids)));
   }
 
-  const queryParams = useMemo(() => paramsFromFilters(filtersFromParams(searchParams)), [searchParams]);
+  const queryParams = useMemo(
+    () => queryParamsFor(filters, view),
+    [filters, view],
+  );
   const exportFilteredUrl = api.exportVmsUrl(queryParams);
   function exportSelected() {
     if (selectedIds.size === 0) return;
     window.location.href = api.exportSelectedUrl([...selectedIds]);
   }
-  const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: async () => {
-    const result = await api.listVms(queryParams);
-    return result;
-  } });
+  const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => api.listVms(queryParams) });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setFilters(filtersFromParams(searchParams));
-  }, [searchParams]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      const params = paramsFromFilters(filters);
-      const current = paramsFromFilters(filtersFromParams(searchParams));
+      const params = paramsFromFilters(filters, { ...view, page: 1 });
+      const current = paramsFromFilters(filtersFromParams(searchParams), viewFromParams(searchParams));
       if (params.toString() !== current.toString()) {
         router.push(`${pathname}?${params.toString()}`);
       }
@@ -372,23 +411,30 @@ export function InventoryPage() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [filters, pathname, router, searchParams]);
-
+  }, [filters, pathname, router, searchParams, view]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const params = paramsFromFilters(filters);
+    const params = paramsFromFilters(filters, { ...view, page: 1 });
     router.push(`${pathname}?${params.toString()}`);
   }
 
   function clearFilters() {
     setFilters(emptyFilters());
-    router.push(pathname);
+    const params = paramsFromFilters(emptyFilters(), { ...view, page: 1 });
+    router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
   }
 
   const items = vms.data?.items ?? [];
   const total = vms.data?.total ?? items.length;
+
+  // A stale deep link can point past the end of a shrunken result set.
+  useEffect(() => {
+    if (!vms.data) return;
+    const lastPage = Math.max(1, Math.ceil(total / view.size));
+    if (view.page > lastPage) pushView({ ...view, page: lastPage });
+  }, [vms.data, total, view.size, view.page]);
 
   return (
     <PageTransition>
@@ -414,11 +460,11 @@ export function InventoryPage() {
           onReorderColumns={reorderColumns}
           onResetColumns={resetToDefault}
         />
-        <div className="mb-4 flex items-center justify-between">
-          <p className="eyebrow-label">
-            {vms.data ? `${items.length} of ${total} shown` : 'Loading…'}
-          </p>
-        </div>
+        {!vms.data ? (
+          <div className="mb-4 flex items-center justify-between">
+            <p className="eyebrow-label">Loading…</p>
+          </div>
+        ) : null}
 
         {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
         {vms.isLoading ? <TableSkeleton rows={8} cols={7} /> : null}
@@ -431,8 +477,8 @@ export function InventoryPage() {
                 selectedIds={selectedIds}
                 onToggle={toggleSelect}
                 onToggleAll={toggleSelectAll}
-                sortKey={sortKey}
-                sortDir={sortDir}
+                sortKey={view.sort}
+                sortDir={view.dir}
                 onSort={handleSort}
               />
             </div>
@@ -442,6 +488,15 @@ export function InventoryPage() {
               ))}
             </div>
           </>
+        ) : null}
+        {vms.data ? (
+          <PaginationFooter
+            total={total}
+            page={view.page}
+            size={view.size}
+            onPageChange={handlePageChange}
+            onSizeChange={handleSizeChange}
+          />
         ) : null}
         {vms.data && vms.data.items.length === 0 ? (
           hasActiveFilters(filters) ? (

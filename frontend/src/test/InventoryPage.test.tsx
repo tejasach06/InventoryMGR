@@ -32,14 +32,13 @@ afterEach(() => {
 });
 
 describe('InventoryPage', () => {
-  it('renders a single VM in both the table and the card with a "1 of 1 shown" count', async () => {
+  it('renders a single VM in both the table and the card', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     // The same VM name renders once in the desktop table and once in the mobile card.
     const names = await screen.findAllByText('web-01');
     expect(names).toHaveLength(2);
-    expect(screen.getByText('1 of 1 shown')).toBeInTheDocument();
     expect(screen.queryByText('No VMs yet')).not.toBeInTheDocument();
   });
 
@@ -49,8 +48,7 @@ describe('InventoryPage', () => {
     );
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
-    expect(await screen.findByText('2 of 2 shown')).toBeInTheDocument();
-    expect(screen.getAllByText('web-01')).toHaveLength(2);
+    expect(await screen.findAllByText('web-01')).toHaveLength(2);
     expect(screen.getAllByText('db-02')).toHaveLength(2);
   });
 
@@ -58,7 +56,7 @@ describe('InventoryPage', () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
-    expect(await screen.findByText('1 of 1 shown')).toBeInTheDocument();
+    await screen.findAllByText('web-01');
     expect(screen.queryByText('Total VMs')).not.toBeInTheDocument();
     expect(screen.queryByText('Running')).not.toBeInTheDocument();
     expect(screen.queryByText('Critical')).not.toBeInTheDocument();
@@ -69,7 +67,7 @@ describe('InventoryPage', () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
-    await screen.findByText('1 of 1 shown');
+    await screen.findAllByText('web-01');
     expect(screen.queryByLabelText('Inventory context panel')).not.toBeInTheDocument();
     expect(screen.queryByText('Fleet Pulse')).not.toBeInTheDocument();
     expect(screen.queryByText('Nothing previewed')).not.toBeInTheDocument();
@@ -83,7 +81,7 @@ describe('InventoryPage', () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
-    await screen.findByText('1 of 1 shown');
+    await screen.findAllByText('web-01');
     expect(screen.queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('View details')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
@@ -93,7 +91,7 @@ describe('InventoryPage', () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
-    await screen.findByText('1 of 1 shown');
+    await screen.findAllByText('web-01');
     const status = screen.getByTestId('cell-status');
     expect(status.querySelector('span[style*="--color-status"]')).toBeNull();
 
@@ -109,7 +107,6 @@ describe('InventoryPage', () => {
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     expect(await screen.findByText('No VMs yet')).toBeInTheDocument();
-    expect(screen.queryByText('1 of 1 shown')).not.toBeInTheDocument();
   });
 
   it('shows the loading skeleton while the query is pending', () => {
@@ -174,5 +171,25 @@ describe('InventoryPage', () => {
     await user.click(screen.getByRole('button', { name: 'Clear search' }));
 
     await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Search VMs' })).toHaveValue(''));
+  });
+  it('requests the second page with limit and offset', async () => {
+    // listVms mock resolves { items, total: 120, limit: 50, offset: 0 }
+    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ total: 120 }));
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
+    await userEvent.click(await screen.findByRole('button', { name: 'Next page' }));
+
+    const lastCall = vi.mocked(api.listVms).mock.calls.at(-1)![0];
+    expect(lastCall.get('limit')).toBe('50');
+    expect(lastCall.get('offset')).toBe('50');
+  });
+
+  it('sends sort and dir when a sortable column header is clicked', async () => {
+    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
+    await userEvent.click(await screen.findByRole('button', { name: /Name/ }));
+
+    const lastCall = vi.mocked(api.listVms).mock.calls.at(-1)![0];
+    expect(lastCall.get('sort')).toBe('name');
+    expect(lastCall.get('dir')).toBe('asc');
   });
 });
