@@ -22,7 +22,7 @@ from app.db.models import (
     VmApplication,
     VmStatus,
 )
-from app.schemas.vms import VmCreate, VmList, VmRead, VmUpdate
+from app.schemas.vms import VmBulkRequest, VmBulkResult, VmCreate, VmList, VmRead, VmUpdate
 from app.services.csv_import import IP_ROLE_HEADERS
 from app.services.vms import (
     SORT_PATTERN,
@@ -45,6 +45,7 @@ from app.services.vms import (
 from app.services.vms import (
     update_vm as update_vm_service,
 )
+from app.services.vms_bulk import bulk_update_vms
 
 router = APIRouter()
 
@@ -311,6 +312,13 @@ def export_vms(
         headers={"Content-Disposition": 'attachment; filename="vm-inventory.csv"'},
     )
 
+
+@router.post("/bulk", response_model=VmBulkResult)
+def bulk_update(
+    payload: VmBulkRequest, db: DbSession, current_user: EditorUser, _: Csrf
+) -> VmBulkResult:
+    result = bulk_update_vms(db, payload=payload, user=current_user)
+    return VmBulkResult.model_validate(result)
 
 @router.get("/{vm_id}", response_model=VmRead)
 def get_vm(vm_id: uuid.UUID, db: DbSession, _: ViewerUser) -> VmRead:

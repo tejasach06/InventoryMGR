@@ -267,3 +267,87 @@ class DashboardStats(BaseModel):
     without_monitoring: int
     without_applications: int
     recently_added: list[DashboardVmSummary]
+
+class VmBulkFilters(BaseModel):
+    """Body mirror of api/routes/vms.py::VmFilterParams.
+
+    The route's filter set is a query dataclass and cannot be reused in a JSON
+    body, so the field names are duplicated here deliberately; the bulk test
+    asserts the two stay in step.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    q: str | None = None
+    platform: list[Platform] | None = None
+    cluster: list[str] | None = None
+    status: list[VmStatus] | None = None
+    environment: list[Environment] | None = None
+    criticality: list[Criticality] | None = None
+    lifecycle: list[Lifecycle] | None = None
+    monitoring_enabled: bool | None = None
+    node: list[str] | None = None
+    os_family: list[OsFamily] | None = None
+    owner: list[str] | None = None
+    pmp_enabled: bool | None = None
+    tag: list[str] | None = None
+    application: list[str] | None = None
+    ip_role: list[NetworkRole] | None = None
+    health: str | None = None
+
+
+class VmBulkUpdate(BaseModel):
+    """Fields safe to set across many VMs at once.
+
+    Identity fields (name, fqdn, external_id, sr_id) are excluded: they are
+    per-VM unique, so bulk-setting them collides. Tags are add/remove rather
+    than replace — a replace across a page of VMs destroys per-VM tags.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: VmStatus | None = None
+    environment: Environment | None = None
+    criticality: Criticality | None = None
+    lifecycle: Lifecycle | None = None
+    vm_type: VmType | None = None
+    cluster: str | None = None
+    node: str | None = None
+    datacenter: str | None = None
+    owner: str | None = None
+    business_owner: str | None = None
+    technical_owner: str | None = None
+    pmp_enabled: bool | None = None
+    monitoring_enabled: bool | None = None
+    backup_enabled: bool | None = None
+    ha_enabled: bool | None = None
+    backup_location: str | None = None
+    last_verified_at: date | None = None
+    tags_add: list[str] = []
+    tags_remove: list[str] = []
+
+
+class VmBulkRequest(BaseModel):
+    ids: list[uuid.UUID] | None = None
+    filters: VmBulkFilters | None = None
+    patch: VmBulkUpdate
+
+    @model_validator(mode="after")
+    def exactly_one_target(self) -> "VmBulkRequest":
+        if (self.ids is None) == (self.filters is None):
+            raise ValueError("supply exactly one of ids or filters")
+        if self.ids is not None and not self.ids:
+            raise ValueError("ids must not be empty")
+        if not self.patch.model_fields_set:
+            raise ValueError("patch must set at least one field")
+        return self
+
+
+class VmBulkFailure(BaseModel):
+    id: uuid.UUID
+    message: str
+
+
+class VmBulkResult(BaseModel):
+    updated: int
+    failed: list[VmBulkFailure]
