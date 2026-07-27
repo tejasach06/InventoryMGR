@@ -399,30 +399,35 @@ export function InventoryPage() {
   const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => api.listVms(queryParams) });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const currentFilters = useMemo(() => filtersFromParams(searchParams), [searchParams]);
+  const hasFilterChanges = useMemo(
+    () => filterNames.some((name) => filters[name].join(',') !== currentFilters[name].join(',')),
+    [filters, currentFilters],
+  );
+
   useEffect(() => {
+    if (!hasFilterChanges) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       const params = paramsFromFilters(filters, { ...viewFromParams(searchParams), page: 1 });
-      const current = paramsFromFilters(filtersFromParams(searchParams), viewFromParams(searchParams));
-      if (params.toString() !== current.toString()) {
-        router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
-      }
+      router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
     }, 400);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [filters, pathname, router, searchParams]);
+  }, [filters, hasFilterChanges, pathname, router, searchParams]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const params = paramsFromFilters(filters, { ...view, page: 1 });
-    router.push(`${pathname}?${params.toString()}`);
+    const params = paramsFromFilters(filters, { ...viewFromParams(searchParams), page: 1 });
+    router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
   }
 
   function clearFilters() {
     setFilters(emptyFilters());
-    const params = paramsFromFilters(emptyFilters(), { ...view, page: 1 });
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const params = paramsFromFilters(emptyFilters(), { ...viewFromParams(searchParams), page: 1 });
     router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
   }
 
