@@ -66,7 +66,7 @@ export type ViewState = { page: number; size: number; sort: string | null; dir: 
 
 // Keys the API accepts (services/vms.py::SORT_COLUMNS). 'health' maps to
 // health_score server-side; keeping one list here stops the two from drifting.
-const SORTABLE_COLUMNS = new Set([
+export const SORTABLE_COLUMNS = new Set([
   'name', 'status', 'criticality', 'health', 'updated_at',
   'cluster', 'platform', 'environment', 'lifecycle',
   'cpu_cores', 'memory_mb', 'owner',
@@ -87,7 +87,7 @@ export function viewFromParams(params: URLSearchParams): ViewState {
   return { page, size, sort: sort && SORTABLE_COLUMNS.has(sort) ? sort : null, dir };
 }
 
-function paramsFromFilters(filters: Filters, view: ViewState): URLSearchParams {
+export function paramsFromFilters(filters: Filters, view: ViewState): URLSearchParams {
   const params = new URLSearchParams();
   for (const name of filterNames) {
     const values = filters[name];
@@ -350,7 +350,7 @@ export function InventoryPage() {
 
   function pushView(next: ViewState) {
     setView(next);
-    const params = paramsFromFilters(filters, next);
+    const params = paramsFromFilters(filtersFromParams(searchParams), next);
     router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
   }
 
@@ -388,8 +388,8 @@ export function InventoryPage() {
   }
 
   const queryParams = useMemo(
-    () => queryParamsFor(filters, view),
-    [filters, view],
+    () => queryParamsFor(filtersFromParams(searchParams), viewFromParams(searchParams)),
+    [searchParams],
   );
   const exportFilteredUrl = api.exportVmsUrl(queryParams);
   function exportSelected() {
@@ -402,16 +402,16 @@ export function InventoryPage() {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      const params = paramsFromFilters(filters, { ...view, page: 1 });
+      const params = paramsFromFilters(filters, { ...viewFromParams(searchParams), page: 1 });
       const current = paramsFromFilters(filtersFromParams(searchParams), viewFromParams(searchParams));
       if (params.toString() !== current.toString()) {
-        router.push(`${pathname}?${params.toString()}`);
+        router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
       }
     }, 400);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [filters, pathname, router, searchParams, view]);
+  }, [filters, pathname, router, searchParams]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

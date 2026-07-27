@@ -7,7 +7,10 @@ import { InventoryPage } from '../routes/InventoryPage';
 import { makeUser, makeVm, renderWithProviders } from './utils';
 
 const hoisted = vi.hoisted(() => ({
-  pushMock: vi.fn(),
+  pushMock: vi.fn((url: string) => {
+    const query = url.includes('?') ? url.split('?')[1] : '';
+    hoisted.searchParams = new URLSearchParams(query);
+  }),
   searchParams: new URLSearchParams(),
 }));
 
@@ -22,8 +25,8 @@ function makeVmList(overrides: Partial<VmList> = {}): VmList {
 }
 
 beforeEach(() => {
-  hoisted.pushMock.mockReset();
   hoisted.searchParams = new URLSearchParams();
+  hoisted.pushMock.mockClear();
 });
 
 afterEach(() => {
