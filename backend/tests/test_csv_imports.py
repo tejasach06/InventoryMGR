@@ -803,3 +803,35 @@ def test_template_endpoint_serves_importable_headers(client, db_session: Session
     headers = response.text.strip().split(",")
     assert set(headers) == ALL_HEADERS
     assert headers[:3] == ["name", "platform", "cluster"]
+
+def test_vm_type_column_is_imported(client, db_session: Session) -> None:
+    user = create_user(db_session, email="editor@example.com", role=UserRole.editor)
+    csrf = login(client, user.email)
+    csv_bytes = (
+        b"name,platform,cluster,vm_type,decommission_date\n"
+        b"tmp-01,proxmox,pve-cluster-01,temporary,2026-09-01\n"
+    )
+
+    preview = client.post(
+        "/api/imports/preview",
+        files={"file": ("vms.csv", csv_bytes, "text/csv")},
+        headers=auth_headers(csrf),
+    ).json()
+    assert preview["rows"][0]["errors"] == []
+
+    client.post(f"/api/imports/{preview['id']}/commit", headers=auth_headers(csrf))
+
+    vm = db_session.scalar(select(Vm).where(Vm.name == "tmp-01"))
+    assert vm is not None
+    assert vm.vm_type.value == "temporary"
+    # _apply_vm_type_lifecycle: temporary + a decommission date means retiring.
+    assert vm.lifecycle.value == "retiring"
+
+
+def test_template_offers_vm_type(client, db_session: Session) -> None:
+    user = create_user(db_session, email="viewer@example.com", role=UserRole.viewer)
+    login(client, user.email)
+
+    headers = client.get("/api/imports/template").text.strip().split(",")
+
+    assert "vm_type" in headers

@@ -30,10 +30,10 @@ MAX_CSV_ROWS = 5000
 REQUIRED_HEADERS_ORDER = ("name", "platform", "cluster")
 REQUIRED_HEADERS = set(REQUIRED_HEADERS_ORDER)
 
-# vm_type drives lifecycle gating in services/vms.py::_apply_vm_type_lifecycle;
-# letting an import set it is out of scope. disks/networks are child collections
-# expressed through CHILD_HEADERS instead.
-EXCLUDED_FROM_CSV = {"disks", "networks", "vm_type"}
+# disks/networks are child collections expressed through CHILD_HEADERS instead.
+# vm_type is importable and intentionally drives lifecycle gating through
+# services/vms.py::_apply_vm_type_lifecycle, exactly as the VM form does.
+EXCLUDED_FROM_CSV = {"disks", "networks"}
 # One column per child type. Disks pair inline as name:size; IPs take their
 # role from the column name. Both split on ";", matching tags.
 # Order is load-bearing: an address repeated under two roles keeps the first
@@ -61,6 +61,7 @@ ENUM_VALUES = {
     "criticality": {"low", "medium", "high", "critical"},
     "lifecycle": {"planned", "active", "retiring", "retired"},
     "os_family": {"linux", "windows"},
+    "vm_type": {"permanent", "temporary"},
 }
 DEFAULTS: dict[str, Any] = {
     "status": "unknown",
@@ -204,7 +205,7 @@ STRING_HEADERS = (
     "security_remarks",
     "backup_location",
 )
-ENUM_HEADERS = ("status", "environment", "criticality", "lifecycle", "os_family")
+ENUM_HEADERS = ("status", "environment", "criticality", "lifecycle", "os_family", "vm_type")
 INT_HEADERS = ("cpu_cores", "memory_mb")
 BOOL_HEADERS = ("monitoring_enabled", "ha_enabled", "backup_enabled", "pmp_enabled")
 DATE_HEADERS = (
