@@ -863,3 +863,57 @@ def test_applications_column_creates_children_and_is_idempotent(
         ("nginx", "web-team"),
         ("postgres", None),
     ]
+def test_extended_disk_and_ip_cells_are_parsed(client, db_session: Session) -> None:
+    user = create_user(db_session, email="editor@example.com", role=UserRole.editor)
+    csrf = login(client, user.email)
+    csv_bytes = (
+        b"name,platform,cluster,disks,private_ip\n"
+        b"deep-01,proxmox,pve-cluster-01,scsi0:120:ssd-pool:thin,10.0.0.5:42:10.0.0.1\n"
+    )
+
+    preview = client.post(
+        "/api/imports/preview",
+        files={"file": ("vms.csv", csv_bytes, "text/csv")},
+        headers=auth_headers(csrf),
+    ).json()
+    assert preview["rows"][0]["errors"] == []
+    client.post(f"/api/imports/{preview['id']}/commit", headers=auth_headers(csrf))
+
+    vm = db_session.scalar(
+        select(Vm)
+        .options(selectinload(Vm.disks), selectinload(Vm.networks))
+        .where(Vm.name == "deep-01")
+    )
+    assert vm is not None
+    disk = vm.disks[0]
+    assert (disk.disk_name, disk.size_gb, disk.storage_name, disk.storage_type) == (
+        "scsi0", 120, "ssd-pool", "thin",
+    )
+    network = vm.networks[0]
+    assert (network.ip_address, network.vlan, network.gateway) == ("10.0.0.5", 42, "10.0.0.1")
+
+
+def test_short_disk_and_ip_forms_still_parse(client, db_session: Session) -> None:
+    user = create_user(db_session, email="editor@example.com", role=UserRole.editor)
+    csrf = login(client, user.email)
+    csv_bytes = (
+        b"name,platform,cluster,disks,private_ip\n"
+        b"short-01,proxmox,pve-cluster-01,scsi0:80,10.0.0.9\n"
+    )
+
+    preview = client.post(
+        "/api/imports/preview",
+        files={"file": ("vms.csv", csv_bytes, "text/csv")},
+        headers=auth_headers(csrf),
+    ).json()
+    assert preview["rows"][0]["errors"] == []
+    client.post(f"/api/imports/{preview['id']}/commit", headers=auth_headers(csrf))
+
+    vm = db_session.scalar(
+        select(Vm)
+        .options(selectinload(Vm.disks), selectinload(Vm.networks))
+        .where(Vm.name == "short-01")
+    )
+    assert vm is not None
+    assert (vm.disks[0].disk_name, vm.disks[0].size_gb, vm.disks[0].storage_name) == ("scsi0", 80, None)
+    assert (vm.networks[0].ip_address, vm.networks[0].vlan) == ("10.0.0.9", None)

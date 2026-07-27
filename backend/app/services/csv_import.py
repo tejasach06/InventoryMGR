@@ -150,8 +150,8 @@ def _parse_int_list(row: dict[str, str], field: str, errors: list[dict[str, str]
 
 def _parse_disks(
     row: dict[str, str], field: str = "disks", errors: list[dict[str, str]] | None = None
-) -> list[tuple[str, int]]:
-    """Parse a `name:size;name:size` cell into (name, size_gb) pairs.
+) -> list[tuple[str, int, str | None, str | None]]:
+    """Parse `name:size[:storage_name[:storage_type]];…` into disk tuples.
 
     Returns [] for a blank cell, so a blank supplies nothing and the skip
     semantics hold. `errors` is optional because the classification and attach
@@ -160,23 +160,58 @@ def _parse_disks(
     raw = str(row.get(field) or "").strip()
     if not raw:
         return []
-    pairs: list[tuple[str, int]] = []
+    disks: list[tuple[str, int, str | None, str | None]] = []
     seen: set[str] = set()
     for part in raw.split(";"):
         cleaned = part.strip()
         if not cleaned:
             continue
-        name, separator, size = cleaned.partition(":")
-        name, size = name.strip(), size.strip()
-        if not separator or not name or not size.isdigit():
+        fields = [segment.strip() for segment in cleaned.split(":")]
+        if len(fields) < 2 or len(fields) > 4 or not fields[0] or not fields[1].isdigit():
             if errors is not None:
-                errors.append(_error(field, "must be name:size pairs separated by ;"))
+                errors.append(
+                    _error(field, "must be name:size[:storage_name[:storage_type]] separated by ;")
+                )
             return []
+        name, size = fields[0], int(fields[1])
+        storage_name = fields[2] or None if len(fields) > 2 else None
+        storage_type = fields[3] or None if len(fields) > 3 else None
         if name.lower() in seen:
             continue
         seen.add(name.lower())
-        pairs.append((name, int(size)))
-    return pairs
+        disks.append((name, size, storage_name, storage_type))
+    return disks
+
+
+# ponytail: IPv6 addresses contain colons and are therefore out of scope for this cell format; the VM form remains the path for them.
+def _parse_ips(
+    row: dict[str, str], field: str, errors: list[dict[str, str]] | None = None
+) -> list[tuple[str, int | None, str | None]]:
+    """Parse `address[:vlan[:gateway]];…` into (address, vlan, gateway) tuples."""
+    raw = str(row.get(field) or "").strip()
+    if not raw:
+        return []
+    entries: list[tuple[str, int | None, str | None]] = []
+    for part in raw.split(";"):
+        cleaned = part.strip()
+        if not cleaned:
+            continue
+        fields = [segment.strip() for segment in cleaned.split(":")]
+        if len(fields) > 3 or not fields[0]:
+            if errors is not None:
+                errors.append(_error(field, "must be address[:vlan[:gateway]] separated by ;"))
+            return []
+        vlan_raw = fields[1] if len(fields) > 1 else ""
+        if vlan_raw and not vlan_raw.isdigit():
+            if errors is not None:
+                errors.append(_error(field, "vlan must be a non-negative integer"))
+            return []
+        entries.append((
+            fields[0],
+            int(vlan_raw) if vlan_raw else None,
+            (fields[2] or None) if len(fields) > 2 else None,
+        ))
+    return entries
 def _parse_applications(
     row: dict[str, str], field: str = "applications", errors: list[dict[str, str]] | None = None
 ) -> list[tuple[str, str | None]]:
@@ -307,6 +342,8 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
     # VmUpdate.model_validate, which would reject a `disks` key.
     _parse_disks(clean, "disks", errors)
     _parse_applications(clean, "applications", errors)
+    for header in IP_ROLE_HEADERS:
+        _parse_ips(clean, header, errors)
 
     for field in DATE_HEADERS:
         stamp = _parse_date(clean, field, errors)
@@ -454,7 +491,7 @@ def diff_against_vm(
         existing_disks = {(d.disk_name or "").lower() for d in vm.disks}
         added_disks = [
             f"{name}:{size}"
-            for name, size in _parse_disks(clean)
+            for name, size, _storage_name, _storage_type in _parse_disks(clean)
             if name.lower() not in existing_disks
         ]
         if added_disks:
@@ -471,7 +508,7 @@ def diff_against_vm(
         seen_ips = {n.ip_address for n in vm.networks}
         for header in IP_ROLE_HEADERS:
             added_ips = []
-            for ip_address in _parse_list(clean, header) or []:
+            for ip_address, _vlan, _gateway in _parse_ips(clean, header):
                 if ip_address in seen_ips:
                     continue
                 seen_ips.add(ip_address)
@@ -522,21 +559,39 @@ def _attach_children(db: Session, vm: Vm, raw: dict[str, Any]) -> None:
 
     existing_disks = {(d.disk_name or "").lower() for d in vm.disks}
     disk_order = len(vm.disks)
-    for disk_name, size_gb in _parse_disks(clean):
+    for disk_name, size_gb, storage_name, storage_type in _parse_disks(clean):
         if disk_name.lower() in existing_disks:
             continue
         existing_disks.add(disk_name.lower())
-        db.add(VmDisk(vm_id=vm.id, disk_name=disk_name, size_gb=size_gb, sort_order=disk_order))
+        db.add(
+            VmDisk(
+                vm_id=vm.id,
+                disk_name=disk_name,
+                size_gb=size_gb,
+                storage_name=storage_name,
+                storage_type=storage_type,
+                sort_order=disk_order,
+            )
+        )
         disk_order += 1
 
     existing_ips = {n.ip_address for n in vm.networks}
     ip_order = len(vm.networks)
     for header, role in IP_ROLE_HEADERS.items():
-        for ip_address in _parse_list(clean, header) or []:
+        for ip_address, vlan, gateway in _parse_ips(clean, header):
             if ip_address in existing_ips:
                 continue
             existing_ips.add(ip_address)
-            db.add(VmNetwork(vm_id=vm.id, ip_address=ip_address, role=role, sort_order=ip_order))
+            db.add(
+                VmNetwork(
+                    vm_id=vm.id,
+                    ip_address=ip_address,
+                    role=role,
+                    vlan=vlan,
+                    gateway=gateway,
+                    sort_order=ip_order,
+                )
+            )
             ip_order += 1
     existing_apps = {(a.app_name or "").lower() for a in vm.applications}
     for app_name, app_owner in _parse_applications(clean):
