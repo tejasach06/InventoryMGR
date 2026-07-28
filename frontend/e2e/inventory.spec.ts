@@ -65,7 +65,7 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
   });
   await page.getByRole('button', { name: 'Preview CSV' }).click();
   await page.waitForTimeout(3000);
-  const summary = page.locator('.summary-card');
+  const summary = page.locator('[data-testid^="summary-"]');
   await expect(summary.first()).toBeVisible();
   await expect(summary.filter({ hasText: 'create' }).locator('strong')).toHaveText('1');
   await expect(summary.filter({ hasText: 'update' }).locator('strong')).toHaveText('1');
@@ -85,6 +85,21 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
 });
 test('pages through the inventory and changes rows per page', async ({ page }) => {
   await loginAsAdmin(page);
+
+  // Seed 30 VMs via CSV import so pagination spans across multiple pages.
+  await page.goto('/imports/new');
+  const rows = ['name,platform,cluster,status'];
+  for (let i = 1; i <= 30; i++) {
+    rows.push(`page-vm-${i.toString().padStart(2, '0')},proxmox,pve-cluster-page,running`);
+  }
+  await page.getByLabel('CSV file', { exact: true }).setInputFiles({
+    name: 'page-seed.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(rows.join('\n')),
+  });
+  await page.getByRole('button', { name: 'Preview CSV' }).click();
+  await page.getByRole('button', { name: 'Commit persisted batch' }).click();
+
   await page.goto('/inventory');
 
   await page.getByLabel('Rows per page').selectOption('25');

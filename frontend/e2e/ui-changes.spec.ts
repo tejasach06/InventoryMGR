@@ -149,9 +149,9 @@ test('Users management lives in the Settings page, not the sidebar', async ({ pa
   await page.getByRole('link', { name: 'Settings' }).click();
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 
-  const usersTab = page.getByRole('tab', { name: 'Users' });
-  await expect(usersTab).toBeVisible();
-  await usersTab.click();
+  const usersLink = page.getByRole('link', { name: /Users/ });
+  await expect(usersLink).toBeVisible();
+  await usersLink.click();
   await expect(page.getByRole('button', { name: 'New user' })).toBeVisible();
 });
 
