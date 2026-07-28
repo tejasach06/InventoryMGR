@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -917,3 +919,27 @@ def test_short_disk_and_ip_forms_still_parse(client, db_session: Session) -> Non
     assert vm is not None
     assert (vm.disks[0].disk_name, vm.disks[0].size_gb, vm.disks[0].storage_name) == ("scsi0", 80, None)
     assert (vm.networks[0].ip_address, vm.networks[0].vlan) == ("10.0.0.9", None)
+
+
+def test_repo_sample_csv_previews_and_commits(client, db_session: Session) -> None:
+    """The shipped sample-import.csv must survive upload; a sniffer heuristic once rejected it."""
+    create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, "editor@example.local")
+    content = (Path(__file__).resolve().parents[2] / "sample-import.csv").read_text()
+
+    preview = upload_csv(client, csrf, content)
+    assert preview.status_code == 201, preview.text
+    body = preview.json()
+    assert body["summary"] == {
+        "create": 104,
+        "update": 0,
+        "unchanged": 0,
+        "conflict": 0,
+        "invalid": 0,
+    }
+
+    commit = client.post(
+        f"/api/imports/{body['id']}/commit", headers=auth_headers(csrf)
+    )
+    assert commit.status_code == 200, commit.text
+    assert commit.json() == {"created": 104, "updated": 0}
