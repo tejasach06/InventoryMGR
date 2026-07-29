@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Alert, Badge, PageHeader, PageTransition, Skeleton, Spinner, cardClass, dangerButtonClass, inputClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 
-const CATEGORY_ORDER: DropdownCategory[] = ['cpu', 'datacenter', 'disk', 'os', 'cluster'];
+const CATEGORY_ORDER = ['cluster'] as const;
 const CATEGORY_LABELS: Record<DropdownCategory, string> = {
   cpu: 'CPU cores',
   datacenter: 'Datacenter',
@@ -15,7 +15,6 @@ const CATEGORY_LABELS: Record<DropdownCategory, string> = {
   os: 'Operating system',
   cluster: 'Cluster',
 };
-
 function OptionRow({ option }: { option: DropdownOption }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -184,16 +183,11 @@ function NotificationsPanel() {
 }
 
 export function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<DropdownCategory | 'notifications'>('cpu');
+  const [activeTab, setActiveTab] = useState<'cluster' | 'notifications'>('cluster');
   const optionsQuery = useQuery({ queryKey: ['settings', 'options', 'all'], queryFn: api.getAllDropdownOptions });
 
   const grouped = useMemo(() => {
-    const map: Record<DropdownCategory, DropdownOption[]> = { cpu: [], datacenter: [], disk: [], os: [], cluster: [] };
-    for (const option of optionsQuery.data ?? []) {
-      map[option.category].push(option);
-    }
-    map.cpu.sort((a, b) => Number(a.value) - Number(b.value));
-    return map;
+    return { cluster: (optionsQuery.data ?? []).filter((option) => option.category === 'cluster') };
   }, [optionsQuery.data]);
 
   return (
@@ -204,61 +198,76 @@ export function SettingsPage() {
         {optionsQuery.isError ? <Alert>{detailMessage(optionsQuery.error)}</Alert> : null}
         {optionsQuery.isLoading ? (
           <div className={cardClass} role="status" aria-label="Loading">
-            <div className="flex gap-2 border-b pb-4"><Skeleton className="h-8 w-20" /><Skeleton className="h-8 w-24" /><Skeleton className="h-8 w-24" /><Skeleton className="h-8 w-28" /></div>
-            <div className="mt-4 space-y-3">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-10" />)}</div>
+            <div className="flex flex-col gap-6 sm:flex-row">
+              <div className="flex shrink-0 flex-col gap-2 sm:w-48">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+              <div className="flex-1 space-y-3">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-10" />)}</div>
+            </div>
           </div>
         ) : null}
         {optionsQuery.data ? (
           <div className={cardClass}>
-            <div className="mb-6 flex gap-1 overflow-x-auto border-b border-slate-100 dark:border-slate-800" role="tablist" aria-label="Settings categories">
-              {CATEGORY_ORDER.map((category) => (
+            <div className="flex flex-col gap-6 sm:flex-row">
+              <div
+                className="flex shrink-0 flex-col gap-1 sm:w-48 sm:border-r sm:border-slate-100 sm:pr-4 sm:dark:border-slate-800"
+                role="tablist"
+                aria-orientation="vertical"
+                aria-label="Settings categories"
+              >
+                {CATEGORY_ORDER.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    role="tab"
+                    id={`tab-${category}`}
+                    aria-selected={activeTab === category}
+                    aria-controls={`panel-${category}`}
+                    onClick={() => setActiveTab(category)}
+                    className={cn(
+                      'rounded-md border-l-2 px-3 py-2 text-left text-sm font-medium transition-colors',
+                      activeTab === category
+                        ? 'border-[var(--color-accent)] bg-slate-50 text-[var(--color-accent)] dark:bg-slate-800/60'
+                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
+                    )}
+                  >
+                    {CATEGORY_LABELS[category]}
+                  </button>
+                ))}
+                <Link
+                  href="/users"
+                  className="flex items-center gap-1 rounded-md border-l-2 border-transparent px-3 py-2 text-left text-sm font-medium text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  Users ↗
+                </Link>
                 <button
-                  key={category}
+                  key="notifications"
                   type="button"
                   role="tab"
-                  id={`tab-${category}`}
-                  aria-selected={activeTab === category}
-                  aria-controls={`panel-${category}`}
-                  onClick={() => setActiveTab(category)}
+                  id="tab-notifications"
+                  aria-selected={activeTab === 'notifications'}
+                  aria-controls="panel-notifications"
+                  onClick={() => setActiveTab('notifications')}
                   className={cn(
-                    '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
-                    activeTab === category
-                      ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                    'rounded-md border-l-2 px-3 py-2 text-left text-sm font-medium transition-colors',
+                    activeTab === 'notifications'
+                      ? 'border-[var(--color-accent)] bg-slate-50 text-[var(--color-accent)] dark:bg-slate-800/60'
                       : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
                   )}
                 >
-                  {CATEGORY_LABELS[category]}
+                  Notifications
                 </button>
-              ))}
-              <Link
-                href="/users"
-                className="-mb-px flex items-center gap-1 border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-              >
-                Users ↗
-              </Link>
-              <button
-                key="notifications"
-                type="button"
-                role="tab"
-                id="tab-notifications"
-                aria-selected={activeTab === 'notifications'}
-                aria-controls="panel-notifications"
-                onClick={() => setActiveTab('notifications')}
-                className={cn(
-                  '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
-                  activeTab === 'notifications'
-                    ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
+              </div>
+              <div className="min-w-0 flex-1">
+                {activeTab === 'notifications' ? (
+                  <NotificationsPanel />
+                ) : (
+                  <CategoryPanel category={activeTab} options={grouped[activeTab]} />
                 )}
-              >
-                Notifications
-              </button>
+              </div>
             </div>
-            {activeTab === 'notifications' ? (
-              <NotificationsPanel />
-            ) : (
-              <CategoryPanel category={activeTab} options={grouped[activeTab]} />
-            )}
           </div>
         ) : null}
       </section>

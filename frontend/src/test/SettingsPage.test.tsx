@@ -6,7 +6,7 @@ import type { DropdownOption } from '../api/client';
 import { SettingsPage } from '../routes/SettingsPage';
 import { makeUser, renderWithProviders } from './utils';
 
-const cpuOptions: DropdownOption[] = [{ id: 'o1', category: 'cpu', value: '8', family: null }];
+const clusterOptions: DropdownOption[] = [{ id: 'o1', category: 'cluster', value: 'cluster-a', family: null }];
 
 afterEach(() => {
   cleanup();
@@ -17,7 +17,7 @@ describe('SettingsPage', () => {
   it('shows the loading skeleton on first render before the options query resolves', () => {
     // The query is pending on the initial synchronous render; resolution happens on
     // a later microtask, so asserting before any await observes the loading state.
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(clusterOptions);
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
 
@@ -34,137 +34,104 @@ describe('SettingsPage', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
-  it('renders every category tab plus a link to the Users page and lists the cpu option', async () => {
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+  it('renders a vertical nav with the Cluster tab, a link to Users, and lists the cluster option', async () => {
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(clusterOptions);
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
 
-    expect(await screen.findByRole('tab', { name: 'CPU cores' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Datacenter' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Disk size (GB)' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Operating system' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Cluster' })).toBeInTheDocument();
+    expect(screen.getByRole('tablist')).toHaveAttribute('aria-orientation', 'vertical');
+    expect(screen.queryByRole('tab', { name: 'CPU cores' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Datacenter' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Disk size (GB)' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Operating system' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /users/i })).toHaveAttribute('href', '/users');
-    expect(screen.getByText('8')).toBeInTheDocument();
+    expect(screen.getByText('cluster-a')).toBeInTheDocument();
   });
 
-  it('switches the active panel when a different tab is clicked', async () => {
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+  it('switches the active panel when Notifications is clicked, and back', async () => {
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(clusterOptions);
     const user = userEvent.setup();
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
 
-    const cpuTab = await screen.findByRole('tab', { name: 'CPU cores' });
-    expect(cpuTab).toHaveAttribute('aria-selected', 'true');
+    const clusterTab = await screen.findByRole('tab', { name: 'Cluster' });
+    expect(clusterTab).toHaveAttribute('aria-selected', 'true');
 
-    const datacenterTab = screen.getByRole('tab', { name: 'Datacenter' });
-    await user.click(datacenterTab);
+    const notificationsTab = screen.getByRole('tab', { name: /notifications/i });
+    await user.click(notificationsTab);
 
-    expect(datacenterTab).toHaveAttribute('aria-selected', 'true');
-    expect(cpuTab).toHaveAttribute('aria-selected', 'false');
-    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panel-datacenter');
-    expect(screen.getByText('No options yet. Add the first one above.')).toBeInTheDocument();
-    expect(screen.queryByText('8')).not.toBeInTheDocument();
+    expect(notificationsTab).toHaveAttribute('aria-selected', 'true');
+    expect(clusterTab).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panel-notifications');
+
+    await user.click(clusterTab);
+    expect(clusterTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panel-cluster');
   });
 
-  it('creates a new option from the category add form', async () => {
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+  it('creates a new cluster option from the add form', async () => {
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(clusterOptions);
     const createSpy = vi
       .spyOn(api, 'createDropdownOption')
-      .mockResolvedValue({ id: 'o2', category: 'cpu', value: '16', family: null });
+      .mockResolvedValue({ id: 'o2', category: 'cluster', value: 'cluster-b', family: null });
     const user = userEvent.setup();
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
 
-    await screen.findByRole('tab', { name: 'CPU cores' });
-    await user.type(screen.getByLabelText('Add CPU cores option'), '16');
+    await screen.findByRole('tab', { name: 'Cluster' });
+    await user.type(screen.getByLabelText('Add Cluster option'), 'cluster-b');
     await user.click(screen.getByRole('button', { name: 'Add' }));
 
-    await waitFor(() => expect(createSpy).toHaveBeenCalledWith('cpu', '16'));
+    await waitFor(() => expect(createSpy).toHaveBeenCalledWith('cluster', 'cluster-b'));
   });
 
-  it('edits an existing option and saves the new value', async () => {
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+  it('edits an existing cluster option and saves the new value', async () => {
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(clusterOptions);
     const updateSpy = vi
       .spyOn(api, 'updateDropdownOption')
-      .mockResolvedValue({ id: 'o1', category: 'cpu', value: '12', family: null });
+      .mockResolvedValue({ id: 'o1', category: 'cluster', value: 'cluster-c', family: null });
     const user = userEvent.setup();
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
 
-    await screen.findByRole('tab', { name: 'CPU cores' });
+    await screen.findByRole('tab', { name: 'Cluster' });
     await user.click(screen.getByRole('button', { name: 'Edit' }));
 
-    const editInput = screen.getByLabelText('Edit 8');
+    const editInput = screen.getByLabelText('Edit cluster-a');
     await user.clear(editInput);
-    await user.type(editInput, '12');
+    await user.type(editInput, 'cluster-c');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith('o1', '12'));
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith('o1', 'cluster-c'));
   });
 
-  it('deletes an option after the confirm dialog is accepted', async () => {
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+  it('deletes a cluster option after the confirm dialog is accepted', async () => {
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(clusterOptions);
     const deleteSpy = vi.spyOn(api, 'deleteDropdownOption').mockResolvedValue(null);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = userEvent.setup();
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
 
-    await screen.findByRole('tab', { name: 'CPU cores' });
+    await screen.findByRole('tab', { name: 'Cluster' });
     await user.click(screen.getByRole('button', { name: 'Remove' }));
 
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('o1'));
   });
 
   it('links to the standalone Users page instead of duplicating it as a tab', async () => {
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(clusterOptions);
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
 
     const usersLink = await screen.findByRole('link', { name: /users/i });
     expect(usersLink).toHaveAttribute('href', '/users');
-  });
-
-  it('creates an OS option with the selected family from the add form', async () => {
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue([
-      { id: 'o3', category: 'os', value: 'Ubuntu 22.04', family: 'linux' },
-    ]);
-    const createSpy = vi
-      .spyOn(api, 'createDropdownOption')
-      .mockResolvedValue({ id: 'o4', category: 'os', value: 'Debian 12', family: 'linux' });
-    const user = userEvent.setup();
-
-    renderWithProviders(<SettingsPage />, { user: makeUser() });
-
-    await user.click(await screen.findByRole('tab', { name: 'Operating system' }));
-    await user.selectOptions(screen.getByLabelText('OS family'), 'Linux');
-    await user.type(screen.getByLabelText('Add Operating system option'), 'Debian 12');
-    await user.click(screen.getByRole('button', { name: 'Add' }));
-
-    await waitFor(() => expect(createSpy).toHaveBeenCalledWith('os', 'Debian 12', 'linux'));
-  });
-
-  it('edits an OS option and saves the selected family', async () => {
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue([
-      { id: 'o3', category: 'os', value: 'Ubuntu 22.04', family: 'linux' },
-    ]);
-    const updateSpy = vi
-      .spyOn(api, 'updateDropdownOption')
-      .mockResolvedValue({ id: 'o3', category: 'os', value: 'Ubuntu 22.04', family: 'windows' });
-    const user = userEvent.setup();
-
-    renderWithProviders(<SettingsPage />, { user: makeUser() });
-
-    await user.click(await screen.findByRole('tab', { name: 'Operating system' }));
-    await user.click(screen.getByRole('button', { name: 'Edit' }));
-    await user.selectOptions(screen.getByLabelText('Family for Ubuntu 22.04'), 'Windows');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith('o3', 'Ubuntu 22.04', 'windows'));
+    expect(screen.queryByRole('tab', { name: /^users$/i })).not.toBeInTheDocument();
   });
 
   it('saves the decommission notify window', async () => {
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(clusterOptions);
     vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
     const updateSpy = vi.spyOn(api, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 60, storage_usage_warn_pct: 85 });
 
@@ -179,7 +146,7 @@ describe('SettingsPage', () => {
   });
 
   it('saves the storage usage warning threshold', async () => {
-    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(cpuOptions);
+    vi.spyOn(api, 'getAllDropdownOptions').mockResolvedValue(clusterOptions);
     vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
     const updateSpy = vi.spyOn(api, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 90 });
 
