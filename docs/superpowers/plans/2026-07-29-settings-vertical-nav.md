@@ -28,7 +28,7 @@
 - Consumes: existing `CategoryPanel({ category, options })`, `NotificationsPanel()`, `api.getAllDropdownOptions`, `api.createDropdownOption(category, value, family?)`, `api.updateDropdownOption(id, value, family?)`, `api.deleteDropdownOption(id)`, `cn()` from `../lib/classNames`, `cardClass`/`Skeleton`/`Alert`/`PageHeader`/`PageTransition` from `../components/ui` — all unchanged signatures.
 - Produces: `SettingsPage` still exported the same way (`export function SettingsPage()`), consumed by `frontend/src/app/settings/page.tsx` (not modified).
 
-- [ ] **Step 1: Replace the test file with the new expected behavior**
+- [x] **Step 1: Replace the test file with the new expected behavior**
 
 Overwrite `frontend/src/test/SettingsPage.test.tsx` with:
 
@@ -199,12 +199,12 @@ describe('SettingsPage', () => {
 
 This drops the four removed-category tests (add/edit/remove for cpu, the OS-family add/edit tests, the "renders every category tab" test) and rewrites the remaining ones around the `cluster` category and the vertical nav.
 
-- [ ] **Step 2: Run the test file and confirm it fails**
+- [x] **Step 2: Run the test file and confirm it fails**
 
 Run: `cd frontend && bun run test -- SettingsPage.test.tsx`
 Expected: Multiple FAIL — `getByRole('tab', { name: 'Cluster' })` not found (component still renders `cpu`/`datacenter`/`disk`/`os` tabs and defaults to `cpu`), `aria-orientation` assertion fails, `Add Cluster option` label not found, etc.
 
-- [ ] **Step 3: Update the category constants**
+- [x] **Step 3: Update the category constants**
 
 In `frontend/src/routes/SettingsPage.tsx`, replace lines 10-17:
 
@@ -215,7 +215,7 @@ const CATEGORY_LABELS: Record<(typeof CATEGORY_ORDER)[number], string> = {
 };
 ```
 
-- [ ] **Step 4: Update `SettingsPage()` default tab and `grouped` memo**
+- [x] **Step 4: Update `SettingsPage()` default tab and `grouped` memo**
 
 Replace lines 186-197:
 
@@ -229,7 +229,7 @@ export function SettingsPage() {
   }, [optionsQuery.data]);
 ```
 
-- [ ] **Step 5: Replace the loading skeleton and horizontal tab-strip markup with a vertical nav**
+- [x] **Step 5: Replace the loading skeleton and horizontal tab-strip markup with a vertical nav**
 
 Replace lines 205-263 (the loading skeleton block and the `optionsQuery.data ? (...)` block) with:
 
@@ -302,7 +302,6 @@ Replace lines 205-263 (the loading skeleton block and the `optionsQuery.data ? (
                 {activeTab === 'notifications' ? (
                   <NotificationsPanel />
                 ) : (
-                  <CategoryPanel category={activeTab} options={grouped[activeTab]} />
                 )}
               </div>
             </div>
@@ -310,17 +309,17 @@ Replace lines 205-263 (the loading skeleton block and the `optionsQuery.data ? (
         ) : null}
 ```
 
-- [ ] **Step 6: Run the test file and confirm it passes**
+- [x] **Step 6: Run the test file and confirm it passes**
 
 Run: `cd frontend && bun run test -- SettingsPage.test.tsx`
 Expected: PASS — all tests in `SettingsPage.test.tsx` green.
 
-- [ ] **Step 7: Lint and typecheck**
+- [x] **Step 7: Lint and typecheck**
 
 Run: `cd frontend && bun run lint && bun run typecheck`
-Expected: no errors. (`Badge`, `dangerButtonClass`, `secondaryButtonClass`, `FormEvent` imports on line 7/3 are used elsewhere in the file by `OptionRow`/`CategoryPanel` — untouched, so no unused-import issues are expected from this change.)
+Expected: no errors.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add frontend/src/routes/SettingsPage.tsx frontend/src/test/SettingsPage.test.tsx
