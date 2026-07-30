@@ -130,6 +130,11 @@
   --color-lifecycle-retired-bg: #f1f5f9;
 }
 
+/* Height of the sticky mobile app header (Layout.tsx aside); 0 once the sidebar
+   goes lg:fixed. Sticky in-page chrome offsets against this. */
+:root { --app-header-h: 4.5rem; }
+@media (min-width: 1024px) { :root { --app-header-h: 0px; } }
+
 html.dark {
   --color-surface: #0d1c2d;
   --color-surface-secondary: #051424;

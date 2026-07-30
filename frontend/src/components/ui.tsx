@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/classNames';
 
 export const primaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-on-accent)] transition-all duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60';
@@ -320,7 +320,7 @@ export function slugifyTitle(title: string): string {
 /* SectionCard — shared wrapper for detail/form section cards */
 export function SectionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section id={slugifyTitle(title)} className={cn(cardClass, 'scroll-mt-20')}>
+    <section id={slugifyTitle(title)} className={cn(cardClass, 'scroll-mt-[calc(var(--app-header-h)+4rem)]')}>
       <h2 className={sectionTitleClass}>{title}</h2>
       <div className="mt-3 border-t border-[var(--color-border)] pt-3">{children}</div>
     </section>
@@ -329,17 +329,117 @@ export function SectionCard({ title, children }: { title: string; children: Reac
 
 /* SectionNav — sticky jump-nav for pages with many stacked SectionCards */
 export function SectionNav({ titles }: { titles: string[] }) {
+  const [active, setActive] = useState<string>(() => slugifyTitle(titles[0] ?? ''));
+  const [canScrollStart, setCanScrollStart] = useState(false);
+  const [canScrollEnd, setCanScrollEnd] = useState(false);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  const key = titles.join('|');
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    const slugs = key.split('|').map(slugifyTitle).filter(Boolean);
+    const elements = slugs
+      .map((slug) => document.getElementById(slug))
+      .filter((el): el is HTMLElement => el !== null);
+
+    if (elements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const intersecting = entries.filter((e) => e.isIntersecting);
+        if (intersecting.length === 0) return;
+        intersecting.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        setActive(intersecting[0].target.id);
+      },
+      { threshold: 0, rootMargin: '-96px 0px -55% 0px' }
+    );
+
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [key]);
+
+  const updateScrollState = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const { scrollLeft, clientWidth, scrollWidth } = el;
+    setCanScrollStart(scrollLeft > 1);
+    setCanScrollEnd(scrollLeft + clientWidth < scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+    const el = scrollerRef.current;
+    if (!el) return;
+
+    el.addEventListener('scroll', updateScrollState, { passive: true });
+    window.addEventListener('resize', updateScrollState);
+    return () => {
+      el.removeEventListener('scroll', updateScrollState);
+      window.removeEventListener('resize', updateScrollState);
+    };
+  }, [updateScrollState]);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller || !active) return;
+    const activeEl = scroller.querySelector<HTMLElement>(`a[href="#${active}"]`);
+    if (!activeEl) return;
+
+    const elLeft = activeEl.offsetLeft;
+    const elWidth = activeEl.offsetWidth;
+    const scrollerWidth = scroller.clientWidth;
+    const currentScroll = scroller.scrollLeft;
+
+    if (elLeft < currentScroll) {
+      scroller.scrollLeft = elLeft - 8;
+    } else if (elLeft + elWidth > currentScroll + scrollerWidth) {
+      scroller.scrollLeft = elLeft + elWidth - scrollerWidth + 8;
+    }
+  }, [active]);
+
+  let maskClass = '';
+  if (canScrollStart && canScrollEnd) {
+    maskClass = '[mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]';
+  } else if (canScrollStart) {
+    maskClass = '[mask-image:linear-gradient(to_right,transparent,black_20px)]';
+  } else if (canScrollEnd) {
+    maskClass = '[mask-image:linear-gradient(to_right,black_calc(100%-20px),transparent)]';
+  }
+
   return (
-    <nav aria-label="Jump to section" className="sticky top-0 z-10 -mx-1 mb-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 px-1 py-2 backdrop-blur">
-      <ul className="flex gap-1 whitespace-nowrap text-sm">
-        {titles.map((title) => (
-          <li key={title}>
-            <a href={`#${slugifyTitle(title)}`} className="inline-block rounded-md px-2.5 py-1 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]">
-              {title}
-            </a>
-          </li>
-        ))}
-      </ul>
+    <nav
+      aria-label="Jump to section"
+      className="sticky top-[var(--app-header-h)] z-10 mb-4 rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)]/90 p-1.5 shadow-[var(--shadow-raised)] backdrop-blur"
+    >
+      <div
+        ref={scrollerRef}
+        className={cn('overflow-x-auto px-1', maskClass)}
+      >
+        <ul className="flex gap-1 whitespace-nowrap text-sm">
+          {titles.map((title) => {
+            const slug = slugifyTitle(title);
+            const isActive = active === slug;
+            return (
+              <li key={title}>
+                <a
+                  href={`#${slug}`}
+                  aria-current={isActive ? 'location' : undefined}
+                  className={cn(
+                    'inline-block rounded-lg px-2.5 py-1 text-sm font-medium transition-colors duration-150',
+                    isActive
+                      ? 'bg-[var(--color-accent)]/10 font-semibold text-[var(--color-accent-text)]'
+                      : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]'
+                  )}
+                >
+                  {title}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </nav>
   );
 }

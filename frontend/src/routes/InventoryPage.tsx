@@ -648,6 +648,13 @@ export function InventoryPage() {
     const lastPage = Math.max(1, Math.ceil(total / view.size));
     if (view.page > lastPage) pushView({ ...view, page: lastPage });
   }, [vms.data, total, view.size, view.page]);
+  useEffect(() => {
+    if (!bulkSuccess) return;
+    const timer = setTimeout(() => {
+      setBulkSuccess(undefined);
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [bulkSuccess]);
 
   return (
     <PageTransition>
