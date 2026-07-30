@@ -247,13 +247,12 @@ class VmList(BaseModel):
     offset: int
 
 
-class DashboardVmSummary(BaseModel):
+class DashboardAlertVm(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     name: str
     environment: Environment
-    status: VmStatus
-    created_at: datetime
+    days: int
 
 
 class DashboardStats(BaseModel):
@@ -266,7 +265,9 @@ class DashboardStats(BaseModel):
     powered_off: int
     without_monitoring: int
     without_applications: int
-    recently_added: list[DashboardVmSummary]
+    shutdown_stale: list[DashboardAlertVm]
+    decommission_overdue: list[DashboardAlertVm]
+    missing_ip: list[DashboardAlertVm]
 
 class VmBulkFilters(BaseModel):
     """Body mirror of api/routes/vms.py::VmFilterParams.
@@ -294,6 +295,9 @@ class VmBulkFilters(BaseModel):
     application: list[str] | None = None
     ip_role: list[NetworkRole] | None = None
     health: str | None = None
+    shutdown_stale: bool | None = None
+    decommission_overdue: bool | None = None
+    missing_ip: bool | None = None
 
 
 class VmBulkUpdate(BaseModel):

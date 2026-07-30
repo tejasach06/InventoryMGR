@@ -107,3 +107,19 @@ Always run commands inside `devbox shell`. Use `just` recipes for primary tasks:
   - Specs located in `frontend/e2e/*.spec.ts`.
   - Configuration in `frontend/playwright.config.ts`.
   - In host mode, `webServer` automatically resets test DB schemas, executes Alembic migrations, and launches FastAPI (`:8000`) & Next.js (`:3000`) dev servers.
+
+## Agent Tooling & Workflow
+
+- **Codebase discovery — `graphify` first**: use `graphify query "<question>"`, `graphify path "<A>" "<B>"`, and `graphify explain "<concept>"` before text-based grep/glob when finding files, mapping architecture, or tracing connections between modules. Run `graphify update .` at the end of every task/phase after code modifications.
+- **Large output processing — `context-mode`**: route large/unbounded command output (pytest suites, npm/bun test logs, git logs/diffs, build output, container logs, large data files) through `ctx_execute`, `ctx_execute_file`, `ctx_search`, `ctx_index`, or `ctx_batch_execute` instead of reading raw. For indexing, use `ctx_index(path:)`, never `ctx_index(content:)`.
+- **Cross-session memory — `mempalace`**: `mempalace search "<query>"` before answering questions about past decisions; `mempalace mine .` to add new project/session context to the `inventorymgr` wing.
+- **Skills, by trigger**:
+  - `impeccable` — UI/UX work touching `src/routes/`, `src/components/ui.tsx`, or DESIGN.md rules.
+  - `brainstorming` — before adding/modifying inventory fields, import/export cell schemas, or RBAC rules; clarify intent before touching `services/` or `schemas/`.
+  - `systematic-debugging` — bugs in health score, CSRF, audit logging, or CSV round-trip; these are cross-cutting (mutation → audit → health recompute) and a shallow fix breaks the invariant elsewhere.
+  - `test-driven-development` — any feature or bugfix: write the failing pytest/vitest case against the contract (RBAC boundary, health score formula, CSV round-trip) before implementation code.
+  - `verification-before-completion` — before claiming a fix/feature works: run `just api-test` / `just web-test` (or the scoped subset) and confirm actual output.
+  - `writing-plans` + `executing-plans` — changes spanning both `backend/app/services/` and `frontend/src/routes/` (e.g. a new VM field needs schema, service, route, and form updates).
+- **MCP servers**:
+  - `context7` (`query-docs`, `resolve-library-id`) — FastAPI, SQLAlchemy 2.0, Pydantic v2, Next.js 15 App Router, TanStack Query, or Alembic API/config questions; these libraries move fast enough that training data may be stale.
+  - `postgres` (`query`) — read-only inspection of the local Postgres test DB (`127.0.0.1:54329`, `inventorymgr_test`) to verify schema state, audit log rows, or health score values during debugging. Never a substitute for the Alembic migration path.

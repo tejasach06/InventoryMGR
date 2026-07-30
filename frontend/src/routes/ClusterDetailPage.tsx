@@ -110,10 +110,11 @@ function NodeAddForm({ onSubmit, pending }: {
 
 function RamBar({ used, total }: { used: number | null; total: number }) {
   const pct = total > 0 && used !== null ? Math.min(100, Math.round((used / total) * 100)) : null;
+  const colorVar = pct !== null && pct > 85 ? 'var(--color-criticality-critical)' : pct !== null && pct > 70 ? 'var(--color-criticality-medium)' : 'var(--color-accent)';
   return (
     <div className="flex items-center gap-3">
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-tertiary)]">
-        <div className="h-full rounded-full bg-[var(--color-accent)] transition-all" style={{ width: `${pct ?? 0}%` }} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct ?? 0}%`, backgroundColor: colorVar }} />
       </div>
       <span className={cn(monoClass, 'w-24 text-right')}>
         {used === null ? '—' : `${used} / ${total} GB`}
@@ -231,7 +232,7 @@ export function ClusterDetailPage() {
           </>
         } />
 
-        <ConfirmDialog open={confirmDelete} title="Delete cluster"
+        <ConfirmDialog open={confirmDelete} title="Delete cluster" confirmLabel="Delete" tone="danger"
           body={`Delete cluster ${cluster.name} and all its nodes? This cannot be undone.`}
           pending={deleteMut.isPending}
           onConfirm={() => deleteMut.mutate()}

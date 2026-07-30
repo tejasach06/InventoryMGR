@@ -2,13 +2,14 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { api } from '../api/client';
+import { useEffect, useRef, useState } from 'react';
+import { api, type DueVm } from '../api/client';
 import { cn } from '../lib/classNames';
 
 export function NotificationBell() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const { data = [] } = useQuery({
     queryKey: ['decommissions'],
     queryFn: api.decommissionNotifications,
@@ -21,6 +22,19 @@ export function NotificationBell() {
     mutationFn: () => api.ackDecommissions(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['decommissions'] }),
   });
+  const dismiss = useMutation({
+    mutationFn: (vmId: string) => api.ackDecommissions([vmId]),
+    onMutate: async (vmId: string) => {
+      await queryClient.cancelQueries({ queryKey: ['decommissions'] });
+      const previous = queryClient.getQueryData<DueVm[]>(['decommissions']);
+      queryClient.setQueryData<DueVm[]>(['decommissions'], (old = []) => old.filter((d) => d.vm_id !== vmId));
+      return { previous };
+    },
+    onError: (_err, _vmId, context) => {
+      if (context?.previous) queryClient.setQueryData(['decommissions'], context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['decommissions'] }),
+  });
 
   // ack-all-on-open: mark everything currently listed as read when the panel opens
   useEffect(() => {
@@ -28,8 +42,25 @@ export function NotificationBell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Close on outside click or Escape key
+  useEffect(() => {
+    if (!open) return;
+    const handlePointer = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [open]);
+
   return (
-    <div className="fixed right-4 top-4 z-30">
+    <div ref={wrapperRef} className="fixed right-4 top-4 z-30">
       <button
         type="button"
         aria-label="Notifications"
@@ -54,12 +85,12 @@ export function NotificationBell() {
           ) : (
             <ul className="max-h-80 overflow-y-auto">
               {data.map((d) => (
-                <li key={d.vm_id}>
+                <li key={d.vm_id} className="flex items-center gap-1">
                   <Link
                     href={`/inventory/${d.vm_id}`}
                     onClick={() => setOpen(false)}
                     className={cn(
-                      'flex items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800',
+                      'flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800',
                       d.days_remaining < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-200',
                     )}
                   >
@@ -68,6 +99,16 @@ export function NotificationBell() {
                       {d.days_remaining < 0 ? `${-d.days_remaining}d overdue` : `in ${d.days_remaining}d`}
                     </span>
                   </Link>
+                  <button
+                    type="button"
+                    aria-label={`Dismiss alert for ${d.name}`}
+                    onClick={() => dismiss.mutate(d.vm_id)}
+                    className="flex-shrink-0 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                  >
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                  </button>
                 </li>
               ))}
             </ul>

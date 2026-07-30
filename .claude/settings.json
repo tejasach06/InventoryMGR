@@ -14,6 +14,24 @@
             "command": "grep -qP '\"file_path\"\\s*:\\s*\"[^\"]*/\\.env(?!\\.example)(\\.[a-z]+)?\"' && { echo 'Blocked: edit to real .env file (secrets). Edit .env.example instead.' >&2; exit 2; } || true"
           }
         ]
+      },
+      {
+        "matcher": "Bash|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/tejas/.local/bin/graphify hook-guard search"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/tejas/.local/bin/graphify hook-guard read"
+          }
+        ]
       }
     ],
     "PostToolUse": [

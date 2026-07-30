@@ -1,10 +1,11 @@
-import uuid
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+import uuid
 from typing import Any
 
 from fastapi import HTTPException, status
 from psycopg.errors import UniqueViolation
-from sqlalchemy import Select, String, case, cast, exists, func, or_, select
+from sqlalchemy import Select, String, and_, case, cast, exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -264,6 +265,45 @@ def _op_condition(column, value: str, operator: FilterOperator, *, case_insensit
     return target == needle
 
 
+SHUTDOWN_STALE_DAYS = 90
+
+
+def shutdown_since_expr():
+    """Latest moment a VM entered powered_off, falling back to creation."""
+    last_off_time = (
+        select(func.max(AuditLog.changed_at))
+        .where(
+            AuditLog.vm_id == Vm.id,
+            AuditLog.field_name == "status",
+            AuditLog.new_value == "powered_off",
+        )
+        .scalar_subquery()
+    )
+    return func.coalesce(last_off_time, Vm.created_at)
+
+
+def shutdown_stale_condition():
+    """VM is powered_off and has been for at least SHUTDOWN_STALE_DAYS."""
+    since = shutdown_since_expr()
+    cutoff = datetime.now(UTC) - timedelta(days=SHUTDOWN_STALE_DAYS)
+    return Vm.status == VmStatus.powered_off, since <= cutoff
+
+
+def decommission_overdue_condition():
+    """decommission_date has arrived or passed, but the VM is not decommissioned."""
+    today = datetime.now(UTC).date()
+    return and_(
+        Vm.decommission_date.is_not(None),
+        Vm.decommission_date <= today,
+        Vm.status != VmStatus.decommissioned,
+    )
+
+
+def missing_ip_condition():
+    """VM has zero vm_networks rows. NOT EXISTS, mirroring the ip_role filter."""
+    return ~exists(select(VmNetwork.vm_id).where(VmNetwork.vm_id == Vm.id))
+
+
 def apply_vm_filters(
     stmt: Select[tuple[Vm]],
     *,
@@ -294,6 +334,9 @@ def apply_vm_filters(
     application_op: FilterOperator = FilterOperator.contains,
     ip_role: list[NetworkRole] | None = None,
     health: str | None = None,
+    shutdown_stale: bool | None = None,
+    decommission_overdue: bool | None = None,
+    missing_ip: bool | None = None,
 ) -> Select[tuple[Vm]]:
     if ip_role:
         # EXISTS, not a join: a VM with several IPs in the role must appear once.
@@ -401,6 +444,16 @@ def apply_vm_filters(
         stmt = stmt.where(Vm.health_score < 75)
     elif health == "complete":
         stmt = stmt.where(Vm.health_score >= 100)
+    if shutdown_stale is not None:
+        status_cond, age_cond = shutdown_stale_condition()
+        match = and_(status_cond, age_cond)
+        stmt = stmt.where(match if shutdown_stale else ~match)
+    if decommission_overdue is not None:
+        match = decommission_overdue_condition()
+        stmt = stmt.where(match if decommission_overdue else ~match)
+    if missing_ip is not None:
+        match = missing_ip_condition()
+        stmt = stmt.where(match if missing_ip else ~match)
     return stmt
 
 

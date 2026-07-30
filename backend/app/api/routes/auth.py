@@ -63,16 +63,20 @@ def _set_auth_cookies(response: Response, *, token: str, csrf: str) -> None:
     )
 
 
-def _set_refresh_cookie(response: Response, *, refresh_token: str) -> None:
+def _set_refresh_cookie(response: Response, *, refresh_token: str, persist: bool = False) -> None:
     settings = get_settings()
+    kwargs = {
+        "httponly": True,
+        "secure": settings.secure_cookies,
+        "samesite": "strict",
+        "path": "/api/auth/refresh",
+    }
+    if persist:
+        kwargs["max_age"] = REFRESH_TTL_SECONDS
     response.set_cookie(
         REFRESH_COOKIE_NAME,
         refresh_token,
-        httponly=True,
-        secure=settings.secure_cookies,
-        samesite="strict",
-        max_age=REFRESH_TTL_SECONDS,
-        path="/api/auth/refresh",
+        **kwargs,
     )
 
 
@@ -126,7 +130,7 @@ def setup_admin(
     csrf = derive_csrf_token(token)
     refresh_token = create_refresh_token(str(user.id))
     _set_auth_cookies(response, token=token, csrf=csrf)
-    _set_refresh_cookie(response, refresh_token=refresh_token)
+    _set_refresh_cookie(response, refresh_token=refresh_token, persist=True)
     return LoginResponse(user=UserRead.model_validate(user))
 
 
@@ -149,7 +153,7 @@ def login(
     csrf = derive_csrf_token(token)
     refresh_token = create_refresh_token(str(user.id))
     _set_auth_cookies(response, token=token, csrf=csrf)
-    _set_refresh_cookie(response, refresh_token=refresh_token)
+    _set_refresh_cookie(response, refresh_token=refresh_token, persist=payload.remember)
     return LoginResponse(user=UserRead.model_validate(user))
 
 

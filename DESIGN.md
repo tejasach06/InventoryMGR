@@ -2,8 +2,8 @@
 name: InventoryMGR
 description: Documentation inventory for VMs, storage, and physical infrastructure — precise, calm, trustworthy.
 colors:
-  accent: "#4f46e5"
-  accent-hover: "#4338ca"
+  accent: "#f97316"
+  accent-hover: "#ea580c"
   surface: "#ffffff"
   surface-secondary: "#f6f7fb"
   surface-tertiary: "#eef0f7"
@@ -24,18 +24,18 @@ colors:
   environment-staging: "#7c3aed"
 typography:
   display:
-    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
     fontSize: "clamp(1.875rem, 1.5rem + 1.6vw, 2.75rem)"
     fontWeight: 600
     lineHeight: 1.05
     letterSpacing: "-0.015em"
   body:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
+    fontFamily: "Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.6875rem"
     fontWeight: 600
     letterSpacing: "0.12em"
@@ -82,9 +82,9 @@ components:
 
 ## 1. Overview
 
-**Creative North Star: "The Instrument Panel"**
+**Creative North Star: "The Dark Instrument Panel"**
 
-InventoryMGR is read by sysadmins mid-task, not browsed by visitors being sold something. The system takes its cue from an instrument panel: calm, neutral chrome everywhere, with color used only where it encodes a real reading — a VM's status, a host's criticality, an environment tier. Nothing on screen competes with that signal. The palette outside the semantic layer is deliberately quiet (near-white surfaces, slate-toned text, a single indigo accent for interactive elements), so that when a badge turns red or amber, it reads immediately as *meaning something*, not as decoration.
+InventoryMGR is read by sysadmins mid-task, not browsed by visitors being sold something. The system takes its cue from an instrument panel: deep pitch-black canvas, dark elevated surfaces, with vibrant orange used as the key interactive accent and color used where it encodes a real reading — a VM's status, a host's criticality, an environment tier. Nothing on screen competes with that signal.
 
 This explicitly rejects the bloated-enterprise-SaaS look — dense chrome, modal-on-modal flows, buried actions, decorative gradients. A two-second edit should never feel like a form wizard. Depth and motion are used the same way color is: sparingly, and only in response to state (hover, focus, a row revealing its actions), never as base decoration.
 
@@ -99,30 +99,29 @@ This explicitly rejects the bloated-enterprise-SaaS look — dense chrome, modal
 Restrained neutrals carry the interface; one indigo accent marks interactivity; a wide semantic palette (six categories × light/dark) carries all data meaning.
 
 ### Primary
-- **Indigo Accent** (`#4f46e5`, hover `#4338ca`): links, primary buttons, focus rings, the one recurring brand touch (nav active state, logo mark). Used sparingly — it marks "you can act here," not "look here."
+- **Orange Accent** (`#f97316`, hover `#ea580c`): links, primary buttons, focus rings, the recurring brand accent (nav active state, logo mark). Used deliberately — it marks "you can act here."
 
-### Neutral
-- **Surface** (`#ffffff`): card and table backgrounds.
-- **Surface Secondary** (`#f6f7fb`): page background, alternating table rows.
-- **Surface Tertiary** (`#eef0f7`): table headers, disabled fields, hover fills.
-- **Border** (`#e3e6ef`): default hairline border on cards, tables, inputs.
-- **Text Primary** (`#0f1222`): headings, primary content.
-- **Text Secondary** (`#4a4f63`): labels, body copy.
-- **Text Tertiary** (`#9aa0b4`): placeholders, help text, table header labels.
+### Neutral (Light Mode / Navy Dark Mode)
+- **Surface** (`#ffffff` / dark `#0d1c2d`): card and table backgrounds.
+- **Surface Secondary** (`#f6f7fb` / dark `#051424`): page background, alternating table rows.
+- **Surface Tertiary** (`#eef0f7` / dark `#122131`): table headers, disabled fields, hover fills.
+- **Border** (`#e3e6ef` / dark `#273647`): default hairline border on cards, tables, inputs.
+- **Border Subtle** (`#eef0f7` / dark `#1c2b3c`): subtle inner borders.
+- **Text Primary** (`#0f1222` / dark `#d4e4fa`): headings, primary content.
+- **Text Secondary** (`#4a4f63` / dark `#909bb1`): labels, body copy.
+- **Text Tertiary** (`#9aa0b4` / dark `#6b7a8f`): placeholders, help text, table header labels.
 
-Dark mode is not an inverted primary; it's a separate tuned scale (slate-950 body, slate-900 cards, slate-100 text) with its own semantic-color pass — every status/criticality/environment/platform/os_family/lifecycle color gets a dedicated dark-mode value, not `opacity` or `invert()`.
+Dark mode is a dedicated navy scale (`#051424` page, `#0d1c2d` cards, `#d4e4fa` primary text) defined in `html.dark` in `globals.css` with a full semantic-color pass for every data category.
 
 ### Named Rules
 **The Signal Rule.** Saturated color appears only where it encodes a real, current data value — a VM's status, a host's criticality tier, an environment or platform badge. It never appears as page chrome, decoration, or emphasis-for-emphasis's-sake. If a color can't be traced to a specific field's value, it doesn't belong on screen.
 
 ## 3. Typography
 
-**Display Font:** Space Grotesk (with ui-sans-serif, system-ui fallback)
-**Body Font:** Inter (with ui-sans-serif, system-ui, -apple-system, "Segoe UI" fallback)
+**Display & Body Font:** Geist (with ui-sans-serif, system-ui fallback)
 **Label/Mono Font:** ui-monospace / SF Mono, for IPs, hostnames, UUIDs, sizes, counts
 
-**Character:** A geometric display face (Space Grotesk) paired with a humanist workhorse body face (Inter) — enough contrast to give headings a distinct, slightly technical presence without turning the whole interface geometric and cold.
-
+**Character:** Geist provides a clean modern technical grotesque for both display headings and body copy across all density levels.
 ### Hierarchy
 - **Display** (600, `clamp(1.875rem, 1.5rem + 1.6vw, 2.75rem)`, 1.05 line-height, -0.015em tracking): page titles (`PageHeader`).
 - **Title** (600, ~1.25rem): section headings, card titles, empty-state headings.
@@ -170,6 +169,13 @@ Flat by default. Cards, tables, and inputs sit at rest with only a 1px hairline 
 - **Error:** `FieldError` renders below the field in `criticality-critical` red; the field itself does not get a red border (the message alone is the signal).
 - **Disabled:** background steps to surface-tertiary, cursor `not-allowed`.
 
+### Login Exceptions
+The `/login` screen sits outside the main app shell and contains three deliberate exceptions to the general component guidelines:
+1. **Glass Card (`authCardClass`):** Uses `backdrop-blur-xl` and 85% surface opacity on top of the mode-aware background surface (`shadow-overlay`).
+2. **Underline Inputs (`authInputClass`):** Uses single border-bottom styling instead of the boxed `inputClass`. Focus-visible maintains a 2px accent outline ring with offset for WCAG compliance.
+3. **Animated Aside (`.auth-gradient`):** Four-stop animated navy-to-orange gradient background (`#051424 → #122131 → #582200 → #f97316`), disabled and locked to a static navy frame under `prefers-reduced-motion: reduce`.
+
+*None of these three exceptions may spread to in-app surfaces.*
 ### Tables
 - **Style:** sticky, backdrop-blurred header in surface-tertiary; odd/even row striping (white / surface-secondary at 60%); hover wash in accent color at 5% opacity.
 - **Row actions:** hidden by default (`opacity-0`), fade + slide in only on row hover or keyboard focus-within on the actions themselves — never on focus of an unrelated element in the row (avoids two rows appearing "lit" simultaneously via a checkbox's focus).

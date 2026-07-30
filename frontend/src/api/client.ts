@@ -143,12 +143,11 @@ export interface BulkResult {
   failed: { id: string; message: string }[];
 }
 
-export interface DashboardVmSummary {
+export interface DashboardAlertVm {
   id: string;
   name: string;
   environment: Environment;
-  status: VmStatus;
-  created_at: string;
+  days: number;
 }
 
 export interface DashboardStats {
@@ -161,7 +160,9 @@ export interface DashboardStats {
   powered_off: number;
   without_monitoring: number;
   without_applications: number;
-  recently_added: DashboardVmSummary[];
+  shutdown_stale: DashboardAlertVm[];
+  decommission_overdue: DashboardAlertVm[];
+  missing_ip: DashboardAlertVm[];
 }
 
 export interface ImportRowError {
@@ -433,8 +434,8 @@ export const api = {
   setupStatus: () => apiRequest<SetupStatus>('/auth/setup'),
   setupAdmin: (email: string, password: string) =>
     apiRequest<{ user: User }>('/auth/setup', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  login: (email: string, password: string) =>
-    apiRequest<{ user: User }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  login: (email: string, password: string, remember = false) =>
+    apiRequest<{ user: User }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, remember }) }),
   logout: () => apiRequest<null>('/auth/logout', { method: 'POST' }),
   me: () => apiRequest<User>('/auth/me'),
 

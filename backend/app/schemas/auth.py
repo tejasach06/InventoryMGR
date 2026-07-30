@@ -6,6 +6,7 @@ from app.schemas.users import UserRead, normalize_email
 class LoginRequest(BaseModel):
     email: str
     password: str
+    remember: bool = False
 
     @field_validator("email")
     @classmethod

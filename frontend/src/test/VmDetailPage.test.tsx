@@ -37,13 +37,13 @@ describe('VmDetailPage', () => {
   it('renders VM details on success', async () => {
     vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
     renderWithProviders(<VmDetailPage />, { user: makeUser() });
-
     expect(await screen.findByRole('heading', { name: 'web-01' })).toBeInTheDocument();
     expect(screen.getByText('8 GB')).toBeInTheDocument();
-    expect(screen.getByText('10.0.0.10, 10.0.0.11')).toBeInTheDocument();
+    expect(screen.getAllByText('10.0.0.10').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('10.0.0.11')).toBeInTheDocument();
     expect(screen.getByText('running')).toBeInTheDocument();
     expect(screen.getByText('high')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Record' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'General & Hardware Information' })).toBeInTheDocument();
     expect(screen.getByText('Linux')).toBeInTheDocument();
     expect(screen.getAllByText('Yes').length).toBeGreaterThanOrEqual(2);
   });
@@ -81,7 +81,6 @@ describe('VmDetailPage', () => {
     renderWithProviders(<VmDetailPage />, { user: makeUser() });
 
     await screen.findByRole('heading', { name: 'web-01' });
-    expect(screen.getByText('Lifecycle')).toBeInTheDocument();
     expect(screen.getByText('active')).toBeInTheDocument();
     expect(screen.getByText('Technical Owner')).toBeInTheDocument();
     expect(screen.getByText('OS Name')).toBeInTheDocument();

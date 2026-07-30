@@ -69,12 +69,6 @@ export function InventoryToolbar({
   return (
     <>
       <div className={filterBarClass} role="search" aria-label="Inventory filters">
-        <div className="mb-3 flex items-center gap-2">
-          <svg className="h-4 w-4 text-[var(--color-accent)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-            <path d="M2 3h12M4.5 8h7M7 13h2" strokeLinecap="round" />
-          </svg>
-          <span className={cn(eyebrowClass, 'text-[var(--color-accent)]')}>Filter &amp; Search</span>
-        </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative min-w-0 flex-1 sm:max-w-md">

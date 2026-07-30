@@ -12,14 +12,64 @@ import {
 import { useCurrentUser } from '../components/AuthContext';
 import { formatMemory } from '../lib/units';
 
-function Field({ label, value, mono = false }: { label: string; value: string | number | boolean | null | undefined; mono?: boolean }) {
+function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      aria-label={`${label}: ${text}`}
+      title={`${label}: ${text}`}
+      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.7rem] font-medium text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-accent)]"
+    >
+      {copied ? (
+        <>
+          <svg className="h-3 w-3 text-emerald-500" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M2.5 6L5 8.5L9.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Copied!</span>
+        </>
+      ) : (
+        <>
+          <svg className="h-3 w-3 opacity-60" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="4" y="4" width="6.5" height="6.5" rx="1" />
+            <path d="M2.5 8V2.5A1 1 0 0 1 3.5 1.5H8" strokeLinecap="round" />
+          </svg>
+          <span className="opacity-75">{label}</span>
+        </>
+      )}
+    </button>
+  );
+}
+
+function Field({
+  label,
+  value,
+  mono = false,
+  badgeType,
+  copyable = false,
+}: {
+  label: string;
+  value: string | number | boolean | null | undefined;
+  mono?: boolean;
+  badgeType?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle';
+  copyable?: boolean;
+}) {
   const display = value === null || value === undefined || value === ''
     ? '—' : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
   const empty = display === '—';
   return (
     <div className="py-2">
-      <dt className={`text-[0.7rem] font-medium uppercase tracking-[0.08em] ${labelClass}`}>{label}</dt>
-      <dd className={`mt-1 ${mono && !empty ? monoClass : ''} ${empty ? 'text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]'}`}>{display}</dd>
+      <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)] dark:text-slate-400">{label}</dt>
+      <dd className={`mt-1 flex items-center gap-2 ${mono && !empty ? monoClass : ''} ${empty ? 'text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]'}`}>
+        {badgeType && !empty ? <Badge value={String(value)} type={badgeType} size="md" /> : <span>{display}</span>}
+        {copyable && !empty && typeof value === 'string' && <CopyButton text={value} />}
+      </dd>
     </div>
   );
 }
@@ -79,6 +129,7 @@ function AddRowForm({ fields, onSubmit, pending }: {
 
 function DisksPanel({ vm }: { vm: Vm }) {
   const qc = useQueryClient();
+  const [deleteDiskId, setDeleteDiskId] = useState<string | null>(null);
   const addMut = useMutation({
     mutationFn: (v: Record<string, string>) => api.addDisk(vm.id, {
       disk_name: v.disk_name || `disk${vm.disks.length}`,
@@ -91,10 +142,26 @@ function DisksPanel({ vm }: { vm: Vm }) {
   });
   const delMut = useMutation({
     mutationFn: (id: string) => api.deleteDisk(vm.id, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
+    onSuccess: () => {
+      setDeleteDiskId(null);
+      qc.invalidateQueries({ queryKey: ['vm', vm.id] });
+    },
   });
+  const diskToDelete = vm.disks.find((d) => d.id === deleteDiskId);
+
   return (
     <div>
+      {delMut.isError && <Alert>{detailMessage(delMut.error)}</Alert>}
+      <ConfirmDialog
+        open={Boolean(deleteDiskId)}
+        title="Remove Disk"
+        confirmLabel="Remove Disk"
+        tone="danger"
+        body={`Are you sure you want to remove ${diskToDelete?.disk_name ?? 'this disk'} (${diskToDelete?.size_gb ?? 0} GB) from ${vm.name}?`}
+        pending={delMut.isPending}
+        onConfirm={() => deleteDiskId && delMut.mutate(deleteDiskId)}
+        onCancel={() => setDeleteDiskId(null)}
+      />
       {vm.disks.length === 0 ? <EmptyState title="No disks configured" body="Add a disk below to start tracking storage for this VM." /> : (
         <table className="w-full text-sm"><thead>
           <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
@@ -107,7 +174,18 @@ function DisksPanel({ vm }: { vm: Vm }) {
                 <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_name ?? '—'}</td>
                 <td className="py-1.5 pr-4 tabular-nums text-[var(--color-text-primary)]">{d.size_gb}</td>
                 <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_type ?? '—'}</td>
-                <td className="py-1.5"><RemoveButton onClick={() => delMut.mutate(d.id)} label={`Remove ${d.disk_name}`} /></td>
+                <td className="py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteDiskId(d.id)}
+                    className="p-1 text-[var(--color-text-tertiary)] hover:bg-red-500/10 hover:text-red-600 rounded transition-colors"
+                    title={`Remove ${d.disk_name}`}
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -126,6 +204,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
 
 function NetworksPanel({ vm }: { vm: Vm }) {
   const qc = useQueryClient();
+  const [deleteNetworkId, setDeleteNetworkId] = useState<string | null>(null);
   const addMut = useMutation({
     mutationFn: (v: Record<string, string>) => api.addNetwork(vm.id, {
       ip_address: v.ip_address, role: (v.role as NetworkRole) || 'private',
@@ -136,10 +215,26 @@ function NetworksPanel({ vm }: { vm: Vm }) {
   });
   const delMut = useMutation({
     mutationFn: (id: string) => api.deleteNetwork(vm.id, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
+    onSuccess: () => {
+      setDeleteNetworkId(null);
+      qc.invalidateQueries({ queryKey: ['vm', vm.id] });
+    },
   });
+  const netToDelete = vm.networks.find((n) => n.id === deleteNetworkId);
+
   return (
     <div>
+      {delMut.isError && <Alert>{detailMessage(delMut.error)}</Alert>}
+      <ConfirmDialog
+        open={Boolean(deleteNetworkId)}
+        title="Remove Network Entry"
+        confirmLabel="Remove Network"
+        tone="danger"
+        body={`Are you sure you want to remove IP address ${netToDelete?.ip_address ?? 'entry'} from ${vm.name}?`}
+        pending={delMut.isPending}
+        onConfirm={() => deleteNetworkId && delMut.mutate(deleteNetworkId)}
+        onCancel={() => setDeleteNetworkId(null)}
+      />
       {vm.networks.length === 0 ? <EmptyState title="No network entries configured" body="Add an IP address below to start tracking network configuration." /> : (
         <table className="w-full text-sm"><thead>
           <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
@@ -148,11 +243,27 @@ function NetworksPanel({ vm }: { vm: Vm }) {
           <tbody className="divide-y divide-[var(--color-border)]">
             {vm.networks.map((n) => (
               <tr key={n.id}>
-                <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">{n.ip_address}</td>
+                <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">
+                  <div className="flex items-center gap-1.5">
+                    <span>{n.ip_address}</span>
+                    <CopyButton text={n.ip_address} />
+                  </div>
+                </td>
                 <td className="py-1.5 pr-4 capitalize text-[var(--color-text-secondary)]">{n.role}</td>
-                <td className="py-1.5 pr-4 tabular-nums text-[var(--color-text-secondary)]">{n.vlan ?? '—'}</td>
+                <td className="py-1.5 pr-4 font-mono tabular-nums text-[var(--color-text-secondary)]">{n.vlan ?? '—'}</td>
                 <td className="py-1.5 pr-4 font-mono text-[var(--color-text-secondary)]">{n.gateway ?? '—'}</td>
-                <td className="py-1.5"><RemoveButton onClick={() => delMut.mutate(n.id)} label={`Remove ${n.ip_address}`} /></td>
+                <td className="py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteNetworkId(n.id)}
+                    className="p-1 text-[var(--color-text-tertiary)] hover:bg-red-500/10 hover:text-red-600 rounded transition-colors"
+                    title={`Remove ${n.ip_address}`}
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -171,6 +282,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
 
 function ApplicationsPanel({ vm }: { vm: Vm }) {
   const qc = useQueryClient();
+  const [deleteAppId, setDeleteAppId] = useState<string | null>(null);
   const addMut = useMutation({
     mutationFn: (v: Record<string, string>) => api.addApplication(vm.id, {
       app_name: v.app_name, app_owner: null, description: v.description || null,
@@ -179,10 +291,26 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
   });
   const delMut = useMutation({
     mutationFn: (id: string) => api.deleteApplication(vm.id, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
+    onSuccess: () => {
+      setDeleteAppId(null);
+      qc.invalidateQueries({ queryKey: ['vm', vm.id] });
+    },
   });
+  const appToDelete = vm.applications.find((a) => a.id === deleteAppId);
+
   return (
     <div>
+      {delMut.isError && <Alert>{detailMessage(delMut.error)}</Alert>}
+      <ConfirmDialog
+        open={Boolean(deleteAppId)}
+        title="Remove Application"
+        confirmLabel="Remove Application"
+        tone="danger"
+        body={`Are you sure you want to remove ${appToDelete?.app_name ?? 'this application'} from ${vm.name}?`}
+        pending={delMut.isPending}
+        onConfirm={() => deleteAppId && delMut.mutate(deleteAppId)}
+        onCancel={() => setDeleteAppId(null)}
+      />
       {vm.applications.length === 0 ? <EmptyState title="No applications linked" body="Add an application below to track what runs on this VM." /> : (
         <ul className="space-y-1">
           {vm.applications.map((a) => (
@@ -191,7 +319,16 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
                 <span className="font-medium text-[var(--color-text-primary)]">{a.app_name}</span>
                 {a.description && <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">{a.description}</p>}
               </div>
-              <RemoveButton onClick={() => delMut.mutate(a.id)} label={`Remove ${a.app_name}`} />
+              <button
+                type="button"
+                onClick={() => setDeleteAppId(a.id)}
+                className="p-1 text-[var(--color-text-tertiary)] hover:bg-red-500/10 hover:text-red-600 rounded transition-colors"
+                title={`Remove ${a.app_name}`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
             </li>
           ))}
         </ul>
@@ -204,6 +341,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
     </div>
   );
 }
+
 
 function AuditPanel({ vmId }: { vmId: string }) {
   const auditQ = useQuery({ queryKey: ['audit', vmId], queryFn: () => api.getAuditLog(vmId) });
@@ -272,140 +410,179 @@ export function VmDetailPage() {
   if (vmQ.isError) return <PageTransition><Alert>{detailMessage(vmQ.error)}</Alert></PageTransition>;
   if (!vm) return null;
 
+  const totalStorageGb = vm.disks?.reduce((acc, d) => acc + (d.size_gb || 0), 0) ?? 0;
+
   return (
     <PageTransition>
       <section className="mx-auto w-full max-w-5xl space-y-5 2xl:max-w-6xl">
-        <PageHeader title={vm.name} eyebrow={vm.environment} actions={
-          <>
-            <Badge value={vm.status} />
-            <Badge value={vm.platform} />
-            <button className={secondaryButtonClass} onClick={() => router.push('/inventory')}>← Back</button>
-            {canEdit && <Link className={secondaryButtonClass} href={`/inventory/${id}/edit`}>Edit</Link>}
-            {canEdit && (
-              <button className={secondaryButtonClass} onClick={() => setConfirmClone(true)} disabled={cloneMut.isPending}>
-                {cloneMut.isPending && <Spinner />} Clone
-              </button>
-            )}
-            {canDelete && (
-              <button className={dangerButtonClass} onClick={() => setConfirmDelete(true)} disabled={deleteMut.isPending}>
-                {deleteMut.isPending && <Spinner />} Delete
-              </button>
-            )}
-          </>
-        } />
+        <PageHeader
+          title={vm.name}
+          eyebrow={<Badge value={vm.environment} type="environment" />}
+          actions={
+            <>
+              <button className={secondaryButtonClass} onClick={() => router.push('/inventory')}>← Back</button>
+              {canEdit && <Link className={secondaryButtonClass} href={`/inventory/${id}/edit`}>Edit</Link>}
+              {canEdit && (
+                <button className={secondaryButtonClass} onClick={() => setConfirmClone(true)} disabled={cloneMut.isPending}>
+                  {cloneMut.isPending && <Spinner />} Clone
+                </button>
+              )}
+              {canDelete && (
+                <button className={dangerButtonClass} onClick={() => setConfirmDelete(true)} disabled={deleteMut.isPending}>
+                  {deleteMut.isPending && <Spinner />} Delete
+                </button>
+              )}
+            </>
+          }
+        />
 
         {(cloneMut.isError || deleteMut.isError) && <Alert>{detailMessage(cloneMut.error ?? deleteMut.error)}</Alert>}
 
-        <ConfirmDialog open={confirmClone} title="Clone VM" confirmLabel="Clone"
-          body={`Create a copy of ${vm.name} with the same hardware, network, and OS settings? You'll be taken to the new VM's record afterward.`}
+        <ConfirmDialog open={confirmClone} title="Clone VM" confirmLabel="Clone VM" tone="primary"
+          body={`Create a copy of "${vm.name}" with matching hardware, network, and OS parameters? You will be taken to the new record upon creation.`}
           pending={cloneMut.isPending}
           onConfirm={() => cloneMut.mutate()}
           onCancel={() => setConfirmClone(false)} />
 
-        <ConfirmDialog open={confirmDelete} title="Delete VM" confirmLabel="Delete VM"
+        <ConfirmDialog open={confirmDelete} title="Delete VM" confirmLabel="Delete VM" tone="danger"
           body={`Delete VM ${vm.name}? This cannot be undone.`}
           pending={deleteMut.isPending}
           onConfirm={() => deleteMut.mutate()}
           onCancel={() => setConfirmDelete(false)} />
 
-        <SectionNav titles={[
-          'Documentation Health Score', 'General Information', 'Location', 'Hardware', 'Storage', 'Network',
-          'Operating System', 'Ownership', 'Applications', 'Monitoring', 'Security', 'Record', 'Audit Log',
-        ]} />
+        <SectionNav titles={['Telemetry', 'Infrastructure', 'Operations', 'Audit & History']} />
 
-        <SectionCard title="Documentation Health Score">
-          <HealthScore score={vm.health_score} />
-        </SectionCard>
+        {/* 1. HERO TELEMETRY PANEL */}
+        <section id="telemetry" className="rounded-xl border border-[var(--color-border)]/70 bg-white p-5 shadow-sm shadow-slate-900/[0.04] dark:border-[var(--color-border)] dark:bg-slate-900/70 dark:shadow-none dark:backdrop-blur space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4 dark:border-slate-800">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge value={vm.status} type="status" size="md" />
+              <Badge value={vm.platform} type="platform" size="md" />
+              <Badge value={vm.environment} type="environment" size="md" />
+              <Badge value={vm.criticality} type="criticality" size="md" />
+              {vm.lifecycle && <Badge value={vm.lifecycle} type="lifecycle" size="md" />}
+              {vm.os_family && <Badge value={vm.os_family} type="os_family" size="md" />}
+            </div>
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)] dark:text-slate-400">Health Score</span>
+              <div className="flex-1 sm:w-48">
+                <HealthScore score={vm.health_score} />
+              </div>
+            </div>
+          </div>
 
-        <SectionCard title="General Information">
-          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="Hostname" value={vm.name} />
-            <Field label="FQDN" value={vm.fqdn} />
-            <Field label="Environment" value={vm.environment} />
-            <Field label="Criticality" value={vm.criticality} />
-            <Field label="Lifecycle" value={vm.lifecycle} />
-            <Field label="Tags" value={vm.tags.join(', ') || null} />
-            {vm.description && <div className="sm:col-span-2 xl:col-span-3 py-2">
-              <dt className={`text-xs font-medium uppercase tracking-wide ${labelClass}`}>Description</dt>
-              <dd className="mt-1 text-[var(--color-text-primary)]">{vm.description}</dd>
-            </div>}
-          </dl>
-        </SectionCard>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3 dark:bg-slate-800/50">
+              <p className="eyebrow-label text-[0.625rem]">Primary IP</p>
+              <div className="mt-1 flex items-center justify-between gap-1">
+                <span className={`${monoClass} text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100`}>
+                  {vm.networks?.find((n) => n.role === 'private')?.ip_address ?? vm.networks?.[0]?.ip_address ?? '—'}
+                </span>
+                {(vm.networks?.find((n) => n.role === 'private')?.ip_address ?? vm.networks?.[0]?.ip_address) && (
+                  <CopyButton text={vm.networks?.find((n) => n.role === 'private')?.ip_address ?? vm.networks?.[0]?.ip_address ?? ''} label="Copy IP" />
+                )}
+              </div>
+            </div>
+            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3 dark:bg-slate-800/50">
+              <p className="eyebrow-label text-[0.625rem]">FQDN</p>
+              <div className="mt-1 flex items-center justify-between gap-1">
+                <span className={`${monoClass} text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100 truncate`}>
+                  {vm.fqdn ?? '—'}
+                </span>
+                {vm.fqdn && <CopyButton text={vm.fqdn} label="Copy FQDN" />}
+              </div>
+            </div>
+            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3 dark:bg-slate-800/50">
+              <p className="eyebrow-label text-[0.625rem]">vCPU, Memory & Storage</p>
+              <p className={`${monoClass} mt-1 text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100`}>
+                {vm.cpu_cores} vCPU · {vm.memory_mb ? formatMemory(vm.memory_mb) : '—'}{totalStorageGb ? ` · ${totalStorageGb} GB` : ''}
+              </p>
+            </div>
+            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3 dark:bg-slate-800/50">
+              <p className="eyebrow-label text-[0.625rem]">Location / Host</p>
+              <p className={`${monoClass} mt-1 text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100 truncate`}>
+                {vm.cluster ?? '—'}{vm.node ? ` / ${vm.node}` : ''}
+              </p>
+            </div>
+          </div>
+        </section>
 
-        <SectionCard title="Location">
-          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="Platform" value={vm.platform} />
-            <Field label="Datacenter" value={vm.datacenter} />
-            <Field label="Cluster" value={vm.cluster} />
-            <Field label="Node" value={vm.node} />
-            <Field label="VM ID" value={vm.external_id} />
-            <Field label="SR-ID" value={vm.sr_id} />
-          </dl>
-        </SectionCard>
+        {/* 2-COLUMN BENTO GRID FOR SECONDARY DETAILS */}
+        <div className="grid gap-5 lg:grid-cols-2">
+          {/* LEFT COLUMN: INFRASTRUCTURE & OPERATIONS */}
+          <div className="space-y-5">
+            <section id="infrastructure">
+              <SectionCard title="General & Hardware Information">
+                <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                  <Field label="Hostname" value={vm.name} copyable />
+                  <Field label="FQDN" value={vm.fqdn} mono copyable />
+                  <Field label="VM ID" value={vm.external_id} mono copyable />
+                  <Field label="SR-ID" value={vm.sr_id} mono copyable />
+                  <Field label="Datacenter" value={vm.datacenter} />
+                  <Field label="Cluster / Node" value={`${vm.cluster ?? '—'} / ${vm.node ?? '—'}`} mono />
+                  <Field label="vCPU Cores" value={vm.cpu_cores} mono />
+                  <Field label="Memory" value={vm.memory_mb ? formatMemory(vm.memory_mb) : null} mono />
+                  <Field label="Tags" value={vm.tags.join(', ') || null} />
+                  {vm.description && (
+                    <div className="sm:col-span-2 py-2">
+                      <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)] dark:text-slate-400">Description</dt>
+                      <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{vm.description}</dd>
+                    </div>
+                  )}
+                </dl>
+              </SectionCard>
+            </section>
 
-        <SectionCard title="Hardware">
-          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="vCPU" value={`${vm.cpu_cores} cores`} mono />
-            <Field label="Memory" value={vm.memory_mb ? formatMemory(vm.memory_mb) : null} mono />
-          </dl>
-        </SectionCard>
+            <SectionCard title="Storage Configuration">
+              <DisksPanel vm={vm} />
+            </SectionCard>
 
-        <SectionCard title="Storage"><DisksPanel vm={vm} /></SectionCard>
-        <SectionCard title="Network">
-          <dl className="mb-4 grid gap-x-8 gap-y-1 border-b border-slate-100 pb-2 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="IP addresses" value={vm.networks.map((n) => n.ip_address).join(', ') || null} mono />
-          </dl>
-          <NetworksPanel vm={vm} />
-        </SectionCard>
+            <SectionCard title="Network Configuration">
+              <NetworksPanel vm={vm} />
+            </SectionCard>
+          </div>
 
-        <SectionCard title="Operating System">
-          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="OS Family" value={vm.os_family ? vm.os_family.charAt(0).toUpperCase() + vm.os_family.slice(1) : null} />
-            <Field label="OS Name" value={vm.os_name} />
-            <Field label="Distribution" value={vm.os_distribution} />
-            <Field label="Version" value={vm.os_version} />
-          </dl>
-        </SectionCard>
+          {/* RIGHT COLUMN: GOVERNANCE, SECURITY & AUDIT */}
+          <div className="space-y-5">
+            <section id="operations">
+              <SectionCard title="Ownership & Governance">
+                <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                  <Field label="Owner" value={vm.owner} />
+                  <Field label="Business Owner" value={vm.business_owner} />
+                  <Field label="Technical Owner" value={vm.technical_owner} />
+                  <Field label="OS Family" value={vm.os_family ? vm.os_family.charAt(0).toUpperCase() + vm.os_family.slice(1) : null} badgeType="os_family" />
+                  <Field label="OS Name" value={vm.os_name} />
+                  <Field label="Distribution / Version" value={`${vm.os_distribution ?? '—'} ${vm.os_version ?? ''}`} />
+                </dl>
+              </SectionCard>
+            </section>
 
-        <SectionCard title="Ownership">
-          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="Owner" value={vm.owner} />
-            <Field label="Business Owner" value={vm.business_owner} />
-            <Field label="Technical Owner" value={vm.technical_owner} />
-          </dl>
-        </SectionCard>
+            <SectionCard title="Applications & Verification">
+              <ApplicationsPanel vm={vm} />
+            </SectionCard>
 
-        <SectionCard title="Applications"><ApplicationsPanel vm={vm} /></SectionCard>
+            <SectionCard title="Operational Controls & Security">
+              <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                <Field label="Monitoring Enabled" value={vm.monitoring_enabled} />
+                <Field label="Backup Enabled" value={vm.backup_enabled} />
+                <Field label="Backup Location" value={vm.backup_location} />
+                <Field label="HA Enabled" value={vm.ha_enabled} />
+                <Field label="PMP Access" value={vm.pmp_enabled} />
+                <Field label="VM Type" value={vm.vm_type} />
+                <Field label="Last Verified" value={vm.last_verified_at} />
+                <Field label="Decommission Date" value={vm.decommission_date} />
+                <Field label="Last Patch Date" value={vm.last_patch_date} />
+                <Field label="Last Vuln Scan" value={vm.last_vuln_scan_date} />
+              </dl>
+            </SectionCard>
 
-        <SectionCard title="Monitoring">
-          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="Monitoring Enabled" value={vm.monitoring_enabled} />
-            <Field label="Backup Enabled" value={vm.backup_enabled} />
-            <Field label="Backup Location" value={vm.backup_location} />
-            <Field label="HA Enabled" value={vm.ha_enabled} />
-            <Field label="PMP Access" value={vm.pmp_enabled} />
-          </dl>
-        </SectionCard>
-
-        <SectionCard title="Security">
-          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="Last Patch Date" value={vm.last_patch_date} />
-            <Field label="Last Vuln Scan" value={vm.last_vuln_scan_date} />
-            <Field label="Remarks" value={vm.security_remarks} />
-          </dl>
-        </SectionCard>
-
-        <SectionCard title="Record">
-          <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="VM Type" value={vm.vm_type} />
-            <Field label="Last Verified" value={vm.last_verified_at} />
-            <Field label="Decommission Date" value={vm.decommission_date} />
-            <Field label="Created" value={new Date(vm.created_at).toLocaleDateString()} />
-            <Field label="Last Updated" value={new Date(vm.updated_at).toLocaleDateString()} />
-          </dl>
-        </SectionCard>
-
-        <SectionCard title="Audit Log"><AuditPanel vmId={vm.id} /></SectionCard>
+            <section id="audit-history">
+              <SectionCard title="Audit History">
+                <AuditPanel vmId={vm.id} />
+              </SectionCard>
+            </section>
+          </div>
+        </div>
       </section>
     </PageTransition>
   );

@@ -42,8 +42,21 @@ describe('LoginPage sign-in flow', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'hunter2pass' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    await waitFor(() => expect(login).toHaveBeenCalledWith('admin@example.local', 'hunter2pass'));
+    await waitFor(() => expect(login).toHaveBeenCalledWith('admin@example.local', 'hunter2pass', false));
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/inventory'));
+  });
+
+  it('passes remember=true to api.login when checkbox is checked', async () => {
+    const login = vi.spyOn(api, 'login').mockResolvedValue({ user: makeUser() });
+    renderWithProviders(<LoginPage />);
+
+    await screen.findByRole('heading', { name: 'Sign in' });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'admin@example.local' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'hunter2pass' } });
+    fireEvent.click(screen.getByLabelText('Keep me signed in on this device'));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    await waitFor(() => expect(login).toHaveBeenCalledWith('admin@example.local', 'hunter2pass', true));
   });
 
   it('shows an Alert when authentication fails', async () => {

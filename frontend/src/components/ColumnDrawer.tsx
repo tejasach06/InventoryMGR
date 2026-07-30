@@ -66,7 +66,7 @@ export function ColumnDrawer({
       }
     >
       <p className="mb-3 text-sm text-[var(--color-text-tertiary)] dark:text-slate-400">
-        {visibleCount} of {columns.length} columns shown. Drag to reorder.
+        {visibleCount} of {columns.length} columns shown. Drag or use arrow buttons to reorder.
       </p>
       <ul className="space-y-0.5">
         {sorted.map((col) => (
@@ -78,9 +78,9 @@ export function ColumnDrawer({
             onDrop={(e) => handleDrop(e, col.key)}
             onDragEnd={handleDragEnd}
             className={cn(
-              'flex cursor-move select-none items-center gap-2 rounded-lg border-t-2 px-2 py-2 text-sm transition-colors duration-150',
+              'flex cursor-move select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150',
               'hover:bg-[var(--color-surface-tertiary)] dark:hover:bg-slate-800',
-              dragOverKey === col.key ? 'border-[var(--color-accent)]' : 'border-transparent',
+              dragOverKey === col.key && 'bg-[var(--color-accent)]/10 ring-1 ring-[var(--color-accent)]',
               draggedKey === col.key && 'opacity-50',
             )}
           >
@@ -107,6 +107,34 @@ export function ColumnDrawer({
             >
               {COLUMN_LABELS[col.key] ?? col.key}
             </label>
+            <div className="ml-auto flex items-center gap-0.5 opacity-70 hover:opacity-100 focus-within:opacity-100">
+              <button
+                type="button"
+                onClick={() => {
+                  const idx = sorted.findIndex((c) => c.key === col.key);
+                  if (idx > 0) onReorder(col.key, sorted[idx - 1].key);
+                }}
+                disabled={sorted.findIndex((c) => c.key === col.key) === 0}
+                className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] disabled:opacity-25 transition-colors rounded hover:bg-[var(--color-surface-tertiary)] dark:hover:bg-slate-700"
+                aria-label={`Move ${COLUMN_LABELS[col.key] ?? col.key} up`}
+                title="Move up"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 10l4-4 4 4"/></svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const idx = sorted.findIndex((c) => c.key === col.key);
+                  if (idx < sorted.length - 1) onReorder(col.key, sorted[idx + 1].key);
+                }}
+                disabled={sorted.findIndex((c) => c.key === col.key) === sorted.length - 1}
+                className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] disabled:opacity-25 transition-colors rounded hover:bg-[var(--color-surface-tertiary)] dark:hover:bg-slate-700"
+                aria-label={`Move ${COLUMN_LABELS[col.key] ?? col.key} down`}
+                title="Move down"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6l4 4 4-4"/></svg>
+              </button>
+            </div>
           </li>
         ))}
       </ul>

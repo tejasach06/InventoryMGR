@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, ArrayPayload, StorageArrayListItem } from '../api/client';
-import { Alert, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass } from '../components/ui';
+import { Alert, Badge, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass } from '../components/ui';
 import { useCurrentUser } from '../components/AuthContext';
 import { ArrayForm } from '../components/ArrayForm';
 
@@ -26,12 +26,7 @@ function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
 }
 
 function ThresholdBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-semibold"
-      style={{ backgroundColor: 'color-mix(in srgb, var(--color-criticality-critical) 15%, transparent)', color: 'var(--color-criticality-critical)' }}>
-      Over threshold
-    </span>
-  );
+  return <Badge value="Over threshold" type="criticality" />;
 }
 
 export function StoragePage() {

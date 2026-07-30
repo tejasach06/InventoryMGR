@@ -8,7 +8,7 @@ test.use({ screenshot: 'only-on-failure' });
 async function ensureAdminSession(page: Page) {
   await page.goto('/login');
   const setup = page.getByRole('button', { name: 'Create admin account' });
-  const signin = page.getByRole('button', { name: 'Sign in' });
+  const signin = page.getByRole('button', { name: 'Sign in', exact: true });
   await expect(setup.or(signin)).toBeVisible();
 
   if (await setup.isVisible().catch(() => false)) {

@@ -42,4 +42,33 @@ describe('NotificationBell', () => {
     expect(screen.getByText('db-02').closest('a')).toHaveClass('text-red-600');
     await waitFor(() => expect(api.ackDecommissions).toHaveBeenCalledWith());
   });
+  it('dismisses a single alert optimistically and calls scoped ackDecommissions', async () => {
+    renderWithProviders(<NotificationBell />);
+    await screen.findByTestId('notif-badge');
+    fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
+    expect(await screen.findByText('web-01')).toBeInTheDocument();
+    expect(screen.getByText('db-02')).toBeInTheDocument();
+
+    vi.mocked(api.decommissionNotifications).mockResolvedValue([due[1]] as never);
+    fireEvent.click(screen.getByRole('button', { name: /dismiss alert for web-01/i }));
+    await waitFor(() => expect(screen.queryByText('web-01')).toBeNull());
+    expect(screen.getByText('db-02')).toBeInTheDocument();
+    expect(api.ackDecommissions).toHaveBeenCalledWith(['1']);
+  });
+
+  it('closes panel on outside click and Escape key', async () => {
+    renderWithProviders(<NotificationBell />);
+    fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
+    expect(await screen.findByText('Upcoming decommissions')).toBeInTheDocument();
+
+    // Outside click
+    fireEvent.mouseDown(document.body);
+    await waitFor(() => expect(screen.queryByText('Upcoming decommissions')).toBeNull());
+
+    // Re-open and test Escape key
+    fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
+    expect(await screen.findByText('Upcoming decommissions')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByText('Upcoming decommissions')).toBeNull());
+  });
 });

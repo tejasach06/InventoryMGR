@@ -83,6 +83,11 @@ export function ImportCsvPage() {
     preview.reset();
     commit.reset();
   }
+  function clearFile(event: React.MouseEvent) {
+    event.stopPropagation();
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    handleFileChange(null);
+  }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -123,12 +128,33 @@ export function ImportCsvPage() {
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
               aria-label="Upload CSV file"
             >
-              <svg className="mb-3 h-8 w-8 text-slate-400 dark:text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 16V4m0 0l-4 4m4-4 4 4" /><path d="M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" />
-              </svg>
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                {file ? file.name : 'Drag and drop or click to upload'}
-              </span>
+              {file ? (
+                <svg className="mb-3 h-8 w-8 text-slate-400 dark:text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z" />
+                  <path d="M14 3v5h5" />
+                </svg>
+              ) : (
+                <svg className="mb-3 h-8 w-8 text-slate-400 dark:text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 16V4m0 0l-4 4m4-4 4 4" /><path d="M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" />
+                </svg>
+              )}
+              {file ? (
+                <span className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
+                  {file.name}
+                  <button
+                    type="button"
+                    onClick={clearFile}
+                    className="rounded p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    aria-label="Clear selected file"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ) : (
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Drag and drop or click to upload</span>
+              )}
               <input ref={fileInputRef} className="sr-only" id="csv-file" name="file" type="file" accept=".csv,text/csv" onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)} aria-describedby="csv-help" />
             </div>
             <p id="csv-help" className={helpTextClass}>

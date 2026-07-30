@@ -90,16 +90,16 @@ describe('InventoryPage', () => {
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 
-  it('renders status and criticality as plain text, keeping only the platform badge coloured', async () => {
+  it('renders status, criticality, and platform badges with semantic color', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     await screen.findAllByText('web-01');
     const status = screen.getByTestId('cell-status');
-    expect(status.querySelector('span[style*="--color-status"]')).toBeNull();
+    expect(status.querySelector('span[style*="--color-status"]')).not.toBeNull();
 
     const criticality = screen.getByTestId('cell-criticality');
-    expect(criticality.querySelector('span[style*="--color-criticality"]')).toBeNull();
+    expect(criticality.querySelector('span[style*="--color-criticality"]')).not.toBeNull();
 
     const platform = screen.getByTestId('cell-platform');
     expect(platform.querySelector('span[style*="--color-platform"]')).not.toBeNull();
@@ -233,6 +233,7 @@ describe('InventoryPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
     await userEvent.selectOptions(screen.getByLabelText('Criticality'), 'high');
     await userEvent.click(screen.getByRole('button', { name: /^Apply to all/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Bulk Edit' }));
 
     const body = vi.mocked(api.bulkUpdateVms).mock.calls.at(-1)![0];
     expect(body.ids).toBeUndefined();
@@ -255,5 +256,25 @@ describe('InventoryPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /^Apply to 1 VM$/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('0 updated, 1 failed');
+  });
+  it('presents confirmation modal before executing bulk edits on matching filters', async () => {
+    vi.spyOn(api, 'listVms').mockResolvedValue(
+      makeVmList({ items: [makeVm({ id: 'vm-01-id', name: 'vm-01' })], total: 50 }),
+    );
+    vi.spyOn(api, 'bulkUpdateVms').mockResolvedValue({ updated: 50, failed: [] });
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
+
+    await userEvent.click(await screen.findByLabelText('Select all'));
+    await userEvent.click(screen.getByRole('button', { name: /Select all .* matching filters/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    await userEvent.selectOptions(screen.getByLabelText('Status'), 'decommissioned');
+    await userEvent.click(screen.getByRole('button', { name: /^Apply to all/ }));
+
+    expect(screen.getByRole('heading', { name: 'Confirm Bulk Update' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirm Bulk Edit' })).toBeInTheDocument();
+    expect(api.bulkUpdateVms).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Bulk Edit' }));
+    expect(api.bulkUpdateVms).toHaveBeenCalledTimes(1);
   });
 });

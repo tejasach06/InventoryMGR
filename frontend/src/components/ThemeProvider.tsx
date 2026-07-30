@@ -141,3 +141,75 @@ export function ThemeSelect({ className }: { className?: string }): ReactElement
     </label>
   );
 }
+function SunIcon(): ReactElement {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+      <circle cx="8" cy="8" r="3" />
+      <path d="M8 1.5v1.5M8 13v1.5M1.5 8h1.5M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" />
+    </svg>
+  );
+}
+
+function MoonIcon(): ReactElement {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+      <path d="M14 8.5A6 6 0 1 1 7.5 2 4.5 4.5 0 0 0 14 8.5z" />
+    </svg>
+  );
+}
+
+function MonitorIcon(): ReactElement {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+      <rect x="2" y="2.5" width="12" height="8.5" rx="1.5" />
+      <path d="M5.5 14h5M8 11v3" />
+    </svg>
+  );
+}
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactElement }[] = [
+  { value: 'system', label: 'System theme', icon: <MonitorIcon /> },
+  { value: 'light', label: 'Light theme', icon: <SunIcon /> },
+  { value: 'dark', label: 'Dark theme', icon: <MoonIcon /> },
+];
+
+export function ThemeSegmented({
+  className,
+  direction = 'row',
+}: {
+  className?: string;
+  direction?: 'row' | 'col';
+}): ReactElement {
+  const { theme, setTheme } = useTheme();
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Theme"
+      className={cn(
+        'inline-flex items-center gap-0.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-tertiary)]/50 p-0.5',
+        direction === 'col' ? 'flex-col' : 'flex-row',
+        className
+      )}
+    >
+      {THEME_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          role="radio"
+          aria-checked={theme === opt.value}
+          aria-label={opt.label}
+          title={opt.label}
+          onClick={() => setTheme(opt.value)}
+          className={cn(
+            'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
+            theme === opt.value
+              ? 'bg-[var(--color-accent)] text-white'
+              : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]'
+          )}
+        >
+          {opt.icon}
+        </button>
+      ))}
+    </div>
+  );
+}

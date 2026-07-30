@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { ReactNode, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api, detailMessage, Vm } from '../api/client';
-import { Alert, Badge, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass } from '../components/ui';
+import { api, detailMessage, DashboardAlertVm, Vm } from '../api/client';
+import { Alert, Badge, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, secondaryButtonClass } from '../components/ui';
+import { cn } from '../lib/classNames';
 
 const ALL_PARAMS = new URLSearchParams({ limit: '200', offset: '0' });
 
@@ -29,74 +30,200 @@ function Donut({ segments, total }: { segments: Segment[]; total: number }) {
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Power state distribution" className="shrink-0">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} style={{ stroke: 'var(--color-surface-secondary)' }} />
-      {total > 0 && drawn.map((s) => {
-        const len = (s.value / total) * c;
-        const seg = (
-          <circle
-            key={s.label}
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            stroke={s.color}
-            strokeWidth={stroke}
-            strokeDasharray={`${len} ${c - len}`}
-            strokeDashoffset={-offset}
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          />
-        );
-        offset += len;
-        return seg;
-      })}
-      <text x="50%" y="46%" textAnchor="middle" className="tech" style={{ fontSize: 30, fontWeight: 700, fill: 'var(--color-text-primary)' }}>{total}</text>
-      <text x="50%" y="60%" textAnchor="middle" style={{ fontSize: 10, letterSpacing: '0.14em', fill: 'var(--color-text-secondary)' }}>MACHINES</text>
+      {total > 0 &&
+        drawn.map((s) => {
+          const len = (s.value / total) * c;
+          const dashOffset = offset;
+          offset += len;
+          return (
+            <circle
+              key={s.label}
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={stroke}
+              strokeDasharray={`${len} ${c - len}`}
+              strokeDashoffset={-dashOffset}
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            />
+          );
+        })}
+      <text x={size / 2} y={size / 2 - 2} textAnchor="middle" dominantBaseline="middle" className="tech fill-slate-950 text-2xl font-bold dark:fill-slate-50">
+        {fmtInt(total)}
+      </text>
+      <text x={size / 2} y={size / 2 + 18} textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-[0.625rem] font-semibold tracking-wider dark:fill-slate-500">
+        VMs
+      </text>
     </svg>
   );
 }
 
-function BarList({ rows }: { rows: { key: string; label: string; value: number; colorVar: string; href?: string }[] }) {
-  const max = Math.max(1, ...rows.map((r) => r.value));
+function BarList({ rows, total }: { rows: { key: string; label: string; value: number; colorVar: string; href?: string }[]; total: number }) {
   return (
     <ul className="space-y-3">
       {rows.map((r) => {
-        const pct = Math.round((r.value / max) * 100);
+        const pct = total > 0 ? Math.round((r.value / total) * 100) : 0;
         const inner = (
-          <>
-            <div className="mb-1 flex items-baseline justify-between gap-3">
-              <span className="truncate text-sm font-medium capitalize text-slate-700 group-hover:text-slate-950 dark:text-slate-300 dark:group-hover:text-slate-100">{r.label}</span>
-              <span className={monoClass}>{fmtInt(r.value)}</span>
+          <li className="group flex flex-col gap-1.5 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-slate-700 group-hover:text-[var(--color-accent)] dark:text-slate-300 transition-colors">
+                {r.label}
+              </span>
+              <span className={cn(monoClass, 'text-xs text-[var(--color-text-secondary)] dark:text-slate-400')}>
+                {fmtInt(r.value)} <span className="text-[var(--color-text-tertiary)] dark:text-slate-500">({pct}%)</span>
+              </span>
             </div>
-            <ProgressBar value={pct} colorVar={r.colorVar} />
-          </>
-        );
-        return (
-          <li key={r.key}>
-            {r.href ? <Link href={r.href} className="group block">{inner}</Link> : <div className="group">{inner}</div>}
+            <ProgressBar value={Math.max(4, pct)} colorVar={r.colorVar} />
           </li>
+        );
+        return r.href ? (
+          <Link key={r.key} href={r.href}>
+            {inner}
+          </Link>
+        ) : (
+          <div key={r.key}>{inner}</div>
         );
       })}
     </ul>
   );
 }
 
-function StatTile({ label, value, unit, href, hint }: { label: string; value: string; unit?: string; href?: string; hint?: string }) {
+function StatTile({
+  label,
+  value,
+  unit,
+  href,
+  hint,
+  alertTone = 'normal',
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  href?: string;
+  hint?: string;
+  alertTone?: 'critical' | 'normal';
+}) {
+  const isAlert = alertTone === 'critical';
   const inner = (
-    <div className="group flex h-full flex-col justify-between rounded-xl border border-slate-200/70 bg-white p-4 transition-colors hover:border-indigo-300 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-indigo-500/40">
-      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-3 flex items-baseline gap-1">
-        <span className="tech text-2xl font-bold text-slate-950 dark:text-slate-50">{value}</span>
-        {unit ? <span className="text-xs font-medium text-slate-400 dark:text-slate-500">{unit}</span> : null}
+    <div
+      className={cn(
+        'group flex h-full flex-col justify-between rounded-xl border p-4 transition-all duration-150',
+        isAlert
+          ? 'border-red-500/40 bg-red-500/10 shadow-sm hover:border-red-500/70 dark:border-red-500/40 dark:bg-red-950/30'
+          : 'border-[var(--color-border)]/70 bg-white hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-raised)] dark:border-[var(--color-border)] dark:bg-slate-900/60'
+      )}
+    >
+      <p className={cn('text-[0.7rem] font-semibold uppercase tracking-[0.1em]', isAlert ? 'text-red-700 dark:text-red-300' : 'text-[var(--color-text-tertiary)] dark:text-slate-400')}>
+        {label}
       </p>
-      {hint ? <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{hint}</p> : null}
+      <p className="mt-3 flex items-baseline gap-1">
+        <span className={cn('tech text-2xl font-bold', isAlert ? 'text-red-700 dark:text-red-200' : 'text-[var(--color-text-primary)] dark:text-slate-50')}>
+          {value}
+        </span>
+        {unit ? (
+          <span className={cn('text-xs font-medium', isAlert ? 'text-red-600/80 dark:text-red-300/80' : 'text-[var(--color-text-tertiary)] dark:text-slate-500')}>
+            {unit}
+          </span>
+        ) : null}
+      </p>
+      {hint ? (
+        <p className={cn('mt-1 text-xs', isAlert ? 'font-medium text-red-600 dark:text-red-400' : 'text-[var(--color-text-tertiary)] dark:text-slate-500')}>
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
   return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
-function Panel({ title, children, className = '' }: { title: string; children: ReactNode; className?: string }) {
+
+type AlertGroupTone = 'critical' | 'warning' | 'info';
+
+const ALERT_TONE_VAR: Record<AlertGroupTone, string> = {
+  critical: 'var(--color-criticality-critical)',
+  warning: 'var(--color-status-suspended)',
+  info: 'var(--color-status-powered_off)',
+};
+
+function AlertGroupIcon({ tone }: { tone: AlertGroupTone }) {
+  return (
+    <svg className="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {tone === 'critical' ? (
+        <>
+          <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+          <path d="M12 9v4M12 17h.01" />
+        </>
+      ) : tone === 'warning' ? (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </>
+      ) : (
+        <>
+          <path d="M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2" />
+          <path d="M2 11h20v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6Z" />
+          <path d="m6 6 12 12" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+const ALERT_ROWS_SHOWN = 5;
+
+function AlertGroup({
+  title, tone, toneLabel, rows, meta, href, hrefLabel,
+}: {
+  title: string;
+  tone: AlertGroupTone;
+  toneLabel: string;
+  rows: DashboardAlertVm[];
+  meta: (vm: DashboardAlertVm) => string;
+  href: string;
+  hrefLabel: string;
+}) {
+  const shown = rows.slice(0, ALERT_ROWS_SHOWN);
+  const hidden = rows.length - shown.length;
+  return (
+    <div className="flex flex-1 flex-col p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <span style={{ color: ALERT_TONE_VAR[tone] }}><AlertGroupIcon tone={tone} /></span>
+        <h4 className="text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100">{title}</h4>
+        <span className="tech ml-auto text-[0.625rem] uppercase tracking-wider" style={{ color: ALERT_TONE_VAR[tone] }}>{toneLabel}</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="flex-1 text-sm text-[var(--color-text-tertiary)] dark:text-slate-500">None.</p>
+      ) : (
+        <ul className="mb-4 flex-1 divide-y divide-[var(--color-border-subtle)] dark:divide-slate-800">
+          {shown.map((vm) => (
+            <li key={vm.id} className="flex items-center justify-between gap-3 py-2">
+              <Link href={`/inventory/${vm.id}`} className="tech min-w-0 truncate text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent)] dark:text-slate-100">
+                {vm.name}
+              </Link>
+              <span className={cn(monoClass, 'shrink-0 text-xs tabular-nums')}>{meta(vm)}</span>
+            </li>
+          ))}
+          {hidden > 0 ? (
+            <li className="py-2 text-xs text-[var(--color-text-tertiary)] dark:text-slate-500">+{hidden} more</li>
+          ) : null}
+        </ul>
+      )}
+      <Link href={href} className={cn(secondaryButtonClass, 'w-full justify-center py-1.5 text-xs')} aria-label={hrefLabel}>
+        {hrefLabel}
+      </Link>
+    </div>
+  );
+}
+
+function Panel({ title, children, action, className = '' }: { title: string; children: ReactNode; action?: ReactNode; className?: string }) {
   return (
     <section className={`${cardClass} ${className}`}>
-      <h2 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-500">{title}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-500">{title}</h2>
+        {action}
+      </div>
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -135,38 +262,30 @@ export function DashboardPage() {
     };
   }, [vmsQ.data]);
 
-  if (statsQ.isError || vmsQ.isError) {
-    return (
-      <PageTransition>
-        <PageHeader title="Overview" eyebrow="Infrastructure" />
-        <Alert>{detailMessage(statsQ.error ?? vmsQ.error)}</Alert>
-      </PageTransition>
-    );
-  }
+  // Non-blocking error boundaries permit viewing partial components when one query fails
 
   const loading = statsQ.isLoading || vmsQ.isLoading;
   const d = statsQ.data;
   const capped = (vmsQ.data?.total ?? 0) > derived.items.length;
 
   const getColorVar = (status: string): string => {
-    switch (status) {
-      case 'running': return 'var(--color-status-running)';
-      case 'powered_off': return 'var(--color-criticality-critical)';
-      case 'suspended': return 'var(--color-criticality-medium)';
-      default: return 'var(--color-text-tertiary)';
-    }
+    const norm = status.toLowerCase().replace(/\s+/g, '_');
+    return `var(--color-status-${norm})`;
   };
 
   const powerSegments: Segment[] = [
     { label: 'Running', value: derived.byStatus.running ?? 0, color: 'var(--color-status-running)' },
-    { label: 'Powered off', value: derived.byStatus.powered_off ?? 0, color: 'var(--color-criticality-critical)' },
-    { label: 'Suspended', value: derived.byStatus.suspended ?? 0, color: 'var(--color-criticality-medium)' },
-    { label: 'Other', value: Math.max(0, derived.items.length - (derived.byStatus.running ?? 0) - (derived.byStatus.powered_off ?? 0) - (derived.byStatus.suspended ?? 0)), color: 'var(--color-text-tertiary)' },
+    { label: 'Powered off', value: derived.byStatus.powered_off ?? 0, color: 'var(--color-status-powered_off)' },
+    { label: 'Suspended', value: derived.byStatus.suspended ?? 0, color: 'var(--color-status-suspended)' },
+    { label: 'Other', value: Math.max(0, derived.items.length - (derived.byStatus.running ?? 0) - (derived.byStatus.powered_off ?? 0) - (derived.byStatus.suspended ?? 0)), color: 'var(--color-status-unknown)' },
   ];
 
   const envBars = Object.entries(derived.byEnv)
     .sort((a, b) => b[1] - a[1])
-    .map(([key, value]) => ({ key, label: key, value, colorVar: 'var(--color-accent)', href: `/inventory?environment=${key}` }));
+    .map(([key, value]) => {
+      const norm = key.toLowerCase().replace(/\s+/g, '_');
+      return { key, label: key, value, colorVar: `var(--color-environment-${norm})`, href: `/inventory?environment=${key}` };
+    });
 
   const critOrder = ['critical', 'high', 'medium', 'low'];
   const critBars = critOrder.filter((k) => derived.byCrit[k]).map((key) => ({
@@ -182,15 +301,13 @@ export function DashboardPage() {
 
   return (
     <PageTransition>
-      <PageHeader title="Overview" eyebrow="Infrastructure" actions={
-        <Link href="/inventory" style={{ color: 'var(--color-accent)' }} className="text-sm font-medium hover:opacity-80">Open inventory →</Link>
-      } />
+      <PageHeader title="Overview" eyebrow="Infrastructure" />
 
       {loading ? (
         <div className="space-y-6">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/60">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-[var(--color-border)] bg-white p-4 dark:border-slate-800 dark:bg-slate-900/60">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="mt-4 h-8 w-14" />
               </div>
@@ -202,18 +319,77 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Telemetry Hero Banner */}
+          <div className={cn(
+            "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border p-4 shadow-sm backdrop-blur transition-all",
+            arraysOverThreshold > 0
+              ? "border-red-500/30 bg-red-500/10 text-red-900 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-200"
+              : "border-[var(--color-border)]/70 bg-white dark:border-[var(--color-border)] dark:bg-slate-900/70"
+          )}>
+            <div className="flex items-center gap-3">
+              <span className={cn(
+                "flex h-3 w-3 relative shrink-0 rounded-full",
+                arraysOverThreshold > 0 ? "bg-red-500" : "bg-emerald-500"
+              )}>
+                <span className={cn("h-3 w-3 rounded-full", arraysOverThreshold > 0 ? "bg-red-500" : "bg-emerald-500")} />
+              </span>
+              <div>
+                <h2 className="font-display text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100">
+                  {arraysOverThreshold > 0
+                    ? `${arraysOverThreshold} Storage Array${arraysOverThreshold === 1 ? '' : 's'} Exceed Usage Threshold`
+                    : 'Fleet Operational — Infrastructure Normal'}
+                </h2>
+                <p className="text-xs text-[var(--color-text-tertiary)] dark:text-slate-400">
+                  {fmtInt(derived.items.length)} VMs tracked across clusters and storage arrays
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {arraysOverThreshold > 0 && (
+                <Link href="/storage" className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 transition-colors">
+                  View Storage Alerts →
+                </Link>
+              )}
+              <Link href="/inventory" className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] transition-colors dark:border-[var(--color-border)] dark:bg-slate-800 dark:text-slate-200">
+                Open Fleet Inventory →
+              </Link>
+            </div>
+          </div>
+
+          {vmsQ.isError || statsQ.isError ? (
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
+              <span>Failed to refresh some metrics: {detailMessage(vmsQ.error ?? statsQ.error)}</span>
+              <button
+                type="button"
+                className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 transition-colors"
+                onClick={() => { vmsQ.refetch(); statsQ.refetch(); }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+
           {capped && (
             <p className="text-xs text-[var(--color-text-tertiary)]">
               Running, vCPU, memory, and storage totals below reflect the first {fmtInt(derived.items.length)} of {fmtInt(vmsQ.data?.total ?? 0)} VMs. Total VMs is exact.
             </p>
           )}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+
+          {/* Balanced 6-column Stat Tile Grid */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <StatTile label="Total VMs" value={fmtInt(d?.total ?? derived.items.length)} href="/inventory" hint={`${d?.linux ?? derived.byOs.linux ?? 0} Linux · ${d?.windows ?? derived.byOs.windows ?? 0} Windows`} />
-            <StatTile label="Running" value={fmtInt(derived.byStatus.running ?? 0)} href="/inventory?status=running" hint={`${derived.byStatus.powered_off ?? 0} powered off${capped ? ' · of first 200' : ''}`} />
-            <StatTile label="Allocated vCPU" value={fmtInt(derived.totalVcpu)} unit="cores" hint={capped ? 'of first 200 VMs' : undefined} />
-            <StatTile label="Allocated Memory" value={mem[0]} unit={mem[1]} hint={capped ? 'of first 200 VMs' : undefined} />
-            <StatTile label="Provisioned Storage" value={disk[0]} unit={disk[1]} hint={capped ? 'of first 200 VMs' : undefined} />
-            <StatTile label="Storage alerts" value={fmtInt(arraysOverThreshold)} unit="arrays" href="/storage" hint="over usage threshold" />
+            <StatTile label="Running" value={fmtInt(derived.byStatus.running ?? 0)} href="/inventory?status=running" hint={`${derived.byStatus.powered_off ?? 0} powered off`} />
+            <StatTile label="Allocated vCPU" value={fmtInt(derived.totalVcpu)} unit="cores" />
+            <StatTile label="Allocated Memory" value={mem[0]} unit={mem[1]} />
+            <StatTile label="Provisioned Storage" value={disk[0]} unit={disk[1]} />
+            <StatTile
+              label="Storage alerts"
+              value={fmtInt(arraysOverThreshold)}
+              unit="arrays"
+              href="/storage"
+              hint={arraysOverThreshold > 0 ? "Threshold exceeded!" : "over threshold"}
+              alertTone={arraysOverThreshold > 0 ? 'critical' : 'normal'}
+            />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -223,7 +399,7 @@ export function DashboardPage() {
                 <ul className="min-w-0 flex-1 space-y-2">
                   {powerSegments.map((s) => (
                     <li key={s.label} className="flex items-center justify-between gap-2 text-sm">
-                      <span className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                      <span className="flex items-center gap-2 text-[var(--color-text-secondary)] dark:text-slate-400">
                         <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: s.color }} />
                         {s.label}
                       </span>
@@ -235,30 +411,54 @@ export function DashboardPage() {
             </Panel>
 
             <Panel title="By environment">
-              {envBars.length ? <BarList rows={envBars} /> : <p className="text-sm text-slate-500 dark:text-slate-400">No environment data.</p>}
+              {envBars.length ? <BarList rows={envBars} total={derived.items.length} /> : <p className="text-sm text-slate-500 dark:text-slate-400">No environment data.</p>}
             </Panel>
 
             <Panel title="By criticality">
-              {critBars.length ? <BarList rows={critBars} /> : <p className="text-sm text-slate-500 dark:text-slate-400">No criticality data.</p>}
+              {critBars.length ? <BarList rows={critBars} total={derived.items.length} /> : <p className="text-sm text-slate-500 dark:text-slate-400">No criticality data.</p>}
             </Panel>
           </div>
 
-          {d && d.recently_added.length > 0 && (
-            <Panel title="Recently added · last 30 days">
-              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                {d.recently_added.map((vm) => (
-                  <li key={vm.id} className="flex items-center justify-between gap-3 py-2.5">
-                    <Link href={`/inventory/${vm.id}`} style={{ color: 'var(--color-accent)' }} className="tech text-sm font-medium hover:underline">{vm.name}</Link>
-                    <div className="flex items-center gap-3">
-                      <Badge value={vm.status} />
-                      <span className="hidden text-xs capitalize text-slate-500 dark:text-slate-400 sm:inline">{vm.environment}</span>
-                      <span className={`${monoClass} hidden text-slate-500 dark:text-slate-400 sm:inline`}>{new Date(vm.created_at).toLocaleDateString('en-CA')}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-          )}
+          {d ? (() => {
+            const groups = [
+              { key: 'shutdown', title: 'Powered off > 90 days', tone: 'info' as const, toneLabel: 'Stale', rows: d.shutdown_stale,
+                meta: (vm: DashboardAlertVm) => `${vm.days}d shutdown`,
+                href: '/inventory?shutdown_stale=true', hrefLabel: 'View stale shutdowns' },
+              { key: 'overdue', title: 'Past decommission date', tone: 'critical' as const, toneLabel: 'Critical', rows: d.decommission_overdue,
+                meta: (vm: DashboardAlertVm) => `${vm.days}d overdue`,
+                href: '/inventory?decommission_overdue=true', hrefLabel: 'View overdue VMs' },
+              { key: 'noip', title: 'No IP address', tone: 'warning' as const, toneLabel: 'Warning', rows: d.missing_ip,
+                meta: () => 'no IP',
+                href: '/inventory?missing_ip=true', hrefLabel: 'View VMs without IPs' },
+            ];
+            const total = groups.reduce((n, g) => n + g.rows.length, 0);
+            return (
+              <section className="overflow-hidden rounded-xl border border-[var(--color-border)]/70 bg-white shadow-sm shadow-slate-900/[0.04] dark:border-[var(--color-border)] dark:bg-slate-900/70 dark:shadow-none dark:backdrop-blur">
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/70 bg-[var(--color-surface-tertiary)] px-5 py-4 dark:border-[var(--color-border)] dark:bg-slate-900">
+                  <div>
+                    <p className="tech text-[0.625rem] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] dark:text-slate-500">Infrastructure status</p>
+                    <h2 className="text-base font-semibold text-[var(--color-text-primary)] dark:text-slate-100">VM Alerts</h2>
+                  </div>
+                  <span
+                    className={cn(monoClass, 'shrink-0 rounded-md px-2 py-1 text-xs tabular-nums')}
+                    style={total > 0 ? { color: ALERT_TONE_VAR.critical } : undefined}
+                  >
+                    {total > 0 ? `${fmtInt(total)} active` : 'All clear'}
+                  </span>
+                </div>
+                {total === 0 ? (
+                  <div className="px-5 py-10 text-center">
+                    <p className="text-sm font-semibold tracking-wide text-emerald-600 dark:text-emerald-400">ALL IS WELL</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-tertiary)] dark:text-slate-500">No stale shutdowns, overdue decommissions, or missing IPs.</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col divide-y divide-[var(--color-border)]/70 lg:flex-row lg:divide-x lg:divide-y-0 dark:divide-slate-800">
+                    {groups.map(({ key, ...g }) => <AlertGroup key={key} {...g} />)}
+                  </div>
+                )}
+              </section>
+            );
+          })() : null}
         </div>
       )}
     </PageTransition>

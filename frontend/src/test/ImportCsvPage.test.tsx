@@ -99,6 +99,20 @@ describe('ImportCsvPage', () => {
     expect(screen.getByText('dropped.csv')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Preview CSV' })).toBeEnabled();
   });
+  it('clears selected file when clear button is clicked', () => {
+    renderWithProviders(<ImportCsvPage />);
+    const fileInput = screen.getByLabelText('CSV file') as HTMLInputElement;
+    const file = csvFile('vms.csv');
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    expect(screen.getByText('vms.csv')).toBeInTheDocument();
+
+    const clearButton = screen.getByRole('button', { name: 'Clear selected file' });
+    fireEvent.click(clearButton);
+
+    expect(screen.queryByText('vms.csv')).not.toBeInTheDocument();
+    expect(screen.getByText('Drag and drop or click to upload')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Preview CSV' })).toBeDisabled();
+  });
 
   it('downloads the CSV template from the API endpoint', () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});

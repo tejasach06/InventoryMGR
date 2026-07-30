@@ -13,17 +13,18 @@ interface ReportDef {
   description: string;
   metric: (vms: Vm[]) => number;
   suffix: string;
+  colorVar?: string;
 }
 
 const REPORTS: ReportDef[] = [
-  { name: 'linux', label: 'Linux Inventory', description: 'Every Linux-family guest', metric: (v) => v.filter((x) => x.os_family === 'linux').length, suffix: 'VMs' },
-  { name: 'windows', label: 'Windows Inventory', description: 'Every Windows-family guest', metric: (v) => v.filter((x) => x.os_family === 'windows').length, suffix: 'VMs' },
-  { name: 'production', label: 'Production Inventory', description: 'Workloads in the production environment', metric: (v) => v.filter((x) => x.environment === 'production').length, suffix: 'VMs' },
-  { name: 'monitoring', label: 'Monitoring Status', description: 'Guests with monitoring enabled', metric: (v) => v.filter((x) => x.monitoring_enabled).length, suffix: 'monitored' },
-  { name: 'applications', label: 'Application Inventory', description: 'Guests with at least one linked app', metric: (v) => v.filter((x) => x.applications.length > 0).length, suffix: 'VMs' },
-  { name: 'owner', label: 'Owner Report', description: 'Distinct business/technical owners', metric: (v) => new Set(v.map((x) => x.owner).filter(Boolean)).size, suffix: 'owners' },
-  { name: 'pmp_access', label: 'PMP Access Report', description: 'VMs accessible via PMP', metric: (v) => v.filter((x) => x.pmp_enabled).length, suffix: 'VMs' },
-  { name: 'lifecycle', label: 'Lifecycle Report', description: 'Guests with a decommission date set', metric: (v) => v.filter((x) => x.decommission_date).length, suffix: 'scheduled' },
+  { name: 'linux', label: 'Linux Inventory', description: 'Every Linux-family guest', metric: (v) => v.filter((x) => x.os_family === 'linux').length, suffix: 'VMs', colorVar: 'var(--color-os_family-linux)' },
+  { name: 'windows', label: 'Windows Inventory', description: 'Every Windows-family guest', metric: (v) => v.filter((x) => x.os_family === 'windows').length, suffix: 'VMs', colorVar: 'var(--color-os_family-windows)' },
+  { name: 'production', label: 'Production Inventory', description: 'Workloads in the production environment', metric: (v) => v.filter((x) => x.environment === 'production').length, suffix: 'VMs', colorVar: 'var(--color-environment-production)' },
+  { name: 'monitoring', label: 'Monitoring Status', description: 'Guests with monitoring enabled', metric: (v) => v.filter((x) => x.monitoring_enabled).length, suffix: 'monitored', colorVar: 'var(--color-status-running)' },
+  { name: 'applications', label: 'Application Inventory', description: 'Guests with at least one linked app', metric: (v) => v.filter((x) => x.applications.length > 0).length, suffix: 'VMs', colorVar: 'var(--color-environment-uat)' },
+  { name: 'owner', label: 'Owner Report', description: 'Distinct business/technical owners', metric: (v) => new Set(v.map((x) => x.owner).filter(Boolean)).size, suffix: 'owners', colorVar: 'var(--color-environment-staging)' },
+  { name: 'pmp_access', label: 'PMP Access Report', description: 'VMs accessible via PMP', metric: (v) => v.filter((x) => x.pmp_enabled).length, suffix: 'VMs', colorVar: 'var(--color-environment-dr)' },
+  { name: 'lifecycle', label: 'Lifecycle Report', description: 'Guests with a decommission date set', metric: (v) => v.filter((x) => x.decommission_date).length, suffix: 'scheduled', colorVar: 'var(--color-lifecycle-retiring)' },
 ];
 
 function DownloadIcon() {
@@ -79,7 +80,7 @@ export function ReportsPage() {
                 </div>
               </div>
               <div className="mt-4">
-                <ProgressBar value={pct} />
+                <ProgressBar value={pct} colorVar={r.colorVar} />
               </div>
               <div className="mt-4 flex justify-end border-t border-slate-200 dark:border-slate-800 pt-3">
                 <a href={api.reportUrl(r.name)} download={`${r.name}.csv`} className={secondaryButtonClass}>

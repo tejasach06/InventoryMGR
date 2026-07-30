@@ -6,7 +6,7 @@ const adminPassword = process.env.INVENTORYMGR_INITIAL_ADMIN_PASSWORD ?? 'change
 async function loginAsAdmin(page: Page) {
   await page.goto('/login');
   const setupButton = page.getByRole('button', { name: 'Create admin account' });
-  const signInButton = page.getByRole('button', { name: 'Sign in' });
+  const signInButton = page.getByRole('button', { name: 'Sign in', exact: true });
   // Setup-status query resolves to either the setup form or the login form.
   await expect(setupButton.or(signInButton)).toBeVisible();
 

@@ -25,6 +25,9 @@ export const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfi
   pmp_enabled: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Enabled', false: 'Disabled' } },
   ip_role: { kind: 'multiSelect', options: ['private', 'public', 'backup'] as const },
   health: { kind: 'multiSelect', options: ['healthy', 'warning', 'critical', 'unknown'] as const },
+  shutdown_stale: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Over 90 days', false: 'Under 90 days' } },
+  decommission_overdue: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Overdue', false: 'Not overdue' } },
+  missing_ip: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Missing', false: 'Present' } },
 };
 
 export const advancedFilterLabels: Record<AdvancedFilterName, string> = {
@@ -43,6 +46,9 @@ export const advancedFilterLabels: Record<AdvancedFilterName, string> = {
   pmp_enabled: 'PMP',
   ip_role: 'IP Role',
   health: 'Health',
+  shutdown_stale: 'Stale Shutdown',
+  decommission_overdue: 'Decommission',
+  missing_ip: 'IP Address',
 };
 
 // Every non-search filter now lives in the drawer, so the groups must cover
@@ -50,7 +56,7 @@ export const advancedFilterLabels: Record<AdvancedFilterName, string> = {
 export const filterGroups: { label: string; filters: AdvancedFilterName[] }[] = [
   { label: 'Core', filters: ['status', 'platform', 'criticality'] },
   { label: 'Infrastructure', filters: ['cluster', 'node', 'ip_role'] },
-  { label: 'Lifecycle & State', filters: ['lifecycle', 'health'] },
+  { label: 'Lifecycle & State', filters: ['lifecycle', 'health', 'shutdown_stale', 'decommission_overdue', 'missing_ip'] },
   { label: 'Ownership & Environment', filters: ['environment', 'owner', 'os_family', 'application', 'tag'] },
   { label: 'Features', filters: ['monitoring_enabled', 'pmp_enabled'] },
 ];
@@ -90,6 +96,9 @@ export const emptyFilterState: Filters = {
   application: [],
   ip_role: [],
   health: [],
+  shutdown_stale: [],
+  decommission_overdue: [],
+  missing_ip: [],
 };
 
 const chipTypeOverrides: Partial<Record<AdvancedFilterName, 'environment' | 'platform' | 'os_family' | 'lifecycle' | 'criticality'>> = {

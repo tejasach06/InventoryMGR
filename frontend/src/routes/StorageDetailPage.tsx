@@ -121,7 +121,8 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
           </button>
         )}
       </div>
-      <ConfirmDialog open={confirmDelVolume} title="Delete volume" body={`Delete volume ${volume.name}?`}
+      <ConfirmDialog open={confirmDelVolume} title="Delete volume" confirmLabel="Delete" tone="danger"
+        body={`Delete volume ${volume.name}?`}
         pending={delVolume.isPending}
         onConfirm={() => delVolume.mutate()}
         onCancel={() => setConfirmDelVolume(false)} />
@@ -305,7 +306,7 @@ export function StorageDetailPage() {
           </>
         } />
 
-        <ConfirmDialog open={confirmDelete} title="Delete array"
+        <ConfirmDialog open={confirmDelete} title="Delete array" confirmLabel="Delete" tone="danger"
           body={`Delete array ${array.name} and all its volumes? This cannot be undone.`}
           pending={deleteMut.isPending}
           onConfirm={() => deleteMut.mutate()}

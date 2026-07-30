@@ -1,6 +1,8 @@
+from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.db.models import NetworkRole, UserRole, VmApplication, VmNetwork
+from app.db.models import AuditLog, VmStatus
 
 from .conftest import create_user, create_vm_row, login
 
@@ -143,3 +145,82 @@ def test_ip_role_filter_lists_a_multi_ip_vm_once(client, db_session: Session) ->
     body = response.json()
     assert [item["name"] for item in body["items"]] == ["Two Public"]
     assert body["total"] == 1
+
+def test_shutdown_stale_filter(client, db_session: Session) -> None:
+    editor = create_user(db_session, email="stale_editor@example.local", role=UserRole.editor)
+    stale_vm = create_vm_row(db_session, editor, name="stale-off", status=VmStatus.powered_off)
+    fresh_vm = create_vm_row(db_session, editor, name="fresh-off", status=VmStatus.powered_off)
+    running_vm = create_vm_row(db_session, editor, name="running-vm", status=VmStatus.running)
+
+    now = datetime.now(UTC)
+    db_session.add(
+        AuditLog(
+            vm_id=stale_vm.id,
+            field_name="status",
+            new_value="powered_off",
+            changed_at=now - timedelta(days=100),
+            user_id=editor.id,
+        )
+    )
+    db_session.add(
+        AuditLog(
+            vm_id=fresh_vm.id,
+            field_name="status",
+            new_value="powered_off",
+            changed_at=now - timedelta(days=10),
+            user_id=editor.id,
+        )
+    )
+    db_session.commit()
+    login(client, "stale_editor@example.local")
+
+    res_true = client.get("/api/vms", params={"shutdown_stale": "true"})
+    assert res_true.status_code == 200
+    assert {item["name"] for item in res_true.json()["items"]} == {"stale-off"}
+
+    res_false = client.get("/api/vms", params={"shutdown_stale": "false"})
+    assert res_false.status_code == 200
+    assert {item["name"] for item in res_false.json()["items"]} == {"fresh-off", "running-vm"}
+
+
+def test_decommission_overdue_filter(client, db_session: Session) -> None:
+    editor = create_user(db_session, email="decom_editor@example.local", role=UserRole.editor)
+    today = datetime.now(UTC).date()
+    overdue_vm = create_vm_row(
+        db_session, editor, name="overdue-vm", decommission_date=today - timedelta(days=5), status=VmStatus.running
+    )
+    already_decom = create_vm_row(
+        db_session, editor, name="decom-done", decommission_date=today - timedelta(days=5), status=VmStatus.decommissioned
+    )
+    future_vm = create_vm_row(
+        db_session, editor, name="future-vm", decommission_date=today + timedelta(days=5), status=VmStatus.running
+    )
+    login(client, "decom_editor@example.local")
+
+    res_true = client.get("/api/vms", params={"decommission_overdue": "true"})
+    assert res_true.status_code == 200
+    assert {item["name"] for item in res_true.json()["items"]} == {"overdue-vm"}
+
+    res_false = client.get("/api/vms", params={"decommission_overdue": "false"})
+    assert res_false.status_code == 200
+    assert {item["name"] for item in res_false.json()["items"]} == {"decom-done", "future-vm"}
+
+
+def test_missing_ip_filter_and_tag_parity(client, db_session: Session) -> None:
+    editor = create_user(db_session, email="ip_editor@example.local", role=UserRole.editor)
+    no_ip_vm = create_vm_row(db_session, editor, name="no-ip-vm")
+    has_ip_vm = create_vm_row(db_session, editor, name="has-ip-vm")
+    template_no_ip = create_vm_row(db_session, editor, name="template-no-ip", tags=["template"])
+
+    db_session.add(VmNetwork(vm_id=has_ip_vm.id, ip_address="10.0.0.1", role=NetworkRole.private))
+    db_session.commit()
+    login(client, "ip_editor@example.local")
+
+    res_true = client.get("/api/vms", params={"missing_ip": "true"})
+    assert res_true.status_code == 200
+    # Includes template_no_ip because raw filter intentionally does NOT exclude tags
+    assert {item["name"] for item in res_true.json()["items"]} == {"no-ip-vm", "template-no-ip"}
+
+    res_false = client.get("/api/vms", params={"missing_ip": "false"})
+    assert res_false.status_code == 200
+    assert {item["name"] for item in res_false.json()["items"]} == {"has-ip-vm"}

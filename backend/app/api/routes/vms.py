@@ -79,6 +79,9 @@ class VmFilterParams:
     application_op: FilterOperator = FilterOperator.contains
     ip_role: Annotated[list[NetworkRole] | None, Query()] = None
     health: Annotated[str | None, Query(pattern="^(below_50|below_75|complete)$")] = None
+    shutdown_stale: bool | None = None
+    decommission_overdue: bool | None = None
+    missing_ip: bool | None = None
 
 
 @router.get("", response_model=VmList)

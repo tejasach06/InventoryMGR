@@ -4,21 +4,25 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { api, detailMessage, Vm } from '../api/client';
+import { api, detailMessage, Vm, BulkResult } from '../api/client';
 import { BulkEditDrawer, BulkPatch } from '../components/BulkEditDrawer';
 import { useCurrentUser } from '../components/AuthContext';
 import { cn } from '../lib/classNames';
 import {
   Alert,
   Badge,
+  ConfirmDialog,
   EmptyState,
   PageHeader,
   PageTransition,
   TableSkeleton,
   cardClass,
+  inputClass,
   monoClass,
   primaryButtonClass,
+  rowAccent,
   secondaryButtonClass,
+  selectClass,
   tableBodyClass,
   tableCellClass,
   tableClass,
@@ -32,7 +36,7 @@ import { InventoryToolbar } from '../components/InventoryToolbar';
 import { PaginationFooter } from '../components/PaginationFooter';
 
 export const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
-export const advancedFilterNames = ['cluster', 'lifecycle', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'ip_role', 'health'] as const;
+export const advancedFilterNames = ['cluster', 'lifecycle', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'ip_role', 'health', 'shutdown_stale', 'decommission_overdue', 'missing_ip'] as const;
 export const filterNames = [...coreFilterNames, ...advancedFilterNames] as const;
 
 export type FilterName = (typeof filterNames)[number];
@@ -56,6 +60,9 @@ function emptyFilters(): Filters {
     application: [],
     ip_role: [],
     health: [],
+    shutdown_stale: [],
+    decommission_overdue: [],
+    missing_ip: [],
   };
 }
 
@@ -155,7 +162,7 @@ function VmCard({ vm }: { vm: Vm }) {
           <h3 className="font-display font-semibold text-[0.9375rem] text-[var(--color-text-primary)] truncate">{vm.name}</h3>
           <p className={cn('mt-0.5 text-xs text-[var(--color-text-tertiary)]', monoClass)}>{vm.platform} · {vm.cluster}</p>
         </div>
-        <span className="text-xs capitalize text-[var(--color-text-secondary)]">{humanize(vm.status)}</span>
+        <Badge value={vm.status} type="status" size="sm" />
       </div>
 
       {/* Metric row: cpu / ram / storage, bento-tile mini-grid */}
@@ -176,13 +183,13 @@ function VmCard({ vm }: { vm: Vm }) {
 
       {/* Badge cluster */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <span className={neutralChipClass}>{humanize(vm.criticality)}</span>
-        {vm.environment && <span className={neutralChipClass}>{humanize(vm.environment)}</span>}
-        {vm.lifecycle && <span className={neutralChipClass}>{humanize(vm.lifecycle)}</span>}
-        {vm.os_family && <span className={neutralChipClass}>{humanize(vm.os_family)}</span>}
-        {vm.owner && <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-secondary)] dark:bg-slate-800">{vm.owner}</span>}
+        <Badge value={vm.criticality} type="criticality" size="sm" />
+        {vm.environment && <Badge value={vm.environment} type="environment" size="sm" />}
+        {vm.lifecycle && <Badge value={vm.lifecycle} type="lifecycle" size="sm" />}
+        {vm.os_family && <Badge value={vm.os_family} type="os_family" size="sm" />}
+        {vm.owner && <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--color-text-secondary)] dark:bg-slate-800 dark:text-slate-300">{vm.owner}</span>}
         {vm.tags && vm.tags.length > 0 && (
-          <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-tertiary)] dark:bg-slate-800">
+          <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-tertiary)] dark:bg-slate-800 dark:text-slate-400">
             {vm.tags.slice(0, 2).join(', ')}{vm.tags.length > 2 && ` +${vm.tags.length - 2}`}
           </span>
         )}
@@ -213,6 +220,8 @@ function VmTable({
   sortKey,
   sortDir,
   onSort,
+  canEdit = false,
+  onUpdateCell,
 }: {
   vms: Vm[];
   columns: { key: string }[];
@@ -222,10 +231,38 @@ function VmTable({
   sortKey: string | null;
   sortDir: 'asc' | 'desc';
   onSort: (key: string) => void;
+  canEdit?: boolean;
+  onUpdateCell?: (vmId: string, field: string, value: string) => Promise<void>;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const [editingCell, setEditingCell] = useState<{ vmId: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
+  const startEdit = (vmId: string, field: string, initialVal: string) => {
+    if (!canEdit) return;
+    setEditingCell({ vmId, field });
+    setEditValue(initialVal ?? '');
+  };
+
+  const cancelEdit = () => {
+    setEditingCell(null);
+    setEditValue('');
+  };
+
+  const commitEdit = async () => {
+    if (!editingCell || !onUpdateCell) return;
+    try {
+      setIsSaving(true);
+      await onUpdateCell(editingCell.vmId, editingCell.field, editValue);
+    } catch {
+      // handled by parent toast/alert
+    } finally {
+      setIsSaving(false);
+      setEditingCell(null);
+    }
+  };
   const selectAllRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (selectAllRef.current) selectAllRef.current.indeterminate = selectedIds.size > 0 && selectedIds.size < vms.length;
@@ -234,7 +271,7 @@ function VmTable({
 
   return (
     <div className={tableWrapClass}>
-      <table className={tableClass} role="grid" style={{ '--row-height': 'var(--row-height-comfortable)' } as React.CSSProperties}>
+      <table className={tableClass} style={{ '--row-height': 'var(--row-height-comfortable)' } as React.CSSProperties}>
         <thead>
           <tr className={tableHeadClass}>
             <th className="px-4 py-3 w-10">
@@ -274,10 +311,12 @@ function VmTable({
           {vms.map((vm, index) => {
             const isSelected = selectedIds.has(vm.id);
 
+            const statusKey = vm.status ? vm.status.toLowerCase().replace(/\s+/g, '_') : 'unknown';
             return (
               <tr
                 key={vm.id}
                 className={cn(tableRowClass, isSelected && 'bg-[var(--color-accent)]/10')}
+                style={rowAccent('status', statusKey)}
               >
                 <td className="py-3 pl-3 pr-4">
                   <input
@@ -288,42 +327,141 @@ function VmTable({
                     aria-label={`Select ${vm.name}`}
                   />
                 </td>
-                {columns.map((col) => (
-                  <td key={col.key} data-testid={`cell-${col.key}`} className={cn(tableCellClass, col.key === 'name' && 'font-medium')}>
-                    {col.key === 'name' && (
-                      <Link href={`/inventory/${vm.id}`} className="hover:text-[var(--color-accent)] transition-colors">
-                        {vm.name}
-                      </Link>
-                    )}
-                    {col.key === 'platform' && <Badge value={vm.platform} type="platform" />}
-                    {col.key === 'cluster' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.cluster}</span>}
-                    {col.key === 'node' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.node}</span>}
-                    {col.key === 'status' && <span className="capitalize">{humanize(vm.status)}</span>}
-                    {col.key === 'environment' && <span className="capitalize">{humanize(vm.environment)}</span>}
-                    {col.key === 'criticality' && <span className="capitalize">{humanize(vm.criticality)}</span>}
-                    {col.key === 'lifecycle' && <span className="capitalize">{humanize(vm.lifecycle)}</span>}
-                    {col.key === 'os_family' && <span className="capitalize">{humanize(vm.os_family ?? 'unknown')}</span>}
-                    {col.key === 'owner' && <span className="truncate max-w-xs">{vm.owner ?? ''}</span>}
-                    {col.key === 'monitoring_enabled' && <span>{vm.monitoring_enabled ? 'Enabled' : 'Disabled'}</span>}
-                    {col.key === 'pmp_enabled' && <span>{vm.pmp_enabled ? 'Enabled' : 'Disabled'}</span>}
-                    {col.key === 'health' && <span className={monoClass}>{vm.health_score}</span>}
-                    {col.key === 'resources' && (
-                      <span className={cn(monoClass, "truncate max-w-[200px]")}>{vm.cpu_cores} vCPU · {formatMemory(vm.memory_mb)}</span>
-                    )}
-                    {col.key === 'fqdn' && <span className={cn(monoClass, "truncate max-w-xs")}>{vm.fqdn ?? ''}</span>}
-                    {col.key === 'private_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'private')?.ip_address ?? '—'}</span>}
-                    {col.key === 'public_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'public')?.ip_address ?? '—'}</span>}
-                    {col.key === 'backup_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'backup')?.ip_address ?? '—'}</span>}
-                    {col.key === 'tags' && vm.tags?.length && (
-                      <span className="inline-flex items-center gap-1 flex-wrap">
-                        {vm.tags.slice(0, 3).map((t) => (
-                          <span key={t} className="inline-flex items-center rounded bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 text-xs text-[var(--color-text-tertiary)]">{t}</span>
-                        ))}
-                        {vm.tags.length > 3 && <span className="text-xs text-[var(--color-text-tertiary)]">+{vm.tags.length - 3}</span>}
-                      </span>
-                    )}
-                  </td>
-                ))}
+                {columns.map((col) => {
+                  const isEditing = editingCell?.vmId === vm.id && editingCell?.field === col.key;
+                  const isEditable = canEdit && ['status', 'environment', 'criticality', 'lifecycle', 'owner'].includes(col.key);
+
+                  return (
+                    <td
+                      key={col.key}
+                      data-testid={`cell-${col.key}`}
+                      className={cn(
+                        tableCellClass,
+                        col.key === 'name' && 'font-medium',
+                        isEditable && !isEditing && 'group/cell cursor-pointer hover:bg-[var(--color-accent)]/10 transition-colors'
+                      )}
+                      title={isEditable && !isEditing ? 'Click to edit inline' : undefined}
+                      onClick={() => {
+                        if (isEditable && !isEditing) {
+                          const currentVal = (vm as any)[col.key] ?? '';
+                          startEdit(vm.id, col.key, currentVal);
+                        }
+                      }}
+                    >
+                      {isEditing ? (
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          {col.key === 'status' && (
+                            <select
+                              autoFocus
+                              className={selectClass}
+                              value={editValue}
+                              disabled={isSaving}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                              onBlur={commitEdit}
+                            >
+                              {['running', 'powered_off', 'suspended', 'archived', 'decommissioned'].map((opt) => (
+                                <option key={opt} value={opt}>{humanize(opt)}</option>
+                              ))}
+                            </select>
+                          )}
+                          {col.key === 'environment' && (
+                            <select
+                              autoFocus
+                              className={selectClass}
+                              value={editValue}
+                              disabled={isSaving}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                              onBlur={commitEdit}
+                            >
+                              {['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'].map((opt) => (
+                                <option key={opt} value={opt}>{humanize(opt)}</option>
+                              ))}
+                            </select>
+                          )}
+                          {col.key === 'criticality' && (
+                            <select
+                              autoFocus
+                              className={selectClass}
+                              value={editValue}
+                              disabled={isSaving}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                              onBlur={commitEdit}
+                            >
+                              {['critical', 'high', 'medium', 'low'].map((opt) => (
+                                <option key={opt} value={opt}>{humanize(opt)}</option>
+                              ))}
+                            </select>
+                          )}
+                          {col.key === 'lifecycle' && (
+                            <select
+                              autoFocus
+                              className={selectClass}
+                              value={editValue}
+                              disabled={isSaving}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                              onBlur={commitEdit}
+                            >
+                              {['planned', 'active', 'retiring', 'retired'].map((opt) => (
+                                <option key={opt} value={opt}>{humanize(opt)}</option>
+                              ))}
+                            </select>
+                          )}
+                          {col.key === 'owner' && (
+                            <input
+                              autoFocus
+                              type="text"
+                              className={inputClass}
+                              value={editValue}
+                              disabled={isSaving}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                              onBlur={commitEdit}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          {col.key === 'name' && (
+                            <Link href={`/inventory/${vm.id}`} className="hover:text-[var(--color-accent)] transition-colors">
+                              {vm.name}
+                            </Link>
+                          )}
+                          {col.key === 'platform' && <Badge value={vm.platform} type="platform" />}
+                          {col.key === 'cluster' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.cluster}</span>}
+                          {col.key === 'node' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.node}</span>}
+                          {col.key === 'status' && <Badge value={vm.status} type="status" />}
+                          {col.key === 'environment' && <Badge value={vm.environment} type="environment" />}
+                          {col.key === 'criticality' && <Badge value={vm.criticality} type="criticality" />}
+                          {col.key === 'lifecycle' && <Badge value={vm.lifecycle} type="lifecycle" />}
+                          {col.key === 'os_family' && <Badge value={vm.os_family ?? 'unknown'} type="os_family" />}
+                          {col.key === 'owner' && <span className="truncate max-w-xs">{vm.owner ?? ''}</span>}
+                          {col.key === 'monitoring_enabled' && <span>{vm.monitoring_enabled ? 'Enabled' : 'Disabled'}</span>}
+                          {col.key === 'pmp_enabled' && <span>{vm.pmp_enabled ? 'Enabled' : 'Disabled'}</span>}
+                          {col.key === 'health' && <span className={monoClass}>{vm.health_score}</span>}
+                          {col.key === 'resources' && (
+                            <span className={cn(monoClass, "truncate max-w-[200px]")}>{vm.cpu_cores} vCPU · {formatMemory(vm.memory_mb)}</span>
+                          )}
+                          {col.key === 'fqdn' && <span className={cn(monoClass, "truncate max-w-xs")}>{vm.fqdn ?? ''}</span>}
+                          {col.key === 'private_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'private')?.ip_address ?? '—'}</span>}
+                          {col.key === 'public_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'public')?.ip_address ?? '—'}</span>}
+                          {col.key === 'backup_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'backup')?.ip_address ?? '—'}</span>}
+                          {col.key === 'tags' && vm.tags?.length && (
+                            <span className="inline-flex items-center gap-1 flex-wrap">
+                              {vm.tags.slice(0, 3).map((t) => (
+                                <span key={t} className="inline-flex items-center rounded bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 text-xs text-[var(--color-text-tertiary)]">{t}</span>
+                              ))}
+                              {vm.tags.length > 3 && <span className="text-xs text-[var(--color-text-tertiary)]">+{vm.tags.length - 3}</span>}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}
@@ -345,8 +483,24 @@ export function InventoryPage() {
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkError, setBulkError] = useState<string | undefined>();
+  const [bulkSuccess, setBulkSuccess] = useState<string | undefined>();
+  const [bulkFailureDetails, setBulkFailureDetails] = useState<BulkResult | null>(null);
+  const [pendingPatch, setPendingPatch] = useState<BulkPatch | null>(null);
+  const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
   const queryClient = useQueryClient();
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
+
+  const updateVmCellMutation = useMutation({
+    mutationFn: ({ vmId, patch }: { vmId: string; patch: Record<string, unknown> }) =>
+      api.updateVm(vmId, patch as any),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vms'] });
+    },
+  });
+
+  const handleUpdateCell = async (vmId: string, field: string, value: string) => {
+    await updateVmCellMutation.mutateAsync({ vmId, patch: { [field]: value } });
+  };
 
   useEffect(() => {
     setFilters(filtersFromParams(searchParams));
@@ -464,16 +618,32 @@ export function InventoryPage() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['vms'] });
       setBulkOpen(false);
+      setConfirmBulkOpen(false);
+      setPendingPatch(null);
       setSelectedIds(new Set());
       setSelectAllMatching(false);
-      setBulkError(
-        result.failed.length > 0
-          ? `${result.updated} updated, ${result.failed.length} failed`
-          : undefined,
-      );
+      if (result.failed.length === 0) {
+        setBulkSuccess(`Successfully updated ${result.updated} VM${result.updated === 1 ? '' : 's'}.`);
+        setBulkError(undefined);
+        setBulkFailureDetails(null);
+      } else {
+        setBulkError(`${result.updated} updated, ${result.failed.length} failed`);
+        setBulkFailureDetails(result);
+        setBulkSuccess(undefined);
+      }
     },
-    onError: (error) => setBulkError(detailMessage(error)),
   });
+
+  function handleBulkSubmit(patch: BulkPatch) {
+    setBulkError(undefined);
+    setBulkSuccess(undefined);
+    if (selectAllMatching || targetCount > 10) {
+      setPendingPatch(patch);
+      setConfirmBulkOpen(true);
+    } else {
+      bulkMutation.mutate(patch);
+    }
+  }
 
   // A stale deep link can point past the end of a shrunken result set.
   useEffect(() => {
@@ -509,14 +679,35 @@ export function InventoryPage() {
           onReorderColumns={reorderColumns}
           onResetColumns={resetToDefault}
         />
-        {!vms.data ? (
-          <div className="mb-4 flex items-center justify-between">
-            <p className="eyebrow-label">Loading…</p>
-          </div>
-        ) : null}
 
         {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
-        {bulkError ? <Alert>{bulkError}</Alert> : null}
+        {bulkSuccess ? <Alert tone="success">{bulkSuccess}</Alert> : null}
+        {bulkError && !bulkFailureDetails ? <Alert tone="error">{bulkError}</Alert> : null}
+        {bulkFailureDetails && bulkFailureDetails.failed.length > 0 && (
+          <div role="alert" className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
+            <div className="flex items-center justify-between gap-3 font-semibold mb-2">
+              <span>Bulk update completed with errors ({bulkFailureDetails.updated} updated, {bulkFailureDetails.failed.length} failed)</span>
+              <button
+                type="button"
+                className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 transition-colors"
+                onClick={() => {
+                  setSelectedIds(new Set(bulkFailureDetails.failed.map((f: { id: string; message: string }) => f.id)));
+                  setSelectAllMatching(false);
+                }}
+              >
+                Select Failed ({bulkFailureDetails.failed.length})
+              </button>
+            </div>
+            <div className="max-h-36 overflow-y-auto space-y-1 text-xs font-mono">
+              {bulkFailureDetails.failed.map((f: { id: string; message: string }) => (
+                <div key={f.id} className="flex justify-between items-center border-b border-red-500/20 pb-1">
+                  <span>VM ID: {f.id}</span>
+                  <span className="text-red-600 dark:text-red-400 font-semibold">{f.message}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {vms.isLoading ? <TableSkeleton rows={8} cols={7} /> : null}
         {vms.data && vms.data.items.length > 0 ? (
           <>
@@ -530,6 +721,8 @@ export function InventoryPage() {
                 sortKey={view.sort}
                 sortDir={view.dir}
                 onSort={handleSort}
+                canEdit={canCreateVm}
+                onUpdateCell={handleUpdateCell}
               />
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
@@ -590,7 +783,7 @@ export function InventoryPage() {
               </button>
             )}
             {canCreateVm && targetCount > 0 && (
-              <button type="button" onClick={() => { setBulkError(undefined); setBulkOpen(true); }} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
+              <button type="button" onClick={() => { setBulkError(undefined); setBulkSuccess(undefined); setBulkOpen(true); }} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
                 Edit
               </button>
             )}
@@ -612,10 +805,42 @@ export function InventoryPage() {
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
         targetLabel={targetLabel}
-        onSubmit={(patch) => bulkMutation.mutate(patch)}
+        onSubmit={handleBulkSubmit}
         pending={bulkMutation.isPending}
         error={bulkError}
       />
+      <ConfirmDialog
+        open={confirmBulkOpen}
+        title="Confirm Bulk Update"
+        body={`Are you sure you want to apply these changes to ${targetLabel}? This operation will modify ${targetCount} virtual machine records.`}
+        confirmLabel="Confirm Bulk Edit"
+        tone="primary"
+        onConfirm={() => {
+          if (pendingPatch) bulkMutation.mutate(pendingPatch);
+        }}
+        onCancel={() => {
+          setConfirmBulkOpen(false);
+          setPendingPatch(null);
+        }}
+      >
+        {pendingPatch && Object.keys(pendingPatch).length > 0 && (
+          <div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] p-3 text-xs dark:bg-slate-900">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)] dark:text-slate-400 mb-1.5">
+              Staged Changes Preview
+            </div>
+            <div className="space-y-1 max-h-36 overflow-y-auto">
+              {Object.entries(pendingPatch).map(([key, val]) => (
+                <div key={key} className="flex justify-between items-center gap-2 border-b border-[var(--color-border)]/50 pb-1 last:border-0 last:pb-0">
+                  <span className="text-[var(--color-text-secondary)] font-medium dark:text-slate-300">{key.replace(/_/g, ' ')}:</span>
+                  <span className="font-mono text-[var(--color-accent)] font-semibold dark:text-orange-400">
+                    {Array.isArray(val) ? val.join(', ') : String(val)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </ConfirmDialog>
     </PageTransition>
   );
 }
