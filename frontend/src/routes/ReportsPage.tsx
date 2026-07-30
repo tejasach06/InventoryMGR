@@ -65,16 +65,16 @@ export function ReportsPage() {
             <section key={r.name} className={`${cardClass} flex flex-col`}>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-slate-950 dark:text-slate-50">{r.label}</h2>
-                  <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">{r.description}</p>
+                  <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">{r.label}</h2>
+                  <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{r.description}</p>
                 </div>
                 <div className="shrink-0 text-right">
                   {vmsQ.isLoading ? (
                     <Skeleton className="h-7 w-10" />
                   ) : (
                     <>
-                      <span className="tech text-2xl font-bold text-slate-950 dark:text-slate-50">{value}</span>
-                      <span className="ml-1 text-[0.7rem] uppercase tracking-wide text-slate-500 dark:text-slate-400">{r.suffix}</span>
+                      <span className="tech text-2xl font-bold text-[var(--color-text-primary)]">{value}</span>
+                      <span className="ml-1 text-[0.7rem] uppercase tracking-wide text-[var(--color-text-tertiary)]">{r.suffix}</span>
                     </>
                   )}
                 </div>
@@ -82,7 +82,7 @@ export function ReportsPage() {
               <div className="mt-4">
                 <ProgressBar value={pct} colorVar={r.colorVar} />
               </div>
-              <div className="mt-4 flex justify-end border-t border-slate-200 dark:border-slate-800 pt-3">
+              <div className="mt-4 flex justify-end border-t border-[var(--color-border)] pt-3">
                 <a href={api.reportUrl(r.name)} download={`${r.name}.csv`} className={secondaryButtonClass}>
                   <DownloadIcon /> Download CSV
                 </a>

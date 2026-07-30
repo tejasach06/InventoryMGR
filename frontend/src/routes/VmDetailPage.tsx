@@ -29,10 +29,10 @@ function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) 
     >
       {copied ? (
         <>
-          <svg className="h-3 w-3 text-emerald-500" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="h-3 w-3 text-[var(--color-status-running)]" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M2.5 6L5 8.5L9.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Copied!</span>
+          <span className="text-[var(--color-status-running)] font-semibold">Copied!</span>
         </>
       ) : (
         <>
@@ -65,8 +65,8 @@ function Field({
   const empty = display === '—';
   return (
     <div className="py-2">
-      <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)] dark:text-slate-400">{label}</dt>
-      <dd className={`mt-1 flex items-center gap-2 ${mono && !empty ? monoClass : ''} ${empty ? 'text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]'}`}>
+      <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">{label}</dt>
+      <dd className={`mt-1 flex items-center gap-2 ${mono && !empty ? monoClass : ''} ${empty ? 'text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}>
         {badgeType && !empty ? <Badge value={String(value)} type={badgeType} size="md" /> : <span>{display}</span>}
         {copyable && !empty && typeof value === 'string' && <CopyButton text={value} />}
       </dd>
@@ -178,7 +178,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
                   <button
                     type="button"
                     onClick={() => setDeleteDiskId(d.id)}
-                    className="p-1 text-[var(--color-text-tertiary)] hover:bg-red-500/10 hover:text-red-600 rounded transition-colors"
+                    className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
                     title={`Remove ${d.disk_name}`}
                   >
                     <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -256,7 +256,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
                   <button
                     type="button"
                     onClick={() => setDeleteNetworkId(n.id)}
-                    className="p-1 text-[var(--color-text-tertiary)] hover:bg-red-500/10 hover:text-red-600 rounded transition-colors"
+                    className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
                     title={`Remove ${n.ip_address}`}
                   >
                     <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -322,7 +322,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
               <button
                 type="button"
                 onClick={() => setDeleteAppId(a.id)}
-                className="p-1 text-[var(--color-text-tertiary)] hover:bg-red-500/10 hover:text-red-600 rounded transition-colors"
+                className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
                 title={`Remove ${a.app_name}`}
               >
                 <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -453,8 +453,8 @@ export function VmDetailPage() {
         <SectionNav titles={['Telemetry', 'Infrastructure', 'Operations', 'Audit & History']} />
 
         {/* 1. HERO TELEMETRY PANEL */}
-        <section id="telemetry" className="rounded-xl border border-[var(--color-border)]/70 bg-white p-5 shadow-sm shadow-slate-900/[0.04] dark:border-[var(--color-border)] dark:bg-slate-900/70 dark:shadow-none dark:backdrop-blur space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4 dark:border-slate-800">
+        <section id="telemetry" className="rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-5 shadow-[var(--shadow-raised)] backdrop-blur space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge value={vm.status} type="status" size="md" />
               <Badge value={vm.platform} type="platform" size="md" />
@@ -464,7 +464,7 @@ export function VmDetailPage() {
               {vm.os_family && <Badge value={vm.os_family} type="os_family" size="md" />}
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)] dark:text-slate-400">Health Score</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">Health Score</span>
               <div className="flex-1 sm:w-48">
                 <HealthScore score={vm.health_score} />
               </div>
@@ -472,10 +472,10 @@ export function VmDetailPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3 dark:bg-slate-800/50">
+            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3">
               <p className="eyebrow-label text-[0.625rem]">Primary IP</p>
               <div className="mt-1 flex items-center justify-between gap-1">
-                <span className={`${monoClass} text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100`}>
+                <span className={`${monoClass} text-sm font-semibold text-[var(--color-text-primary)]`}>
                   {vm.networks?.find((n) => n.role === 'private')?.ip_address ?? vm.networks?.[0]?.ip_address ?? '—'}
                 </span>
                 {(vm.networks?.find((n) => n.role === 'private')?.ip_address ?? vm.networks?.[0]?.ip_address) && (
@@ -483,24 +483,24 @@ export function VmDetailPage() {
                 )}
               </div>
             </div>
-            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3 dark:bg-slate-800/50">
+            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3">
               <p className="eyebrow-label text-[0.625rem]">FQDN</p>
               <div className="mt-1 flex items-center justify-between gap-1">
-                <span className={`${monoClass} text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100 truncate`}>
+                <span className={`${monoClass} text-sm font-semibold text-[var(--color-text-primary)] truncate`}>
                   {vm.fqdn ?? '—'}
                 </span>
                 {vm.fqdn && <CopyButton text={vm.fqdn} label="Copy FQDN" />}
               </div>
             </div>
-            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3 dark:bg-slate-800/50">
+            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3">
               <p className="eyebrow-label text-[0.625rem]">vCPU, Memory & Storage</p>
-              <p className={`${monoClass} mt-1 text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100`}>
+              <p className={`${monoClass} mt-1 text-sm font-semibold text-[var(--color-text-primary)]`}>
                 {vm.cpu_cores} vCPU · {vm.memory_mb ? formatMemory(vm.memory_mb) : '—'}{totalStorageGb ? ` · ${totalStorageGb} GB` : ''}
               </p>
             </div>
-            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3 dark:bg-slate-800/50">
+            <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3">
               <p className="eyebrow-label text-[0.625rem]">Location / Host</p>
-              <p className={`${monoClass} mt-1 text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100 truncate`}>
+              <p className={`${monoClass} mt-1 text-sm font-semibold text-[var(--color-text-primary)] truncate`}>
                 {vm.cluster ?? '—'}{vm.node ? ` / ${vm.node}` : ''}
               </p>
             </div>
@@ -525,7 +525,7 @@ export function VmDetailPage() {
                   <Field label="Tags" value={vm.tags.join(', ') || null} />
                   {vm.description && (
                     <div className="sm:col-span-2 py-2">
-                      <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)] dark:text-slate-400">Description</dt>
+                      <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">Description</dt>
                       <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{vm.description}</dd>
                     </div>
                   )}

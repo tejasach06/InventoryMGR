@@ -103,8 +103,8 @@ function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolea
         'relative flex items-center rounded-lg text-sm font-medium transition-colors duration-150',
         collapsed ? 'justify-center px-2 py-2.5' : 'gap-2.5 px-3 py-2',
         active
-          ? 'bg-[var(--color-accent)]/10 font-semibold text-[var(--color-accent)] dark:bg-[var(--color-accent)]/15 dark:text-orange-400'
-          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-white',
+          ? 'bg-[var(--color-accent)]/10 font-semibold text-[var(--color-accent-text)]'
+          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]',
       )}
     >
       {active && !collapsed ? (
@@ -117,8 +117,8 @@ function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolea
 }
 
 function GroupLabel({ children, collapsed }: { children: string; collapsed: boolean }) {
-  if (collapsed) return <div aria-hidden="true" className="mx-auto my-2 h-px w-6 bg-slate-200 dark:bg-slate-800" />;
-  return <p className="px-3 pb-1 pt-3 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">{children}</p>;
+  if (collapsed) return <div aria-hidden="true" className="mx-auto my-2 h-px w-6 bg-[var(--color-border-subtle)]" />;
+  return <p className="px-3 pb-1 pt-3 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">{children}</p>;
 }
 
 export function AppNav({ user, collapsed = false }: { user: Pick<User, 'role'>; collapsed?: boolean }) {

@@ -458,7 +458,7 @@ def apply_vm_filters(
 
 
 # Enum columns sort by meaning, not by spelling: alphabetically `critical` would
-# land between `archived` and `high`, which reads as a broken sort.
+# land between `high` and `medium`, which reads as a broken sort.
 _CRITICALITY_ORDER = case(
     {
         Criticality.critical: 0,
@@ -471,11 +471,9 @@ _CRITICALITY_ORDER = case(
 _STATUS_ORDER = case(
     {
         VmStatus.running: 0,
-        VmStatus.suspended: 1,
-        VmStatus.powered_off: 2,
-        VmStatus.unknown: 3,
-        VmStatus.archived: 4,
-        VmStatus.decommissioned: 5,
+        VmStatus.powered_off: 1,
+        VmStatus.unknown: 2,
+        VmStatus.decommissioned: 3,
     },
     value=Vm.status,
 )

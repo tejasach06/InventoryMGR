@@ -144,7 +144,7 @@ export function FuzzyMultiSelect({
     <div
       ref={panelRef}
       style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 100 }}
-      className="animate-rise max-h-60 overflow-auto rounded-lg border border-[var(--color-border)]/70 bg-white shadow-[var(--shadow-overlay)] dark:border-[var(--color-border)] dark:bg-slate-900"
+      className="animate-rise max-h-60 overflow-auto rounded-lg border border-[var(--color-border)]/70 bg-[var(--color-surface)] shadow-[var(--shadow-overlay)]"
     >
       {filtered.length === 0 && query && (
         <div className="px-3 py-2 text-sm text-[var(--color-text-tertiary)]">
@@ -159,7 +159,7 @@ export function FuzzyMultiSelect({
           className={`w-full text-left px-3 py-2 text-sm transition-colors duration-100 ${
             idx === highlightedIndex
               ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
-              : 'text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] dark:text-slate-200 dark:hover:bg-slate-800'
+              : 'text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)]'
           }`}
         >
           {labels?.[opt] ?? opt}

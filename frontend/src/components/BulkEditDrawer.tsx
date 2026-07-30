@@ -8,7 +8,7 @@ export type BulkPatch = Record<string, string | boolean | string[]>;
 const UNCHANGED = '';
 
 const SELECT_FIELDS = [
-  { key: 'status', label: 'Status', options: ['running', 'powered_off', 'suspended', 'archived', 'decommissioned', 'unknown'] },
+  { key: 'status', label: 'Status', options: ['running', 'powered_off', 'decommissioned', 'unknown'] },
   { key: 'environment', label: 'Environment', options: ['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'] },
   { key: 'criticality', label: 'Criticality', options: ['critical', 'high', 'medium', 'low'] },
   { key: 'lifecycle', label: 'Lifecycle', options: ['planned', 'active', 'retiring', 'retired'] },
@@ -99,22 +99,22 @@ export function BulkEditDrawer({
       {error ? <Alert>{error}</Alert> : null}
       
       {/* Sticky staged modification summary */}
-      <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900/60">
-        <span className="text-[var(--color-text-secondary)] dark:text-slate-400">
+      <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 py-2 text-xs">
+        <span className="text-[var(--color-text-secondary)]">
           Every field starts unchanged. Only modified fields are written.
         </span>
         {hasChanges ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent)]/15 px-2.5 py-0.5 font-semibold text-[var(--color-accent)] dark:text-orange-400">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent)]/15 px-2.5 py-0.5 font-semibold text-[var(--color-accent-text)]">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
             {stagedKeys.length} staged
           </span>
         ) : (
-          <span className="text-[var(--color-text-tertiary)] dark:text-slate-500">0 staged</span>
+          <span className="text-[var(--color-text-tertiary)]">0 staged</span>
         )}
       </div>
 
       {/* Tab bar */}
-      <div className="mb-4 flex border-b border-[var(--color-border)] text-xs font-semibold dark:border-slate-800" role="tablist">
+      <div className="mb-4 flex border-b border-[var(--color-border)] text-xs font-semibold" role="tablist">
         {[
           { id: 'state', label: 'Core State', staged: stateStaged },
           { id: 'infra', label: 'Infrastructure', staged: infraStaged },
@@ -131,8 +131,8 @@ export function BulkEditDrawer({
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`relative flex-1 pb-2.5 text-center transition-colors focus-visible:outline-none ${
                 active
-                  ? 'text-[var(--color-accent)] dark:text-orange-400 font-bold border-b-2 border-[var(--color-accent)]'
-                  : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] dark:hover:text-slate-300'
+                  ? 'text-[var(--color-accent-text)] font-bold border-b-2 border-[var(--color-accent)]'
+                  : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'
               }`}
             >
               <span className="inline-flex items-center gap-1">
@@ -146,8 +146,8 @@ export function BulkEditDrawer({
       <div>
         {/* Tab 1: State & Lifecycle */}
         <div className={activeTab === 'state' ? 'block' : 'hidden'}>
-          <fieldset className="rounded-xl border border-[var(--color-border)] p-4 dark:border-slate-800">
-            <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent)] dark:text-orange-400">
+          <fieldset className="rounded-xl border border-[var(--color-border)] p-4">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent-text)]">
               Core State & Lifecycle
             </legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -173,8 +173,8 @@ export function BulkEditDrawer({
 
         {/* Tab 2: Infrastructure & Ownership */}
         <div className={activeTab === 'infra' ? 'block' : 'hidden'}>
-          <fieldset className="rounded-xl border border-[var(--color-border)] p-4 dark:border-slate-800">
-            <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent)] dark:text-orange-400">
+          <fieldset className="rounded-xl border border-[var(--color-border)] p-4">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent-text)]">
               Infrastructure & Ownership
             </legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -196,8 +196,8 @@ export function BulkEditDrawer({
 
         {/* Tab 3: Operational Flags & Verification */}
         <div className={activeTab === 'ops' ? 'block' : 'hidden'}>
-          <fieldset className="rounded-xl border border-[var(--color-border)] p-4 dark:border-slate-800">
-            <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent)] dark:text-orange-400">
+          <fieldset className="rounded-xl border border-[var(--color-border)] p-4">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent-text)]">
               Operational Flags & Verification
             </legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -232,8 +232,8 @@ export function BulkEditDrawer({
 
         {/* Tab 4: Tag Management */}
         <div className={activeTab === 'tags' ? 'block' : 'hidden'}>
-          <fieldset className="rounded-xl border border-[var(--color-border)] p-4 dark:border-slate-800">
-            <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent)] dark:text-orange-400">
+          <fieldset className="rounded-xl border border-[var(--color-border)] p-4">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent-text)]">
               Tag Management
             </legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -250,7 +250,7 @@ export function BulkEditDrawer({
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-[var(--color-text-tertiary)] dark:text-slate-500">
+      <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">
         Setting VM type to temporary on a VM with a decommission date also moves its
         lifecycle to retiring, exactly as the VM form does.
       </p>

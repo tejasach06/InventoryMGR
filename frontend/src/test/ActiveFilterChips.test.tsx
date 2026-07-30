@@ -24,12 +24,12 @@ describe('ActiveFilterChips', () => {
   it('renders one chip per selected value with its human label', () => {
     render(
       <ActiveFilterChips
-        filters={{ ...emptyFilterState, status: ['running', 'suspended'], environment: ['production'] }}
+        filters={{ ...emptyFilterState, status: ['running', 'powered_off'], environment: ['production'] }}
         onRemove={vi.fn()}
       />,
     );
     expect(screen.getByText('running')).toBeInTheDocument();
-    expect(screen.getByText('suspended')).toBeInTheDocument();
+    expect(screen.getByText('powered_off')).toBeInTheDocument();
     expect(screen.getByText('production')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /Remove/ })).toHaveLength(3);
   });

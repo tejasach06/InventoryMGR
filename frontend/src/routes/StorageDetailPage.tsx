@@ -241,10 +241,10 @@ function VolumesArea({ array, clusters, canEdit }: { array: StorageArray; cluste
           </button>
         )}
       </div>
-      {array.volumes.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No volumes yet.</p> : null}
+      {array.volumes.length === 0 ? <p className="text-sm text-[var(--color-text-tertiary)]">No volumes yet.</p> : null}
       {array.volumes.map((v) => <VolumePanel key={v.id} volume={v} clusters={clusters} canEdit={canEdit} />)}
       {canEdit && showAddVolume && (
-        <div className="rounded-xl border border-dashed border-slate-200 p-4 dark:border-slate-700">
+        <div className="rounded-xl border border-dashed border-[var(--color-border)] p-4">
           <InlineAddForm fields={[
             { name: 'name', placeholder: 'Volume name', required: true },
             { name: 'capacity_gb', placeholder: 'Capacity GB', type: 'number', required: true },
@@ -345,7 +345,7 @@ export function StorageDetailPage() {
           ) : (
             <div className="mt-3">
               <UsageBar pct={array.used_pct} over={array.over_threshold} />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
                 {array.used_capacity_gb} / {array.total_capacity_gb} GB
                 {array.datacenter ? ` · ${array.datacenter}` : ''}
                 {array.model ? ` · ${array.model}` : ''}

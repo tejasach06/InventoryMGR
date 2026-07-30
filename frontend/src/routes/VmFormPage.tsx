@@ -466,7 +466,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <p className={helpTextClass}>Applications are managed on the VM detail page.</p>
           </SectionCard>
 
-          <div className="sticky bottom-0 flex items-center gap-3 rounded-xl border border-slate-200/70 bg-white/85 px-5 py-3 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/85">
+          <div className="sticky bottom-0 flex items-center gap-3 rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)]/85 px-5 py-3 shadow-[var(--shadow-raised)] backdrop-blur">
             <button className={primaryButtonClass} type="submit" disabled={save.isPending}>
               {save.isPending ? <><Spinner /> Saving…</> : 'Save VM'}
             </button>

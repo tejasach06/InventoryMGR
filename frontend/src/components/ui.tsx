@@ -1,12 +1,12 @@
 import { ReactNode, useEffect, useRef } from 'react';
 import { cn } from '../lib/classNames';
 
-export const primaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-all duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-slate-950';
-export const secondaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-all duration-150 hover:bg-[var(--color-surface-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-[var(--color-border)] dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800 dark:focus-visible:ring-offset-slate-950';
-export const dangerButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-criticality-critical)] px-4 py-2 text-sm font-medium text-white transition-all duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-criticality-critical)] disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-slate-950';
+export const primaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-on-accent)] transition-all duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60';
+export const secondaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-all duration-150 hover:bg-[var(--color-surface-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60';
+export const dangerButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-criticality-critical)] px-4 py-2 text-sm font-medium text-[var(--color-on-danger)] transition-all duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-criticality-critical)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60';
 
 /* Form controls */
-export const inputClass = 'w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-[var(--color-text-primary)] shadow-sm shadow-slate-900/[0.02] transition-[border-color,box-shadow] duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-4 focus:ring-[var(--color-accent)]/12 disabled:cursor-not-allowed disabled:bg-[var(--color-surface-tertiary)] dark:border-[var(--color-border)] dark:bg-slate-900 dark:text-slate-100 dark:shadow-none dark:placeholder:text-slate-500 dark:focus:border-orange-400 dark:focus:ring-orange-400/15 dark:disabled:bg-slate-900';
+export const inputClass = 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] shadow-[var(--shadow-raised)] transition-[border-color,box-shadow] duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-4 focus:ring-[var(--color-accent)]/12 disabled:cursor-not-allowed disabled:bg-[var(--color-surface-tertiary)]';
 export const selectClass = cn(inputClass, 'app-select cursor-pointer');
 export const textareaClass = cn(inputClass, 'min-h-28 resize-y');
 
@@ -15,31 +15,31 @@ export const textareaClass = cn(inputClass, 'min-h-28 resize-y');
 export const authInputClass = 'w-full border-0 border-b border-[var(--color-border)] bg-transparent px-1 py-3 text-sm text-[var(--color-text-primary)] transition-colors duration-200 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent';
 
 /* Layout components */
-export const cardClass = 'rounded-xl border border-[var(--color-border)]/70 bg-white p-5 shadow-sm shadow-slate-900/[0.04] dark:border-[var(--color-border)] dark:bg-slate-900/70 dark:shadow-none dark:backdrop-blur';
-export const tableWrapClass = 'overflow-x-auto rounded-xl border border-[var(--color-border)]/70 bg-white shadow-sm shadow-slate-900/[0.04] dark:border-[var(--color-border)] dark:bg-slate-900/70 dark:shadow-none';
+export const cardClass = 'rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-5 shadow-[var(--shadow-raised)] backdrop-blur';
+export const tableWrapClass = 'overflow-x-auto rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] shadow-[var(--shadow-raised)]';
 
 /* FilterBar — neutral control deck surface */
-export const filterBarClass = 'mb-4 rounded-xl border border-[var(--color-border)]/70 bg-white p-4 shadow-sm shadow-slate-900/[0.04] dark:border-[var(--color-border)] dark:bg-slate-900/70 dark:shadow-none dark:backdrop-blur';
+export const filterBarClass = 'mb-4 rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-4 shadow-[var(--shadow-raised)] backdrop-blur';
 
 /* Bento stat tile */
-export const statTileClass = 'bento-tile rounded-xl border border-[var(--color-border)]/70 bg-white p-4 dark:border-[var(--color-border)] dark:bg-slate-900/70';
+export const statTileClass = 'bento-tile rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-4';
 
 /* Typography */
-export const labelClass = 'mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)] dark:text-slate-300';
-export const helpTextClass = 'mt-2 text-sm text-[var(--color-text-tertiary)] dark:text-slate-400';
-export const sectionTitleClass = 'font-display text-[length:var(--text-fluid-h2)] font-semibold text-[var(--color-text-primary)] dark:text-slate-100';
+export const labelClass = 'mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]';
+export const helpTextClass = 'mt-2 text-sm text-[var(--color-text-tertiary)]';
+export const sectionTitleClass = 'font-display text-[length:var(--text-fluid-h2)] font-semibold text-[var(--color-text-primary)]';
 export const eyebrowClass = 'eyebrow-label';
 
 
 /* Table */
-export const tableClass = 'w-full min-w-full divide-y divide-[var(--color-border)] text-sm dark:divide-[var(--color-border)]/70';
-export const tableHeadClass = 'sticky top-0 z-10 bg-[var(--color-surface-tertiary)]/90 text-left text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)] backdrop-blur dark:bg-slate-900/90 dark:text-slate-400';
-export const tableBodyClass = 'divide-y divide-[var(--color-border)] bg-white dark:divide-[var(--color-border)]/70 dark:bg-transparent';
-export const tableRowClass = 'transition-colors duration-200 odd:bg-white even:bg-[var(--color-surface-secondary)]/60 hover:bg-[var(--color-accent)]/5 dark:odd:bg-transparent dark:even:bg-slate-900/40 dark:hover:bg-slate-800/50';
-export const tableCellClass = 'whitespace-nowrap px-4 py-3 text-[var(--color-text-primary)] dark:text-slate-300';
+export const tableClass = 'w-full min-w-full divide-y divide-[var(--color-border)] text-sm';
+export const tableHeadClass = 'sticky top-0 z-10 bg-[var(--color-surface-tertiary)]/90 text-left text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)] backdrop-blur';
+export const tableBodyClass = 'divide-y divide-[var(--color-border)] bg-[var(--color-surface)]';
+export const tableRowClass = 'transition-colors duration-200 odd:bg-[var(--color-surface)] even:bg-[var(--color-surface-secondary)]/60 hover:bg-[var(--color-accent)]/5';
+export const tableCellClass = 'whitespace-nowrap px-4 py-3 text-[var(--color-text-primary)]';
 
 /* Technical values: IPs, hostnames, UUIDs, sizes, counts. */
-export const monoClass = 'tech text-[0.8125rem] text-[var(--color-text-secondary)] dark:text-slate-300';
+export const monoClass = 'tech text-[0.8125rem] text-[var(--color-text-secondary)]';
 
 /* Semantic color helpers — use inline styles with CSS variables */
 export function semanticBg(type: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle', value: string) {
@@ -52,18 +52,6 @@ export function semanticBorder(type: 'status' | 'criticality' | 'environment' | 
   return { borderColor: `var(--color-${type}-${value})` } as React.CSSProperties;
 }
 
-/* Row accent — left border + hover wash */
-export function rowAccent(type: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle', value: string) {
-  return {
-    borderLeft: `3px solid var(--color-${type}-${value})`, /* impeccable-disable-line side-tab -- data row status border */
-    backgroundColor: 'transparent',
-  } as React.CSSProperties;
-}
-export function rowAccentHover(type: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle', value: string) {
-  return {
-    backgroundColor: `color-mix(in srgb, var(--color-${type}-${value}) 12%, transparent)`,
-  } as React.CSSProperties;
-}
 
 
 /* Badge with semantic color. size="sm" for dense table cells, "md" for card contexts. */
@@ -72,9 +60,8 @@ export function Badge({ value, type = 'status', size = 'sm' }: { value: string; 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-md font-semibold leading-none transition-all duration-150 hover:brightness-95 dark:hover:brightness-110',
-        size === 'sm' ? 'px-2 py-1 text-[0.6875rem] tracking-[0.01em]' : 'px-2.5 py-1.5 text-xs tracking-[0.02em]',
-        'animate-pill-pop'
+        'inline-flex items-center gap-1.5 rounded-full font-medium',
+        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'
       )}
       style={{
         backgroundColor: `var(--color-${type}-${normalized}-bg)`,
@@ -97,7 +84,7 @@ export function PageHeader({ title, actions, eyebrow }: { title: string; actions
     <div className="mb-8 grid gap-4 sm:flex sm:items-end sm:justify-between">
       <div>
         {eyebrow ? <div className="eyebrow-label text-[var(--color-accent)]">{eyebrow}</div> : null}
-        <h1 className="font-display mt-1 text-[length:var(--text-fluid-h1)] font-semibold leading-[1.05] tracking-tight text-[var(--color-text-primary)] dark:text-slate-50">{title}</h1>
+        <h1 className="font-display mt-1 text-[length:var(--text-fluid-h1)] font-semibold leading-[1.05] tracking-tight text-[var(--color-text-primary)]">{title}</h1>
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
@@ -138,12 +125,12 @@ export function EmptyState({ title, body, icon, actions }: { title: string; body
   return (
     <div className={cn(cardClass, 'flex flex-col items-center justify-center gap-4 py-20 px-4 text-center')}>
       {icon ? (
-        <div className="text-7xl text-[var(--color-text-secondary)] dark:text-slate-400 mb-3 transition-transform hover:scale-110 duration-300">
+        <div className="text-7xl text-[var(--color-text-secondary)] mb-3 transition-transform hover:scale-110 duration-300">
           {icon}
         </div>
       ) : (
         <div className="mb-3 transition-transform duration-300 hover:scale-110">
-          <svg className="h-16 w-16 mx-auto text-[var(--color-accent)] dark:text-orange-400" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <svg className="h-16 w-16 mx-auto text-[var(--color-accent)]" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             {/* Outer radar sweep & node matrix */}
             <circle cx="32" cy="32" r="28" strokeWidth="1.5" strokeDasharray="4 2" opacity="0.4" />
             <circle cx="32" cy="32" r="20" strokeWidth="1.5" opacity="0.6" />
@@ -155,8 +142,8 @@ export function EmptyState({ title, body, icon, actions }: { title: string; body
           </svg>
         </div>
       )}
-      <h3 className="font-display text-xl font-semibold text-[var(--color-text-primary)] dark:text-slate-100">{title}</h3>
-      <p className="text-base text-[var(--color-text-secondary)] dark:text-slate-300 max-w-md leading-relaxed">{body}</p>
+      <h3 className="font-display text-xl font-semibold text-[var(--color-text-primary)]">{title}</h3>
+      <p className="text-base text-[var(--color-text-secondary)] max-w-md leading-relaxed">{body}</p>
       {actions ? <div className="mt-2 flex flex-wrap items-center justify-center gap-2">{actions}</div> : null}
     </div>
   );
@@ -174,7 +161,7 @@ export function Spinner({ className }: { className?: string }) {
 
 /* Skeleton */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-shimmer rounded-lg bg-[var(--color-surface-tertiary)] dark:bg-slate-800', className)} aria-hidden="true" />;
+  return <div className={cn('animate-shimmer rounded-lg bg-[var(--color-surface-tertiary)]', className)} aria-hidden="true" />;
 }
 
 /* TableSkeleton */
@@ -213,7 +200,7 @@ export function PageTransition({ children, className }: { children: ReactNode; c
 export function Logo({ className }: { className?: string }) {
   return (
     <svg className={cn('h-8 w-8', className)} viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="#f97316" />
+      <rect width="32" height="32" rx="8" fill="var(--color-accent)" />
       <g fill="none" stroke="#ffffff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
         <rect x="7" y="7" width="18" height="7.5" rx="2.2" />
         <rect x="7" y="17.5" width="18" height="7.5" rx="2.2" />
@@ -241,17 +228,17 @@ export function Drawer({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
-      <div className="relative ml-auto w-full max-w-xl bg-white rounded-tl-2xl rounded-bl-2xl shadow-xl dark:bg-slate-950 animate-rise overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4 dark:border-[var(--color-border)]">
-          <h2 id="drawer-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)] dark:text-slate-100">{title}</h2>
+      <div className="absolute inset-0 bg-[var(--color-scrim)] backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
+      <div className="relative ml-auto w-full max-w-xl bg-[var(--color-surface)] rounded-tl-2xl rounded-bl-2xl shadow-[var(--shadow-overlay)] animate-rise overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
+          <h2 id="drawer-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
           <button type="button" onClick={onClose} className="p-1 rounded-lg text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-tertiary)] transition-colors" aria-label="Close">
             <svg className="h-5 w-5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">{children}</div>
         {footer && (
-          <div className="border-t border-[var(--color-border)] px-5 py-4 flex gap-2 justify-end bg-white dark:bg-slate-950">
+          <div className="border-t border-[var(--color-border)] px-5 py-4 flex gap-2 justify-end bg-[var(--color-surface)]">
             {footer}
           </div>
         )}
@@ -295,15 +282,14 @@ export function ConfirmDialog({
       document.removeEventListener('keydown', onKeyDown);
       restoreFocusRef.current?.focus();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onCancel} aria-hidden="true" />
-      <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-950 animate-rise">
-        <h2 id="confirm-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)] dark:text-slate-100">{title}</h2>
+      <div className="absolute inset-0 bg-[var(--color-scrim)] backdrop-blur-sm animate-fade-in" onClick={onCancel} aria-hidden="true" />
+      <div className="relative w-full max-w-sm rounded-2xl bg-[var(--color-surface)] p-5 shadow-[var(--shadow-overlay)] animate-rise">
+        <h2 id="confirm-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
         <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{body}</p>
         {children}
         <div className="mt-5 flex justify-end gap-2">
@@ -321,7 +307,7 @@ export function ConfirmDialog({
 export function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button type="button" onClick={onClick} aria-label={label}
-      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-criticality-critical)]/40 hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] dark:bg-slate-800">
+      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-criticality-critical)]/40 hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)]">
       ×
     </button>
   );
@@ -375,7 +361,7 @@ export function FilterChip({ label, value, onRemove, type = 'status' }: { label:
     <span
       className={cn(
         'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 hover:shadow-md animate-pill-pop',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] dark:focus-visible:ring-offset-slate-950'
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)]'
       )}
       style={{
         backgroundColor: `var(--color-${type}-${normalized}-bg)`,
@@ -387,7 +373,7 @@ export function FilterChip({ label, value, onRemove, type = 'status' }: { label:
       <button
         type="button"
         onClick={onRemove}
-        className="p-1 rounded-md hover:bg-black/15 dark:hover:bg-white/15 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950"
+        className="p-1 rounded-md hover:bg-[var(--color-surface-tertiary)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)]"
         aria-label={`Remove ${label} filter`}
       >
         <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>

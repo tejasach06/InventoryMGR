@@ -39,7 +39,7 @@ describe('NotificationBell', () => {
     expect(await screen.findByTestId('notif-badge')).toHaveTextContent('1');
     fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
     expect(await screen.findByText('web-01')).toBeInTheDocument();
-    expect(screen.getByText('db-02').closest('a')).toHaveClass('text-red-600');
+    expect(screen.getByText('db-02').closest('a')).toHaveClass('text-[var(--color-criticality-critical)]');
     await waitFor(() => expect(api.ackDecommissions).toHaveBeenCalledWith());
   });
   it('dismisses a single alert optimistically and calls scoped ackDecommissions', async () => {

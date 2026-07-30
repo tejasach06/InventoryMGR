@@ -20,7 +20,6 @@ import {
   inputClass,
   monoClass,
   primaryButtonClass,
-  rowAccent,
   secondaryButtonClass,
   selectClass,
   tableBodyClass,
@@ -145,7 +144,7 @@ function humanize(value: string): string {
 }
 
 const neutralChipClass =
-  'inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] capitalize text-[var(--color-text-secondary)] dark:bg-slate-800';
+  'inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] capitalize text-[var(--color-text-secondary)]';
 
 function VmCard({ vm }: { vm: Vm }) {
   return (
@@ -153,7 +152,7 @@ function VmCard({ vm }: { vm: Vm }) {
       href={`/inventory/${vm.id}`}
       className={cn(
         cardClass,
-        'block p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-raised)] hover:border-[var(--color-accent)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950'
+        'block p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-raised)] hover:border-[var(--color-accent)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]'
       )}
     >
       {/* Primary row: name + status */}
@@ -166,17 +165,17 @@ function VmCard({ vm }: { vm: Vm }) {
       </div>
 
       {/* Metric row: cpu / ram / storage, bento-tile mini-grid */}
-      <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-lg bg-[var(--color-surface-secondary)] p-2 dark:bg-slate-800/50">
+      <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-lg bg-[var(--color-surface-secondary)] p-2">
         <div className="text-center">
-          <p className={cn(monoClass, 'text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100')}>{vm.cpu_cores}</p>
+          <p className={cn(monoClass, 'text-sm font-semibold text-[var(--color-text-primary)]')}>{vm.cpu_cores}</p>
           <p className="eyebrow-label text-[0.5625rem]">vCPU</p>
         </div>
-        <div className="text-center border-x border-[var(--color-border)] dark:border-[var(--color-border)]/60">
-          <p className={cn(monoClass, 'text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100')}>{formatMemory(vm.memory_mb)}</p>
+        <div className="text-center border-x border-[var(--color-border)]">
+          <p className={cn(monoClass, 'text-sm font-semibold text-[var(--color-text-primary)]')}>{formatMemory(vm.memory_mb)}</p>
           <p className="eyebrow-label text-[0.5625rem]">Memory</p>
         </div>
         <div className="text-center">
-          <p className={cn(monoClass, 'text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100')}>{vm.disks?.length ? formatDisks(vm.disks.map((d) => d.size_gb)) : '—'}</p>
+          <p className={cn(monoClass, 'text-sm font-semibold text-[var(--color-text-primary)]')}>{vm.disks?.length ? formatDisks(vm.disks.map((d) => d.size_gb)) : '—'}</p>
           <p className="eyebrow-label text-[0.5625rem]">Storage</p>
         </div>
       </div>
@@ -187,9 +186,9 @@ function VmCard({ vm }: { vm: Vm }) {
         {vm.environment && <Badge value={vm.environment} type="environment" size="sm" />}
         {vm.lifecycle && <Badge value={vm.lifecycle} type="lifecycle" size="sm" />}
         {vm.os_family && <Badge value={vm.os_family} type="os_family" size="sm" />}
-        {vm.owner && <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--color-text-secondary)] dark:bg-slate-800 dark:text-slate-300">{vm.owner}</span>}
+        {vm.owner && <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--color-text-secondary)]">{vm.owner}</span>}
         {vm.tags && vm.tags.length > 0 && (
-          <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-tertiary)] dark:bg-slate-800 dark:text-slate-400">
+          <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] text-[var(--color-text-tertiary)]">
             {vm.tags.slice(0, 2).join(', ')}{vm.tags.length > 2 && ` +${vm.tags.length - 2}`}
           </span>
         )}
@@ -294,7 +293,7 @@ function VmTable({
                     <button
                       type="button"
                       onClick={() => onSort(col.key)}
-                      className="inline-flex items-center gap-1 font-medium uppercase tracking-[0.08em] text-[0.7rem] hover:text-[var(--color-text-primary)] dark:hover:text-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] rounded"
+                      className="inline-flex items-center gap-1 font-medium uppercase tracking-[0.08em] text-[0.7rem] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] rounded"
                     >
                       {COLUMN_LABELS[col.key as keyof typeof COLUMN_LABELS] || col.key}
                       <SortIcon direction={active ? sortDir : null} />
@@ -311,12 +310,10 @@ function VmTable({
           {vms.map((vm, index) => {
             const isSelected = selectedIds.has(vm.id);
 
-            const statusKey = vm.status ? vm.status.toLowerCase().replace(/\s+/g, '_') : 'unknown';
             return (
               <tr
                 key={vm.id}
                 className={cn(tableRowClass, isSelected && 'bg-[var(--color-accent)]/10')}
-                style={rowAccent('status', statusKey)}
               >
                 <td className="py-3 pl-3 pr-4">
                   <input
@@ -360,7 +357,7 @@ function VmTable({
                               onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
                               onBlur={commitEdit}
                             >
-                              {['running', 'powered_off', 'suspended', 'archived', 'decommissioned'].map((opt) => (
+                              {['running', 'powered_off', 'decommissioned'].map((opt) => (
                                 <option key={opt} value={opt}>{humanize(opt)}</option>
                               ))}
                             </select>
@@ -684,12 +681,12 @@ export function InventoryPage() {
         {bulkSuccess ? <Alert tone="success">{bulkSuccess}</Alert> : null}
         {bulkError && !bulkFailureDetails ? <Alert tone="error">{bulkError}</Alert> : null}
         {bulkFailureDetails && bulkFailureDetails.failed.length > 0 && (
-          <div role="alert" className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
+          <div role="alert" className="mb-4 rounded-xl border border-[var(--color-criticality-critical)]/40 bg-[var(--color-criticality-critical-bg)] p-4 text-sm text-[var(--color-criticality-critical)]">
             <div className="flex items-center justify-between gap-3 font-semibold mb-2">
               <span>Bulk update completed with errors ({bulkFailureDetails.updated} updated, {bulkFailureDetails.failed.length} failed)</span>
               <button
                 type="button"
-                className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 transition-colors"
+                className="rounded-lg bg-[var(--color-criticality-critical)] px-3 py-1 text-xs font-semibold text-[var(--color-on-danger)] hover:opacity-90 transition-colors"
                 onClick={() => {
                   setSelectedIds(new Set(bulkFailureDetails.failed.map((f: { id: string; message: string }) => f.id)));
                   setSelectAllMatching(false);
@@ -700,9 +697,9 @@ export function InventoryPage() {
             </div>
             <div className="max-h-36 overflow-y-auto space-y-1 text-xs font-mono">
               {bulkFailureDetails.failed.map((f: { id: string; message: string }) => (
-                <div key={f.id} className="flex justify-between items-center border-b border-red-500/20 pb-1">
+                <div key={f.id} className="flex justify-between items-center border-b border-[var(--color-criticality-critical)]/20 pb-1">
                   <span>VM ID: {f.id}</span>
-                  <span className="text-red-600 dark:text-red-400 font-semibold">{f.message}</span>
+                  <span className="text-[var(--color-criticality-critical)] font-semibold">{f.message}</span>
                 </div>
               ))}
             </div>
@@ -773,28 +770,28 @@ export function InventoryPage() {
           context panel is gone. */}
       {(selectedIds.size > 0 || selectAllMatching) && (
         <div className="fixed bottom-6 right-4 sm:right-6 z-40 bulk-bar" role="toolbar" aria-label="Bulk actions">
-          <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-text-primary)] px-4 py-2.5 text-white shadow-[var(--shadow-overlay)] dark:bg-slate-800 dark:border-slate-700">
+          <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-inverse)] px-4 py-2.5 text-[var(--color-text-inverse)] shadow-[var(--shadow-overlay)]">
             <span className="text-sm font-semibold tabular-nums">
               {selectAllMatching ? `All ${total.toLocaleString()} matching filters` : `${selectedIds.size} selected`}
             </span>
             {!selectAllMatching && pageFullySelected && total > items.length && (
-              <button type="button" onClick={() => setSelectAllMatching(true)} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
+              <button type="button" onClick={() => setSelectAllMatching(true)} className="text-sm font-medium text-[var(--color-text-inverse)]/90 hover:text-[var(--color-text-inverse)] transition-colors">
                 Select all {total.toLocaleString()} matching filters
               </button>
             )}
             {canCreateVm && targetCount > 0 && (
-              <button type="button" onClick={() => { setBulkError(undefined); setBulkSuccess(undefined); setBulkOpen(true); }} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
+              <button type="button" onClick={() => { setBulkError(undefined); setBulkSuccess(undefined); setBulkOpen(true); }} className="text-sm font-medium text-[var(--color-text-inverse)]/90 hover:text-[var(--color-text-inverse)] transition-colors">
                 Edit
               </button>
             )}
-            <div className="h-4 w-px bg-white/20" aria-hidden="true" />
-            <button type="button" onClick={() => exportSelected('csv')} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
+            <div className="h-4 w-px bg-[var(--color-text-inverse)]/20" aria-hidden="true" />
+            <button type="button" onClick={() => exportSelected('csv')} className="text-sm font-medium text-[var(--color-text-inverse)]/90 hover:text-[var(--color-text-inverse)] transition-colors">
               CSV
             </button>
-            <button type="button" onClick={() => exportSelected('xlsx')} className="text-sm font-medium text-white/90 hover:text-white transition-colors">
+            <button type="button" onClick={() => exportSelected('xlsx')} className="text-sm font-medium text-[var(--color-text-inverse)]/90 hover:text-[var(--color-text-inverse)] transition-colors">
               Excel
             </button>
-            <button type="button" onClick={() => { setSelectedIds(new Set()); setSelectAllMatching(false); }} className="text-sm font-medium text-white/60 hover:text-white transition-colors">
+            <button type="button" onClick={() => { setSelectedIds(new Set()); setSelectAllMatching(false); }} className="text-sm font-medium text-[var(--color-text-inverse)]/60 hover:text-[var(--color-text-inverse)] transition-colors">
               Clear
             </button>
           </div>
@@ -824,15 +821,15 @@ export function InventoryPage() {
         }}
       >
         {pendingPatch && Object.keys(pendingPatch).length > 0 && (
-          <div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] p-3 text-xs dark:bg-slate-900">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)] dark:text-slate-400 mb-1.5">
+          <div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] p-3 text-xs">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)] mb-1.5">
               Staged Changes Preview
             </div>
             <div className="space-y-1 max-h-36 overflow-y-auto">
               {Object.entries(pendingPatch).map(([key, val]) => (
                 <div key={key} className="flex justify-between items-center gap-2 border-b border-[var(--color-border)]/50 pb-1 last:border-0 last:pb-0">
-                  <span className="text-[var(--color-text-secondary)] font-medium dark:text-slate-300">{key.replace(/_/g, ' ')}:</span>
-                  <span className="font-mono text-[var(--color-accent)] font-semibold dark:text-orange-400">
+                  <span className="text-[var(--color-text-secondary)] font-medium">{key.replace(/_/g, ' ')}:</span>
+                  <span className="font-mono text-[var(--color-accent-text)] font-semibold">
                     {Array.isArray(val) ? val.join(', ') : String(val)}
                   </span>
                 </div>

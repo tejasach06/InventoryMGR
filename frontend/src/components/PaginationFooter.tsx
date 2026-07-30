@@ -26,12 +26,12 @@ export function PaginationFooter({
 
   return (
     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-[var(--color-text-secondary)] dark:text-slate-400">
+      <p className="text-sm text-[var(--color-text-secondary)]">
         <span className="tech tabular-nums">{first.toLocaleString()}–{last.toLocaleString()} of {total.toLocaleString()}</span>
       </p>
 
       <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] dark:text-slate-400">
+        <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
           <span className="whitespace-nowrap">Rows</span>
           <select
             aria-label="Rows per page"
@@ -51,7 +51,7 @@ export function PaginationFooter({
             aria-label="Previous page"
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
-            className="rounded-lg border border-[var(--color-border)] px-2.5 py-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-tertiary)] disabled:cursor-not-allowed disabled:opacity-40 dark:border-[var(--color-border)] dark:text-slate-300 dark:hover:bg-slate-800"
+            className="rounded-lg border border-[var(--color-border)] px-2.5 py-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-tertiary)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             Prev
           </button>
@@ -60,14 +60,14 @@ export function PaginationFooter({
             aria-label="Next page"
             disabled={page >= pageCount}
             onClick={() => onPageChange(page + 1)}
-            className="rounded-lg border border-[var(--color-border)] px-2.5 py-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-tertiary)] disabled:cursor-not-allowed disabled:opacity-40 dark:border-[var(--color-border)] dark:text-slate-300 dark:hover:bg-slate-800"
+            className="rounded-lg border border-[var(--color-border)] px-2.5 py-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-tertiary)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next
           </button>
         </div>
 
         {/* Announced so a screen-reader user hears the page change, not just the rows swap. */}
-        <p aria-live="polite" className="text-sm text-[var(--color-text-secondary)] tabular-nums dark:text-slate-400">
+        <p aria-live="polite" className="text-sm text-[var(--color-text-secondary)] tabular-nums">
           Page {page} of {pageCount}
         </p>
       </div>

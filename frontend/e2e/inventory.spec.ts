@@ -16,7 +16,7 @@ async function setupInitialAdmin(page: Page) {
 async function loginAsAdmin(page: Page) {
   await page.goto('/login');
   const setupButton = page.getByRole('button', { name: 'Create admin account' });
-  const signInButton = page.getByRole('button', { name: 'Sign in' });
+  const signInButton = page.getByRole('button', { name: 'Sign in', exact: true });
   await expect(setupButton.or(signInButton)).toBeVisible();
   if (await setupButton.isVisible()) {
     await page.getByLabel('Email').fill(adminEmail);
@@ -26,7 +26,7 @@ async function loginAsAdmin(page: Page) {
   } else {
     await page.getByLabel('Email').fill(adminEmail);
     await page.getByLabel('Password').fill(adminPassword);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await signInButton.click();
   }
   await expect(page).toHaveURL(/\/inventory$/);
 }
@@ -79,8 +79,8 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
   await expect(page.getByRole('link', { name: vmwareName })).toBeVisible();
   await page.getByLabel('Search VMs').fill(proxmoxName);
   const proxmoxRow = page.getByRole('row').filter({ hasText: proxmoxName });
-  // Status renders humanised: the stored `powered_off` shows as "powered off".
-  await expect(proxmoxRow).toContainText('powered off');
+  // Status renders stored value: `powered_off`.
+  await expect(proxmoxRow).toContainText('powered_off');
   await expect(proxmoxRow).toContainText('12 GB');
 });
 test('pages through the inventory and changes rows per page', async ({ page }) => {
@@ -119,7 +119,8 @@ test('bulk edits the selected rows', async ({ page }) => {
   await page.getByRole('button', { name: 'Edit' }).click();
   await page.getByLabel('Criticality').selectOption('high');
   await page.getByRole('button', { name: /^Apply to/ }).click();
+  await page.getByRole('button', { name: 'Confirm Bulk Edit' }).click();
 
-  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.getByRole('dialog', { name: 'Edit 32 VMs' })).toBeHidden();
   await expect(page.locator('[data-testid="cell-criticality"]').first()).toHaveText(/high/i);
 });

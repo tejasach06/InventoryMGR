@@ -10,7 +10,7 @@ export type AdvancedFieldConfig =
   | { kind: 'dynamicMultiSelect'; labels?: Record<string, string> };
 
 export const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfig> = {
-  status: { kind: 'multiSelect', options: ['running', 'powered_off', 'suspended', 'archived', 'decommissioned', 'unknown'] as const },
+  status: { kind: 'multiSelect', options: ['running', 'powered_off', 'decommissioned', 'unknown'] as const },
   platform: { kind: 'multiSelect', options: ['proxmox', 'vmware'] as const },
   criticality: { kind: 'multiSelect', options: ['critical', 'high', 'medium', 'low'] as const },
   lifecycle: { kind: 'multiSelect', options: ['active', 'planned', 'retiring', 'retired'] as const },

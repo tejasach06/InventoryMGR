@@ -41,8 +41,6 @@ class Platform(StrEnum):
 class VmStatus(StrEnum):
     running = "running"
     powered_off = "powered_off"
-    suspended = "suspended"
-    archived = "archived"
     decommissioned = "decommissioned"
     unknown = "unknown"
 

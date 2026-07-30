@@ -126,11 +126,11 @@ export function ThemeSelect({ className }: { className?: string }): ReactElement
   }
 
   return (
-    <label className={cn('inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300', className)}>
+    <label className={cn('inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]', className)}>
       <span>Theme</span>
       <select
         aria-label="Theme"
-        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-blue-400 dark:focus:ring-blue-400/20"
+        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-raised)] transition focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/12"
         value={theme}
         onChange={handleChange}
       >
@@ -203,7 +203,7 @@ export function ThemeSegmented({
           className={cn(
             'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
             theme === opt.value
-              ? 'bg-[var(--color-accent)] text-white'
+              ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
               : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]'
           )}
         >

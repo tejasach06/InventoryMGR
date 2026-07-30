@@ -62,7 +62,7 @@ export function AppLayout({ user, children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-[var(--color-surface-secondary)] lg:flex">
       <NotificationBell />
-      <aside className={`sticky top-0 z-20 border-b border-zinc-800 bg-[var(--color-surface)]/95 px-4 py-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
+      <aside className={`sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-4 backdrop-blur lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
         <div className="flex items-center justify-between gap-4 lg:block">
           <div className={`flex items-center gap-2.5 ${collapsed ? 'lg:w-full lg:flex-col lg:items-center lg:gap-2' : ''}`}>
             <button
@@ -70,14 +70,14 @@ export function AppLayout({ user, children }: LayoutProps) {
               onClick={toggleCollapsed}
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 lg:inline-flex dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-white"
+              className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] lg:inline-flex"
             >
               <svg className={`h-4 w-4 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10 4L6 8l4 4" />
               </svg>
             </button>
             <Logo className="h-8 w-8 flex-shrink-0" />
-            {!collapsed && <span className="font-display text-[1.05rem] font-semibold tracking-tight text-[var(--color-text-primary)] dark:text-slate-50">Inventory<span className="text-orange-500 dark:text-orange-400">MGR</span></span>}
+            {!collapsed && <span className="font-display text-[1.05rem] font-semibold tracking-tight text-[var(--color-text-primary)]">Inventory<span className="text-[var(--color-accent-text)]">MGR</span></span>}
           </div>
           <div className="flex items-center gap-2 lg:hidden">
             <ThemeSelect />
@@ -87,7 +87,7 @@ export function AppLayout({ user, children }: LayoutProps) {
           </div>
         </div>
         <AppNav user={user} collapsed={collapsed} />
-        <div className={`mt-4 hidden pt-4 dark:border-slate-800 lg:mt-auto lg:block ${collapsed ? '' : 'border-t border-slate-100'}`}>
+        <div className={`mt-4 hidden pt-4 border-[var(--color-border-subtle)] lg:mt-auto lg:block ${collapsed ? '' : 'border-t'}`}>
           {!collapsed ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">

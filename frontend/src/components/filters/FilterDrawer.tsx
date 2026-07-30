@@ -21,7 +21,7 @@ import {
 const coreFilterNamesInDrawer: readonly string[] = ['status', 'platform', 'criticality'];
 
 const applyButtonClass =
-  'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] dark:focus-visible:ring-offset-slate-950';
+  'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-on-accent)] transition-colors duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)]';
 
 function countSelections(filters: Filters): number {
   return (Object.keys(filters) as (keyof Filters)[])
@@ -115,7 +115,7 @@ export function FilterDrawer({
           <div key={name} className="space-y-2">
             <span className={labelClass}>{label}</span>
             <div
-              className="h-9 w-full animate-pulse rounded-lg bg-[var(--color-surface-tertiary)] dark:bg-slate-800"
+              className="h-9 w-full animate-pulse rounded-lg bg-[var(--color-surface-tertiary)]"
               aria-label={`Loading ${label} options`}
             />
           </div>
@@ -135,7 +135,7 @@ export function FilterDrawer({
         return (
           <div key={name} className="space-y-2">
             <span className={labelClass}>{label}</span>
-            <p className="text-sm text-[var(--color-text-tertiary)] dark:text-slate-400">
+            <p className="text-sm text-[var(--color-text-tertiary)]">
               No {label.toLowerCase()} values in the fleet yet.
             </p>
           </div>
@@ -197,7 +197,7 @@ export function FilterDrawer({
       <div className="space-y-6">
         {filterGroups.map((group) => (
           <fieldset key={group.label} className="space-y-4">
-            <legend className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-tertiary)] dark:text-slate-400">
+            <legend className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-tertiary)]">
               {group.label}
             </legend>
             {group.filters.map(renderField)}

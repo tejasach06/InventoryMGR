@@ -90,7 +90,7 @@ export function InventoryToolbar({
               <button
                 type="button"
                 onClick={() => commitSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 transition-colors hover:bg-[var(--color-surface-tertiary)]"
                 aria-label="Clear search"
               >
                 <svg className="h-3.5 w-3.5 text-[var(--color-text-tertiary)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -116,7 +116,7 @@ export function InventoryToolbar({
               </svg>
               <span>Filters</span>
               {count > 0 && (
-                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[var(--color-accent)] px-1.5 text-[0.6875rem] font-semibold text-white">
+                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[var(--color-accent)] px-1.5 text-[0.6875rem] font-semibold text-[var(--color-on-accent)]">
                   {count}
                 </span>
               )}
@@ -136,7 +136,7 @@ export function InventoryToolbar({
               </svg>
               <span>Columns</span>
               {visibleColumnCount < columns.length && (
-                <span className="text-xs text-[var(--color-text-tertiary)] dark:text-slate-400">
+                <span className="text-xs text-[var(--color-text-tertiary)]">
                   {visibleColumnCount}/{columns.length}
                 </span>
               )}

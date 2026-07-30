@@ -4,23 +4,28 @@ description: Documentation inventory for VMs, storage, and physical infrastructu
 colors:
   accent: "#f97316"
   accent-hover: "#ea580c"
+  accent-text: "#c2410c"
+  on-accent: "#1c0a00"
+  on-danger: "#ffffff"
   surface: "#ffffff"
   surface-secondary: "#f6f7fb"
   surface-tertiary: "#eef0f7"
+  surface-inverse: "#0f1222"
+  text-inverse: "#ffffff"
+  scrim: "rgba(0, 0, 0, 0.4)"
   border: "#e3e6ef"
   border-subtle: "#eef0f7"
   text-primary: "#0f1222"
   text-secondary: "#4a4f63"
-  text-tertiary: "#9aa0b4"
+  text-tertiary: "#6b7186"
   status-running: "#059669"
-  status-suspended: "#d97706"
   status-decommissioned: "#dc2626"
   status-powered-off: "#64748b"
   criticality-critical: "#dc2626"
   criticality-high: "#ea580c"
   criticality-medium: "#d97706"
   criticality-low: "#059669"
-  environment-production: "#4f46e5"
+  environment-production: "#f97316"
   environment-staging: "#7c3aed"
 typography:
   display:
@@ -96,7 +101,7 @@ This explicitly rejects the bloated-enterprise-SaaS look — dense chrome, modal
 
 ## 2. Colors
 
-Restrained neutrals carry the interface; one indigo accent marks interactivity; a wide semantic palette (six categories × light/dark) carries all data meaning.
+Restrained neutrals carry the interface; one orange accent marks interactivity; a wide semantic palette (six categories × light/dark) carries all data meaning.
 
 ### Primary
 - **Orange Accent** (`#f97316`, hover `#ea580c`): links, primary buttons, focus rings, the recurring brand accent (nav active state, logo mark). Used deliberately — it marks "you can act here."
@@ -114,8 +119,7 @@ Restrained neutrals carry the interface; one indigo accent marks interactivity; 
 Dark mode is a dedicated navy scale (`#051424` page, `#0d1c2d` cards, `#d4e4fa` primary text) defined in `html.dark` in `globals.css` with a full semantic-color pass for every data category.
 
 ### Named Rules
-**The Signal Rule.** Saturated color appears only where it encodes a real, current data value — a VM's status, a host's criticality tier, an environment or platform badge. It never appears as page chrome, decoration, or emphasis-for-emphasis's-sake. If a color can't be traced to a specific field's value, it doesn't belong on screen.
-
+**The Signal Rule.** Saturated color appears only where it encodes a real, current data value — a VM's status, a host's criticality tier, an environment or platform badge. It never appears as page chrome, decoration, or emphasis-for-emphasis's-sake. If a color can't be traced to a specific field's value, it doesn't belong on screen. Color reaches the DOM only through a `var(--color-*)` custom property. A raw Tailwind palette class (`bg-slate-900`, `text-red-600`) in `src/**` is a build error — see `frontend/eslint.config.mjs`. The two sanctioned literals are `src/app/icon.svg` (a standalone file with no CSS context) and the `.app-select` chevron data URI.
 ## 3. Typography
 
 **Display & Body Font:** Geist (with ui-sans-serif, system-ui fallback)
@@ -147,7 +151,7 @@ Flat by default. Cards, tables, and inputs sit at rest with only a 1px hairline 
 
 ### Buttons
 - **Shape:** rounded-lg (8px radius).
-- **Primary:** indigo background (`#4f46e5`), white text, `px-4 py-2`, hover darkens to `#4338ca`. Reserved for the one primary action per view (Save, Create).
+- **Primary:** `--color-accent` background (`#f97316` light / `#fb923c` dark), `--color-on-accent` (`#1c0a00`) text, `px-4 py-2`, hover `--color-accent-hover`. Reserved for the one primary action per view (Save, Create).
 - **Secondary:** white/transparent background, 1px border, secondary text color, hover fills with surface-tertiary. Used for every non-primary action (Cancel, secondary nav actions).
 - **Danger:** same shape as primary, background swapped to `criticality-critical` red — reserved for destructive actions (delete cluster, decommission).
 - **Focus:** 2px accent-color ring, 2px offset, on every interactive element uniformly (buttons, links, inputs, selects) via a single global `:focus-visible` rule — never a component-specific focus treatment.
@@ -165,7 +169,7 @@ Flat by default. Cards, tables, and inputs sit at rest with only a 1px hairline 
 
 ### Inputs / Fields
 - **Style:** rounded-lg, 1px border, white background, subtle ambient shadow.
-- **Focus:** border shifts to accent color, 4px accent-tinted ring at 12% opacity (dark: indigo-400 at 15%) — soft glow, not a hard outline change.
+- **Focus:** border shifts to accent color, 4px accent-tinted ring at 12% opacity — soft glow, not a hard outline change.
 - **Error:** `FieldError` renders below the field in `criticality-critical` red; the field itself does not get a red border (the message alone is the signal).
 - **Disabled:** background steps to surface-tertiary, cursor `not-allowed`.
 
@@ -182,7 +186,7 @@ The `/login` screen sits outside the main app shell and contains three deliberat
 - **Row accent (status color):** a 3px left border in the row's semantic status color, used exclusively on data rows to carry the Signal Rule — this is the one deliberate exception to a flat table design, and it exists only because the color *is* the data (a VM's actual status), never as generic emphasis.
 
 ### Navigation
-- Fixed-position sidebar (`AppNav`); active route marked with the indigo accent, not a background fill. Bottom-anchored bulk-action bar slides up independently so it never collides with the sidebar.
+- Fixed-position sidebar (`AppNav`); active route marked with the orange accent, not a background fill. Bottom-anchored bulk-action bar slides up independently so it never collides with the sidebar.
 
 ## 6. Do's and Don'ts
 
@@ -199,3 +203,4 @@ The `/login` screen sits outside the main app shell and contains three deliberat
 - **Don't** add shadows to a static element "for depth." Shadow only increases in direct response to interaction or floating state.
 - **Don't** add a second left-border color accent pattern outside the existing status-row convention — that one exception is load-bearing (it *is* the data), a second one would just be a stripe.
 - **Don't** turn a routine two-second edit into a multi-step wizard or add a confirmation modal where none is currently required.
+- **Don't** pair a token class with a `dark:` palette override (`text-[var(--color-text-primary)] dark:text-slate-100`). The token already flips; the override reintroduces an off-system color.

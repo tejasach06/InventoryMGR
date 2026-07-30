@@ -65,7 +65,7 @@ export function ColumnDrawer({
         </div>
       }
     >
-      <p className="mb-3 text-sm text-[var(--color-text-tertiary)] dark:text-slate-400">
+      <p className="mb-3 text-sm text-[var(--color-text-tertiary)]">
         {visibleCount} of {columns.length} columns shown. Drag or use arrow buttons to reorder.
       </p>
       <ul className="space-y-0.5">
@@ -79,7 +79,7 @@ export function ColumnDrawer({
             onDragEnd={handleDragEnd}
             className={cn(
               'flex cursor-move select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150',
-              'hover:bg-[var(--color-surface-tertiary)] dark:hover:bg-slate-800',
+              'hover:bg-[var(--color-surface-tertiary)]',
               dragOverKey === col.key && 'bg-[var(--color-accent)]/10 ring-1 ring-[var(--color-accent)]',
               draggedKey === col.key && 'opacity-50',
             )}
@@ -103,7 +103,7 @@ export function ColumnDrawer({
             />
             <label
               htmlFor={`column-${col.key}`}
-              className="flex-1 cursor-pointer text-[var(--color-text-primary)] dark:text-slate-200"
+              className="flex-1 cursor-pointer text-[var(--color-text-primary)]"
             >
               {COLUMN_LABELS[col.key] ?? col.key}
             </label>
@@ -115,7 +115,7 @@ export function ColumnDrawer({
                   if (idx > 0) onReorder(col.key, sorted[idx - 1].key);
                 }}
                 disabled={sorted.findIndex((c) => c.key === col.key) === 0}
-                className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] disabled:opacity-25 transition-colors rounded hover:bg-[var(--color-surface-tertiary)] dark:hover:bg-slate-700"
+                className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] disabled:opacity-25 transition-colors rounded hover:bg-[var(--color-surface-tertiary)]"
                 aria-label={`Move ${COLUMN_LABELS[col.key] ?? col.key} up`}
                 title="Move up"
               >
@@ -128,7 +128,7 @@ export function ColumnDrawer({
                   if (idx < sorted.length - 1) onReorder(col.key, sorted[idx + 1].key);
                 }}
                 disabled={sorted.findIndex((c) => c.key === col.key) === sorted.length - 1}
-                className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] disabled:opacity-25 transition-colors rounded hover:bg-[var(--color-surface-tertiary)] dark:hover:bg-slate-700"
+                className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] disabled:opacity-25 transition-colors rounded hover:bg-[var(--color-surface-tertiary)]"
                 aria-label={`Move ${COLUMN_LABELS[col.key] ?? col.key} down`}
                 title="Move down"
               >

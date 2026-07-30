@@ -73,7 +73,7 @@ export function StoragePage() {
       {arraysQ.isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : arrays.length === 0 ? (
-        <div className={`${cardClass} text-center text-sm text-slate-500 dark:text-slate-400`}>
+        <div className={`${cardClass} text-center text-sm text-[var(--color-text-tertiary)]`}>
           No storage arrays yet.
         </div>
       ) : (

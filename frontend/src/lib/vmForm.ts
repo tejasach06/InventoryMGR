@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Vm, VmPayload } from '../api/client';
 
 export const platforms = ['proxmox', 'vmware'] as const;
-export const statuses = ['running', 'powered_off', 'suspended', 'archived', 'decommissioned', 'unknown'] as const;
+export const statuses = ['running', 'powered_off', 'decommissioned', 'unknown'] as const;
 export const criticalities = ['low', 'medium', 'high', 'critical'] as const;
 export const environments = ['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'] as const;
 export const lifecycles = ['planned', 'active', 'retiring', 'retired'] as const;

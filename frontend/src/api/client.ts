@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'editor' | 'viewer';
 export type Platform = 'proxmox' | 'vmware';
-export type VmStatus = 'running' | 'powered_off' | 'suspended' | 'archived' | 'decommissioned' | 'unknown';
+export type VmStatus = 'running' | 'powered_off' | 'decommissioned' | 'unknown';
 export type Criticality = 'low' | 'medium' | 'high' | 'critical';
 export type Lifecycle = 'planned' | 'active' | 'retiring' | 'retired';
 export type VmType = 'permanent' | 'temporary';

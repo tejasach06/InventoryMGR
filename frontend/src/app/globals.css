@@ -14,9 +14,17 @@
   --color-border-subtle: #eef0f7;
   --color-text-primary: #0f1222;
   --color-text-secondary: #4a4f63;
-  --color-text-tertiary: #9aa0b4;
+  --color-text-tertiary: #6b7186;
   --color-accent: #f97316;
   --color-accent-hover: #ea580c;
+  --color-accent-text: #c2410c;
+  --color-on-accent: #1c0a00;
+  --color-on-danger: #ffffff;
+  --color-surface-inverse: #0f1222;
+  --color-text-inverse: #ffffff;
+  --color-scrim: rgba(0, 0, 0, 0.4);
+  --color-criticality-critical: #dc2626;
+  --color-status-running: #059669;
 
   /* Row Density (CSS-driven) */
   --row-height-comfortable: 48px;
@@ -67,10 +75,7 @@
   --color-status-running-bg: #d1fae5;
   --color-status-powered_off: #64748b;
   --color-status-powered_off-bg: #f1f5f9;
-  --color-status-suspended: #d97706;
-  --color-status-suspended-bg: #fef3c7;
-  --color-status-archived: #2563eb;
-  --color-status-archived-bg: #dbeafe;
+  --color-warning: #d97706;
   --color-status-decommissioned: #dc2626;
   --color-status-decommissioned-bg: #fee2e2;
   --color-status-unknown: #9ca3af;
@@ -126,14 +131,22 @@
 }
 
 html.dark {
-  --color-surface: #0d1c2d;          /* card / table background */
-  --color-surface-secondary: #051424; /* page background */
-  --color-surface-tertiary: #122131;  /* table header, hover fill, disabled */
+  --color-surface: #0d1c2d;
+  --color-surface-secondary: #051424;
+  --color-surface-tertiary: #122131;
   --color-border: #273647;
   --color-border-subtle: #1c2b3c;
   --color-text-primary: #d4e4fa;
   --color-text-secondary: #909bb1;
   --color-text-tertiary: #6b7a8f;
+  --color-accent: #fb923c;
+  --color-accent-hover: #fdba74;
+  --color-accent-text: #fb923c;
+  --color-on-accent: #1c0a00;
+  --color-on-danger: #1c0a00;
+  --color-surface-inverse: #122131;
+  --color-text-inverse: #d4e4fa;
+  --color-scrim: rgba(0, 0, 0, 0.6);
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px -4px rgba(0, 0, 0, 0.5);
   --shadow-overlay: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 2px 8px -2px rgba(0, 0, 0, 0.4);
 }
@@ -200,11 +213,7 @@ html.dark body {
   color: var(--color-text-primary);
 }
 
-/* Refine container surface in dark mode */
-html.dark .dark\:bg-slate-900\/70 {
-  background-color: color-mix(in srgb, var(--color-surface) 88%, transparent);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
-}
+
 
 
 /* Dark mode semantic color overrides — same hues, shifted for dark bg */
@@ -213,10 +222,7 @@ html.dark {
   --color-status-running-bg: #064e3b;
   --color-status-powered_off: #94a3b8;
   --color-status-powered_off-bg: #1e293b;
-  --color-status-suspended: #fbbf24;
-  --color-status-suspended-bg: #78350f;
-  --color-status-archived: #60a5fa;
-  --color-status-archived-bg: #1e3a5f;
+  --color-warning: #fbbf24;
   --color-status-decommissioned: #f87171;
   --color-status-decommissioned-bg: #7f1d1d;
   --color-status-unknown: #9ca3af;
@@ -278,7 +284,8 @@ html.dark {
 .app-select {
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%239aa0b4' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  /* literal: data URI cannot reference var(); keep in sync with --color-text-primary's tertiary */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%236b7186' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.7rem center;
   padding-right: 2.25rem;

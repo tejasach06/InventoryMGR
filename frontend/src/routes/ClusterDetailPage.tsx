@@ -263,7 +263,7 @@ export function ClusterDetailPage() {
               {updateMut.isError ? <Alert>{detailMessage(updateMut.error)}</Alert> : null}
             </div>
           ) : (
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">{cluster.description || 'No description.'}</p>
+            <p className="mt-3 text-sm text-[var(--color-text-secondary)]">{cluster.description || 'No description.'}</p>
           )}
         </section>
 

@@ -50,10 +50,10 @@ function Donut({ segments, total }: { segments: Segment[]; total: number }) {
             />
           );
         })}
-      <text x={size / 2} y={size / 2 - 2} textAnchor="middle" dominantBaseline="middle" className="tech fill-slate-950 text-2xl font-bold dark:fill-slate-50">
+      <text x={size / 2} y={size / 2 - 2} textAnchor="middle" dominantBaseline="middle" className="tech fill-[var(--color-text-primary)] text-2xl font-bold">
         {fmtInt(total)}
       </text>
-      <text x={size / 2} y={size / 2 + 18} textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-[0.625rem] font-semibold tracking-wider dark:fill-slate-500">
+      <text x={size / 2} y={size / 2 + 18} textAnchor="middle" dominantBaseline="middle" className="fill-[var(--color-text-tertiary)] text-[0.625rem] font-semibold tracking-wider">
         VMs
       </text>
     </svg>
@@ -68,11 +68,11 @@ function BarList({ rows, total }: { rows: { key: string; label: string; value: n
         const inner = (
           <li className="group flex flex-col gap-1.5 text-sm">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-medium text-slate-700 group-hover:text-[var(--color-accent)] dark:text-slate-300 transition-colors">
+              <span className="font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-accent)] transition-colors">
                 {r.label}
               </span>
-              <span className={cn(monoClass, 'text-xs text-[var(--color-text-secondary)] dark:text-slate-400')}>
-                {fmtInt(r.value)} <span className="text-[var(--color-text-tertiary)] dark:text-slate-500">({pct}%)</span>
+              <span className={cn(monoClass, 'text-xs text-[var(--color-text-secondary)]')}>
+                {fmtInt(r.value)} <span className="text-[var(--color-text-tertiary)]">({pct}%)</span>
               </span>
             </div>
             <ProgressBar value={Math.max(4, pct)} colorVar={r.colorVar} />
@@ -111,25 +111,25 @@ function StatTile({
       className={cn(
         'group flex h-full flex-col justify-between rounded-xl border p-4 transition-all duration-150',
         isAlert
-          ? 'border-red-500/40 bg-red-500/10 shadow-sm hover:border-red-500/70 dark:border-red-500/40 dark:bg-red-950/30'
-          : 'border-[var(--color-border)]/70 bg-white hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-raised)] dark:border-[var(--color-border)] dark:bg-slate-900/60'
+          ? 'border-[var(--color-criticality-critical)]/40 bg-[var(--color-criticality-critical-bg)] shadow-[var(--shadow-raised)] hover:border-[var(--color-criticality-critical)]/70'
+          : 'border-[var(--color-border)]/70 bg-[var(--color-surface)] hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-raised)]'
       )}
     >
-      <p className={cn('text-[0.7rem] font-semibold uppercase tracking-[0.1em]', isAlert ? 'text-red-700 dark:text-red-300' : 'text-[var(--color-text-tertiary)] dark:text-slate-400')}>
+      <p className={cn('text-[0.7rem] font-semibold uppercase tracking-[0.1em]', isAlert ? 'text-[var(--color-criticality-critical)]' : 'text-[var(--color-text-tertiary)]')}>
         {label}
       </p>
       <p className="mt-3 flex items-baseline gap-1">
-        <span className={cn('tech text-2xl font-bold', isAlert ? 'text-red-700 dark:text-red-200' : 'text-[var(--color-text-primary)] dark:text-slate-50')}>
+        <span className={cn('tech text-2xl font-bold', isAlert ? 'text-[var(--color-criticality-critical)]' : 'text-[var(--color-text-primary)]')}>
           {value}
         </span>
         {unit ? (
-          <span className={cn('text-xs font-medium', isAlert ? 'text-red-600/80 dark:text-red-300/80' : 'text-[var(--color-text-tertiary)] dark:text-slate-500')}>
+          <span className={cn('text-xs font-medium', isAlert ? 'text-[var(--color-criticality-critical)]' : 'text-[var(--color-text-tertiary)]')}>
             {unit}
           </span>
         ) : null}
       </p>
       {hint ? (
-        <p className={cn('mt-1 text-xs', isAlert ? 'font-medium text-red-600 dark:text-red-400' : 'text-[var(--color-text-tertiary)] dark:text-slate-500')}>
+        <p className={cn('mt-1 text-xs', isAlert ? 'font-medium text-[var(--color-criticality-critical)]' : 'text-[var(--color-text-tertiary)]')}>
           {hint}
         </p>
       ) : null}
@@ -143,7 +143,7 @@ type AlertGroupTone = 'critical' | 'warning' | 'info';
 
 const ALERT_TONE_VAR: Record<AlertGroupTone, string> = {
   critical: 'var(--color-criticality-critical)',
-  warning: 'var(--color-status-suspended)',
+  warning: 'var(--color-warning)',
   info: 'var(--color-status-powered_off)',
 };
 
@@ -190,23 +190,23 @@ function AlertGroup({
     <div className="flex flex-1 flex-col p-5">
       <div className="mb-4 flex items-center gap-2">
         <span style={{ color: ALERT_TONE_VAR[tone] }}><AlertGroupIcon tone={tone} /></span>
-        <h4 className="text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100">{title}</h4>
+        <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">{title}</h4>
         <span className="tech ml-auto text-[0.625rem] uppercase tracking-wider" style={{ color: ALERT_TONE_VAR[tone] }}>{toneLabel}</span>
       </div>
       {rows.length === 0 ? (
-        <p className="flex-1 text-sm text-[var(--color-text-tertiary)] dark:text-slate-500">None.</p>
+        <p className="flex-1 text-sm text-[var(--color-text-tertiary)]">None.</p>
       ) : (
-        <ul className="mb-4 flex-1 divide-y divide-[var(--color-border-subtle)] dark:divide-slate-800">
+        <ul className="mb-4 flex-1 divide-y divide-[var(--color-border-subtle)]">
           {shown.map((vm) => (
             <li key={vm.id} className="flex items-center justify-between gap-3 py-2">
-              <Link href={`/inventory/${vm.id}`} className="tech min-w-0 truncate text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent)] dark:text-slate-100">
+              <Link href={`/inventory/${vm.id}`} className="tech min-w-0 truncate text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent-text)]">
                 {vm.name}
               </Link>
               <span className={cn(monoClass, 'shrink-0 text-xs tabular-nums')}>{meta(vm)}</span>
             </li>
           ))}
           {hidden > 0 ? (
-            <li className="py-2 text-xs text-[var(--color-text-tertiary)] dark:text-slate-500">+{hidden} more</li>
+            <li className="py-2 text-xs text-[var(--color-text-tertiary)]">+{hidden} more</li>
           ) : null}
         </ul>
       )}
@@ -221,7 +221,7 @@ function Panel({ title, children, action, className = '' }: { title: string; chi
   return (
     <section className={`${cardClass} ${className}`}>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-500">{title}</h2>
+        <h2 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-tertiary)]">{title}</h2>
         {action}
       </div>
       <div className="mt-4">{children}</div>
@@ -276,8 +276,7 @@ export function DashboardPage() {
   const powerSegments: Segment[] = [
     { label: 'Running', value: derived.byStatus.running ?? 0, color: 'var(--color-status-running)' },
     { label: 'Powered off', value: derived.byStatus.powered_off ?? 0, color: 'var(--color-status-powered_off)' },
-    { label: 'Suspended', value: derived.byStatus.suspended ?? 0, color: 'var(--color-status-suspended)' },
-    { label: 'Other', value: Math.max(0, derived.items.length - (derived.byStatus.running ?? 0) - (derived.byStatus.powered_off ?? 0) - (derived.byStatus.suspended ?? 0)), color: 'var(--color-status-unknown)' },
+    { label: 'Other', value: Math.max(0, derived.items.length - (derived.byStatus.running ?? 0) - (derived.byStatus.powered_off ?? 0)), color: 'var(--color-status-unknown)' },
   ];
 
   const envBars = Object.entries(derived.byEnv)
@@ -307,7 +306,7 @@ export function DashboardPage() {
         <div className="space-y-6">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-[var(--color-border)] bg-white p-4 dark:border-slate-800 dark:bg-slate-900/60">
+              <div key={i} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="mt-4 h-8 w-14" />
               </div>
@@ -323,45 +322,45 @@ export function DashboardPage() {
           <div className={cn(
             "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border p-4 shadow-sm backdrop-blur transition-all",
             arraysOverThreshold > 0
-              ? "border-red-500/30 bg-red-500/10 text-red-900 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-200"
-              : "border-[var(--color-border)]/70 bg-white dark:border-[var(--color-border)] dark:bg-slate-900/70"
+              ? "border-[var(--color-criticality-critical)]/40 bg-[var(--color-criticality-critical-bg)] text-[var(--color-text-primary)]"
+              : "border-[var(--color-border)]/70 bg-[var(--color-surface)]"
           )}>
             <div className="flex items-center gap-3">
               <span className={cn(
                 "flex h-3 w-3 relative shrink-0 rounded-full",
-                arraysOverThreshold > 0 ? "bg-red-500" : "bg-emerald-500"
+                arraysOverThreshold > 0 ? "bg-[var(--color-criticality-critical)]" : "bg-[var(--color-status-running)]"
               )}>
-                <span className={cn("h-3 w-3 rounded-full", arraysOverThreshold > 0 ? "bg-red-500" : "bg-emerald-500")} />
+                <span className={cn("h-3 w-3 rounded-full", arraysOverThreshold > 0 ? "bg-[var(--color-criticality-critical)]" : "bg-[var(--color-status-running)]")} />
               </span>
               <div>
-                <h2 className="font-display text-sm font-semibold text-[var(--color-text-primary)] dark:text-slate-100">
+                <h2 className="font-display text-sm font-semibold text-[var(--color-text-primary)]">
                   {arraysOverThreshold > 0
                     ? `${arraysOverThreshold} Storage Array${arraysOverThreshold === 1 ? '' : 's'} Exceed Usage Threshold`
                     : 'Fleet Operational — Infrastructure Normal'}
                 </h2>
-                <p className="text-xs text-[var(--color-text-tertiary)] dark:text-slate-400">
+                <p className="text-xs text-[var(--color-text-tertiary)]">
                   {fmtInt(derived.items.length)} VMs tracked across clusters and storage arrays
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {arraysOverThreshold > 0 && (
-                <Link href="/storage" className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 transition-colors">
+                <Link href="/storage" className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-criticality-critical)] px-3 py-1.5 text-xs font-semibold text-[var(--color-on-danger)] hover:opacity-90 transition-colors">
                   View Storage Alerts →
                 </Link>
               )}
-              <Link href="/inventory" className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] transition-colors dark:border-[var(--color-border)] dark:bg-slate-800 dark:text-slate-200">
+              <Link href="/inventory" className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] transition-colors">
                 Open Fleet Inventory →
               </Link>
             </div>
           </div>
 
           {vmsQ.isError || statsQ.isError ? (
-            <div className="mb-4 flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-[var(--color-criticality-critical)]/30 bg-[var(--color-criticality-critical-bg)] p-4 text-sm text-[var(--color-criticality-critical)]">
               <span>Failed to refresh some metrics: {detailMessage(vmsQ.error ?? statsQ.error)}</span>
               <button
                 type="button"
-                className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 transition-colors"
+                className="rounded-lg bg-[var(--color-criticality-critical)] px-3 py-1 text-xs font-semibold text-[var(--color-on-danger)] hover:opacity-90 transition-colors"
                 onClick={() => { vmsQ.refetch(); statsQ.refetch(); }}
               >
                 Retry
@@ -399,7 +398,7 @@ export function DashboardPage() {
                 <ul className="min-w-0 flex-1 space-y-2">
                   {powerSegments.map((s) => (
                     <li key={s.label} className="flex items-center justify-between gap-2 text-sm">
-                      <span className="flex items-center gap-2 text-[var(--color-text-secondary)] dark:text-slate-400">
+                      <span className="flex items-center gap-2 text-[var(--color-text-secondary)]">
                         <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: s.color }} />
                         {s.label}
                       </span>
@@ -411,11 +410,11 @@ export function DashboardPage() {
             </Panel>
 
             <Panel title="By environment">
-              {envBars.length ? <BarList rows={envBars} total={derived.items.length} /> : <p className="text-sm text-slate-500 dark:text-slate-400">No environment data.</p>}
+              {envBars.length ? <BarList rows={envBars} total={derived.items.length} /> : <p className="text-sm text-[var(--color-text-tertiary)]">No environment data.</p>}
             </Panel>
 
             <Panel title="By criticality">
-              {critBars.length ? <BarList rows={critBars} total={derived.items.length} /> : <p className="text-sm text-slate-500 dark:text-slate-400">No criticality data.</p>}
+              {critBars.length ? <BarList rows={critBars} total={derived.items.length} /> : <p className="text-sm text-[var(--color-text-tertiary)]">No criticality data.</p>}
             </Panel>
           </div>
 
@@ -433,11 +432,11 @@ export function DashboardPage() {
             ];
             const total = groups.reduce((n, g) => n + g.rows.length, 0);
             return (
-              <section className="overflow-hidden rounded-xl border border-[var(--color-border)]/70 bg-white shadow-sm shadow-slate-900/[0.04] dark:border-[var(--color-border)] dark:bg-slate-900/70 dark:shadow-none dark:backdrop-blur">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/70 bg-[var(--color-surface-tertiary)] px-5 py-4 dark:border-[var(--color-border)] dark:bg-slate-900">
+              <section className="overflow-hidden rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] shadow-[var(--shadow-raised)] backdrop-blur">
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/70 bg-[var(--color-surface-tertiary)] px-5 py-4">
                   <div>
-                    <p className="tech text-[0.625rem] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] dark:text-slate-500">Infrastructure status</p>
-                    <h2 className="text-base font-semibold text-[var(--color-text-primary)] dark:text-slate-100">VM Alerts</h2>
+                    <p className="tech text-[0.625rem] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">Infrastructure status</p>
+                    <h2 className="text-base font-semibold text-[var(--color-text-primary)]">VM Alerts</h2>
                   </div>
                   <span
                     className={cn(monoClass, 'shrink-0 rounded-md px-2 py-1 text-xs tabular-nums')}
@@ -448,11 +447,11 @@ export function DashboardPage() {
                 </div>
                 {total === 0 ? (
                   <div className="px-5 py-10 text-center">
-                    <p className="text-sm font-semibold tracking-wide text-emerald-600 dark:text-emerald-400">ALL IS WELL</p>
-                    <p className="mt-1 text-xs text-[var(--color-text-tertiary)] dark:text-slate-500">No stale shutdowns, overdue decommissions, or missing IPs.</p>
+                    <p className="text-sm font-semibold tracking-wide text-[var(--color-status-running)]">ALL IS WELL</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">No stale shutdowns, overdue decommissions, or missing IPs.</p>
                   </div>
                 ) : (
-                  <div className="flex flex-col divide-y divide-[var(--color-border)]/70 lg:flex-row lg:divide-x lg:divide-y-0 dark:divide-slate-800">
+                  <div className="flex flex-col divide-y divide-[var(--color-border)]/70 lg:flex-row lg:divide-x lg:divide-y-0">
                     {groups.map(({ key, ...g }) => <AlertGroup key={key} {...g} />)}
                   </div>
                 )}

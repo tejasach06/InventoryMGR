@@ -6,7 +6,7 @@ const adminPassword = process.env.INVENTORYMGR_INITIAL_ADMIN_PASSWORD ?? 'change
 async function loginAsAdmin(page: Page) {
   await page.goto('/login');
   const setupButton = page.getByRole('button', { name: 'Create admin account' });
-  const signInButton = page.getByRole('button', { name: 'Sign in' });
+  const signInButton = page.getByRole('button', { name: 'Sign in', exact: true });
   await expect(setupButton.or(signInButton)).toBeVisible();
   if (await setupButton.isVisible()) {
     await page.getByLabel('Email').fill(adminEmail);
@@ -16,7 +16,7 @@ async function loginAsAdmin(page: Page) {
   } else {
     await page.getByLabel('Email').fill(adminEmail);
     await page.getByLabel('Password').fill(adminPassword);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await signInButton.click();
   }
   await expect(page).toHaveURL(/\/inventory$/);
 }

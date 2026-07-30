@@ -31,7 +31,7 @@ function AuthShell({ children }: { children: ReactNode }) {
       <aside className="auth-gradient relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="pointer-events-none absolute inset-0 opacity-[0.18]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '28px 28px' }} aria-hidden="true" />
         <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-orange-400/20 blur-3xl" aria-hidden="true" />
+        <div className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-[var(--color-accent)]/20 blur-3xl" aria-hidden="true" />
         <div className="relative flex items-center gap-3">
           <Logo className="h-9 w-9 rounded-lg ring-1 ring-white/20" />
           <span className="font-display text-lg font-semibold tracking-tight">InventoryMGR</span>

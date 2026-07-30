@@ -30,11 +30,11 @@ const IP_ROLE_HEADERS = ['private_ip', 'public_ip', 'backup_ip'] as const;
 function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
   return (
     <tr className={tableRowClass}>
-      <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-900 dark:text-slate-100" scope="row">{row.row_number}</th>
+      <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]" scope="row">{row.row_number}</th>
       <td className="whitespace-nowrap px-4 py-3">
         <Badge value={row.action} />
         {row.action === 'update' && Object.keys(row.changes ?? {}).length > 0 ? (
-          <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
+          <span className="ml-2 text-xs text-[var(--color-text-tertiary)]">
             {Object.keys(row.changes).length} fields
           </span>
         ) : null}
@@ -44,7 +44,7 @@ function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
       <td className={tableCellClass}>{row.normalized?.cluster ?? String(row.raw.cluster ?? '—')}</td>
       <td className={tableCellClass}>{String(row.raw.disks || '—')}</td>
       <td className={tableCellClass}>{IP_ROLE_HEADERS.map((header) => row.raw[header]).filter(Boolean).join(', ') || '—'}</td>
-      <td className="min-w-72 px-4 py-3 text-slate-700 dark:text-slate-300">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5" style={{ color: 'var(--color-criticality-critical)' }}>{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
+      <td className="min-w-72 px-4 py-3 text-[var(--color-text-secondary)]">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5" style={{ color: 'var(--color-criticality-critical)' }}>{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
     </tr>
   );
 }
@@ -116,9 +116,9 @@ export function ImportCsvPage() {
         <PageHeader title="Import" eyebrow="Preview before upsert" />
         <form className={cardClass + ' mb-6 grid gap-4'} onSubmit={submit}>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="csv-file">CSV file</label>
+            <label className="mb-1 block text-sm font-medium text-[var(--color-text-secondary)]" htmlFor="csv-file">CSV file</label>
             <div
-              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 transition-colors ${dragging ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5 dark:bg-[var(--color-accent)]/10' : 'border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-600'}`}
+              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 transition-colors ${dragging ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5' : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/40'}`}
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
@@ -129,22 +129,22 @@ export function ImportCsvPage() {
               aria-label="Upload CSV file"
             >
               {file ? (
-                <svg className="mb-3 h-8 w-8 text-slate-400 dark:text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg className="mb-3 h-8 w-8 text-[var(--color-text-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z" />
                   <path d="M14 3v5h5" />
                 </svg>
               ) : (
-                <svg className="mb-3 h-8 w-8 text-slate-400 dark:text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg className="mb-3 h-8 w-8 text-[var(--color-text-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M12 16V4m0 0l-4 4m4-4 4 4" /><path d="M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" />
                 </svg>
               )}
               {file ? (
-                <span className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
+                <span className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
                   {file.name}
                   <button
                     type="button"
                     onClick={clearFile}
-                    className="rounded p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    className="rounded p-0.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
                     aria-label="Clear selected file"
                   >
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -153,7 +153,7 @@ export function ImportCsvPage() {
                   </button>
                 </span>
               ) : (
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Drag and drop or click to upload</span>
+                <span className="text-sm font-medium text-[var(--color-text-secondary)]">Drag and drop or click to upload</span>
               )}
               <input ref={fileInputRef} className="sr-only" id="csv-file" name="file" type="file" accept=".csv,text/csv" onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)} aria-describedby="csv-help" />
             </div>
@@ -189,7 +189,7 @@ export function ImportCsvPage() {
             <div className="grid gap-4 sm:flex sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-accent)]">Batch {batch.id}</p>
-                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-slate-100">{batch.filename}</h2>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--color-text-primary)]">{batch.filename}</h2>
               </div>
               <button className={primaryButtonClass} type="button" onClick={() => commit.mutate()} disabled={commit.isPending || hasBlockingRows || batch.status === 'committed'} aria-describedby={blockingReasonId}>
                 {commit.isPending ? <><Spinner /> Committing…</> : batch.status === 'committed' ? 'Committed' : 'Commit persisted batch'}
@@ -200,21 +200,21 @@ export function ImportCsvPage() {
               {actions.map((action) => (
                 <div key={action} data-testid={`summary-${action}`} className={statTileClass}>
                   <Badge value={action} />
-                  <strong className="mt-1 block text-2xl font-semibold text-slate-950 dark:text-slate-100">{summary[action]}</strong>
+                  <strong className="mt-1 block text-2xl font-semibold text-[var(--color-text-primary)]">{summary[action]}</strong>
                 </div>
               ))}
             </div>
             {Object.keys(batch.field_changes ?? {}).length > 0 ? (
               <div className={cardClass}>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                <p className="text-sm font-medium text-[var(--color-text-secondary)]">
                   This import will change:
                 </p>
-                <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-400">
+                <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--color-text-secondary)]">
                   {Object.entries(batch.field_changes)
                     .sort((a, b) => b[1] - a[1])
                     .map(([field, count]) => (
                       <li key={field}>
-                        <span className="font-medium text-slate-900 dark:text-slate-100">{field}</span>
+                        <span className="font-medium text-[var(--color-text-primary)]">{field}</span>
                         {' on '}
                         {count}
                         {' VMs'}

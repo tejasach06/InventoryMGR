@@ -57,7 +57,7 @@ PLATFORM_ALIASES = {
     "vcenter": "vmware",
 }
 ENUM_VALUES = {
-    "status": {"running", "powered_off", "suspended", "archived", "decommissioned", "unknown"},
+    "status": {"running", "powered_off", "decommissioned", "unknown"},
     "environment": {"production", "development", "testing", "uat", "dr", "staging", "sandbox"},
     "criticality": {"low", "medium", "high", "critical"},
     "lifecycle": {"planned", "active", "retiring", "retired"},

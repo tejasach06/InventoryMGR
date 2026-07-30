@@ -61,7 +61,7 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
     <div className={cardClass}>
       <div className="flex items-center justify-between">
         <div>
-          <span className="font-semibold text-slate-950 dark:text-slate-100">{user.email}</span>
+          <span className="font-semibold text-[var(--color-text-primary)]">{user.email}</span>
           <div className="mt-1 flex items-center gap-2">
             <Badge value={user.role} />
             <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: user.is_active ? 'var(--color-status-running)' : 'var(--color-criticality-critical)' }} title={user.is_active ? 'Active' : 'Inactive'} />
@@ -70,15 +70,15 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
         <button type="button" className={secondaryButtonClass} onClick={() => setEditing(!editing)}>{editing ? 'Cancel' : 'Edit'}</button>
       </div>
       {editing ? (
-        <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+        <div className="mt-4 grid gap-3 border-t border-[var(--color-border-subtle)] pt-4">
           <div>
             <label className={labelClass} htmlFor={`card-role-${user.id}`}>Role</label>
             <select className={selectClass} id={`card-role-${user.id}`} value={role} disabled={isSelf}
               title={isSelf ? "You can't change your own role." : undefined}
               onChange={(e) => setRole(e.target.value as UserRole)}>{roles.map((r) => <option key={r} value={r} title={roleDescriptions[r]}>{r}</option>)}</select>
           </div>
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor={`card-active-${user.id}`}>
-            <input className="h-4 w-4 rounded border-slate-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)] dark:border-slate-600 dark:bg-slate-950" id={`card-active-${user.id}`} type="checkbox" checked={isActive} disabled={isSelf}
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]" htmlFor={`card-active-${user.id}`}>
+            <input className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]/12" id={`card-active-${user.id}`} type="checkbox" checked={isActive} disabled={isSelf}
               title={isSelf ? "You can't deactivate your own account." : undefined}
               onChange={(e) => setIsActive(e.target.checked)} /> Active
           </label>
@@ -107,7 +107,7 @@ function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
   return (
     <>
       <tr className={tableRowClass}>
-        <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-900 dark:text-slate-100" scope="row">{user.email}</th>
+        <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]" scope="row">{user.email}</th>
         <td className="whitespace-nowrap px-4 py-3">
           <label className="sr-only" htmlFor={`role-${user.id}`}>Role for {user.email}</label>
           <select className={selectClass} id={`role-${user.id}`} value={role} disabled={isSelf}
@@ -115,8 +115,8 @@ function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
             onChange={(event) => setRole(event.target.value as UserRole)}>{roles.map((item) => <option key={item} value={item} title={roleDescriptions[item]}>{item}</option>)}</select>
         </td>
         <td className="whitespace-nowrap px-4 py-3">
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor={`active-${user.id}`}>
-            <input className="h-4 w-4 rounded border-slate-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)] dark:border-slate-600 dark:bg-slate-950" id={`active-${user.id}`} type="checkbox" checked={isActive} disabled={isSelf}
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]" htmlFor={`active-${user.id}`}>
+            <input className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]/12" id={`active-${user.id}`} type="checkbox" checked={isActive} disabled={isSelf}
               title={isSelf ? "You can't deactivate your own account." : undefined}
               onChange={(event) => setIsActive(event.target.checked)} /> Active
           </label>
@@ -188,7 +188,7 @@ export function UsersPanel() {
             <select className={selectClass} id="new-role" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as UserRole })}>{roles.map((role) => <option key={role} value={role} title={roleDescriptions[role]}>{role}</option>)}</select>
             <p className={helpTextClass}>{roleDescriptions[form.role]}</p>
           </div>
-          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200" htmlFor="new-active"><input className="h-4 w-4 rounded border-slate-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)] dark:border-slate-600 dark:bg-slate-950" id="new-active" type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> Active</label>
+          <label className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)]" htmlFor="new-active"><input className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]/12" id="new-active" type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> Active</label>
           <button className={primaryButtonClass} type="submit" disabled={create.isPending}>
             {create.isPending ? <><Spinner /> Creating…</> : 'Create user'}
           </button>

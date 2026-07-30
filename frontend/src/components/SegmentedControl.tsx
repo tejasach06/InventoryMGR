@@ -24,7 +24,7 @@ export function SegmentedControl({ label, options, value, onChange, type, labels
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] p-1 dark:bg-slate-900/60" role="group" aria-label={label}>
+    <div className="flex flex-wrap items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] p-1" role="group" aria-label={label}>
       {options.map((option) => {
         const active = value.includes(option);
         const normalized = option.toLowerCase().replace(/\s+/g, '_');
@@ -40,7 +40,7 @@ export function SegmentedControl({ label, options, value, onChange, type, labels
               'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-semibold leading-none transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]',
               active
                 ? 'shadow-sm'
-                : 'text-[var(--color-text-tertiary)] hover:bg-white hover:text-[var(--color-text-secondary)] dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-secondary)]'
             )}
             style={active ? {
               backgroundColor: `var(--color-${type}-${normalized}-bg)`,
