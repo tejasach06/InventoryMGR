@@ -6,7 +6,7 @@ import { api } from '../api/client';
 import { InventoryToolbar } from '../components/InventoryToolbar';
 import { emptyFilterState } from '../components/filters/filterConfig';
 import type { ColumnConfig } from '../hooks/useColumnPreferences';
-import type { Filters } from '../routes/InventoryPage';
+import type { Filters } from '../lib/inventoryFilters';
 
 const columns: ColumnConfig[] = [
   { key: 'name', visible: true, order: 0 },
