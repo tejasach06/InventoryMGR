@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ReactNode, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, detailMessage, DashboardAlertVm, Vm } from '../api/client';
-import { Alert, Badge, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, secondaryButtonClass } from '../components/ui';
+import { Alert, Badge, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, primaryButtonClass, secondaryButtonClass, statTileClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 
 const ALL_PARAMS = new URLSearchParams({ limit: '200', offset: '0' });
@@ -50,7 +50,7 @@ function Donut({ segments, total }: { segments: Segment[]; total: number }) {
             />
           );
         })}
-      <text x={size / 2} y={size / 2 - 2} textAnchor="middle" dominantBaseline="middle" className="tech fill-[var(--color-text-primary)] text-2xl font-bold">
+      <text x={size / 2} y={size / 2 - 2} textAnchor="middle" dominantBaseline="middle" className={cn(monoClass, 'fill-[var(--color-text-primary)] text-2xl font-bold tabular-nums')}>
         {fmtInt(total)}
       </text>
       <text x={size / 2} y={size / 2 + 18} textAnchor="middle" dominantBaseline="middle" className="fill-[var(--color-text-tertiary)] text-[0.625rem] font-semibold tracking-wider">
@@ -109,17 +109,18 @@ function StatTile({
   const inner = (
     <div
       className={cn(
-        'group flex h-full flex-col justify-between rounded-xl border p-4 transition-all duration-150',
+        statTileClass,
+        'group flex h-full flex-col justify-between transition-all duration-150',
         isAlert
           ? 'border-[var(--color-criticality-critical)]/40 bg-[var(--color-criticality-critical-bg)] shadow-[var(--shadow-raised)] hover:border-[var(--color-criticality-critical)]/70'
-          : 'border-[var(--color-border)]/70 bg-[var(--color-surface)] hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-raised)]'
+          : 'hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-raised)]'
       )}
     >
       <p className={cn('text-[0.7rem] font-semibold uppercase tracking-[0.1em]', isAlert ? 'text-[var(--color-criticality-critical)]' : 'text-[var(--color-text-tertiary)]')}>
         {label}
       </p>
       <p className="mt-3 flex items-baseline gap-1">
-        <span className={cn('tech text-2xl font-bold', isAlert ? 'text-[var(--color-criticality-critical)]' : 'text-[var(--color-text-primary)]')}>
+        <span className={cn(monoClass, 'text-2xl font-bold tabular-nums', isAlert ? 'text-[var(--color-criticality-critical)]' : 'text-[var(--color-text-primary)]')}>
           {value}
         </span>
         {unit ? (
@@ -141,10 +142,10 @@ function StatTile({
 
 type AlertGroupTone = 'critical' | 'warning' | 'info';
 
-const ALERT_TONE_VAR: Record<AlertGroupTone, string> = {
-  critical: 'var(--color-criticality-critical)',
-  warning: 'var(--color-warning)',
-  info: 'var(--color-status-powered_off)',
+const ALERT_TONE_CLASS: Record<AlertGroupTone, string> = {
+  critical: 'text-[var(--color-criticality-critical)]',
+  warning: 'text-[var(--color-warning)]',
+  info: 'text-[var(--color-status-powered_off)]',
 };
 
 function AlertGroupIcon({ tone }: { tone: AlertGroupTone }) {
@@ -189,9 +190,9 @@ function AlertGroup({
   return (
     <div className="flex flex-1 flex-col p-5">
       <div className="mb-4 flex items-center gap-2">
-        <span style={{ color: ALERT_TONE_VAR[tone] }}><AlertGroupIcon tone={tone} /></span>
+        <span className={ALERT_TONE_CLASS[tone]}><AlertGroupIcon tone={tone} /></span>
         <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">{title}</h4>
-        <span className="tech ml-auto text-[0.625rem] uppercase tracking-wider" style={{ color: ALERT_TONE_VAR[tone] }}>{toneLabel}</span>
+        <span className={cn(monoClass, 'ml-auto text-[0.625rem] uppercase tracking-wider tabular-nums', ALERT_TONE_CLASS[tone])}>{toneLabel}</span>
       </div>
       {rows.length === 0 ? (
         <p className="flex-1 text-sm text-[var(--color-text-tertiary)]">None.</p>
@@ -199,7 +200,7 @@ function AlertGroup({
         <ul className="mb-4 flex-1 divide-y divide-[var(--color-border-subtle)]">
           {shown.map((vm) => (
             <li key={vm.id} className="flex items-center justify-between gap-3 py-2">
-              <Link href={`/inventory/${vm.id}`} className="tech min-w-0 truncate text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent-text)]">
+              <Link href={`/inventory/${vm.id}`} className={cn(monoClass, 'min-w-0 truncate text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent-text)] tabular-nums')}>
                 {vm.name}
               </Link>
               <span className={cn(monoClass, 'shrink-0 text-xs tabular-nums')}>{meta(vm)}</span>
@@ -301,7 +302,6 @@ export function DashboardPage() {
   return (
     <PageTransition>
       <PageHeader title="Overview" eyebrow="Infrastructure" />
-
       {loading ? (
         <div className="space-y-6">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -318,12 +318,11 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Telemetry Hero Banner */}
           <div className={cn(
-            "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border p-4 shadow-sm backdrop-blur transition-all",
+            "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-[var(--color-border)]/70 p-4 shadow-[var(--shadow-raised)] backdrop-blur transition-all",
             arraysOverThreshold > 0
               ? "border-[var(--color-criticality-critical)]/40 bg-[var(--color-criticality-critical-bg)] text-[var(--color-text-primary)]"
-              : "border-[var(--color-border)]/70 bg-[var(--color-surface)]"
+              : "bg-[var(--color-surface)]"
           )}>
             <div className="flex items-center gap-3">
               <span className={cn(
@@ -333,7 +332,7 @@ export function DashboardPage() {
                 <span className={cn("h-3 w-3 rounded-full", arraysOverThreshold > 0 ? "bg-[var(--color-criticality-critical)]" : "bg-[var(--color-status-running)]")} />
               </span>
               <div>
-                <h2 className="font-display text-sm font-semibold text-[var(--color-text-primary)]">
+                <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
                   {arraysOverThreshold > 0
                     ? `${arraysOverThreshold} Storage Array${arraysOverThreshold === 1 ? '' : 's'} Exceed Usage Threshold`
                     : 'Fleet Operational — Infrastructure Normal'}
@@ -345,16 +344,15 @@ export function DashboardPage() {
             </div>
             <div className="flex items-center gap-2">
               {arraysOverThreshold > 0 && (
-                <Link href="/storage" className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-criticality-critical)] px-3 py-1.5 text-xs font-semibold text-[var(--color-on-danger)] hover:opacity-90 transition-colors">
+                <Link href="/storage" className={cn(primaryButtonClass, 'px-3 py-1.5 text-xs bg-[var(--color-criticality-critical)] text-[var(--color-on-danger)] hover:opacity-90')}>
                   View Storage Alerts →
                 </Link>
               )}
-              <Link href="/inventory" className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] transition-colors">
+              <Link href="/inventory" className={cn(secondaryButtonClass, 'px-3 py-1.5 text-xs')}>
                 Open Fleet Inventory →
               </Link>
             </div>
           </div>
-
           {vmsQ.isError || statsQ.isError ? (
             <div className="mb-4 flex items-center justify-between rounded-xl border border-[var(--color-criticality-critical)]/30 bg-[var(--color-criticality-critical-bg)] p-4 text-sm text-[var(--color-criticality-critical)]">
               <span>Failed to refresh some metrics: {detailMessage(vmsQ.error ?? statsQ.error)}</span>
@@ -435,12 +433,15 @@ export function DashboardPage() {
               <section className="overflow-hidden rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] shadow-[var(--shadow-raised)] backdrop-blur">
                 <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/70 bg-[var(--color-surface-tertiary)] px-5 py-4">
                   <div>
-                    <p className="tech text-[0.625rem] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">Infrastructure status</p>
+                    <p className={cn(monoClass, 'text-[0.625rem] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] tabular-nums')}>Infrastructure status</p>
                     <h2 className="text-base font-semibold text-[var(--color-text-primary)]">VM Alerts</h2>
                   </div>
                   <span
-                    className={cn(monoClass, 'shrink-0 rounded-md px-2 py-1 text-xs tabular-nums')}
-                    style={total > 0 ? { color: ALERT_TONE_VAR.critical } : undefined}
+                    className={cn(
+                      monoClass,
+                      'shrink-0 rounded-md px-2 py-1 text-xs tabular-nums',
+                      total > 0 ? 'text-[var(--color-criticality-critical)]' : 'text-[var(--color-text-tertiary)]'
+                    )}
                   >
                     {total > 0 ? `${fmtInt(total)} active` : 'All clear'}
                   </span>

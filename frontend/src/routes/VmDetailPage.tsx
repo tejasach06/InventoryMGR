@@ -9,6 +9,7 @@ import {
   Alert, Badge, ConfirmDialog, EmptyState, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, dangerButtonClass, inputClass, labelClass, monoClass, secondaryButtonClass, selectClass,
 } from '../components/ui';
+import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
 import { formatMemory } from '../lib/units';
 
@@ -114,7 +115,7 @@ function AddRowForm({ fields, onSubmit, pending }: {
               <input type={f.type ?? 'text'} value={values[f.name]}
                 onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
                 placeholder={f.placeholder}
-                className={inputClass} />
+                className={cn(inputClass, (f.type === 'number' || f.type === 'date') && 'tabular-nums')} />
             )}
           </label>
         ))}
@@ -163,33 +164,35 @@ function DisksPanel({ vm }: { vm: Vm }) {
         onCancel={() => setDeleteDiskId(null)}
       />
       {vm.disks.length === 0 ? <EmptyState title="No disks configured" body="Add a disk below to start tracking storage for this VM." /> : (
-        <table className="w-full text-sm"><thead>
-          <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
-            <th className="pb-1 pr-4">Name</th><th className="pb-1 pr-4">Storage</th><th className="pb-1 pr-4">Size (GB)</th><th className="pb-1 pr-4">Type</th><th />
-          </tr></thead>
-          <tbody className="divide-y divide-[var(--color-border)]">
-            {vm.disks.map((d) => (
-              <tr key={d.id}>
-                <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">{d.disk_name}</td>
-                <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_name ?? '—'}</td>
-                <td className="py-1.5 pr-4 tabular-nums text-[var(--color-text-primary)]">{d.size_gb}</td>
-                <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_type ?? '—'}</td>
-                <td className="py-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setDeleteDiskId(d.id)}
-                    className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
-                    title={`Remove ${d.disk_name}`}
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm"><thead>
+            <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
+              <th className="pb-1 pr-4">Name</th><th className="pb-1 pr-4">Storage</th><th className="pb-1 pr-4">Size (GB)</th><th className="pb-1 pr-4">Type</th><th />
+            </tr></thead>
+            <tbody className="divide-y divide-[var(--color-border)]">
+              {vm.disks.map((d) => (
+                <tr key={d.id}>
+                  <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">{d.disk_name}</td>
+                  <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_name ?? '—'}</td>
+                  <td className="py-1.5 pr-4 tabular-nums text-[var(--color-text-primary)]">{d.size_gb}</td>
+                  <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_type ?? '—'}</td>
+                  <td className="py-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteDiskId(d.id)}
+                      className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
+                      title={`Remove ${d.disk_name}`}
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <AddRowForm fields={[
         { name: 'disk_name', placeholder: 'Disk name (e.g. scsi0)' },
@@ -236,38 +239,40 @@ function NetworksPanel({ vm }: { vm: Vm }) {
         onCancel={() => setDeleteNetworkId(null)}
       />
       {vm.networks.length === 0 ? <EmptyState title="No network entries configured" body="Add an IP address below to start tracking network configuration." /> : (
-        <table className="w-full text-sm"><thead>
-          <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
-            <th className="pb-1 pr-4">IP Address</th><th className="pb-1 pr-4">Role</th><th className="pb-1 pr-4">VLAN</th><th className="pb-1 pr-4">Gateway</th><th />
-          </tr></thead>
-          <tbody className="divide-y divide-[var(--color-border)]">
-            {vm.networks.map((n) => (
-              <tr key={n.id}>
-                <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">
-                  <div className="flex items-center gap-1.5">
-                    <span>{n.ip_address}</span>
-                    <CopyButton text={n.ip_address} />
-                  </div>
-                </td>
-                <td className="py-1.5 pr-4 capitalize text-[var(--color-text-secondary)]">{n.role}</td>
-                <td className="py-1.5 pr-4 font-mono tabular-nums text-[var(--color-text-secondary)]">{n.vlan ?? '—'}</td>
-                <td className="py-1.5 pr-4 font-mono text-[var(--color-text-secondary)]">{n.gateway ?? '—'}</td>
-                <td className="py-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setDeleteNetworkId(n.id)}
-                    className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
-                    title={`Remove ${n.ip_address}`}
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm"><thead>
+            <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
+              <th className="pb-1 pr-4">IP Address</th><th className="pb-1 pr-4">Role</th><th className="pb-1 pr-4">VLAN</th><th className="pb-1 pr-4">Gateway</th><th />
+            </tr></thead>
+            <tbody className="divide-y divide-[var(--color-border)]">
+              {vm.networks.map((n) => (
+                <tr key={n.id}>
+                  <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">
+                    <div className="flex items-center gap-1.5">
+                      <span>{n.ip_address}</span>
+                      <CopyButton text={n.ip_address} />
+                    </div>
+                  </td>
+                  <td className="py-1.5 pr-4 capitalize text-[var(--color-text-secondary)]">{n.role}</td>
+                  <td className="py-1.5 pr-4 font-mono tabular-nums text-[var(--color-text-secondary)]">{n.vlan ?? '—'}</td>
+                  <td className="py-1.5 pr-4 font-mono text-[var(--color-text-secondary)]">{n.gateway ?? '—'}</td>
+                  <td className="py-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteNetworkId(n.id)}
+                      className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
+                      title={`Remove ${n.ip_address}`}
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <AddRowForm fields={[
         { name: 'ip_address', placeholder: 'IP address' },
@@ -453,7 +458,7 @@ export function VmDetailPage() {
         <SectionNav titles={['Telemetry', 'Infrastructure', 'Operations', 'Audit & History']} />
 
         {/* 1. HERO TELEMETRY PANEL */}
-        <section id="telemetry" className="rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-5 shadow-[var(--shadow-raised)] backdrop-blur space-y-4">
+        <section id="telemetry" className="rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-5 shadow-[var(--shadow-raised)] space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge value={vm.status} type="status" size="md" />

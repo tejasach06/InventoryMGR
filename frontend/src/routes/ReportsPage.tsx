@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, detailMessage, Vm } from '../api/client';
 import { Alert, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, secondaryButtonClass } from '../components/ui';
+import { cn } from '../lib/classNames';
 
 const ALL_PARAMS = new URLSearchParams({ limit: '200', offset: '0' });
 
@@ -20,10 +21,10 @@ const REPORTS: ReportDef[] = [
   { name: 'linux', label: 'Linux Inventory', description: 'Every Linux-family guest', metric: (v) => v.filter((x) => x.os_family === 'linux').length, suffix: 'VMs', colorVar: 'var(--color-os_family-linux)' },
   { name: 'windows', label: 'Windows Inventory', description: 'Every Windows-family guest', metric: (v) => v.filter((x) => x.os_family === 'windows').length, suffix: 'VMs', colorVar: 'var(--color-os_family-windows)' },
   { name: 'production', label: 'Production Inventory', description: 'Workloads in the production environment', metric: (v) => v.filter((x) => x.environment === 'production').length, suffix: 'VMs', colorVar: 'var(--color-environment-production)' },
-  { name: 'monitoring', label: 'Monitoring Status', description: 'Guests with monitoring enabled', metric: (v) => v.filter((x) => x.monitoring_enabled).length, suffix: 'monitored', colorVar: 'var(--color-status-running)' },
-  { name: 'applications', label: 'Application Inventory', description: 'Guests with at least one linked app', metric: (v) => v.filter((x) => x.applications.length > 0).length, suffix: 'VMs', colorVar: 'var(--color-environment-uat)' },
-  { name: 'owner', label: 'Owner Report', description: 'Distinct business/technical owners', metric: (v) => new Set(v.map((x) => x.owner).filter(Boolean)).size, suffix: 'owners', colorVar: 'var(--color-environment-staging)' },
-  { name: 'pmp_access', label: 'PMP Access Report', description: 'VMs accessible via PMP', metric: (v) => v.filter((x) => x.pmp_enabled).length, suffix: 'VMs', colorVar: 'var(--color-environment-dr)' },
+  { name: 'monitoring', label: 'Monitoring Status', description: 'Guests with monitoring enabled', metric: (v) => v.filter((x) => x.monitoring_enabled).length, suffix: 'monitored', colorVar: 'var(--color-accent)' },
+  { name: 'applications', label: 'Application Inventory', description: 'Guests with at least one linked app', metric: (v) => v.filter((x) => x.applications.length > 0).length, suffix: 'VMs', colorVar: 'var(--color-accent)' },
+  { name: 'owner', label: 'Owner Report', description: 'Distinct business/technical owners', metric: (v) => new Set(v.map((x) => x.owner).filter(Boolean)).size, suffix: 'owners', colorVar: 'var(--color-accent)' },
+  { name: 'pmp_access', label: 'PMP Access Report', description: 'VMs accessible via PMP', metric: (v) => v.filter((x) => x.pmp_enabled).length, suffix: 'VMs', colorVar: 'var(--color-accent)' },
   { name: 'lifecycle', label: 'Lifecycle Report', description: 'Guests with a decommission date set', metric: (v) => v.filter((x) => x.decommission_date).length, suffix: 'scheduled', colorVar: 'var(--color-lifecycle-retiring)' },
 ];
 
@@ -73,7 +74,7 @@ export function ReportsPage() {
                     <Skeleton className="h-7 w-10" />
                   ) : (
                     <>
-                      <span className="tech text-2xl font-bold text-[var(--color-text-primary)]">{value}</span>
+                      <span className={cn(monoClass, 'text-2xl font-bold text-[var(--color-text-primary)] tabular-nums')}>{value}</span>
                       <span className="ml-1 text-[0.7rem] uppercase tracking-wide text-[var(--color-text-tertiary)]">{r.suffix}</span>
                     </>
                   )}
@@ -91,7 +92,7 @@ export function ReportsPage() {
           );
         })}
       </div>
-      <p className={`${monoClass} mt-4 text-center`}>
+      <p className={cn(monoClass, 'mt-4 text-center tabular-nums')}>
         {vmsQ.isLoading ? 'loading…' : `${items.length} VMs across ${REPORTS.length} report views`}
         {capped ? ` (of ${vmsQ.data?.total} total — reports below reflect the first ${items.length} only)` : ''}
       </p>

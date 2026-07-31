@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, ClusterPayload, PhysicalCluster, PhysicalNode } from '../api/client';
 import {
   Alert, ConfirmDialog, FieldError, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, cardClass, inputClass, labelClass,
-  tableClass, tableBodyClass, tableCellClass, monoClass,
+  tableClass, tableBodyClass, tableCellClass, monoClass, tableWrapClass,
   dangerButtonClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass,
 } from '../components/ui';
 import { cn } from '../lib/classNames';
@@ -110,13 +110,12 @@ function NodeAddForm({ onSubmit, pending }: {
 
 function RamBar({ used, total }: { used: number | null; total: number }) {
   const pct = total > 0 && used !== null ? Math.min(100, Math.round((used / total) * 100)) : null;
-  const colorVar = pct !== null && pct > 85 ? 'var(--color-criticality-critical)' : pct !== null && pct > 70 ? 'var(--color-criticality-medium)' : 'var(--color-accent)';
   return (
     <div className="flex items-center gap-3">
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-tertiary)]">
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct ?? 0}%`, backgroundColor: colorVar }} />
+        <div className="h-full rounded-full bg-[var(--color-accent)] transition-all" style={{ width: `${pct ?? 0}%` }} />
       </div>
-      <span className={cn(monoClass, 'w-24 text-right')}>
+      <span className={cn(monoClass, 'w-24 text-right tabular-nums')}>
         {used === null ? '—' : `${used} / ${total} GB`}
       </span>
     </div>
@@ -149,7 +148,7 @@ function NodesArea({ cluster, canEdit }: { cluster: PhysicalCluster; canEdit: bo
       {cluster.nodes.length === 0 ? (
         <p className="text-sm text-[var(--color-text-tertiary)]">No nodes yet.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
+        <div className={tableWrapClass}>
           <table className={tableClass}>
             <thead>
               <tr className="text-left text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
@@ -166,9 +165,9 @@ function NodesArea({ cluster, canEdit }: { cluster: PhysicalCluster; canEdit: bo
                     {n.ip_addresses.length === 0 ? '—' : n.ip_addresses.map((ip) => `${ip.label} ${ip.address}`).join(', ')}
                   </td>
                   <td className={tableCellClass}>{n.cpu_model ?? '—'}</td>
-                  <td className={cn(tableCellClass, 'tabular-nums')}>{n.cpu_cores} / {n.cpu_threads}</td>
+                  <td className={cn(tableCellClass, monoClass, 'tabular-nums')}>{n.cpu_cores} / {n.cpu_threads}</td>
                   <td className={tableCellClass}><RamBar used={n.ram_used_gb} total={n.ram_total_gb} /></td>
-                  <td className={cn(tableCellClass, 'tabular-nums')}>{n.storage_usable_gb}</td>
+                  <td className={cn(tableCellClass, monoClass, 'tabular-nums')}>{n.storage_usable_gb}</td>
                   <td className={tableCellClass}>
                     {[n.datacenter, n.rack, n.rack_unit].filter(Boolean).join(' / ') || '—'}
                   </td>

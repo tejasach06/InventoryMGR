@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, ClusterPayload, PhysicalClusterListItem } from '../api/client';
-import { Alert, EmptyState, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass } from '../components/ui';
+import { Alert, EmptyState, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass, monoClass } from '../components/ui';
+import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
 import { ClusterForm } from '../components/ClusterForm';
 
@@ -70,14 +71,14 @@ export function ClustersPage() {
               {clusters.map((c) => (
                 <tr key={c.id} className={tableRowClass}>
                   <td className={tableCellClass}>
-                    <Link href={`/clusters/${c.id}`} className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>
+                    <Link href={`/clusters/${c.id}`} className="font-medium text-[var(--color-accent)] hover:underline">
                       {c.name}
                     </Link>
                   </td>
                   <td className={tableCellClass}>{c.description ?? '—'}</td>
-                  <td className={`${tableCellClass} text-right tabular-nums`}>{c.node_count}</td>
-                  <td className={`${tableCellClass} text-right tabular-nums`}>{c.total_ram_gb}</td>
-                  <td className={`${tableCellClass} text-right tabular-nums`}>{c.total_storage_gb}</td>
+                  <td className={cn(tableCellClass, monoClass, 'text-right tabular-nums')}>{c.node_count}</td>
+                  <td className={cn(tableCellClass, monoClass, 'text-right tabular-nums')}>{c.total_ram_gb}</td>
+                  <td className={cn(tableCellClass, monoClass, 'text-right tabular-nums')}>{c.total_storage_gb}</td>
                 </tr>
               ))}
             </tbody>

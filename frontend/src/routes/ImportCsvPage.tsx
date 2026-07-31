@@ -3,7 +3,8 @@
 import { DragEvent, FormEvent, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, ImportAction, ImportBatch } from '../api/client';
-import { Alert, Badge, EmptyState, PageHeader, PageTransition, Spinner, cardClass, helpTextClass, primaryButtonClass, secondaryButtonClass, statTileClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
+import { Alert, Badge, EmptyState, PageHeader, PageTransition, Spinner, cardClass, helpTextClass, primaryButtonClass, secondaryButtonClass, statTileClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
+import { cn } from '../lib/classNames';
 
 const actions: ImportAction[] = ['create', 'update', 'unchanged', 'conflict', 'invalid'];
 
@@ -30,11 +31,11 @@ const IP_ROLE_HEADERS = ['private_ip', 'public_ip', 'backup_ip'] as const;
 function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
   return (
     <tr className={tableRowClass}>
-      <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]" scope="row">{row.row_number}</th>
+      <th className={cn('whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]', monoClass, 'tabular-nums')} scope="row">{row.row_number}</th>
       <td className="whitespace-nowrap px-4 py-3">
         <Badge value={row.action} />
         {row.action === 'update' && Object.keys(row.changes ?? {}).length > 0 ? (
-          <span className="ml-2 text-xs text-[var(--color-text-tertiary)]">
+          <span className={cn('ml-2 text-xs text-[var(--color-text-tertiary)]', monoClass, 'tabular-nums')}>
             {Object.keys(row.changes).length} fields
           </span>
         ) : null}
@@ -43,8 +44,8 @@ function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
       <td className={tableCellClass}>{row.normalized?.platform ?? String(row.raw.platform ?? '—')}</td>
       <td className={tableCellClass}>{row.normalized?.cluster ?? String(row.raw.cluster ?? '—')}</td>
       <td className={tableCellClass}>{String(row.raw.disks || '—')}</td>
-      <td className={tableCellClass}>{IP_ROLE_HEADERS.map((header) => row.raw[header]).filter(Boolean).join(', ') || '—'}</td>
-      <td className="min-w-72 px-4 py-3 text-[var(--color-text-secondary)]">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5" style={{ color: 'var(--color-criticality-critical)' }}>{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
+      <td className={cn(tableCellClass, monoClass)}>{IP_ROLE_HEADERS.map((header) => row.raw[header]).filter(Boolean).join(', ') || '—'}</td>
+      <td className="min-w-72 px-4 py-3 text-[var(--color-text-secondary)]">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5 text-[var(--color-criticality-critical)]">{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
     </tr>
   );
 }
@@ -188,7 +189,7 @@ export function ImportCsvPage() {
           <div className={cardClass + ' space-y-5' + (batch.status === 'committed' ? ' opacity-75' : '')}>
             <div className="grid gap-4 sm:flex sm:items-start sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-accent)]">Batch {batch.id}</p>
+                <p className={cn('text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-accent)]', monoClass)}>Batch {batch.id}</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--color-text-primary)]">{batch.filename}</h2>
               </div>
               <button className={primaryButtonClass} type="button" onClick={() => commit.mutate()} disabled={commit.isPending || hasBlockingRows || batch.status === 'committed'} aria-describedby={blockingReasonId}>
@@ -200,7 +201,7 @@ export function ImportCsvPage() {
               {actions.map((action) => (
                 <div key={action} data-testid={`summary-${action}`} className={statTileClass}>
                   <Badge value={action} />
-                  <strong className="mt-1 block text-2xl font-semibold text-[var(--color-text-primary)]">{summary[action]}</strong>
+                  <strong className={cn('mt-1 block text-2xl font-semibold text-[var(--color-text-primary)]', monoClass, 'tabular-nums')}>{summary[action]}</strong>
                 </div>
               ))}
             </div>
@@ -215,9 +216,7 @@ export function ImportCsvPage() {
                     .map(([field, count]) => (
                       <li key={field}>
                         <span className="font-medium text-[var(--color-text-primary)]">{field}</span>
-                        {' on '}
-                        {count}
-                        {' VMs'}
+                        {` on ${count} VMs`}
                       </li>
                     ))}
                 </ul>

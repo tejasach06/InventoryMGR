@@ -60,7 +60,7 @@ function InlineAddForm({ fields, onSubmit, pending }: {
           {pending ? <Spinner /> : null}+ Add
         </button>
       </div>
-      {error && <p className="mt-1.5 text-sm" style={{ color: 'var(--color-criticality-critical)' } as React.CSSProperties}>{error}</p>}
+      {error && <p className="mt-1.5 text-sm text-[var(--color-criticality-critical)]">{error}</p>}
     </div>
   );
 }
@@ -69,10 +69,10 @@ function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
   return (
     <div className="flex items-center gap-3">
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-tertiary)]">
-        <div className={cn('h-full rounded-full transition-all', over ? 'bg-[var(--color-criticality-critical)]' : 'bg-[var(--color-accent)]')}
+        <div className={cn('h-full rounded-full transition-all', over ? 'bg-[var(--color-criticality-critical)]' : 'bg-[var(--color-text-secondary)]')}
           style={{ width: `${pct === null ? 0 : Math.min(100, pct)}%` }} />
       </div>
-      <span className={cn(monoClass, 'w-14 text-right font-semibold')}>
+      <span className={cn(monoClass, 'w-14 text-right font-semibold tabular-nums')}>
         {pct === null ? '—' : `${pct}%`}
       </span>
     </div>
@@ -113,7 +113,7 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
 
   return (
     <section className={cardClass}>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h3 className="font-semibold text-[var(--color-text-primary)]">{volume.name}</h3>
         {canEdit && (
           <button className={dangerButtonClass} onClick={() => setConfirmDelVolume(true)} disabled={delVolume.isPending}>
@@ -128,11 +128,11 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
         onCancel={() => setConfirmDelVolume(false)} />
       <div className="mt-3">
         <UsageBar pct={volume.used_pct} over={volume.over_threshold} />
-        <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">{volume.used_gb} / {volume.capacity_gb} GB</p>
+        <p className={cn(monoClass, 'mt-1 text-xs tabular-nums text-[var(--color-text-tertiary)]')}>{volume.used_gb} / {volume.capacity_gb} GB</p>
       </div>
 
       <div className="mt-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">LUNs</h4>
           {canEdit && (
             <button type="button" className={secondaryButtonClass} onClick={() => setShowAddLun((v) => !v)}>
@@ -152,7 +152,7 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
                 {volume.luns.map((l) => (
                   <tr key={l.id} className="transition-colors hover:bg-[var(--color-accent)]/5">
                     <td className={cn(tableCellClass, monoClass)}>{l.name}</td>
-                    <td className={cn(tableCellClass, 'tabular-nums')}>{l.size_gb}</td>
+                    <td className={cn(tableCellClass, monoClass, 'tabular-nums')}>{l.size_gb}</td>
                     <td className={tableCellClass}>{l.cluster ?? '—'}</td>
                     <td className={cn(tableCellClass, monoClass)}>{l.target_iqn ?? '—'}</td>
                     <td className={tableCellClass}>{l.status ?? '—'}</td>
@@ -176,7 +176,7 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
       </div>
 
       <div className="mt-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">NFS shares</h4>
           {canEdit && (
             <button type="button" className={secondaryButtonClass} onClick={() => setShowAddShare((v) => !v)}>
@@ -196,7 +196,7 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
                 {volume.shares.map((s) => (
                   <tr key={s.id} className="transition-colors hover:bg-[var(--color-accent)]/5">
                     <td className={cn(tableCellClass, monoClass)}>{s.export_path}</td>
-                    <td className={cn(tableCellClass, 'tabular-nums')}>{s.used_gb ?? '—'}</td>
+                    <td className={cn(tableCellClass, monoClass, 'tabular-nums')}>{s.used_gb ?? '—'}</td>
                     <td className={tableCellClass}>{s.allowed_clients ?? '—'}</td>
                     <td className={tableCellClass}>{canEdit && <RemoveButton onClick={() => delShare.mutate(s.id)} label={`Remove share ${s.export_path}`} />}</td>
                   </tr>
@@ -233,7 +233,7 @@ function VolumesArea({ array, clusters, canEdit }: { array: StorageArray; cluste
   });
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className={sectionTitleClass}>Volumes</h2>
         {canEdit && (
           <button type="button" className={secondaryButtonClass} onClick={() => setShowAddVolume((v) => !v)}>
@@ -244,7 +244,7 @@ function VolumesArea({ array, clusters, canEdit }: { array: StorageArray; cluste
       {array.volumes.length === 0 ? <p className="text-sm text-[var(--color-text-tertiary)]">No volumes yet.</p> : null}
       {array.volumes.map((v) => <VolumePanel key={v.id} volume={v} clusters={clusters} canEdit={canEdit} />)}
       {canEdit && showAddVolume && (
-        <div className="rounded-xl border border-dashed border-[var(--color-border)] p-4">
+        <div className="overflow-x-auto rounded-xl border border-dashed border-[var(--color-border)] p-4">
           <InlineAddForm fields={[
             { name: 'name', placeholder: 'Volume name', required: true },
             { name: 'capacity_gb', placeholder: 'Capacity GB', type: 'number', required: true },
@@ -315,7 +315,7 @@ export function StorageDetailPage() {
         {deleteMut.isError && <Alert>{detailMessage(deleteMut.error)}</Alert>}
 
         <section className={cardClass}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className={sectionTitleClass}>Capacity</h2>
             {canEdit && !editing ? (
               <button className={primaryButtonClass} onClick={() => setEditing(true)}>Edit</button>
@@ -345,7 +345,7 @@ export function StorageDetailPage() {
           ) : (
             <div className="mt-3">
               <UsageBar pct={array.used_pct} over={array.over_threshold} />
-              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+              <p className={cn(monoClass, 'mt-1 text-xs tabular-nums text-[var(--color-text-tertiary)]')}>
                 {array.used_capacity_gb} / {array.total_capacity_gb} GB
                 {array.datacenter ? ` · ${array.datacenter}` : ''}
                 {array.model ? ` · ${array.model}` : ''}

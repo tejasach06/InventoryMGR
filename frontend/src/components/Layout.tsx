@@ -63,8 +63,8 @@ export function AppLayout({ user, children }: LayoutProps) {
     <div className="min-h-screen bg-[var(--color-surface-secondary)] lg:flex">
       <NotificationBell />
       <aside className={`sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-4 backdrop-blur lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
-        <div className="flex items-center justify-between gap-4 lg:block">
-          <div className={`flex items-center gap-2.5 ${collapsed ? 'lg:w-full lg:flex-col lg:items-center lg:gap-2' : ''}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 min-w-0 w-full lg:block">
+          <div className={`flex items-center gap-2.5 min-w-0 ${collapsed ? 'lg:w-full lg:flex-col lg:items-center lg:gap-2' : ''}`}>
             <button
               type="button"
               onClick={toggleCollapsed}
@@ -77,9 +77,9 @@ export function AppLayout({ user, children }: LayoutProps) {
               </svg>
             </button>
             <Logo className="h-8 w-8 flex-shrink-0" />
-            {!collapsed && <span className="font-display text-[1.05rem] font-semibold tracking-tight text-[var(--color-text-primary)]">Inventory<span className="text-[var(--color-accent-text)]">MGR</span></span>}
+            {!collapsed && <span className="truncate font-display text-[1.05rem] font-semibold tracking-tight text-[var(--color-text-primary)] min-w-0">Inventory<span className="text-[var(--color-accent-text)]">MGR</span></span>}
           </div>
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full lg:hidden">
             <ThemeSelect />
             <button type="button" className={secondaryButtonClass} onClick={() => logout.mutate()} disabled={logout.isPending}>
               {logout.isPending ? 'Signing out…' : 'Logout'}

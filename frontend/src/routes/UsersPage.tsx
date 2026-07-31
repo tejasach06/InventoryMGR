@@ -3,8 +3,9 @@
 import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, User, UserRole } from '../api/client';
-import { Alert, Badge, EmptyState, FieldError, PageHeader, PageTransition, Spinner, TableSkeleton, cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass } from '../components/ui';
+import { Alert, Badge, EmptyState, FieldError, PageHeader, PageTransition, Spinner, TableSkeleton, cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
 import { useCurrentUser } from '../components/AuthContext';
+import { cn } from '../lib/classNames';
 
 const roles: UserRole[] = ['viewer', 'editor', 'admin'];
 const roleDescriptions: Record<UserRole, string> = {
@@ -61,10 +62,10 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
     <div className={cardClass}>
       <div className="flex items-center justify-between">
         <div>
-          <span className="font-semibold text-[var(--color-text-primary)]">{user.email}</span>
+          <span className={cn('font-semibold text-[var(--color-text-primary)]', monoClass)}>{user.email}</span>
           <div className="mt-1 flex items-center gap-2">
             <Badge value={user.role} />
-            <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: user.is_active ? 'var(--color-status-running)' : 'var(--color-criticality-critical)' }} title={user.is_active ? 'Active' : 'Inactive'} />
+            <span className={cn('inline-flex h-2 w-2 rounded-full', user.is_active ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-surface-tertiary)]')} title={user.is_active ? 'Active' : 'Inactive'} />
           </div>
         </div>
         <button type="button" className={secondaryButtonClass} onClick={() => setEditing(!editing)}>{editing ? 'Cancel' : 'Edit'}</button>
@@ -107,7 +108,7 @@ function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
   return (
     <>
       <tr className={tableRowClass}>
-        <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]" scope="row">{user.email}</th>
+        <th className={cn('whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]', monoClass)} scope="row">{user.email}</th>
         <td className="whitespace-nowrap px-4 py-3">
           <label className="sr-only" htmlFor={`role-${user.id}`}>Role for {user.email}</label>
           <select className={selectClass} id={`role-${user.id}`} value={role} disabled={isSelf}

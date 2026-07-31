@@ -30,10 +30,11 @@ interface BaseFieldProps {
 function TextInput({ name, label, values, errors, onChange, required = false, type = 'text', disabled = false }: BaseFieldProps & { type?: string; disabled?: boolean }) {
   const errorId = `${String(name)}-error`;
   const value = values[name];
+  const isNumericOrDate = type === 'number' || type === 'date';
   return (
     <div>
       <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
-      <input className={inputClass} id={String(name)} name={String(name)} type={type}
+      <input className={cn(inputClass, isNumericOrDate && 'tabular-nums')} id={String(name)} name={String(name)} type={type}
         value={typeof value === 'boolean' ? '' : value}
         onChange={(e) => onChange(name, e.target.value)}
         disabled={disabled}
@@ -67,6 +68,7 @@ function ComboInput({ name, label, values, errors, onChange, options, required =
   const matches = query.length > 0 ? options.filter((o) => o.toLowerCase().includes(query) && o.toLowerCase() !== query).slice(0, 8) : [];
   const [activeIndex, setActiveIndex] = useState(-1);
   const activeId = activeIndex >= 0 && activeIndex < matches.length ? `${String(name)}-option-${activeIndex}` : undefined;
+  const isNumericOrDate = type === 'number' || type === 'date';
 
   function selectMatch(m: string) {
     onChange(name, m);
@@ -84,7 +86,7 @@ function ComboInput({ name, label, values, errors, onChange, options, required =
   return (
     <div>
       <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
-      <input className={inputClass} id={String(name)} name={String(name)} type={type} autoComplete="off" value={raw}
+      <input className={cn(inputClass, isNumericOrDate && 'tabular-nums')} id={String(name)} name={String(name)} type={type} autoComplete="off" value={raw}
         role="combobox" aria-expanded={matches.length > 0} aria-controls={listId} aria-activedescendant={activeId} aria-autocomplete="list"
         onChange={(e) => { onChange(name, e.target.value); setActiveIndex(-1); }}
         onKeyDown={onKeyDown}
@@ -136,44 +138,46 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
     <div className="mt-4 border-t border-[var(--color-border)] pt-4">
       <p className={labelClass}>Disks</p>
       <p className={helpTextClass}>Paste a semicolon-separated list (e.g. os:100;data:500) into the first disk name field to add several at once.</p>
-      <div className="mt-3 space-y-3">
-        {disks.map((d, i) => (
-          <div key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end">
-            <label className="flex flex-col gap-1">
-              <span className={labelClass}>Disk {i + 1} name</span>
-              <input aria-label={`Disk ${i + 1} name`} className={inputClass} type="text" placeholder="Disk name" value={d.name} onChange={(e) => update(i, { name: e.target.value })}
-                onPaste={i === 0 ? (e) => {
-                  const parsed = parseDiskPaste(e.clipboardData.getData('text'));
-                  const isPristine = disks.length === 1 && !disks[0].name && !disks[0].size && !disks[0].storage && !disks[0].type;
-                  if (parsed && isPristine) { e.preventDefault(); setDisks(parsed); }
-                } : undefined} />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={labelClass}>Size</span>
-              <input aria-label={`Disk ${i + 1} size`} className={inputClass} type="number" min="0" placeholder="Size" value={d.size} onChange={(e) => update(i, { size: e.target.value })} />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={labelClass}>Unit</span>
-              <select aria-label={`Disk ${i + 1} unit`} className={selectClass} value={d.unit} onChange={(e) => update(i, { unit: e.target.value as 'GB' | 'TB' })}>
-                <option value="GB">GB</option>
-                <option value="TB">TB</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={labelClass}>Storage</span>
-              <input aria-label={`Disk ${i + 1} storage`} className={inputClass} type="text" placeholder="Storage" value={d.storage} onChange={(e) => update(i, { storage: e.target.value })} />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={labelClass}>Type</span>
-              <div className="flex gap-2 items-end">
-                <input aria-label={`Disk ${i + 1} type`} className={inputClass} type="text" placeholder="Type" value={d.type} onChange={(e) => update(i, { type: e.target.value })} />
-                {disks.length > 1 && (
-                  <RemoveButton onClick={() => setDisks((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove disk ${i + 1}`} />
-                )}
-              </div>
-            </label>
-          </div>
-        ))}
+      <div className="overflow-x-auto">
+        <div className="mt-3 space-y-3 min-w-[600px] sm:min-w-0">
+          {disks.map((d, i) => (
+            <div key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end">
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>Disk {i + 1} name</span>
+                <input aria-label={`Disk ${i + 1} name`} className={inputClass} type="text" placeholder="Disk name" value={d.name} onChange={(e) => update(i, { name: e.target.value })}
+                  onPaste={i === 0 ? (e) => {
+                    const parsed = parseDiskPaste(e.clipboardData.getData('text'));
+                    const isPristine = disks.length === 1 && !disks[0].name && !disks[0].size && !disks[0].storage && !disks[0].type;
+                    if (parsed && isPristine) { e.preventDefault(); setDisks(parsed); }
+                  } : undefined} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>Size</span>
+                <input aria-label={`Disk ${i + 1} size`} className={cn(inputClass, 'tabular-nums')} type="number" min="0" placeholder="Size" value={d.size} onChange={(e) => update(i, { size: e.target.value })} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>Unit</span>
+                <select aria-label={`Disk ${i + 1} unit`} className={selectClass} value={d.unit} onChange={(e) => update(i, { unit: e.target.value as 'GB' | 'TB' })}>
+                  <option value="GB">GB</option>
+                  <option value="TB">TB</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>Storage</span>
+                <input aria-label={`Disk ${i + 1} storage`} className={inputClass} type="text" placeholder="Storage" value={d.storage} onChange={(e) => update(i, { storage: e.target.value })} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>Type</span>
+                <div className="flex gap-2 items-end">
+                  <input aria-label={`Disk ${i + 1} type`} className={inputClass} type="text" placeholder="Type" value={d.type} onChange={(e) => update(i, { type: e.target.value })} />
+                  {disks.length > 1 && (
+                    <RemoveButton onClick={() => setDisks((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove disk ${i + 1}`} />
+                  )}
+                </div>
+              </label>
+            </div>
+          ))}
+        </div>
       </div>
       <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setDisks((rows) => [...rows, { name: '', size: '', unit: 'GB', storage: '', type: '' }])}>
         + Add another disk
@@ -196,41 +200,43 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
     <div>
       <p className={labelClass}>IP addresses</p>
       <p className={helpTextClass}>Paste a semicolon- or comma-separated list into the first address field to add several at once.</p>
-      <div className="mt-3 space-y-3">
-        {ips.map((r, i) => (
-          <div key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-end">
-            <label className="flex flex-col gap-1">
-              <span className={labelClass}>IP Address {i + 1}</span>
-              <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })}
-                onPaste={i === 0 ? (e) => {
-                  const parsed = parseIpPaste(e.clipboardData.getData('text'));
-                  const isPristine = ips.length === 1 && !ips[0].ip && !ips[0].vlan && !ips[0].gateway;
-                  if (parsed && isPristine) { e.preventDefault(); setIps(parsed); }
-                } : undefined} />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={labelClass}>Role</span>
-              <select aria-label={`IP role ${i + 1}`} className={selectClass} value={r.role} onChange={(e) => update(i, { role: e.target.value as NetworkRole })}>
-                <option value="private">Private</option>
-                <option value="public">Public</option>
-                <option value="backup">Backup</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={labelClass}>VLAN</span>
-              <input aria-label={`VLAN ${i + 1}`} className={inputClass} type="number" min="0" placeholder="VLAN" value={r.vlan} onChange={(e) => update(i, { vlan: e.target.value })} />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={labelClass}>Gateway</span>
-              <div className="flex gap-2 items-end">
-                <input aria-label={`Gateway ${i + 1}`} className={inputClass} type="text" placeholder="Gateway" value={r.gateway} onChange={(e) => update(i, { gateway: e.target.value })} />
-                {ips.length > 1 && (
-                  <RemoveButton onClick={() => setIps((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove IP address ${i + 1}`} />
-                )}
-              </div>
-            </label>
-          </div>
-        ))}
+      <div className="overflow-x-auto">
+        <div className="mt-3 space-y-3 min-w-[600px] sm:min-w-0">
+          {ips.map((r, i) => (
+            <div key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-end">
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>IP Address {i + 1}</span>
+                <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })}
+                  onPaste={i === 0 ? (e) => {
+                    const parsed = parseIpPaste(e.clipboardData.getData('text'));
+                    const isPristine = ips.length === 1 && !ips[0].ip && !ips[0].vlan && !ips[0].gateway;
+                    if (parsed && isPristine) { e.preventDefault(); setIps(parsed); }
+                  } : undefined} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>Role</span>
+                <select aria-label={`IP role ${i + 1}`} className={selectClass} value={r.role} onChange={(e) => update(i, { role: e.target.value as NetworkRole })}>
+                  <option value="private">Private</option>
+                  <option value="public">Public</option>
+                  <option value="backup">Backup</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>VLAN</span>
+                <input aria-label={`VLAN ${i + 1}`} className={cn(inputClass, 'tabular-nums')} type="number" min="0" placeholder="VLAN" value={r.vlan} onChange={(e) => update(i, { vlan: e.target.value })} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>Gateway</span>
+                <div className="flex gap-2 items-end">
+                  <input aria-label={`Gateway ${i + 1}`} className={inputClass} type="text" placeholder="Gateway" value={r.gateway} onChange={(e) => update(i, { gateway: e.target.value })} />
+                  {ips.length > 1 && (
+                    <RemoveButton onClick={() => setIps((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove IP address ${i + 1}`} />
+                  )}
+                </div>
+              </label>
+            </div>
+          ))}
+        </div>
       </div>
       <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setIps((rows) => [...rows, { ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }])}>
         + Add IP address
@@ -466,7 +472,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <p className={helpTextClass}>Applications are managed on the VM detail page.</p>
           </SectionCard>
 
-          <div className="sticky bottom-0 flex items-center gap-3 rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)]/85 px-5 py-3 shadow-[var(--shadow-raised)] backdrop-blur">
+          <div className="sticky bottom-4 z-20 flex items-center gap-3 rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)]/95 px-5 py-3 shadow-[var(--shadow-raised)] backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
             <button className={primaryButtonClass} type="submit" disabled={save.isPending}>
               {save.isPending ? <><Spinner /> Saving…</> : 'Save VM'}
             </button>

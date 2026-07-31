@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, ArrayPayload, StorageArrayListItem } from '../api/client';
-import { Alert, Badge, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass } from '../components/ui';
+import { Alert, Badge, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass, monoClass } from '../components/ui';
+import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
 import { ArrayForm } from '../components/ArrayForm';
 
@@ -15,12 +16,12 @@ function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[var(--color-surface-tertiary)]">
         {pct !== null && (
           <div
-            className={`h-full rounded-full transition-[width] duration-500 ${over ? 'bg-[var(--color-criticality-critical)]' : 'bg-[var(--color-accent)]'}`}
+            className={`h-full rounded-full transition-[width] duration-500 ${over ? 'bg-[var(--color-criticality-critical)]' : 'bg-[var(--color-text-secondary)]'}`}
             style={{ width: `${Math.min(100, pct)}%` }}
           />
         )}
       </div>
-      <span className="tech text-sm tabular-nums text-[var(--color-text-secondary)]">{pct === null ? '—' : `${pct}%`}</span>
+      <span className={cn(monoClass, 'text-sm tabular-nums text-[var(--color-text-secondary)]')}>{pct === null ? '—' : `${pct}%`}</span>
     </div>
   );
 }
@@ -94,7 +95,7 @@ export function StoragePage() {
               {arrays.map((a) => (
                 <tr key={a.id} className={tableRowClass}>
                   <td className={tableCellClass}>
-                    <Link href={`/storage/${a.id}`} className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>
+                    <Link href={`/storage/${a.id}`} className="font-medium hover:underline text-[var(--color-accent)]">
                       {a.name}
                     </Link>
                     {a.over_threshold ? <span className="ml-2"><ThresholdBadge /></span> : null}
@@ -102,9 +103,9 @@ export function StoragePage() {
                   <td className={tableCellClass}>{a.vendor}</td>
                   <td className={tableCellClass}>{a.datacenter ?? '—'}</td>
                   <td className={tableCellClass}><UsageBar pct={a.used_pct} over={a.over_threshold} /></td>
-                  <td className={`${tableCellClass} text-right tabular-nums`}>{a.volume_count}</td>
-                  <td className={`${tableCellClass} text-right tabular-nums`}>{a.lun_count}</td>
-                  <td className={`${tableCellClass} text-right tabular-nums`}>{a.share_count}</td>
+                  <td className={cn(tableCellClass, monoClass, 'text-right tabular-nums')}>{a.volume_count}</td>
+                  <td className={cn(tableCellClass, monoClass, 'text-right tabular-nums')}>{a.lun_count}</td>
+                  <td className={cn(tableCellClass, monoClass, 'text-right tabular-nums')}>{a.share_count}</td>
                 </tr>
               ))}
             </tbody>
