@@ -15,8 +15,8 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     environment:
       APP_ENV: test
       TEST_DATABASE_URL: "postgresql+psycopg://inventorymgr:password@db-test:5432/inventorymgr_test"
@@ -33,8 +33,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
       args:
         INVENTORYMGR_API_URL: http://backend:8000
     environment:

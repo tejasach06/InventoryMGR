@@ -18,13 +18,13 @@ RUN apt-get update && \
 RUN pip install --no-cache-dir uv
 
 # Copy only the dependency definition files first for caching
-COPY backend/pyproject.toml backend/uv.lock ./
+COPY pyproject.toml uv.lock ./
 
 # Install runtime dependencies (no dev deps)
 RUN uv sync --frozen --no-dev
 
 # Copy the rest of the backend source code
-COPY backend/ .
+COPY . .
 
 # Expose FastAPI default port
 EXPOSE 8000

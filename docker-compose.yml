@@ -19,8 +19,8 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     restart: unless-stopped
     user: "1000:1000"
     ports:
@@ -52,8 +52,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
       args:
         INVENTORYMGR_API_URL: http://backend:8000
     restart: unless-stopped
@@ -84,8 +84,8 @@ services:
           target: /app/src
   seed:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     profiles: ["seed"]
     user: "1000:1000"
     command: [".venv/bin/python", "seed_sample.py"]

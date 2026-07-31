@@ -18,7 +18,12 @@ backend/__pycache__/**
 *.md
 *.log
 *.tmp
+.venv
+.venv/
+**/node_modules
+backend/.venv
 backend/.venv/**
+**/node_modules
 
 # Dev/tooling config
 .devbox/

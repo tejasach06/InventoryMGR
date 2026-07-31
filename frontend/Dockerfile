@@ -9,11 +9,11 @@ ENV INVENTORYMGR_API_URL=${INVENTORYMGR_API_URL}
 WORKDIR /app
 
 # Install dependencies (cached layer)
-COPY frontend/package.json frontend/bun.lock ./
+COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 # Copy source code
-COPY frontend/ ./
+COPY . ./
 
 # Build production assets
 RUN bun run build
