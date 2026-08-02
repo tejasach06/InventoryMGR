@@ -34,12 +34,14 @@ describe('NotificationBell', () => {
     expect(screen.queryByTestId('notif-badge')).toBeNull();
   });
 
-  it('opens panel, lists VMs, marks overdue red, and acks on open', async () => {
+  it('marks every alert read only after explicit confirmation', async () => {
     renderWithProviders(<NotificationBell />);
     expect(await screen.findByTestId('notif-badge')).toHaveTextContent('1');
     fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
     expect(await screen.findByText('web-01')).toBeInTheDocument();
     expect(screen.getByText('db-02').closest('a')).toHaveClass('text-[var(--color-criticality-critical)]');
+    expect(api.ackDecommissions).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Mark all read' }));
     await waitFor(() => expect(api.ackDecommissions).toHaveBeenCalledWith());
   });
   it('dismisses a single alert optimistically and calls scoped ackDecommissions', async () => {

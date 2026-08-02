@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Vm } from '../api/client';
 import {
-  Badge,
+  Badge, FieldError,
   inputClass,
   monoClass,
   selectClass,
@@ -39,6 +39,11 @@ function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
   );
 }
 
+function editableValue(vm: Vm, field: string): string {
+  const value = vm[field as keyof Vm];
+  return typeof value === 'string' ? value : '';
+}
+
 function VmTable({
   vms,
   columns,
@@ -67,16 +72,19 @@ function VmTable({
   const [editingCell, setEditingCell] = useState<{ vmId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState<string | undefined>();
 
   const startEdit = (vmId: string, field: string, initialVal: string) => {
     if (!canEdit) return;
     setEditingCell({ vmId, field });
     setEditValue(initialVal ?? '');
+    setEditError(undefined);
   };
 
   const cancelEdit = () => {
     setEditingCell(null);
     setEditValue('');
+    setEditError(undefined);
   };
 
   const commitEdit = async () => {
@@ -84,12 +92,14 @@ function VmTable({
     try {
       setIsSaving(true);
       await onUpdateCell(editingCell.vmId, editingCell.field, editValue);
-    } catch {
-      // handled by parent toast/alert
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : 'Unable to save this value.');
+      return;
     } finally {
       setIsSaving(false);
-      setEditingCell(null);
     }
+    setEditingCell(null);
+    setEditError(undefined);
   };
   const selectAllRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -165,12 +175,16 @@ function VmTable({
                         col.key === 'name' && 'font-medium',
                         isEditable && !isEditing && 'group/cell cursor-pointer hover:bg-[var(--color-accent)]/10 transition-colors'
                       )}
-                      title={isEditable && !isEditing ? 'Click to edit inline' : undefined}
-                      onClick={() => {
-                        if (isEditable && !isEditing) {
-                          const currentVal = (vm as any)[col.key] ?? '';
-                          startEdit(vm.id, col.key, currentVal);
+                      title={isEditable && !isEditing ? 'Press Enter to edit' : undefined}
+                      tabIndex={isEditable && !isEditing ? 0 : undefined}
+                      onKeyDown={(event) => {
+                        if (isEditable && !isEditing && (event.key === 'Enter' || event.key === 'F2')) {
+                          event.preventDefault();
+                          startEdit(vm.id, col.key, editableValue(vm, col.key));
                         }
+                      }}
+                      onClick={() => {
+                        if (isEditable && !isEditing) startEdit(vm.id, col.key, editableValue(vm, col.key));
                       }}
                     >
                       {isEditing ? (
@@ -183,7 +197,7 @@ function VmTable({
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              onBlur={commitEdit}
+                              onBlur={cancelEdit}
                             >
                               {['running', 'powered_off', 'decommissioned'].map((opt) => (
                                 <option key={opt} value={opt}>{humanize(opt)}</option>
@@ -198,7 +212,7 @@ function VmTable({
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              onBlur={commitEdit}
+                              onBlur={cancelEdit}
                             >
                               {['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'].map((opt) => (
                                 <option key={opt} value={opt}>{humanize(opt)}</option>
@@ -213,7 +227,7 @@ function VmTable({
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              onBlur={commitEdit}
+                              onBlur={cancelEdit}
                             >
                               {['critical', 'high', 'medium', 'low'].map((opt) => (
                                 <option key={opt} value={opt}>{humanize(opt)}</option>
@@ -228,7 +242,7 @@ function VmTable({
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              onBlur={commitEdit}
+                              onBlur={cancelEdit}
                             >
                               {['planned', 'active', 'retiring', 'retired'].map((opt) => (
                                 <option key={opt} value={opt}>{humanize(opt)}</option>
@@ -244,9 +258,10 @@ function VmTable({
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              onBlur={commitEdit}
+                              onBlur={cancelEdit}
                             />
                           )}
+                          <FieldError id={`edit-error-${vm.id}-${col.key}`} message={editError} />
                         </div>
                       ) : (
                         <>

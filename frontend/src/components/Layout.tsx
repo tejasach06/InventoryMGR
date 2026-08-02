@@ -61,7 +61,6 @@ export function AppLayout({ user, children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-secondary)] lg:flex">
-      <NotificationBell />
       <aside className={`sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-4 backdrop-blur lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 min-w-0 w-full lg:block">
           <div className={`flex items-center gap-2.5 min-w-0 ${collapsed ? 'lg:w-full lg:flex-col lg:items-center lg:gap-2' : ''}`}>
@@ -81,10 +80,14 @@ export function AppLayout({ user, children }: LayoutProps) {
           </div>
           <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full lg:hidden">
             <ThemeSelect />
+            <NotificationBell />
             <button type="button" className={secondaryButtonClass} onClick={() => logout.mutate()} disabled={logout.isPending}>
               {logout.isPending ? 'Signing out…' : 'Logout'}
             </button>
           </div>
+        </div>
+        <div className="hidden justify-end lg:flex">
+          <NotificationBell />
         </div>
         <AppNav user={user} collapsed={collapsed} />
         <div className={`mt-4 hidden pt-4 border-[var(--color-border-subtle)] lg:mt-auto lg:block ${collapsed ? '' : 'border-t'}`}>

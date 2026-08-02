@@ -94,7 +94,14 @@ describe('StorageDetailPage', () => {
     renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'editor' }) });
 
     fireEvent.click(await screen.findByLabelText('Remove LUN lun0'));
+    expect(await screen.findByRole('heading', { name: 'Remove LUN' })).toBeInTheDocument();
+    expect(delLun).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    await waitFor(() => expect(delLun).toHaveBeenCalledWith('v1', 'l1'));
     fireEvent.click(screen.getByLabelText('Remove share /vol1/share'));
+    expect(await screen.findByRole('heading', { name: 'Remove share' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    await waitFor(() => expect(delShare).toHaveBeenCalledWith('v1', 's1'));
     fireEvent.click(screen.getByRole('button', { name: /delete volume/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
     fireEvent.click(screen.getByRole('button', { name: /delete array/i }));

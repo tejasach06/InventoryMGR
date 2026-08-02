@@ -3,7 +3,7 @@
 import { DragEvent, FormEvent, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, ImportAction, ImportBatch } from '../api/client';
-import { Alert, Badge, EmptyState, PageHeader, PageTransition, Spinner, cardClass, helpTextClass, primaryButtonClass, secondaryButtonClass, statTileClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
+import { Alert, EmptyState, PageHeader, PageTransition, Spinner, cardClass, helpTextClass, primaryButtonClass, secondaryButtonClass, statTileClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 
 const actions: ImportAction[] = ['create', 'update', 'unchanged', 'conflict', 'invalid'];
@@ -28,12 +28,24 @@ export function summarizePreview(batch: Pick<ImportBatch, 'summary' | 'rows'> | 
 
 const IP_ROLE_HEADERS = ['private_ip', 'public_ip', 'backup_ip'] as const;
 
+const ACTION_CLASS: Record<string, string> = {
+  create: 'border-[var(--color-border)] text-[var(--color-text-primary)]',
+  update: 'border-[var(--color-border)] text-[var(--color-text-primary)]',
+  unchanged: 'border-[var(--color-border-subtle)] text-[var(--color-text-tertiary)]',
+  conflict: 'border-[var(--color-criticality-high)] text-[var(--color-criticality-high)]',
+  invalid: 'border-[var(--color-criticality-critical)] text-[var(--color-criticality-critical)]',
+};
+
+function ActionBadge({ action }: { action: string }) {
+  return <span data-testid={`action-badge-${action}`} className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', ACTION_CLASS[action] ?? ACTION_CLASS.unchanged)}>{action}</span>;
+}
+
 function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
   return (
     <tr className={tableRowClass}>
       <th className={cn('whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]', monoClass, 'tabular-nums')} scope="row">{row.row_number}</th>
       <td className="whitespace-nowrap px-4 py-3">
-        <Badge value={row.action} />
+        <ActionBadge action={row.action} />
         {row.action === 'update' && Object.keys(row.changes ?? {}).length > 0 ? (
           <span className={cn('ml-2 text-xs text-[var(--color-text-tertiary)]', monoClass, 'tabular-nums')}>
             {Object.keys(row.changes).length} fields
@@ -200,7 +212,7 @@ export function ImportCsvPage() {
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Preview summary">
               {actions.map((action) => (
                 <div key={action} data-testid={`summary-${action}`} className={statTileClass}>
-                  <Badge value={action} />
+                  <ActionBadge action={action} />
                   <strong className={cn('mt-1 block text-2xl font-semibold text-[var(--color-text-primary)]', monoClass, 'tabular-nums')}>{summary[action]}</strong>
                 </div>
               ))}

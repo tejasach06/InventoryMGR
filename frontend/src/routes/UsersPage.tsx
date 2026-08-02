@@ -3,7 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, User, UserRole } from '../api/client';
-import { Alert, Badge, EmptyState, FieldError, PageHeader, PageTransition, Spinner, TableSkeleton, cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
+import { Alert, Badge, ConfirmDialog, EmptyState, FieldError, PageHeader, PageTransition, Spinner, TableSkeleton, cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
 import { useCurrentUser } from '../components/AuthContext';
 import { cn } from '../lib/classNames';
 
@@ -54,8 +54,10 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
   const [role, setRole] = useState<UserRole>(user.role);
   const [isActive, setIsActive] = useState(user.is_active);
   const [password, setPassword] = useState('');
+  const [reviewing, setReviewing] = useState(false);
+  const [success, setSuccess] = useState<string>();
   const update = useMutation(
-    buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient, () => setEditing(false)),
+    buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient, () => { setEditing(false); setSuccess(`Updated access for ${user.email}.`); }),
   );
 
   return (
@@ -88,9 +90,20 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
             <label className={labelClass} htmlFor={`card-pw-${user.id}`}>New password</label>
             <input className={inputClass} id={`card-pw-${user.id}`} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Leave unchanged" />
           </div>
-          <button type="button" className={primaryButtonClass} onClick={() => update.mutate()} disabled={update.isPending}>
-            {update.isPending ? <><Spinner /> Saving…</> : 'Save'}
+          <button type="button" className={primaryButtonClass} onClick={() => (role !== user.role || isActive !== user.is_active) ? setReviewing(true) : update.mutate()} disabled={update.isPending}>
+            {update.isPending ? <><Spinner /> Saving…</> : role !== user.role || isActive !== user.is_active ? 'Review access change' : 'Save'}
           </button>
+          <ConfirmDialog
+            open={reviewing}
+            title="Review access change"
+            body={`${user.email}: role: ${user.role} → ${role}; status: ${user.is_active ? 'active' : 'inactive'} → ${isActive ? 'active' : 'inactive'}`}
+            confirmLabel="Save"
+            tone={!isActive || roles.indexOf(role) < roles.indexOf(user.role) ? 'danger' : 'primary'}
+            pending={update.isPending}
+            onConfirm={() => { setReviewing(false); update.mutate(); }}
+            onCancel={() => setReviewing(false)}
+          />
+          {success ? <Alert tone="success">{success}</Alert> : null}
           {update.isError ? <Alert>{detailMessage(update.error)}</Alert> : null}
         </div>
       ) : null}
@@ -103,7 +116,9 @@ function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
   const [role, setRole] = useState<UserRole>(user.role);
   const [isActive, setIsActive] = useState(user.is_active);
   const [password, setPassword] = useState('');
-  const update = useMutation(buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient));
+  const [reviewing, setReviewing] = useState(false);
+  const [success, setSuccess] = useState<string>();
+  const update = useMutation(buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient, () => setSuccess(`Updated access for ${user.email}.`)));
 
   return (
     <>
@@ -127,11 +142,22 @@ function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
           <input className={inputClass} id={`password-${user.id}`} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Leave unchanged" />
         </td>
         <td className="whitespace-nowrap px-4 py-3">
-          <button type="button" className={secondaryButtonClass} onClick={() => update.mutate()} disabled={update.isPending}>
-            {update.isPending ? <><Spinner /> Saving…</> : 'Save'}
+          <button type="button" className={secondaryButtonClass} onClick={() => (role !== user.role || isActive !== user.is_active) ? setReviewing(true) : update.mutate()} disabled={update.isPending}>
+            {update.isPending ? <><Spinner /> Saving…</> : role !== user.role || isActive !== user.is_active ? 'Review access change' : 'Save'}
           </button>
         </td>
       </tr>
+      <ConfirmDialog
+        open={reviewing}
+        title="Review access change"
+        body={`${user.email}: role: ${user.role} → ${role}; status: ${user.is_active ? 'active' : 'inactive'} → ${isActive ? 'active' : 'inactive'}`}
+        confirmLabel="Save"
+        tone={!isActive || roles.indexOf(role) < roles.indexOf(user.role) ? 'danger' : 'primary'}
+        pending={update.isPending}
+        onConfirm={() => { setReviewing(false); update.mutate(); }}
+        onCancel={() => setReviewing(false)}
+      />
+      {success ? <tr><td colSpan={5} className="px-4 py-2"><Alert tone="success">{success}</Alert></td></tr> : null}
       {update.isError ? (
         <tr><td colSpan={5} className="px-4 py-2"><Alert>{detailMessage(update.error)}</Alert></td></tr>
       ) : null}

@@ -51,6 +51,7 @@ describe('ImportCsvPage', () => {
 
     const summary = await screen.findByLabelText('Preview summary');
     expect(within(summary).getByText('create')).toBeInTheDocument();
+    expect(within(summary).getByTestId('action-badge-create')).toHaveClass('border-[var(--color-border)]');
     expect(screen.getByText('Batch batch-9')).toBeInTheDocument();
 
     const commitButton = screen.getByRole('button', { name: 'Commit persisted batch' });
