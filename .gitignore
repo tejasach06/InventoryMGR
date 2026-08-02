@@ -48,6 +48,7 @@ debug-*.png
 .pytest_cache/
 .ruff_cache/
 .devbox/
+.worktrees/
 
 # One-off scripts and debug files
 *test_user*.py
