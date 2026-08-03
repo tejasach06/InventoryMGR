@@ -90,38 +90,46 @@ function HealthScore({ score }: { score: number }) {
 
 function AddRowForm({ fields, onSubmit, pending }: {
   fields: Array<{ name: string; placeholder: string; type?: string; options?: readonly string[] }>;
-  onSubmit: (values: Record<string, string>) => void;
+  onSubmit: (values: Record<string, string>) => Promise<unknown>;
   pending: boolean;
 }) {
   const blank = () => Object.fromEntries(fields.map((f) => [f.name, f.options?.[0] ?? '']));
   const [values, setValues] = useState<Record<string, string>>(blank);
-  function submit() {
-    onSubmit(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()])));
-    setValues(blank());
+  const [error, setError] = useState<string>();
+  const firstFieldRef: { current: HTMLInputElement | HTMLSelectElement | null } = { current: null };
+  async function submit() {
+    try {
+      setError(undefined);
+      await onSubmit(Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value.trim()])));
+      setValues(blank());
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to add record.');
+      firstFieldRef.current?.focus();
+    }
   }
   return (
     <div className="mt-3 border-t border-[var(--color-border)] pt-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {fields.map((f) => (
+        {fields.map((f, index) => (
           <label key={f.name} className="flex flex-col gap-1">
             <span className={labelClass}>{f.placeholder}</span>
             {f.options ? (
-              <select value={values[f.name]}
-                onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
+              <select ref={index === 0 ? (element) => { firstFieldRef.current = element; } : undefined} value={values[f.name]}
+                onChange={(e) => setValues((current) => ({ ...current, [f.name]: e.target.value }))}
                 className={selectClass}>
-                {f.options.map((o) => <option key={o} value={o}>{o[0].toUpperCase() + o.slice(1)}</option>)}
+                {f.options.map((option) => <option key={option} value={option}>{option[0].toUpperCase() + option.slice(1)}</option>)}
               </select>
             ) : (
-              <input type={f.type ?? 'text'} value={values[f.name]}
-                onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
+              <input ref={index === 0 ? (element) => { firstFieldRef.current = element; } : undefined} type={f.type ?? 'text'} value={values[f.name]}
+                onChange={(e) => setValues((current) => ({ ...current, [f.name]: e.target.value }))}
                 placeholder={f.placeholder}
                 className={cn(inputClass, (f.type === 'number' || f.type === 'date') && 'tabular-nums')} />
             )}
           </label>
         ))}
       </div>
-      <button type="button" onClick={submit} disabled={pending}
-        className={`${secondaryButtonClass} mt-3`}>
+      {error ? <Alert>{error}</Alert> : null}
+      <button type="button" onClick={submit} disabled={pending} className={`${secondaryButtonClass} mt-3`}>
         {pending ? <Spinner /> : null}+ Add
       </button>
     </div>
@@ -177,16 +185,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
                   <td className="py-1.5 pr-4 tabular-nums text-[var(--color-text-primary)]">{d.size_gb}</td>
                   <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_type ?? '—'}</td>
                   <td className="py-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setDeleteDiskId(d.id)}
-                      className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
-                      title={`Remove ${d.disk_name}`}
-                    >
-                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                    <RemoveButton onClick={() => setDeleteDiskId(d.id)} label={`Remove disk ${d.disk_name}`} />
                   </td>
                 </tr>
               ))}
@@ -199,7 +198,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
         { name: 'storage_name', placeholder: 'Storage' },
         { name: 'size_gb', placeholder: 'Size GB', type: 'number' },
         { name: 'storage_type', placeholder: 'Type' },
-      ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
+      ]} onSubmit={(v) => addMut.mutateAsync(v)} pending={addMut.isPending} />
       {addMut.isError && <Alert>{detailMessage(addMut.error)}</Alert>}
     </div>
   );
@@ -257,16 +256,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
                   <td className="py-1.5 pr-4 font-mono tabular-nums text-[var(--color-text-secondary)]">{n.vlan ?? '—'}</td>
                   <td className="py-1.5 pr-4 font-mono text-[var(--color-text-secondary)]">{n.gateway ?? '—'}</td>
                   <td className="py-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setDeleteNetworkId(n.id)}
-                      className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
-                      title={`Remove ${n.ip_address}`}
-                    >
-                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                    <RemoveButton onClick={() => setDeleteNetworkId(n.id)} label={`Remove network ${n.ip_address}`} />
                   </td>
                 </tr>
               ))}
@@ -279,7 +269,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
         { name: 'role', placeholder: 'IP role', options: ['private', 'public', 'backup'] as const },
         { name: 'vlan', placeholder: 'VLAN', type: 'number' },
         { name: 'gateway', placeholder: 'Gateway' },
-      ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
+      ]} onSubmit={(v) => addMut.mutateAsync(v)} pending={addMut.isPending} />
       {addMut.isError && <Alert>{detailMessage(addMut.error)}</Alert>}
     </div>
   );
@@ -324,16 +314,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
                 <span className="font-medium text-[var(--color-text-primary)]">{a.app_name}</span>
                 {a.description && <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">{a.description}</p>}
               </div>
-              <button
-                type="button"
-                onClick={() => setDeleteAppId(a.id)}
-                className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
-                title={`Remove ${a.app_name}`}
-              >
-                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
+              <RemoveButton onClick={() => setDeleteAppId(a.id)} label={`Remove application ${a.app_name}`} />
             </li>
           ))}
         </ul>
@@ -341,7 +322,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
       <AddRowForm fields={[
         { name: 'app_name', placeholder: 'Application name' },
         { name: 'description', placeholder: 'Description' },
-      ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
+      ]} onSubmit={(v) => addMut.mutateAsync(v)} pending={addMut.isPending} />
       {addMut.isError && <Alert>{detailMessage(addMut.error)}</Alert>}
     </div>
   );

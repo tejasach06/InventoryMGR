@@ -45,15 +45,11 @@ export function ReportsPage() {
   return (
     <PageTransition>
       <PageHeader title="Reports" eyebrow="Exports" actions={
-        <a
-          href={api.exportVmsUrl(new URLSearchParams('all=true'))}
-          target="_blank"
-          rel="noopener"
-          download="vm-inventory.csv"
-          className={secondaryButtonClass}
-        >
-          <DownloadIcon /> Export all VMs
-        </a>
+        capped ? <span className="text-sm text-[var(--color-text-tertiary)]">Exports are unavailable while the report is computed from a partial sample.</span> : (
+          <a href={api.exportVmsUrl(new URLSearchParams('all=true'))} target="_blank" rel="noopener" download="vm-inventory.csv" className={secondaryButtonClass}>
+            <DownloadIcon /> Export all VMs
+          </a>
+        )
       } />
 
       {vmsQ.isError ? <Alert>{detailMessage(vmsQ.error)}</Alert> : null}
@@ -76,6 +72,7 @@ export function ReportsPage() {
                     <>
                       <span className={cn(monoClass, 'text-2xl font-bold text-[var(--color-text-primary)] tabular-nums')}>{value}</span>
                       <span className="ml-1 text-[0.7rem] uppercase tracking-wide text-[var(--color-text-tertiary)]">{r.suffix}</span>
+                      {capped ? <span className="ml-1 text-xs text-[var(--color-text-tertiary)]">of first 200 of {vmsQ.data?.total}</span> : null}
                     </>
                   )}
                 </div>
@@ -84,9 +81,11 @@ export function ReportsPage() {
                 <ProgressBar value={pct} colorVar={r.colorVar} />
               </div>
               <div className="mt-4 flex justify-end border-t border-[var(--color-border)] pt-3">
-                <a href={api.reportUrl(r.name)} download={`${r.name}.csv`} className={secondaryButtonClass}>
-                  <DownloadIcon /> Download CSV
-                </a>
+                {capped ? <span className="text-sm text-[var(--color-text-tertiary)]">Exports are unavailable while the report is computed from a partial sample.</span> : (
+                  <a href={api.reportUrl(r.name)} download={`${r.name}.csv`} className={secondaryButtonClass}>
+                    <DownloadIcon /> Download CSV
+                  </a>
+                )}
               </div>
             </section>
           );

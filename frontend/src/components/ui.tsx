@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
 import { cn } from '../lib/classNames';
 
 export const primaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-on-accent)] transition-all duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60';
@@ -211,6 +211,43 @@ export function Logo({ className }: { className?: string }) {
   );
 }
 
+const focusableSelector = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+function useDialogFocus(open: boolean, panelRef: RefObject<HTMLDivElement | null>, onClose: () => void) {
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const panel = panelRef.current;
+    (panel?.querySelector<HTMLElement>(focusableSelector) ?? panel)?.focus();
+    return () => openerRef.current?.focus();
+  }, [open, panelRef]);
+
+  return useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(focusableSelector));
+    if (focusable.length < 2) {
+      event.preventDefault();
+      focusable[0]?.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    }
+  }, [onClose]);
+}
+
 /* Drawer */
 export function Drawer({
   open,
@@ -225,11 +262,13 @@ export function Drawer({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onKeyDown = useDialogFocus(open, panelRef, onClose);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
       <div className="absolute inset-0 bg-[var(--color-scrim)] backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
-      <div className="relative ml-auto w-full max-w-xl bg-[var(--color-surface)] rounded-tl-2xl rounded-bl-2xl shadow-[var(--shadow-overlay)] animate-rise overflow-hidden flex flex-col">
+      <div ref={panelRef} tabIndex={-1} onKeyDown={onKeyDown} className="relative ml-auto w-full max-w-xl bg-[var(--color-surface)] rounded-tl-2xl rounded-bl-2xl shadow-[var(--shadow-overlay)] animate-rise overflow-hidden flex flex-col">
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
           <h2 id="drawer-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
           <button type="button" onClick={onClose} className="p-1 rounded-lg text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-tertiary)] transition-colors" aria-label="Close">
@@ -261,40 +300,20 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const cancelRef = useRef<HTMLButtonElement>(null);
-  const confirmRef = useRef<HTMLButtonElement>(null);
-  const restoreFocusRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    restoreFocusRef.current = document.activeElement as HTMLElement | null;
-    cancelRef.current?.focus();
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onCancel(); return; }
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const next = document.activeElement === cancelRef.current ? confirmRef.current : cancelRef.current;
-        next?.focus();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      restoreFocusRef.current?.focus();
-    };
-  }, [open]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onKeyDown = useDialogFocus(open, panelRef, onCancel);
 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
       <div className="absolute inset-0 bg-[var(--color-scrim)] backdrop-blur-sm animate-fade-in" onClick={onCancel} aria-hidden="true" />
-      <div className="relative w-full max-w-sm rounded-2xl bg-[var(--color-surface)] p-5 shadow-[var(--shadow-overlay)] animate-rise">
+      <div ref={panelRef} tabIndex={-1} onKeyDown={onKeyDown} className="relative w-full max-w-sm rounded-2xl bg-[var(--color-surface)] p-5 shadow-[var(--shadow-overlay)] animate-rise">
         <h2 id="confirm-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
         <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{body}</p>
         {children}
         <div className="mt-5 flex justify-end gap-2">
-          <button ref={cancelRef} type="button" className={secondaryButtonClass} onClick={onCancel} disabled={pending}>Cancel</button>
-          <button ref={confirmRef} type="button" className={tone === 'primary' ? primaryButtonClass : dangerButtonClass} onClick={onConfirm} disabled={pending}>
+          <button type="button" className={secondaryButtonClass} onClick={onCancel} disabled={pending}>Cancel</button>
+          <button type="button" className={tone === 'primary' ? primaryButtonClass : dangerButtonClass} onClick={onConfirm} disabled={pending}>
             {pending ? <Spinner /> : null}{confirmLabel}
           </button>
         </div>
@@ -304,9 +323,9 @@ export function ConfirmDialog({
 }
 
 /* RemoveButton — small destructive icon action for inline table/list rows */
-export function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
+export function RemoveButton({ onClick, label, disabled = false }: { onClick: () => void; label: string; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick} aria-label={label}
+    <button type="button" onClick={onClick} aria-label={label} disabled={disabled}
       className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-criticality-critical)]/40 hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)]">
       ×
     </button>

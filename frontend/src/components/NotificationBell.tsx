@@ -36,10 +36,6 @@ export function NotificationBell() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['decommissions'] }),
   });
 
-  // ack-all-on-open: mark everything currently listed as read when the panel opens
-  useEffect(() => {
-    if (open && unread > 0 && !ack.isPending) ack.mutate();
-  }, [open]);
 
   // Close on outside click or Escape key
   useEffect(() => {
@@ -59,7 +55,7 @@ export function NotificationBell() {
   }, [open]);
 
   return (
-    <div ref={wrapperRef} className="fixed right-4 top-4 z-30">
+    <div ref={wrapperRef} className="relative z-30">
       <button
         type="button"
         aria-label="Notifications"
@@ -112,6 +108,11 @@ export function NotificationBell() {
               ))}
             </ul>
           )}
+          <div className="border-t border-[var(--color-border)] px-2 pt-2">
+            <button type="button" className="inline-flex w-full items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] disabled:cursor-not-allowed disabled:opacity-60" onClick={() => ack.mutate()} disabled={data.length === 0 || ack.isPending}>
+              Mark all read
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

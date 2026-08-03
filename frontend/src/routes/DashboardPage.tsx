@@ -268,6 +268,8 @@ export function DashboardPage() {
   const loading = statsQ.isLoading || vmsQ.isLoading;
   const d = statsQ.data;
   const capped = (vmsQ.data?.total ?? 0) > derived.items.length;
+  const totalAlerts = d ? d.shutdown_stale.length + d.decommission_overdue.length + d.missing_ip.length : 0;
+  const fleetHealthy = arraysOverThreshold === 0 && totalAlerts === 0;
 
   const getColorVar = (status: string): string => {
     const norm = status.toLowerCase().replace(/\s+/g, '_');
@@ -320,22 +322,24 @@ export function DashboardPage() {
         <div className="space-y-6">
           <div className={cn(
             "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-[var(--color-border)]/70 p-4 shadow-[var(--shadow-raised)] backdrop-blur transition-all",
-            arraysOverThreshold > 0
-              ? "border-[var(--color-criticality-critical)]/40 bg-[var(--color-criticality-critical-bg)] text-[var(--color-text-primary)]"
-              : "bg-[var(--color-surface)]"
+            fleetHealthy
+              ? "bg-[var(--color-surface)]"
+              : "border-[var(--color-criticality-critical)]/40 bg-[var(--color-criticality-critical-bg)] text-[var(--color-text-primary)]"
           )}>
             <div className="flex items-center gap-3">
               <span className={cn(
                 "flex h-3 w-3 relative shrink-0 rounded-full",
-                arraysOverThreshold > 0 ? "bg-[var(--color-criticality-critical)]" : "bg-[var(--color-status-running)]"
+                fleetHealthy ? "bg-[var(--color-status-running)]" : "bg-[var(--color-criticality-critical)]"
               )}>
-                <span className={cn("h-3 w-3 rounded-full", arraysOverThreshold > 0 ? "bg-[var(--color-criticality-critical)]" : "bg-[var(--color-status-running)]")} />
+                <span className={cn("h-3 w-3 rounded-full", fleetHealthy ? "bg-[var(--color-status-running)]" : "bg-[var(--color-criticality-critical)]")} />
               </span>
               <div>
                 <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  {arraysOverThreshold > 0
-                    ? `${arraysOverThreshold} Storage Array${arraysOverThreshold === 1 ? '' : 's'} Exceed Usage Threshold`
-                    : 'Fleet Operational — Infrastructure Normal'}
+                  {fleetHealthy
+                    ? 'Fleet Operational — Infrastructure Normal'
+                    : arraysOverThreshold > 0
+                      ? `${arraysOverThreshold} Storage Array${arraysOverThreshold === 1 ? '' : 's'} Exceed Usage Threshold`
+                      : `${totalAlerts} VM Alert${totalAlerts === 1 ? '' : 's'} Require Attention`}
                 </h2>
                 <p className="text-xs text-[var(--color-text-tertiary)]">
                   {fmtInt(derived.items.length)} VMs tracked across clusters and storage arrays
@@ -353,6 +357,49 @@ export function DashboardPage() {
               </Link>
             </div>
           </div>
+          {d ? (() => {
+            const groups = [
+              { key: 'shutdown', title: 'Powered off > 90 days', tone: 'info' as const, toneLabel: 'Stale', rows: d.shutdown_stale,
+                meta: (vm: DashboardAlertVm) => `${vm.days}d shutdown`,
+                href: '/inventory?shutdown_stale=true', hrefLabel: 'View stale shutdowns' },
+              { key: 'overdue', title: 'Past decommission date', tone: 'critical' as const, toneLabel: 'Critical', rows: d.decommission_overdue,
+                meta: (vm: DashboardAlertVm) => `${vm.days}d overdue`,
+                href: '/inventory?decommission_overdue=true', hrefLabel: 'View overdue VMs' },
+              { key: 'noip', title: 'No IP address', tone: 'warning' as const, toneLabel: 'Warning', rows: d.missing_ip,
+                meta: () => 'no IP',
+                href: '/inventory?missing_ip=true', hrefLabel: 'View VMs without IPs' },
+            ];
+            const total = groups.reduce((n, g) => n + g.rows.length, 0);
+            return (
+              <section className="overflow-hidden rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] shadow-[var(--shadow-raised)] backdrop-blur">
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/70 bg-[var(--color-surface-tertiary)] px-5 py-4">
+                  <div>
+                    <p className={cn(monoClass, 'text-[0.625rem] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] tabular-nums')}>Infrastructure status</p>
+                    <h2 className="text-base font-semibold text-[var(--color-text-primary)]">VM Alerts</h2>
+                  </div>
+                  <span
+                    className={cn(
+                      monoClass,
+                      'shrink-0 rounded-md px-2 py-1 text-xs tabular-nums',
+                      total > 0 ? 'text-[var(--color-criticality-critical)]' : 'text-[var(--color-text-tertiary)]'
+                    )}
+                  >
+                    {total > 0 ? `${fmtInt(total)} active` : 'All clear'}
+                  </span>
+                </div>
+                {total === 0 ? (
+                  <div className="px-5 py-10 text-center">
+                    <p className="text-sm font-semibold tracking-wide text-[var(--color-status-running)]">ALL IS WELL</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">No stale shutdowns, overdue decommissions, or missing IPs.</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col divide-y divide-[var(--color-border)]/70 lg:flex-row lg:divide-x lg:divide-y-0">
+                    {groups.map(({ key, ...g }) => <AlertGroup key={key} {...g} />)}
+                  </div>
+                )}
+              </section>
+            );
+          })() : null}
           {vmsQ.isError || statsQ.isError ? (
             <div className="mb-4 flex items-center justify-between rounded-xl border border-[var(--color-criticality-critical)]/30 bg-[var(--color-criticality-critical-bg)] p-4 text-sm text-[var(--color-criticality-critical)]">
               <span>Failed to refresh some metrics: {detailMessage(vmsQ.error ?? statsQ.error)}</span>
@@ -372,6 +419,7 @@ export function DashboardPage() {
             </p>
           )}
 
+          <h2 className="font-display text-[length:var(--text-fluid-h2)] font-semibold text-[var(--color-text-primary)]">Fleet composition</h2>
           {/* Balanced 6-column Stat Tile Grid */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <StatTile label="Total VMs" value={fmtInt(d?.total ?? derived.items.length)} href="/inventory" hint={`${d?.linux ?? derived.byOs.linux ?? 0} Linux · ${d?.windows ?? derived.byOs.windows ?? 0} Windows`} />
@@ -416,49 +464,6 @@ export function DashboardPage() {
             </Panel>
           </div>
 
-          {d ? (() => {
-            const groups = [
-              { key: 'shutdown', title: 'Powered off > 90 days', tone: 'info' as const, toneLabel: 'Stale', rows: d.shutdown_stale,
-                meta: (vm: DashboardAlertVm) => `${vm.days}d shutdown`,
-                href: '/inventory?shutdown_stale=true', hrefLabel: 'View stale shutdowns' },
-              { key: 'overdue', title: 'Past decommission date', tone: 'critical' as const, toneLabel: 'Critical', rows: d.decommission_overdue,
-                meta: (vm: DashboardAlertVm) => `${vm.days}d overdue`,
-                href: '/inventory?decommission_overdue=true', hrefLabel: 'View overdue VMs' },
-              { key: 'noip', title: 'No IP address', tone: 'warning' as const, toneLabel: 'Warning', rows: d.missing_ip,
-                meta: () => 'no IP',
-                href: '/inventory?missing_ip=true', hrefLabel: 'View VMs without IPs' },
-            ];
-            const total = groups.reduce((n, g) => n + g.rows.length, 0);
-            return (
-              <section className="overflow-hidden rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] shadow-[var(--shadow-raised)] backdrop-blur">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/70 bg-[var(--color-surface-tertiary)] px-5 py-4">
-                  <div>
-                    <p className={cn(monoClass, 'text-[0.625rem] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] tabular-nums')}>Infrastructure status</p>
-                    <h2 className="text-base font-semibold text-[var(--color-text-primary)]">VM Alerts</h2>
-                  </div>
-                  <span
-                    className={cn(
-                      monoClass,
-                      'shrink-0 rounded-md px-2 py-1 text-xs tabular-nums',
-                      total > 0 ? 'text-[var(--color-criticality-critical)]' : 'text-[var(--color-text-tertiary)]'
-                    )}
-                  >
-                    {total > 0 ? `${fmtInt(total)} active` : 'All clear'}
-                  </span>
-                </div>
-                {total === 0 ? (
-                  <div className="px-5 py-10 text-center">
-                    <p className="text-sm font-semibold tracking-wide text-[var(--color-status-running)]">ALL IS WELL</p>
-                    <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">No stale shutdowns, overdue decommissions, or missing IPs.</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col divide-y divide-[var(--color-border)]/70 lg:flex-row lg:divide-x lg:divide-y-0">
-                    {groups.map(({ key, ...g }) => <AlertGroup key={key} {...g} />)}
-                  </div>
-                )}
-              </section>
-            );
-          })() : null}
         </div>
       )}
     </PageTransition>
