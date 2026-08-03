@@ -34,7 +34,7 @@ backend/     FastAPI app, database models, Alembic migrations, pytest tests
 frontend/    Next.js app, API client, UI routes, unit and E2E tests
 justfile     Common local commands
 devbox.json  Development runtime and PostgreSQL scripts
-docs/        CONTRIBUTING.md (setup, scripts, testing) · RUNBOOK.md (deployment, ops)
+docs/        CONTRIBUTING.md (setup, scripts, testing) · RUNBOOK.md (deployment, ops) · wiki/ALERTS.md (alert rules, tag suppression)
 ```
 
 ## Quick start
