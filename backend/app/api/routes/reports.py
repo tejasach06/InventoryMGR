@@ -37,6 +37,8 @@ REPORTS: dict[str, dict] = {
 
 CSV_COLUMNS = [
     "name",
+    "external_id",
+    "sr_id",
     "fqdn",
     "platform",
     "cluster",
@@ -44,8 +46,8 @@ CSV_COLUMNS = [
     "environment",
     "status",
     "criticality",
-    "vcpu",
-    "memory_gb",
+    "cpu_cores",
+    "memory_mb",
     "os_family",
     "os_distribution",
     "os_version",
@@ -62,7 +64,7 @@ CSV_COLUMNS = [
 
 
 def _vm_to_row(vm: Vm) -> dict:
-    row: dict = {col: getattr(vm, col, None) for col in CSV_COLUMNS}
+    row: dict = {col: getattr(vm, col) for col in CSV_COLUMNS}
     row["tags"] = ",".join(vm.tags or [])
     row["monitoring_enabled"] = "Yes" if vm.monitoring_enabled else "No"
     row["pmp_enabled"] = "Yes" if vm.pmp_enabled else "No"

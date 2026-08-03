@@ -161,7 +161,9 @@ export function ImportCsvPage() {
             <p id="csv-help" className={helpTextClass}>
               Required headers: name, platform, cluster. Maximum 5 MiB and 5000 rows.
               Blank cells are left unchanged on existing VMs and take default values on
-              new ones — importing never clears a field. List several disks as
+              new ones — importing never clears a field. Include external_id (VM-ID) and
+              sr_id (SR-ID) columns to import those identifiers; when external_id is present it
+              is what matches a row to an existing VM instead of the name. List several disks as
               name:size pairs (os:100;data:500) and several IPs in private_ip,
               public_ip or backup_ip, separated by semicolons. Importing only ever adds
               disks and IPs; removing one, or resizing a disk, is done in the VM form.
