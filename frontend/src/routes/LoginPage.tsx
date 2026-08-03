@@ -4,7 +4,7 @@ import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { api, detailMessage } from '../api/client';
-import { ThemeSelect } from '../components/ThemeProvider';
+import { ThemeToggle } from '../components/ThemeProvider';
 import { Alert, FieldError, Logo, Spinner, authInputClass, labelClass, primaryButtonClass } from '../components/ui';
 
 const authCardClass = 'w-full max-w-[420px] animate-rise rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/85 p-8 shadow-overlay backdrop-blur-xl';
@@ -27,7 +27,7 @@ function validateSetup(email: string, password: string, confirmPassword: string)
 function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="relative min-h-screen lg:grid lg:grid-cols-[1.05fr_1fr]">
-      <div className="absolute right-4 top-4 z-20"><ThemeSelect /></div>
+      <div className="absolute right-4 top-4 z-20"><ThemeToggle /></div>
       <aside className="auth-gradient relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="pointer-events-none absolute inset-0 opacity-[0.18]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '28px 28px' }} aria-hidden="true" />
         <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />

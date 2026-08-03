@@ -118,29 +118,6 @@ export function useTheme(): { theme: ThemePreference; resolvedTheme: ResolvedThe
   return value;
 }
 
-export function ThemeSelect({ className }: { className?: string }): ReactElement {
-  const { theme, setTheme } = useTheme();
-
-  function handleChange(event: ChangeEvent<HTMLSelectElement>) {
-    setTheme(event.target.value as ThemePreference);
-  }
-
-  return (
-    <label className={cn('inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]', className)}>
-      <span>Theme</span>
-      <select
-        aria-label="Theme"
-        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-raised)] transition focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/12"
-        value={theme}
-        onChange={handleChange}
-      >
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </select>
-    </label>
-  );
-}
 function SunIcon(): ReactElement {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
@@ -173,7 +150,7 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactElement
   { value: 'dark', label: 'Dark theme', icon: <MoonIcon /> },
 ];
 
-export function ThemeSegmented({
+export function ThemeToggle({
   className,
   direction = 'row',
 }: {

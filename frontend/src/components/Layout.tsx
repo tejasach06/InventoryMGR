@@ -6,7 +6,7 @@ import { ReactNode, useCallback, useState } from 'react';
 import { api, User } from '../api/client';
 import { Logo, secondaryButtonClass } from './ui';
 import { AppNav } from './AppNav';
-import { ThemeSelect, ThemeSegmented } from './ThemeProvider';
+import { ThemeToggle } from './ThemeProvider';
 import { NotificationBell } from './NotificationBell';
 
 interface LayoutProps {
@@ -80,7 +80,7 @@ export function AppLayout({ user, children }: LayoutProps) {
             {!collapsed && <span className="truncate font-display text-[1.05rem] font-semibold tracking-tight text-[var(--color-text-primary)] min-w-0">Inventory<span className="text-[var(--color-accent-text)]">MGR</span></span>}
           </div>
           <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full lg:hidden">
-            <ThemeSelect />
+            <ThemeToggle />
             <button type="button" className={secondaryButtonClass} onClick={() => logout.mutate()} disabled={logout.isPending}>
               {logout.isPending ? 'Signing out…' : 'Logout'}
             </button>
@@ -92,9 +92,8 @@ export function AppLayout({ user, children }: LayoutProps) {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-[var(--color-text-secondary)]">Theme</span>
-                <ThemeSegmented />
+                <ThemeToggle />
               </div>
-              <div className="h-px w-full bg-[var(--color-border-subtle)]" />
               <div className="flex items-center gap-3">
                 <UserAvatarInitial email={user.email} />
                 <div className="min-w-0 flex-1 flex-col">
@@ -117,7 +116,7 @@ export function AppLayout({ user, children }: LayoutProps) {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
-              <ThemeSegmented direction="col" />
+              <ThemeToggle direction="col" />
               <div className="h-px w-8 bg-[var(--color-border-subtle)]" />
               <UserAvatarInitial email={user.email} />
               <button
