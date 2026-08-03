@@ -135,6 +135,11 @@ docker compose down
 | Frontend alive | `curl http://localhost:3000/` | HTTP 200 |
 | PostgreSQL | `pg_isready -h 127.0.0.1 -p 54329 -U inventorymgr` | `accepting connections` |
 
+## Alerts
+
+Alert triggers, thresholds, and tag-based suppression are documented in
+[wiki/ALERTS.md](wiki/ALERTS.md).
+
 ## Common Issues
 
 ### Backend won't start — `JWT_SECRET must be changed in production`
