@@ -1,11 +1,35 @@
-from typing import Any
+from typing import Any, get_args
 
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import Csrf, CurrentUser, DbSession
-from app.schemas.preferences import ColumnPreferencesRead
+from app.schemas.preferences import (
+    AccentId,
+    AccentPreference,
+    ColumnPreferencesRead,
+    DEFAULT_ACCENT,
+)
 
 router = APIRouter()
+
+
+@router.get("/accent", response_model=AccentPreference)
+def get_accent(user: CurrentUser) -> AccentPreference:
+    value = (user.preferences or {}).get("accent_color")
+    if value not in get_args(AccentId):
+        return AccentPreference(accent=DEFAULT_ACCENT)
+    return AccentPreference(accent=value)
+
+
+@router.put("/accent", response_model=AccentPreference)
+def update_accent(
+    payload: AccentPreference, db: DbSession, user: CurrentUser, _: Csrf
+) -> AccentPreference:
+    prefs = dict(user.preferences or {})
+    prefs["accent_color"] = payload.accent
+    user.preferences = prefs
+    db.commit()
+    return payload
 
 DEFAULT_COLUMNS = [
     {"key": "name", "visible": True, "order": 0},
