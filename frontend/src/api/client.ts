@@ -1,3 +1,5 @@
+import { AccentId } from '../lib/accentPresets';
+
 export type UserRole = 'admin' | 'editor' | 'viewer';
 export type Platform = 'proxmox' | 'vmware';
 export type VmStatus = 'running' | 'powered_off' | 'decommissioned' | 'unknown';
@@ -573,6 +575,10 @@ export const api = {
     apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(
       `/user/preferences/${pageKey}`, { method: 'PUT', body: JSON.stringify({ columns }) },
     ),
+  getAccent: () => apiRequest<{ accent: AccentId }>('/user/accent'),
+  setAccent: (accent: AccentId) =>
+    apiRequest<{ accent: AccentId }>('/user/accent', { method: 'PUT', body: JSON.stringify({ accent }) }),
+
 
   getAppSettings: () => apiRequest<AppSettings>('/settings/app'),
   updateAppSettings: (patch: { decommission_notify_days?: number; storage_usage_warn_pct?: number }) =>
