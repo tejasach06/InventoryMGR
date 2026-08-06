@@ -1,3 +1,5 @@
+import csv
+
 from pathlib import Path
 
 from sqlalchemy import select
@@ -792,8 +794,8 @@ def test_retired_child_headers_are_ignored_and_reported(client, db_session: Sess
 
 def test_template_endpoint_serves_importable_headers(client, db_session: Session) -> None:
     """The template must round-trip: every header it offers must be one the
-    preview endpoint accepts."""
-    from app.services.csv_import import ALL_HEADERS
+    preview endpoint accepts, and no importable column may be left out."""
+    from app.services.csv_import import ALL_HEADERS, TEMPLATE_COLUMNS
 
     create_user(db_session, email="viewer@example.local", role=UserRole.viewer)
     login(client, "viewer@example.local")
@@ -802,9 +804,45 @@ def test_template_endpoint_serves_importable_headers(client, db_session: Session
     assert response.status_code == 200, response.text
     assert response.headers["content-type"].startswith("text/csv")
 
-    headers = response.text.strip().split(",")
+    lines = response.text.strip().splitlines()
+    headers = next(csv.reader([lines[0]]))
+    assert headers == list(TEMPLATE_COLUMNS)
     assert set(headers) == ALL_HEADERS
-    assert headers[:3] == ["name", "platform", "cluster"]
+    assert len(headers) == len(set(headers))
+    # grouped, not alphabetical: identity first, child collections last
+    assert headers[0] == "name"
+    assert headers[-1] == "description"
+    # two sample rows follow the header row
+    assert len(lines) == 3
+
+
+def test_template_sample_rows_preview_without_errors(client, db_session: Session) -> None:
+    """The sample rows are real importable rows, not illustrative text."""
+    user = create_user(db_session, email="editor@example.com", role=UserRole.editor)
+    csrf = login(client, user.email)
+
+    template = client.get("/api/imports/template").text.encode()
+    preview = client.post(
+        "/api/imports/preview",
+        files={"file": ("vm-import-template.csv", template, "text/csv")},
+        headers=auth_headers(csrf),
+    )
+    assert preview.status_code == 201, preview.text
+    body = preview.json()
+    assert body["ignored_columns"] == []
+    assert len(body["rows"]) == 2
+    for row in body["rows"]:
+        assert row["errors"] == []
+        assert row["action"] == "create"
+
+
+def test_template_groups_cover_every_column_once(client, db_session: Session) -> None:
+    from app.services.csv_import import ALL_HEADERS, TEMPLATE_GROUPS
+
+    flat = [column for _, columns in TEMPLATE_GROUPS for column in columns]
+    assert len(flat) == len(set(flat))
+    assert set(flat) == ALL_HEADERS
+
 
 def test_vm_type_column_is_imported(client, db_session: Session) -> None:
     user = create_user(db_session, email="editor@example.com", role=UserRole.editor)
@@ -830,13 +868,6 @@ def test_vm_type_column_is_imported(client, db_session: Session) -> None:
     assert vm.lifecycle.value == "retiring"
 
 
-def test_template_offers_vm_type(client, db_session: Session) -> None:
-    user = create_user(db_session, email="viewer@example.com", role=UserRole.viewer)
-    login(client, user.email)
-
-    headers = client.get("/api/imports/template").text.strip().split(",")
-
-    assert "vm_type" in headers
 def test_applications_column_creates_children_and_is_idempotent(
     client, db_session: Session
 ) -> None:
