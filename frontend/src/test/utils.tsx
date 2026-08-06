@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, type RenderResult } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { CurrentUserProvider } from '../components/AuthContext';
+import { AccentProvider } from '../components/AccentProvider';
 import { ThemeProvider } from '../components/ThemeProvider';
-import type { ImportBatch, ImportRow, User, Vm } from '../api/client';
 
 export function createTestQueryClient(): QueryClient {
   return new QueryClient({
@@ -35,7 +35,7 @@ export function renderWithProviders(
   );
   const result = render(
     <ThemeProvider>
-      <QueryClientProvider client={queryClient}>{wrapped}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}><AccentProvider>{wrapped}</AccentProvider></QueryClientProvider>
     </ThemeProvider>,
   );
   return Object.assign(result, { queryClient });

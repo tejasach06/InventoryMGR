@@ -2,12 +2,11 @@ from app.db.models import UserRole
 from tests.conftest import auth_headers, create_user, login
 
 
-def test_get_defaults_to_30(client, db_session):
+def test_viewer_cannot_read_app_settings(client, db_session):
     create_user(db_session, email="v@example.com", role=UserRole.viewer)
     login(client, "v@example.com")
     r = client.get("/api/settings/app")
-    assert r.status_code == 200
-    assert r.json()["decommission_notify_days"] == 30
+    assert r.status_code == 403
 
 
 def test_admin_updates_days(client, db_session):
