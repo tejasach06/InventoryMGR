@@ -16,6 +16,8 @@ dependencies = [
   "email-validator",
   "slowapi>=0.1.10",
   "xlsxwriter",
+  "ldap3",
+  "cryptography",
 ]
 
 [project.optional-dependencies]

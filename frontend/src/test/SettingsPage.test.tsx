@@ -7,7 +7,7 @@ import { SettingsPage } from '../routes/SettingsPage';
 import { makeUser, renderWithProviders } from './utils';
 
 const mockUsers: User[] = [
-  { id: 'u1', email: 'admin@example.com', role: 'admin', is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'u1', email: 'admin@example.com', role: 'admin', is_active: true, auth_source: 'local', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
 ];
 
 beforeEach(() => {
@@ -56,6 +56,18 @@ describe('SettingsPage', () => {
     await user.click(usersTab);
     expect(usersTab).toHaveAttribute('aria-selected', 'true');
     expect(screen.getAllByText('admin@example.com')).not.toHaveLength(0);
+  });
+
+  it('opens LDAP settings from its tab', async () => {
+    vi.spyOn(api, 'listUsers').mockResolvedValue(mockUsers);
+    const user = userEvent.setup();
+
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
+
+    const ldapTab = screen.getByRole('tab', { name: 'LDAP' });
+    await user.click(ldapTab);
+    expect(ldapTab).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByLabelText('Server URI')).toBeInTheDocument();
   });
 
   it('saves the decommission notify window from Notifications tab', async () => {

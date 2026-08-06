@@ -6,6 +6,7 @@ import { api, detailMessage } from '../api/client';
 import { PageHeader, PageTransition, Spinner, cardClass, inputClass, primaryButtonClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 import { UsersPanel } from './UsersPage';
+import { LdapPanel } from './LdapSettingsPanel';
 
 function NotificationsPanel() {
   const queryClient = useQueryClient();
@@ -64,7 +65,7 @@ function NotificationsPanel() {
 }
 
 export function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'users' | 'notifications'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'ldap'>('users');
 
   return (
     <PageTransition>
@@ -108,14 +109,32 @@ export function SettingsPage() {
             >
               Notifications
             </button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-ldap"
+              aria-selected={activeTab === 'ldap'}
+              aria-controls="panel-ldap"
+              onClick={() => setActiveTab('ldap')}
+              className={cn(
+                '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+                activeTab === 'ldap'
+                  ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                  : 'border-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]',
+              )}
+            >
+              LDAP
+            </button>
           </div>
           <div>
             {activeTab === 'users' ? (
               <div role="tabpanel" id="panel-users" aria-labelledby="tab-users" className="animate-fade-in">
                 <UsersPanel />
               </div>
-            ) : (
+            ) : activeTab === 'notifications' ? (
               <NotificationsPanel />
+            ) : (
+              <LdapPanel />
             )}
           </div>
         </div>
