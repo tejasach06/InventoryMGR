@@ -123,6 +123,14 @@ describe('ImportCsvPage', () => {
     expect(clickSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('tells the user the template ships sample rows to delete', () => {
+    renderWithProviders(<ImportCsvPage />);
+
+    expect(
+      screen.getByText(/two SAMPLE- rows you should delete/i),
+    ).toBeInTheDocument();
+  });
+
 
   it('shows unchanged rows in their own summary card', async () => {
     vi.spyOn(api, 'previewImport').mockResolvedValue(
