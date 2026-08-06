@@ -83,7 +83,7 @@ export function buildNavItems(user: Pick<User, 'role'>): NavItem[] {
     { to: '/storage', label: 'Storage', visible: true, icon: <IconStorage /> },
     { to: '/clusters', label: 'Clusters', visible: true, icon: <IconCluster /> },
     { to: '/imports/new', label: 'Import', visible: user.role === 'admin' || user.role === 'editor', icon: <IconUpload /> },
-    { to: '/settings', label: 'Settings', visible: canSeeUsers(user.role), icon: <IconGear /> },
+    { to: '/settings', label: 'Settings', visible: true, icon: <IconGear /> },
   ];
 }
 

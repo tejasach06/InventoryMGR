@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { api } from '../api/client';
 import type { User } from '../api/client';
 import { SettingsPage } from '../routes/SettingsPage';
+import { buildNavItems } from '../components/AppNav';
 import { makeUser, renderWithProviders } from './utils';
 
 const mockUsers: User[] = [
@@ -12,6 +13,7 @@ const mockUsers: User[] = [
 
 beforeEach(() => {
   window.localStorage.clear();
+  window.localStorage.setItem('inventorymgr-theme', 'light');
 });
 
 afterEach(() => {
@@ -20,21 +22,50 @@ afterEach(() => {
 });
 
 describe('SettingsPage', () => {
-  it('renders a horizontal tablist with Users as default tab and lists users', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue(mockUsers);
-
+  it('defaults to Appearance for admins', () => {
     renderWithProviders(<SettingsPage />, { user: makeUser() });
 
-    const tablist = screen.getByRole('tablist', { name: 'Settings categories' });
-    expect(tablist).not.toHaveAttribute('aria-orientation', 'vertical');
+    expect(screen.getByRole('tab', { name: 'Appearance' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument();
+  });
 
-    const usersTab = screen.getByRole('tab', { name: 'Users' });
-    expect(usersTab).toHaveAttribute('aria-selected', 'true');
+  it('persists Violet after applying its light accent immediately', async () => {
+    const setAccent = vi.spyOn(api, 'setAccent').mockResolvedValue({ accent: 'violet' });
+    const user = userEvent.setup();
 
-    expect(screen.getByRole('tab', { name: 'Notifications' })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Cluster' })).not.toBeInTheDocument();
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
+    await waitFor(() => expect(document.documentElement.style.getPropertyValue('--color-accent')).toBe('#f97316'));
 
-    expect(await screen.findAllByText('admin@example.com')).not.toHaveLength(0);
+    await user.click(screen.getByRole('radio', { name: 'Violet' }));
+
+    expect(setAccent).toHaveBeenCalledWith('violet');
+    expect(document.documentElement.style.getPropertyValue('--color-accent')).toBe('#7c3aed');
+  });
+
+  it('restores prior accent and shows error when accent save fails', async () => {
+    vi.spyOn(api, 'setAccent').mockRejectedValue(new Error('Accent save failed'));
+    const user = userEvent.setup();
+
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
+    await waitFor(() => expect(document.documentElement.style.getPropertyValue('--color-accent')).toBe('#f97316'));
+
+    await user.click(screen.getByRole('radio', { name: 'Violet' }));
+
+    await waitFor(() => {
+      expect(document.documentElement.style.getPropertyValue('--color-accent')).toBe('#f97316');
+      expect(screen.getByRole('alert')).toHaveTextContent('Accent save failed');
+    });
+  });
+
+  it('shows Settings navigation and only Appearance for viewers', () => {
+    expect(buildNavItems({ role: 'viewer' }).find((item) => item.label === 'Settings')?.visible).toBe(true);
+
+    renderWithProviders(<SettingsPage />, { user: makeUser({ role: 'viewer' }) });
+
+    expect(screen.getByRole('tab', { name: 'Appearance' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('tab', { name: 'Users' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Notifications' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'LDAP' })).not.toBeInTheDocument();
   });
 
   it('switches between Users and Notifications tabs', async () => {

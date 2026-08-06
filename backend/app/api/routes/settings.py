@@ -108,7 +108,7 @@ def delete_option(option_id: uuid.UUID, db: DbSession, _: AdminUser, __: Csrf) -
 
 
 @router.get("/app", response_model=AppSettingsRead)
-def get_app_settings(db: DbSession, _: ViewerUser) -> AppSettingsRead:
+def get_app_settings(db: DbSession, _: AdminUser) -> AppSettingsRead:
     return AppSettingsRead(
         decommission_notify_days=app_settings.get_notify_days(db),
         storage_usage_warn_pct=app_settings.get_warn_pct(db),
