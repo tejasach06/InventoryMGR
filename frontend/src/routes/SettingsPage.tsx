@@ -7,7 +7,7 @@ import { useAccent } from '../components/AccentProvider';
 import { useCurrentUser } from '../components/AuthContext';
 import { ThemeSegmented, useTheme } from '../components/ThemeProvider';
 import { Alert, PageHeader, PageTransition, Spinner, cardClass, inputClass, primaryButtonClass } from '../components/ui';
-import { ACCENT_PRESETS } from '../lib/accentPresets';
+import { ACCENT_PRESETS, AccentId } from '../lib/accentPresets';
 import { cn } from '../lib/classNames';
 import { UsersPanel } from './UsersPage';
 import { LdapPanel } from './LdapSettingsPanel';
@@ -22,12 +22,12 @@ function AppearancePanel() {
   useEffect(() => {
     latestAccent.current = accent;
   }, [accent]);
-  const save = useMutation({
-    mutationFn: (accent) => api.setAccent(accent),
+  const save = useMutation<{ accent: AccentId }, Error, AccentId>({
+    mutationFn: (accent: AccentId) => api.setAccent(accent),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['preferences', 'accent'] }),
   });
 
-  function selectAccent(nextAccent: typeof accent) {
+  function selectAccent(nextAccent: AccentId) {
     const previousAccent = latestAccent.current;
     const request = ++latestRequest.current;
     latestAccent.current = nextAccent;
