@@ -62,37 +62,40 @@ export function AppLayout({ user, children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-[var(--color-surface-secondary)] lg:flex">
       <aside className={`sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-4 backdrop-blur lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
-        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 min-w-0 w-full lg:block">
-          <div className={`flex items-center gap-2.5 min-w-0 ${collapsed ? 'lg:w-full lg:flex-col lg:items-center lg:gap-2' : ''}`}>
-            <button
-              type="button"
-              onClick={toggleCollapsed}
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] lg:inline-flex"
-            >
-              <svg className={`h-4 w-4 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M10 4L6 8l4 4" />
-              </svg>
-            </button>
+        <div className="flex min-w-0 w-full flex-wrap items-center justify-between gap-2 sm:gap-4">
+          <div className={`flex min-w-0 items-center gap-2.5 ${collapsed ? 'lg:w-full lg:justify-center' : ''}`}>
             <Logo className="h-8 w-8 flex-shrink-0" />
-            {!collapsed && <span className="truncate font-display text-[1.05rem] font-semibold tracking-tight text-[var(--color-text-primary)] min-w-0">Inventory<span className="text-[var(--color-accent-text)]">MGR</span></span>}
+            {!collapsed && <span className="min-w-0 truncate font-display text-[1.05rem] font-semibold tracking-tight text-[var(--color-text-primary)]">Inventory<span className="text-[var(--color-accent-text)]">MGR</span></span>}
           </div>
-          <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full lg:hidden">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 lg:hidden">
             <ThemeToggle />
             <NotificationBell />
             <button type="button" className={secondaryButtonClass} onClick={() => logout.mutate()} disabled={logout.isPending}>
               {logout.isPending ? 'Signing out…' : 'Logout'}
             </button>
           </div>
-        </div>
-        <div className="hidden justify-end lg:flex">
-          <NotificationBell />
+          {!collapsed && (
+            <div className="hidden lg:block">
+              <NotificationBell align="left" />
+            </div>
+          )}
         </div>
         <AppNav user={user} collapsed={collapsed} />
         <div className={`mt-4 hidden pt-4 border-[var(--color-border-subtle)] lg:mt-auto lg:block ${collapsed ? '' : 'border-t'}`}>
           {!collapsed ? (
             <div className="space-y-3">
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] active:scale-[0.98]"
+              >
+                <svg className="h-4 w-4 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M10 4L6 8l4 4" />
+                </svg>
+                <span>Collapse</span>
+              </button>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-[var(--color-text-secondary)]">Theme</span>
                 <ThemeToggle />
@@ -119,6 +122,18 @@ export function AppLayout({ user, children }: LayoutProps) {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
+              <NotificationBell align="left" />
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-label="Expand sidebar"
+                title="Expand sidebar"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] active:scale-[0.98]"
+              >
+                <svg className="h-4 w-4 rotate-180" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M10 4L6 8l4 4" />
+                </svg>
+              </button>
               <ThemeToggle direction="col" />
               <div className="h-px w-8 bg-[var(--color-border-subtle)]" />
               <UserAvatarInitial email={user.email} />

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, type DueVm } from '../api/client';
 import { cn } from '../lib/classNames';
 
-export function NotificationBell() {
+export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right' } = {}) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -73,7 +73,7 @@ export function NotificationBell() {
         ) : null}
       </button>
       {open ? (
-        <div className="absolute right-0 mt-2 w-72 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-overlay)]" role="menu">
+        <div className={cn('absolute mt-2 w-72 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-overlay)]', align === 'left' ? 'left-0' : 'right-0')} role="menu">
           <p className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">Upcoming decommissions</p>
           {data.length === 0 ? (
             <p className="px-2 py-3 text-sm text-[var(--color-text-tertiary)]">No upcoming decommissions.</p>

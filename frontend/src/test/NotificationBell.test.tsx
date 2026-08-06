@@ -58,6 +58,12 @@ describe('NotificationBell', () => {
     expect(api.ackDecommissions).toHaveBeenCalledWith(['1']);
   });
 
+  it('left-aligns its panel when used in sidebar chrome', async () => {
+    renderWithProviders(<NotificationBell align="left" />);
+    fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
+    expect(await screen.findByRole('menu')).toHaveClass('left-0');
+  });
+
   it('closes panel on outside click and Escape key', async () => {
     renderWithProviders(<NotificationBell />);
     fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
