@@ -16,15 +16,35 @@ function AppearancePanel() {
   const queryClient = useQueryClient();
   const { accent, setAccent } = useAccent();
   const { resolvedTheme } = useTheme();
+  const latestAccent = useRef(accent);
+  const latestRequest = useRef(0);
+  const swatches = useRef<Array<HTMLButtonElement | null>>([]);
+  useEffect(() => {
+    latestAccent.current = accent;
+  }, [accent]);
   const save = useMutation({
     mutationFn: (accent) => api.setAccent(accent),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['preferences', 'accent'] }),
   });
 
   function selectAccent(nextAccent: typeof accent) {
-    const previousAccent = accent;
+    const previousAccent = latestAccent.current;
+    const request = ++latestRequest.current;
+    latestAccent.current = nextAccent;
     setAccent(nextAccent);
-    save.mutate(nextAccent, { onError: () => setAccent(previousAccent) });
+    save.mutate(nextAccent, {
+      onError: () => {
+        if (request !== latestRequest.current) return;
+        latestAccent.current = previousAccent;
+        setAccent(previousAccent);
+      },
+    });
+  }
+
+  function selectAdjacentAccent(index: number, direction: 1 | -1) {
+    const nextIndex = (index + direction + ACCENT_PRESETS.length) % ACCENT_PRESETS.length;
+    selectAccent(ACCENT_PRESETS[nextIndex].id);
+    swatches.current[nextIndex]?.focus();
   }
 
   return (
@@ -36,16 +56,27 @@ function AppearancePanel() {
       <section className="mt-6 border-t border-[var(--color-border-subtle)] pt-6">
         <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Accent colour</h2>
         <div role="radiogroup" aria-label="Accent colour" className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
-          {ACCENT_PRESETS.map((preset) => {
+          {ACCENT_PRESETS.map((preset, index) => {
             const selected = preset.id === accent;
             const preview = resolvedTheme === 'dark' ? preset.dark.accent : preset.light.accent;
             return (
               <button
                 key={preset.id}
+                ref={(button) => {
+                  swatches.current[index] = button;
+                }}
                 type="button"
                 role="radio"
                 aria-checked={selected}
+                tabIndex={selected ? 0 : -1}
                 onClick={() => selectAccent(preset.id)}
+                onKeyDown={(event) => {
+                  const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1
+                    : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : null;
+                  if (direction === null) return;
+                  event.preventDefault();
+                  selectAdjacentAccent(index, direction);
+                }}
                 className={cn(
                   'flex flex-col items-center gap-2 rounded-xl p-2 text-xs font-medium text-[var(--color-text-secondary)] shadow-raised transition-colors',
                   selected

@@ -57,6 +57,41 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('keeps a newer accent when an earlier save fails', async () => {
+    const { promise: firstSave, reject: rejectFirst } = Promise.withResolvers<{ accent: 'violet' }>();
+    const setAccent = vi.spyOn(api, 'setAccent')
+      .mockImplementationOnce(() => firstSave)
+      .mockResolvedValueOnce({ accent: 'blue' });
+    const user = userEvent.setup();
+
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
+    await user.click(screen.getByRole('radio', { name: 'Violet' }));
+    await user.click(screen.getByRole('radio', { name: 'Blue' }));
+    await waitFor(() => expect(setAccent).toHaveBeenCalledTimes(2));
+    rejectFirst(new Error('Stale save failed'));
+    await firstSave.catch(() => undefined);
+
+    await waitFor(() => {
+      expect(document.documentElement.style.getPropertyValue('--color-accent')).toBe('#2563eb');
+      expect(window.localStorage.getItem('inventorymgr-accent')).toBe('blue');
+      expect(screen.getByRole('radio', { name: 'Blue' })).toHaveAttribute('aria-checked', 'true');
+    });
+  });
+
+  it('selects and focuses adjacent accent swatch with arrow keys', async () => {
+    vi.spyOn(api, 'setAccent').mockResolvedValue({ accent: 'blue' });
+    const user = userEvent.setup();
+
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
+    const orange = screen.getByRole('radio', { name: 'Orange' });
+    orange.focus();
+    await user.keyboard('{ArrowRight}');
+
+    const blue = screen.getByRole('radio', { name: 'Blue' });
+    expect(blue).toHaveAttribute('aria-checked', 'true');
+    expect(blue).toHaveFocus();
+  });
+
   it('shows Settings navigation and only Appearance for viewers', () => {
     expect(buildNavItems({ role: 'viewer' }).find((item) => item.label === 'Settings')?.visible).toBe(true);
 

@@ -31,3 +31,13 @@ Implementation: `fde2bc3 Add appearance settings access controls`
 ## Concerns
 
 Full validation intentionally skipped per task. No `globals.css` changes.
+
+## Important finding fixes
+
+- Accent mutations now carry a monotonic local request sequence; an older request error cannot restore the prior accent after a newer selection, including its localStorage mirror.
+- Accent swatches use roving tab focus and select/focus adjacent swatches on ArrowLeft/ArrowUp/ArrowRight/ArrowDown.
+
+## Fix verification
+
+- RED: `cd frontend && bun run test -- src/test/SettingsPage.test.tsx` — expected arrow-key radio test failure before implementation.
+- GREEN: `cd frontend && bun run test -- src/test/SettingsPage.test.tsx` — 10 passed.
