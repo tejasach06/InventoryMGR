@@ -4,10 +4,10 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import Csrf, CurrentUser, DbSession
 from app.schemas.preferences import (
+    DEFAULT_ACCENT,
     AccentId,
     AccentPreference,
     ColumnPreferencesRead,
-    DEFAULT_ACCENT,
 )
 
 router = APIRouter()
