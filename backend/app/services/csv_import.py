@@ -49,6 +49,130 @@ CHILD_HEADERS = {"disks", "applications"} | set(IP_ROLE_HEADERS)
 OPTIONAL_HEADERS = (set(VmBase.model_fields) - EXCLUDED_FROM_CSV - REQUIRED_HEADERS) | CHILD_HEADERS
 ALL_HEADERS = REQUIRED_HEADERS | OPTIONAL_HEADERS
 
+# Downloadable template layout. Flat CSV has no real grouping, so the grouping
+# is the column ORDER: identity, placement, classification, capacity, OS,
+# network, ownership, operations, compliance dates, notes. Mirrors the export
+# order in api/routes/vms.py::_EXPORT_SCALAR_COLS minus the derived columns
+# (health_score, created_at, updated_at), which are not importable.
+# tests/test_csv_imports.py asserts this covers ALL_HEADERS exactly, so a new
+# VmBase field fails the suite until it is placed in a group here.
+TEMPLATE_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("identity", ("name", "external_id", "fqdn", "sr_id")),
+    ("placement", ("platform", "datacenter", "cluster", "node")),
+    ("classification", ("status", "environment", "criticality", "lifecycle", "vm_type")),
+    ("capacity", ("cpu_cores", "memory_mb", "disks")),
+    ("operating system", ("os_family", "os_name", "os_distribution", "os_version")),
+    ("network", ("private_ip", "public_ip", "backup_ip")),
+    ("ownership", ("owner", "business_owner", "technical_owner", "applications")),
+    (
+        "operations",
+        (
+            "monitoring_enabled",
+            "pmp_enabled",
+            "ha_enabled",
+            "backup_enabled",
+            "backup_location",
+            "tags",
+        ),
+    ),
+    (
+        "compliance dates",
+        ("last_patch_date", "last_vuln_scan_date", "last_verified_at", "decommission_date"),
+    ),
+    ("notes", ("security_remarks", "description")),
+)
+TEMPLATE_COLUMNS: tuple[str, ...] = tuple(
+    column for _, columns in TEMPLATE_GROUPS for column in columns
+)
+
+# Two rows a human can read as a worked example. They are valid importable
+# rows (the suite previews them) so a user can also keep one and edit it.
+# Names carry the SAMPLE- prefix and the descriptions say to delete them.
+TEMPLATE_SAMPLE_ROWS: tuple[dict[str, str], ...] = (
+    {
+        "name": "SAMPLE-web-01",
+        "external_id": "VM-1001",
+        "fqdn": "web-01.corp.local",
+        "sr_id": "SR-2481",
+        "platform": "proxmox",
+        "datacenter": "DC-Mumbai",
+        "cluster": "pve-cluster-01",
+        "node": "pve-node-03",
+        "status": "running",
+        "environment": "production",
+        "criticality": "high",
+        "lifecycle": "active",
+        "vm_type": "permanent",
+        "cpu_cores": "4",
+        "memory_mb": "8192",
+        "disks": "os:100;data:500",
+        "os_family": "linux",
+        "os_name": "Ubuntu Server",
+        "os_distribution": "ubuntu",
+        "os_version": "22.04",
+        "private_ip": "10.20.30.41:100:10.20.30.1",
+        "public_ip": "",
+        "backup_ip": "",
+        "owner": "infra-team",
+        "business_owner": "Retail Ops",
+        "technical_owner": "A. Sharma",
+        "applications": "nginx:web-team;postgres:dba-team",
+        "monitoring_enabled": "true",
+        "pmp_enabled": "true",
+        "ha_enabled": "true",
+        "backup_enabled": "true",
+        "backup_location": "Veeam-Repo-01",
+        "tags": "web;tier1",
+        "last_patch_date": "2026-07-14",
+        "last_vuln_scan_date": "2026-07-01",
+        "last_verified_at": "2026-07-20",
+        "decommission_date": "",
+        "security_remarks": "",
+        "description": "Sample row - delete before importing",
+    },
+    {
+        "name": "SAMPLE-test-02",
+        "external_id": "VM-1002",
+        "fqdn": "test-02.corp.local",
+        "sr_id": "SR-2492",
+        "platform": "vmware",
+        "datacenter": "DC-Pune",
+        "cluster": "vc-cluster-02",
+        "node": "esxi-node-11",
+        "status": "powered_off",
+        "environment": "testing",
+        "criticality": "low",
+        "lifecycle": "retiring",
+        "vm_type": "temporary",
+        "cpu_cores": "2",
+        "memory_mb": "4096",
+        "disks": "os:60",
+        "os_family": "windows",
+        "os_name": "Windows Server",
+        "os_distribution": "",
+        "os_version": "2022",
+        "private_ip": "10.20.31.52:120:10.20.31.1",
+        "public_ip": "",
+        "backup_ip": "",
+        "owner": "qa-team",
+        "business_owner": "QA",
+        "technical_owner": "R. Iyer",
+        "applications": "iis",
+        "monitoring_enabled": "false",
+        "pmp_enabled": "false",
+        "ha_enabled": "false",
+        "backup_enabled": "false",
+        "backup_location": "",
+        "tags": "sandbox",
+        "last_patch_date": "2026-06-02",
+        "last_vuln_scan_date": "",
+        "last_verified_at": "",
+        "decommission_date": "2026-09-30",
+        "security_remarks": "",
+        "description": "Sample row - delete before importing",
+    },
+)
+
 PLATFORM_ALIASES = {
     "proxmox": "proxmox",
     "pve": "proxmox",

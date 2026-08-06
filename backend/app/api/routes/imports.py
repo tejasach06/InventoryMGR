@@ -1,3 +1,6 @@
+import csv
+import io
+
 import uuid
 from typing import Annotated
 
@@ -7,9 +10,8 @@ from fastapi.responses import PlainTextResponse
 from app.api.deps import Csrf, DbSession, EditorUser, ViewerUser
 from app.schemas.imports import ImportBatchRead, ImportCommitResult
 from app.services.csv_import import (
-    ALL_HEADERS,
-    REQUIRED_HEADERS,
-    REQUIRED_HEADERS_ORDER,
+    TEMPLATE_COLUMNS,
+    TEMPLATE_SAMPLE_ROWS,
     commit_batch,
     create_preview_batch,
     load_batch_or_404,
@@ -40,10 +42,14 @@ async def preview_import(
 
 @router.get("/template", response_class=PlainTextResponse)
 def download_template(current_user: ViewerUser) -> PlainTextResponse:
-    """Serve the CSV header row, derived from the same set the importer accepts."""
-    ordered = list(REQUIRED_HEADERS_ORDER) + sorted(ALL_HEADERS - REQUIRED_HEADERS)
+    """Serve every importable column, grouped left-to-right, plus sample rows."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(TEMPLATE_COLUMNS)
+    for sample in TEMPLATE_SAMPLE_ROWS:
+        writer.writerow([sample[column] for column in TEMPLATE_COLUMNS])
     return PlainTextResponse(
-        ",".join(ordered) + "\n",
+        buffer.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="vm-import-template.csv"'},
     )
