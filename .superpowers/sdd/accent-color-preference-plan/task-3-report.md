@@ -41,3 +41,4 @@ Full validation intentionally skipped per task. No `globals.css` changes.
 
 - RED: `cd frontend && bun run test -- src/test/SettingsPage.test.tsx` — expected arrow-key radio test failure before implementation.
 - GREEN: `cd frontend && bun run test -- src/test/SettingsPage.test.tsx` — 10 passed.
+- Commit: `aabd417 Fix accent selection races and radio keys`.
