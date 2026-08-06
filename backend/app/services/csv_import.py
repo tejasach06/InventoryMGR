@@ -164,9 +164,14 @@ def _parse_disks(
         cleaned = part.strip()
         if not cleaned:
             continue
-        name, separator, size = cleaned.partition(":")
-        name, size = name.strip(), size.strip()
-        if not separator or not name or not size.isdigit():
+        try:
+            name, size = cleaned.rsplit(":", 1)
+            name, size = name.strip(), size.strip()
+        except ValueError:
+            if errors is not None:
+                errors.append(_error(field, "must be name:size pairs separated by ;"))
+            return []
+        if not name or not size.isdigit():
             if errors is not None:
                 errors.append(_error(field, "must be name:size pairs separated by ;"))
             return []
