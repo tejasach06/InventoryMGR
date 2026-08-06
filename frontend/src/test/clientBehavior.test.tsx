@@ -88,15 +88,15 @@ describe('role-based navigation', () => {
     expect(canSeeUsers('editor')).toBe(false);
     expect(canSeeUsers('viewer')).toBe(false);
 
-    expect(buildNavItems({ role: 'viewer' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Clusters']);
-    expect(buildNavItems({ role: 'editor' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Clusters', 'Import']);
+    expect(buildNavItems({ role: 'viewer' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Clusters', 'Settings']);
+    expect(buildNavItems({ role: 'editor' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Clusters', 'Import', 'Settings']);
     expect(buildNavItems({ role: 'admin' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Clusters', 'Import', 'Settings']);
   });
 
   it('renders Settings only for admins and never shows Users in nav', () => {
     const { rerender } = render(createElement(AppNav, { user: { role: 'viewer' } }));
     expect(screen.getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
 
     rerender(createElement(AppNav, { user: { role: 'admin' } }));
