@@ -142,8 +142,8 @@ html.dark {
   --color-border: #273647;
   --color-border-subtle: #1c2b3c;
   --color-text-primary: #d4e4fa;
-  --color-text-secondary: #909bb1;
-  --color-text-tertiary: #6b7a8f;
+  --color-text-secondary: #b4c3d6;
+  --color-text-tertiary: #9aa9bd;
   --color-accent: #fb923c;
   --color-accent-hover: #fdba74;
   --color-accent-text: #fb923c;
@@ -224,57 +224,57 @@ html.dark body {
 /* Dark mode semantic color overrides — same hues, shifted for dark bg */
 html.dark {
   --color-status-running: #34d399;
-  --color-status-running-bg: #064e3b;
+  --color-status-running-bg: #03291e;
   --color-status-powered_off: #94a3b8;
-  --color-status-powered_off-bg: #1e293b;
+  --color-status-powered_off-bg: #161e28;
   --color-warning: #fbbf24;
   --color-status-decommissioned: #f87171;
-  --color-status-decommissioned-bg: #7f1d1d;
+  --color-status-decommissioned-bg: #3d0d0d;
   --color-status-unknown: #9ca3af;
-  --color-status-unknown-bg: #374151;
+  --color-status-unknown-bg: #232830;
 
   --color-criticality-critical: #f87171;
-  --color-criticality-critical-bg: #7f1d1d;
+  --color-criticality-critical-bg: #3d0d0d;
   --color-criticality-high: #fb923c;
-  --color-criticality-high-bg: #7c2d12;
+  --color-criticality-high-bg: #3d1405;
   --color-criticality-medium: #fbbf24;
-  --color-criticality-medium-bg: #78350f;
+  --color-criticality-medium-bg: #3a1a05;
   --color-criticality-low: #34d399;
-  --color-criticality-low-bg: #064e3b;
+  --color-criticality-low-bg: #03291e;
 
   --color-environment-production: #fb923c;
-  --color-environment-production-bg: #7c2d12;
+  --color-environment-production-bg: #3d1405;
   --color-environment-staging: #a78bfa;
-  --color-environment-staging-bg: #4c1d95;
+  --color-environment-staging-bg: #26105c;
   --color-environment-uat: #22d3ee;
-  --color-environment-uat-bg: #164e63;
+  --color-environment-uat-bg: #0a2f3b;
   --color-environment-testing: #14b8a6;
-  --color-environment-testing-bg: #134e4a;
+  --color-environment-testing-bg: #08302d;
   --color-environment-development: #4ade80;
-  --color-environment-development-bg: #14532d;
+  --color-environment-development-bg: #082a15;
   --color-environment-dr: #f87171;
-  --color-environment-dr-bg: #7f1d1d;
+  --color-environment-dr-bg: #3d0d0d;
   --color-environment-sandbox: #9ca3af;
-  --color-environment-sandbox-bg: #374151;
+  --color-environment-sandbox-bg: #232830;
 
   --color-platform-proxmox: #fb923c;
-  --color-platform-proxmox-bg: #7c2d12;
+  --color-platform-proxmox-bg: #3d1405;
   --color-platform-vmware: #60a5fa;
-  --color-platform-vmware-bg: #1e3a5f;
+  --color-platform-vmware-bg: #10233b;
 
   --color-os_family-linux: #4ade80;
-  --color-os_family-linux-bg: #14532d;
+  --color-os_family-linux-bg: #082a15;
   --color-os_family-windows: #60a5fa;
-  --color-os_family-windows-bg: #1e3a5f;
+  --color-os_family-windows-bg: #10233b;
 
   --color-lifecycle-active: #34d399;
-  --color-lifecycle-active-bg: #064e3b;
+  --color-lifecycle-active-bg: #03291e;
   --color-lifecycle-planned: #60a5fa;
-  --color-lifecycle-planned-bg: #1e3a5f;
+  --color-lifecycle-planned-bg: #10233b;
   --color-lifecycle-retiring: #fbbf24;
-  --color-lifecycle-retiring-bg: #78350f;
+  --color-lifecycle-retiring-bg: #3a1a05;
   --color-lifecycle-retired: #94a3b8;
-  --color-lifecycle-retired-bg: #1e293b;
+  --color-lifecycle-retired-bg: #161e28;
 }
 
 * {
