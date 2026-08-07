@@ -37,3 +37,20 @@ def test_report_carries_identity_and_capacity(client: TestClient, db_session: Se
     assert row["memory_mb"] == "8192"
     assert row["external_id"] == "vm-900"
     assert row["sr_id"] == "SR-77"
+
+
+def test_reports_summary_returns_exact_counts(client: TestClient, db_session: Session) -> None:
+    user = create_user(db_session, email="summary_viewer@example.com", role="viewer")
+    create_vm_row(db_session, user, name="vm-lin-1", os_family="linux", environment="production")
+    create_vm_row(db_session, user, name="vm-lin-2", os_family="linux", environment="development")
+    create_vm_row(db_session, user, name="vm-win-1", os_family="windows", environment="production")
+    login(client, user.email)
+
+    res = client.get("/api/reports/summary")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total_vms"] == 3
+    assert data["counts"]["linux"] == 2
+    assert data["counts"]["windows"] == 1
+    assert data["counts"]["production"] == 2
+    assert data["counts"]["monitoring"] == 3

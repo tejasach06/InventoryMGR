@@ -255,6 +255,11 @@ class DashboardAlertVm(BaseModel):
     days: int
 
 
+class ReportSummary(BaseModel):
+    total_vms: int
+    counts: dict[str, int]
+
+
 class DashboardStats(BaseModel):
     total: int
     linux: int
@@ -265,6 +270,13 @@ class DashboardStats(BaseModel):
     powered_off: int
     without_monitoring: int
     without_applications: int
+    total_vcpu: int = 0
+    total_memory_gb: float = 0.0
+    total_disk_gb: float = 0.0
+    by_status: dict[str, int] = Field(default_factory=dict)
+    by_environment: dict[str, int] = Field(default_factory=dict)
+    by_criticality: dict[str, int] = Field(default_factory=dict)
+    by_os_family: dict[str, int] = Field(default_factory=dict)
     shutdown_stale: list[DashboardAlertVm]
     decommission_overdue: list[DashboardAlertVm]
     missing_ip: list[DashboardAlertVm]

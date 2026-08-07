@@ -1,9 +1,11 @@
+'use client';
+
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/classNames';
 
-export const primaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-on-accent)] transition-all duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60';
-export const secondaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-all duration-150 hover:bg-[var(--color-surface-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60';
-export const dangerButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-criticality-critical)] px-4 py-2 text-sm font-medium text-[var(--color-on-danger)] transition-all duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-criticality-critical)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60';
+export const primaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-on-accent)] transition-all duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]';
+export const secondaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-all duration-150 hover:bg-[var(--color-surface-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]';
+export const dangerButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-criticality-critical)] px-4 py-2 text-sm font-medium text-[var(--color-on-danger)] transition-all duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-criticality-critical)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]';
 
 /* Form controls */
 export const inputClass = 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] shadow-[var(--shadow-raised)] transition-[border-color,box-shadow] duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-4 focus:ring-[var(--color-accent)]/12 disabled:cursor-not-allowed disabled:bg-[var(--color-surface-tertiary)]';
@@ -15,11 +17,11 @@ export const textareaClass = cn(inputClass, 'min-h-28 resize-y');
 export const authInputClass = 'w-full border-0 border-b border-[var(--color-border)] bg-transparent px-1 py-3 text-sm text-[var(--color-text-primary)] transition-colors duration-200 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent';
 
 /* Layout components */
-export const cardClass = 'rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-5 shadow-[var(--shadow-raised)] backdrop-blur';
+export const cardClass = 'rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-5 shadow-[var(--shadow-raised)]';
 export const tableWrapClass = 'overflow-x-auto rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] shadow-[var(--shadow-raised)]';
 
 /* FilterBar — neutral control deck surface */
-export const filterBarClass = 'mb-4 rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-4 shadow-[var(--shadow-raised)] backdrop-blur';
+export const filterBarClass = 'mb-4 rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-4 shadow-[var(--shadow-raised)]';
 
 /* Bento stat tile */
 export const statTileClass = 'bento-tile rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] p-4';
@@ -445,10 +447,18 @@ export function SectionNav({ titles }: { titles: string[] }) {
 }
 
 /* ProgressBar — progress indicator with semantic color */
-export function ProgressBar({ value, colorVar = 'var(--color-accent)' }: { value: number; colorVar?: string }) {
+export function ProgressBar({ value, label, colorVar = 'var(--color-accent)' }: { value: number; label: string; colorVar?: string }) {
   const pct = Math.max(0, Math.min(100, value));
   return (
-    <div className="h-2 w-full rounded-full" style={{ backgroundColor: 'var(--color-surface-tertiary)' }}>
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={pct}
+      className="h-2 w-full rounded-full"
+      style={{ backgroundColor: 'var(--color-surface-tertiary)' }}
+    >
       <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: colorVar }} />
     </div>
   );

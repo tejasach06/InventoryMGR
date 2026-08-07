@@ -4,11 +4,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DbSession, ViewerUser
 from app.db.models import Vm
+from app.schemas.vms import ReportSummary
 
 router = APIRouter()
 
@@ -92,6 +93,17 @@ def _stream_csv(vms: list[Vm], report_name: str) -> StreamingResponse:
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{report_name}.csv"'},
     )
+
+
+@router.get("/summary", response_model=ReportSummary)
+def get_reports_summary(db: DbSession, _: ViewerUser) -> ReportSummary:
+    total_vms = db.scalar(select(func.count(Vm.id))) or 0
+    counts: dict[str, int] = {}
+    for name, report in REPORTS.items():
+        subq = report["filter"](select(Vm.id)).subquery()
+        cnt = db.scalar(select(func.count()).select_from(subq)) or 0
+        counts[name] = cnt
+    return ReportSummary(total_vms=total_vms, counts=counts)
 
 
 @router.get("/{report_name}")

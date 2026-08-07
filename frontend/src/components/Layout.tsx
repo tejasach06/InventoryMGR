@@ -62,13 +62,18 @@ export function AppLayout({ user, children }: LayoutProps) {
   });
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-secondary)] lg:flex">
-      <NotificationBell />
+    <div className="min-h-[100dvh] bg-[var(--color-surface-secondary)] lg:flex">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:border focus:border-[var(--color-border)] focus:bg-[var(--color-surface)] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-[var(--color-text-primary)] focus:shadow-[var(--shadow-overlay)]">
+        Skip to content
+      </a>
       <aside id="primary-nav" className={`sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-4 backdrop-blur lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 min-w-0 w-full lg:block">
-          <div className={`flex items-center gap-2.5 min-w-0 ${collapsed ? 'lg:justify-center lg:w-full' : ''}`}>
-            <Logo className="h-8 w-8 flex-shrink-0" />
-            {!collapsed && <span className="truncate font-display text-[1.05rem] font-semibold tracking-tight text-[var(--color-text-primary)] min-w-0">Inventory<span className="text-[var(--color-accent-text)]">MGR</span></span>}
+          <div className={`flex items-center gap-2.5 min-w-0 ${collapsed ? 'lg:flex-col lg:justify-center lg:w-full lg:gap-3' : 'justify-between'}`}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Logo className="h-8 w-8 flex-shrink-0" />
+              {!collapsed && <span className="truncate font-display text-[1.05rem] font-semibold tracking-tight text-[var(--color-text-primary)] min-w-0">Inventory<span className="text-[var(--color-accent-text)]">MGR</span></span>}
+            </div>
+            <NotificationBell />
           </div>
           <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full lg:hidden">
             <ThemeSelect />
@@ -138,7 +143,7 @@ export function AppLayout({ user, children }: LayoutProps) {
           <path d="M10 4L6 8l4 4" />
         </svg>
       </button>
-      <main className={`w-full min-w-0 px-4 py-6 sm:px-6 lg:min-h-screen lg:flex-1 lg:px-8 lg:py-8 2xl:px-12 min-[1920px]:px-16 ${collapsed ? 'lg:ml-16' : 'lg:ml-60'}`} tabIndex={-1}>
+      <main id="main-content" className={`w-full min-w-0 px-4 py-6 sm:px-6 lg:min-h-[100dvh] lg:flex-1 lg:px-8 lg:py-8 2xl:px-12 min-[1920px]:px-16 ${collapsed ? 'lg:ml-16' : 'lg:ml-60'}`} tabIndex={-1}>
         {children}
       </main>
     </div>

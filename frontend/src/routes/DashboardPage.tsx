@@ -3,11 +3,9 @@
 import Link from 'next/link';
 import { ReactNode, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api, detailMessage, DashboardAlertVm, Vm } from '../api/client';
+import { api, detailMessage, DashboardAlertVm } from '../api/client';
 import { Alert, Badge, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, primaryButtonClass, secondaryButtonClass, statTileClass } from '../components/ui';
 import { cn } from '../lib/classNames';
-
-const ALL_PARAMS = new URLSearchParams({ limit: '200', offset: '0' });
 
 function fmtInt(n: number): string {
   return n.toLocaleString('en-US');
@@ -65,8 +63,8 @@ function BarList({ rows, total }: { rows: { key: string; label: string; value: n
     <ul className="space-y-3">
       {rows.map((r) => {
         const pct = total > 0 ? Math.round((r.value / total) * 100) : 0;
-        const inner = (
-          <li className="group flex flex-col gap-1.5 text-sm">
+        const content = (
+          <div className="group flex flex-col gap-1.5 text-sm">
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-accent)] transition-colors">
                 {r.label}
@@ -75,15 +73,19 @@ function BarList({ rows, total }: { rows: { key: string; label: string; value: n
                 {fmtInt(r.value)} <span className="text-[var(--color-text-tertiary)]">({pct}%)</span>
               </span>
             </div>
-            <ProgressBar value={Math.max(4, pct)} colorVar={r.colorVar} />
-          </li>
+            <ProgressBar value={pct > 0 ? Math.max(4, pct) : 0} label={`${r.label}: ${fmtInt(r.value)} VMs, ${pct}%`} colorVar={r.colorVar} />
+          </div>
         );
-        return r.href ? (
-          <Link key={r.key} href={r.href}>
-            {inner}
-          </Link>
-        ) : (
-          <div key={r.key}>{inner}</div>
+        return (
+          <li key={r.key}>
+            {r.href ? (
+              <Link href={r.href}>
+                {content}
+              </Link>
+            ) : (
+              content
+            )}
+          </li>
         );
       })}
     </ul>
@@ -230,57 +232,32 @@ function Panel({ title, children, action, className = '' }: { title: string; chi
   );
 }
 
-function tally(items: Vm[], key: (vm: Vm) => string | null | undefined): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const vm of items) {
-    const k = key(vm);
-    if (!k) continue;
-    out[k] = (out[k] ?? 0) + 1;
-  }
-  return out;
-}
-
 export function DashboardPage() {
   const statsQ = useQuery({ queryKey: ['dashboard'], queryFn: api.getDashboard });
-  const vmsQ = useQuery({ queryKey: ['vms', 'dashboard'], queryFn: () => api.listVms(ALL_PARAMS) });
   const arraysQ = useQuery({ queryKey: ['arrays'], queryFn: () => api.listArrays() });
   const arraysOverThreshold = (arraysQ.data ?? []).filter((a) => a.over_threshold).length;
 
-  const derived = useMemo(() => {
-    const items = vmsQ.data?.items ?? [];
-    const totalVcpu = items.reduce((a, v) => a + (v.cpu_cores || 0), 0);
-    const totalMem = items.reduce((a, v) => a + (v.memory_mb || 0), 0) / 1024;
-    const totalDisk = items.reduce((a, v) => a + v.disks.reduce((s, disk) => s + (disk.size_gb || 0), 0), 0);
-    return {
-      items,
-      totalVcpu,
-      totalMem,
-      totalDisk,
-      byStatus: tally(items, (v) => v.status),
-      byEnv: tally(items, (v) => v.environment),
-      byCrit: tally(items, (v) => v.criticality),
-      byOs: tally(items, (v) => v.os_family),
-    };
-  }, [vmsQ.data]);
-
-  // Non-blocking error boundaries permit viewing partial components when one query fails
-
-  const loading = statsQ.isLoading || vmsQ.isLoading;
+  const loading = statsQ.isLoading;
   const d = statsQ.data;
-  const capped = (vmsQ.data?.total ?? 0) > derived.items.length;
+  const total = d?.total ?? 0;
+  const byStatus = d?.by_status ?? {};
+  const byEnv = d?.by_environment ?? {};
+  const byCrit = d?.by_criticality ?? {};
+  const totalVcpu = d?.total_vcpu ?? 0;
+  const totalMem = d?.total_memory_gb ?? 0;
+  const totalDisk = d?.total_disk_gb ?? 0;
 
-  const getColorVar = (status: string): string => {
-    const norm = status.toLowerCase().replace(/\s+/g, '_');
-    return `var(--color-status-${norm})`;
-  };
+  const runningCount = byStatus.running ?? 0;
+  const poweredOffCount = byStatus.powered_off ?? 0;
+  const otherCount = Math.max(0, total - runningCount - poweredOffCount);
 
   const powerSegments: Segment[] = [
-    { label: 'Running', value: derived.byStatus.running ?? 0, color: 'var(--color-status-running)' },
-    { label: 'Powered off', value: derived.byStatus.powered_off ?? 0, color: 'var(--color-status-powered_off)' },
-    { label: 'Other', value: Math.max(0, derived.items.length - (derived.byStatus.running ?? 0) - (derived.byStatus.powered_off ?? 0)), color: 'var(--color-status-unknown)' },
+    { label: 'Running', value: runningCount, color: 'var(--color-status-running)' },
+    { label: 'Powered off', value: poweredOffCount, color: 'var(--color-status-powered_off)' },
+    { label: 'Other', value: otherCount, color: 'var(--color-status-unknown)' },
   ];
 
-  const envBars = Object.entries(derived.byEnv)
+  const envBars = Object.entries(byEnv)
     .sort((a, b) => b[1] - a[1])
     .map(([key, value]) => {
       const norm = key.toLowerCase().replace(/\s+/g, '_');
@@ -288,17 +265,16 @@ export function DashboardPage() {
     });
 
   const critOrder = ['critical', 'high', 'medium', 'low'];
-  const critBars = critOrder.filter((k) => derived.byCrit[k]).map((key) => ({
+  const critBars = critOrder.filter((k) => (byCrit[k] ?? 0) > 0).map((key) => ({
     key,
     label: key,
-    value: derived.byCrit[key],
+    value: byCrit[key],
     colorVar: key === 'critical' ? 'var(--color-criticality-critical)' : key === 'high' ? 'var(--color-criticality-high)' : key === 'medium' ? 'var(--color-criticality-medium)' : 'var(--color-criticality-low)',
     href: `/inventory?criticality=${key}`,
   }));
 
-  const mem = fmtCapacity(derived.totalMem).split(' ');
-  const disk = fmtCapacity(derived.totalDisk).split(' ');
-
+  const mem = fmtCapacity(totalMem).split(' ');
+  const disk = fmtCapacity(totalDisk).split(' ');
   return (
     <PageTransition>
       <PageHeader title="Overview" eyebrow="Infrastructure" />
@@ -319,18 +295,16 @@ export function DashboardPage() {
       ) : (
         <div className="space-y-6">
           <div className={cn(
-            "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-[var(--color-border)]/70 p-4 shadow-[var(--shadow-raised)] backdrop-blur transition-all",
+            "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-[var(--color-border)]/70 p-4 shadow-[var(--shadow-raised)] transition-all",
             arraysOverThreshold > 0
               ? "border-[var(--color-criticality-critical)]/40 bg-[var(--color-criticality-critical-bg)] text-[var(--color-text-primary)]"
               : "bg-[var(--color-surface)]"
           )}>
             <div className="flex items-center gap-3">
               <span className={cn(
-                "flex h-3 w-3 relative shrink-0 rounded-full",
+                "h-3 w-3 shrink-0 rounded-full",
                 arraysOverThreshold > 0 ? "bg-[var(--color-criticality-critical)]" : "bg-[var(--color-status-running)]"
-              )}>
-                <span className={cn("h-3 w-3 rounded-full", arraysOverThreshold > 0 ? "bg-[var(--color-criticality-critical)]" : "bg-[var(--color-status-running)]")} />
-              </span>
+              )} />
               <div>
                 <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
                   {arraysOverThreshold > 0
@@ -338,7 +312,7 @@ export function DashboardPage() {
                     : 'Fleet Operational — Infrastructure Normal'}
                 </h2>
                 <p className="text-xs text-[var(--color-text-tertiary)]">
-                  {fmtInt(derived.items.length)} VMs tracked across clusters and storage arrays
+                  {fmtInt(total)} VMs tracked across clusters and storage arrays
                 </p>
               </div>
             </div>
@@ -353,30 +327,24 @@ export function DashboardPage() {
               </Link>
             </div>
           </div>
-          {vmsQ.isError || statsQ.isError ? (
+          {statsQ.isError ? (
             <div className="mb-4 flex items-center justify-between rounded-xl border border-[var(--color-criticality-critical)]/30 bg-[var(--color-criticality-critical-bg)] p-4 text-sm text-[var(--color-criticality-critical)]">
-              <span>Failed to refresh some metrics: {detailMessage(vmsQ.error ?? statsQ.error)}</span>
+              <span>Failed to refresh metrics: {detailMessage(statsQ.error)}</span>
               <button
                 type="button"
                 className="rounded-lg bg-[var(--color-criticality-critical)] px-3 py-1 text-xs font-semibold text-[var(--color-on-danger)] hover:opacity-90 transition-colors"
-                onClick={() => { vmsQ.refetch(); statsQ.refetch(); }}
+                onClick={() => { statsQ.refetch(); }}
               >
                 Retry
               </button>
             </div>
           ) : null}
 
-          {capped && (
-            <p className="text-xs text-[var(--color-text-tertiary)]">
-              Running, vCPU, memory, and storage totals below reflect the first {fmtInt(derived.items.length)} of {fmtInt(vmsQ.data?.total ?? 0)} VMs. Total VMs is exact.
-            </p>
-          )}
-
           {/* Balanced 6-column Stat Tile Grid */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <StatTile label="Total VMs" value={fmtInt(d?.total ?? derived.items.length)} href="/inventory" hint={`${d?.linux ?? derived.byOs.linux ?? 0} Linux · ${d?.windows ?? derived.byOs.windows ?? 0} Windows`} />
-            <StatTile label="Running" value={fmtInt(derived.byStatus.running ?? 0)} href="/inventory?status=running" hint={`${derived.byStatus.powered_off ?? 0} powered off`} />
-            <StatTile label="Allocated vCPU" value={fmtInt(derived.totalVcpu)} unit="cores" />
+            <StatTile label="Total VMs" value={fmtInt(total)} href="/inventory" hint={`${d?.linux ?? 0} Linux · ${d?.windows ?? 0} Windows`} />
+            <StatTile label="Running" value={fmtInt(runningCount)} href="/inventory?status=running" hint={`${poweredOffCount} powered off`} />
+            <StatTile label="Allocated vCPU" value={fmtInt(totalVcpu)} unit="cores" />
             <StatTile label="Allocated Memory" value={mem[0]} unit={mem[1]} />
             <StatTile label="Provisioned Storage" value={disk[0]} unit={disk[1]} />
             <StatTile
@@ -384,7 +352,7 @@ export function DashboardPage() {
               value={fmtInt(arraysOverThreshold)}
               unit="arrays"
               href="/storage"
-              hint={arraysOverThreshold > 0 ? "Threshold exceeded!" : "over threshold"}
+              hint={arraysOverThreshold > 0 ? 'above threshold' : 'all within threshold'}
               alertTone={arraysOverThreshold > 0 ? 'critical' : 'normal'}
             />
           </div>
@@ -392,7 +360,7 @@ export function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-3">
             <Panel title="Power state">
               <div className="flex items-center gap-5">
-                <Donut segments={powerSegments} total={derived.items.length} />
+                <Donut segments={powerSegments} total={total} />
                 <ul className="min-w-0 flex-1 space-y-2">
                   {powerSegments.map((s) => (
                     <li key={s.label} className="flex items-center justify-between gap-2 text-sm">
@@ -408,11 +376,11 @@ export function DashboardPage() {
             </Panel>
 
             <Panel title="By environment">
-              {envBars.length ? <BarList rows={envBars} total={derived.items.length} /> : <p className="text-sm text-[var(--color-text-tertiary)]">No environment data.</p>}
+              {envBars.length ? <BarList rows={envBars} total={total} /> : <p className="text-sm text-[var(--color-text-tertiary)]">No environment data.</p>}
             </Panel>
 
             <Panel title="By criticality">
-              {critBars.length ? <BarList rows={critBars} total={derived.items.length} /> : <p className="text-sm text-[var(--color-text-tertiary)]">No criticality data.</p>}
+              {critBars.length ? <BarList rows={critBars} total={total} /> : <p className="text-sm text-[var(--color-text-tertiary)]">No criticality data.</p>}
             </Panel>
           </div>
 
@@ -430,7 +398,7 @@ export function DashboardPage() {
             ];
             const total = groups.reduce((n, g) => n + g.rows.length, 0);
             return (
-              <section className="overflow-hidden rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] shadow-[var(--shadow-raised)] backdrop-blur">
+              <section className="overflow-hidden rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] shadow-[var(--shadow-raised)]">
                 <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/70 bg-[var(--color-surface-tertiary)] px-5 py-4">
                   <div>
                     <p className={cn(monoClass, 'text-[0.625rem] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] tabular-nums')}>Infrastructure status</p>

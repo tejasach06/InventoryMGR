@@ -59,7 +59,7 @@ export function NotificationBell() {
   }, [open]);
 
   return (
-    <div ref={wrapperRef} className="fixed right-4 top-4 z-30">
+    <div ref={wrapperRef} className="relative">
       <button
         type="button"
         aria-label="Notifications"
@@ -77,7 +77,7 @@ export function NotificationBell() {
         ) : null}
       </button>
       {open ? (
-        <div className="absolute right-0 mt-2 w-72 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-overlay)]" role="menu">
+        <div className="absolute left-0 top-full z-10 mt-2 w-72 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-overlay)]" role="menu">
           <p className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">Upcoming decommissions</p>
           {data.length === 0 ? (
             <p className="px-2 py-3 text-sm text-[var(--color-text-tertiary)]">No upcoming decommissions.</p>

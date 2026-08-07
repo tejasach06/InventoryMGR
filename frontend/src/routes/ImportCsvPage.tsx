@@ -126,62 +126,70 @@ export function ImportCsvPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--color-text-secondary)]" htmlFor="csv-file">CSV file</label>
             <div
-              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 transition-colors ${dragging ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5' : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/40'}`}
-              onClick={() => fileInputRef.current?.click()}
+              data-testid="dropzone"
+              className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 transition-colors ${dragging ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5' : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/40'}`}
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
               onDrop={handleDrop}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
-              aria-label="Upload CSV file"
             >
+              <label htmlFor="csv-file" className="flex cursor-pointer flex-col items-center justify-center w-full">
+                {file ? (
+                  <svg className="mb-3 h-8 w-8 text-[var(--color-text-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z" />
+                    <path d="M14 3v5h5" />
+                  </svg>
+                ) : (
+                  <svg className="mb-3 h-8 w-8 text-[var(--color-text-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 16V4m0 0l-4 4m4-4 4 4" /><path d="M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" />
+                  </svg>
+                )}
+                {file ? (
+                  <span className="text-sm font-medium text-[var(--color-text-secondary)]">
+                    {file.name}
+                  </span>
+                ) : (
+                  <span className="text-sm font-medium text-[var(--color-text-secondary)]">Drag and drop or click to upload</span>
+                )}
+              </label>
               {file ? (
-                <svg className="mb-3 h-8 w-8 text-[var(--color-text-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z" />
-                  <path d="M14 3v5h5" />
-                </svg>
-              ) : (
-                <svg className="mb-3 h-8 w-8 text-[var(--color-text-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 16V4m0 0l-4 4m4-4 4 4" /><path d="M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" />
-                </svg>
-              )}
-              {file ? (
-                <span className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
-                  {file.name}
-                  <button
-                    type="button"
-                    onClick={clearFile}
-                    className="rounded p-0.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
-                    aria-label="Clear selected file"
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </button>
-                </span>
-              ) : (
-                <span className="text-sm font-medium text-[var(--color-text-secondary)]">Drag and drop or click to upload</span>
-              )}
+                <button
+                  type="button"
+                  onClick={clearFile}
+                  className="mt-2 flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
+                  aria-label="Clear selected file"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                  Clear selected file
+                </button>
+              ) : null}
               <input ref={fileInputRef} className="sr-only" id="csv-file" name="file" type="file" accept=".csv,text/csv" onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)} aria-describedby="csv-help" />
             </div>
             <p id="csv-help" className={helpTextClass}>
               Required headers: name, platform, cluster. Maximum 5 MiB and 5000 rows.
-              The downloadable template carries every importable column, ordered by
-              group — identity, placement, classification, capacity, OS, network,
-              ownership, operations, compliance dates, notes — and two SAMPLE- rows you
-              should delete once you have copied the formats. Blank cells are left
-              unchanged on existing VMs and take default values on new ones — importing
-              never clears a field. Include external_id (VM-ID) and sr_id (SR-ID) columns
-              to import those identifiers; when external_id is present it is what matches
-              a row to an existing VM instead of the name. List several disks as
-              name:size pairs (os:100;data:500) and several IPs in private_ip,
-              public_ip or backup_ip, separated by semicolons. Importing only ever adds
-              disks and IPs; removing one, or resizing a disk, is done in the VM form.
             </p>
+            <details className="mt-2 text-sm text-[var(--color-text-tertiary)]">
+              <summary className="cursor-pointer font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
+                CSV format reference
+              </summary>
+              <p className="mt-2 leading-relaxed">
+                The downloadable template carries every importable column, ordered by
+                group — identity, placement, classification, capacity, OS, network,
+                ownership, operations, compliance dates, notes — and two SAMPLE- rows you
+                should delete once you have copied the formats. Blank cells are left
+                unchanged on existing VMs and take default values on new ones — importing
+                never clears a field. Include external_id (VM-ID) and sr_id (SR-ID) columns
+                to import those identifiers; when external_id is present it is what matches
+                a row to an existing VM instead of the name. List several disks as
+                name:size pairs (os:100;data:500) and several IPs in private_ip,
+                public_ip or backup_ip, separated by semicolons. Importing only ever adds
+                disks and IPs; removing one, or resizing a disk, is done in the VM form.
+              </p>
+            </details>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <button className={primaryButtonClass} type="submit" disabled={preview.isPending || !file}>
+            <button className={batch ? secondaryButtonClass : primaryButtonClass} type="submit" disabled={preview.isPending || !file}>
               {preview.isPending ? <><Spinner /> Uploading…</> : 'Preview CSV'}
             </button>
             <button className={secondaryButtonClass} type="button" onClick={downloadTemplate}>
@@ -219,7 +227,7 @@ export function ImportCsvPage() {
               ))}
             </div>
             {Object.keys(batch.field_changes ?? {}).length > 0 ? (
-              <div className={cardClass}>
+              <div className="rounded-lg border border-[var(--color-border)] p-4">
                 <p className="text-sm font-medium text-[var(--color-text-secondary)]">
                   This import will change:
                 </p>

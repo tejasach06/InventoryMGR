@@ -92,8 +92,7 @@ describe('ImportCsvPage', () => {
 
   it('accepts a CSV dropped onto the upload zone', () => {
     renderWithProviders(<ImportCsvPage />);
-    const dropzone = screen.getByRole('button', { name: 'Upload CSV file' });
-
+    const dropzone = screen.getByTestId('dropzone');
     fireEvent.drop(dropzone, { dataTransfer: { files: [csvFile('dropped.csv')] } });
 
     expect(screen.getByText('dropped.csv')).toBeInTheDocument();

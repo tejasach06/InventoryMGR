@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from sqlalchemy import case, func, select
 
 from app.api.deps import DbSession, ViewerUser
-from app.db.models import OsFamily, Vm, VmApplication, VmStatus
+from app.db.models import OsFamily, Vm, VmApplication, VmDisk, VmStatus
 from app.schemas.vms import DashboardAlertVm, DashboardStats
 from app.services.vms import (
     SHUTDOWN_STALE_DAYS,
@@ -35,8 +35,24 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
             func.count(case((Vm.status == "powered_off", 1))).label("powered_off"),
             func.count(case((Vm.monitoring_enabled == False, 1))).label("without_monitoring"),  # noqa: E712
             func.count(case((Vm.id.not_in(vm_with_apps), 1))).label("without_applications"),
+            func.coalesce(func.sum(Vm.cpu_cores), 0).label("total_vcpu"),
+            func.coalesce(func.sum(Vm.memory_mb), 0).label("total_memory_mb"),
         )
     ).one()
+
+    total_disk_gb = db.scalar(select(func.coalesce(func.sum(VmDisk.size_gb), 0))) or 0
+
+    status_rows = db.execute(select(Vm.status, func.count(Vm.id)).group_by(Vm.status)).all()
+    by_status = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in status_rows if k is not None}
+
+    env_rows = db.execute(select(Vm.environment, func.count(Vm.id)).group_by(Vm.environment)).all()
+    by_environment = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in env_rows if k is not None}
+
+    crit_rows = db.execute(select(Vm.criticality, func.count(Vm.id)).group_by(Vm.criticality)).all()
+    by_criticality = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in crit_rows if k is not None}
+
+    os_rows = db.execute(select(Vm.os_family, func.count(Vm.id)).group_by(Vm.os_family)).all()
+    by_os_family = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in os_rows if k is not None}
 
     now = datetime.now(UTC)
     today = now.date()
@@ -112,7 +128,14 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
         powered_off=row.powered_off,
         without_monitoring=row.without_monitoring,
         without_applications=row.without_applications,
+        total_vcpu=int(row.total_vcpu),
+        total_memory_gb=float(row.total_memory_mb) / 1024.0,
+        total_disk_gb=float(total_disk_gb),
+        by_status=by_status,
+        by_environment=by_environment,
+        by_criticality=by_criticality,
+        by_os_family=by_os_family,
         shutdown_stale=shutdown_stale,
         decommission_overdue=decommission_overdue,
         missing_ip=missing_ip,
-    )
+        )

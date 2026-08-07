@@ -153,6 +153,11 @@ export interface DashboardAlertVm {
   days: number;
 }
 
+export interface ReportSummary {
+  total_vms: number;
+  counts: Record<string, number>;
+}
+
 export interface DashboardStats {
   total: number;
   linux: number;
@@ -163,6 +168,13 @@ export interface DashboardStats {
   powered_off: number;
   without_monitoring: number;
   without_applications: number;
+  total_vcpu?: number;
+  total_memory_gb?: number;
+  total_disk_gb?: number;
+  by_status?: Record<string, number>;
+  by_environment?: Record<string, number>;
+  by_criticality?: Record<string, number>;
+  by_os_family?: Record<string, number>;
   shutdown_stale: DashboardAlertVm[];
   decommission_overdue: DashboardAlertVm[];
   missing_ip: DashboardAlertVm[];
@@ -517,6 +529,7 @@ export const api = {
 
   getDashboard: () => apiRequest<DashboardStats>('/dashboard'),
   reportUrl: (name: string) => `${API_PREFIX}/reports/${name}?format=csv`,
+  getReportSummary: () => apiRequest<ReportSummary>('/reports/summary'),
 
   previewImport: (file: File) => {
     const body = new FormData();

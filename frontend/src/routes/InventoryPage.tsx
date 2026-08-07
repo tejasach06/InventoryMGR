@@ -271,9 +271,9 @@ function VmTable({
   return (
     <div className={tableWrapClass}>
       <table className={tableClass} style={{ '--row-height': 'var(--row-height-comfortable)' } as React.CSSProperties}>
-        <thead>
-          <tr className={tableHeadClass}>
-            <th className="px-4 py-3 w-10">
+        <thead className={tableHeadClass}>
+          <tr>
+            <th scope="col" className="px-4 py-3 w-10">
               <input
                 ref={selectAllRef}
                 type="checkbox"
@@ -288,7 +288,7 @@ function VmTable({
               const active = sortKey === col.key;
               const ariaSort = sortable ? (active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined;
               return (
-                <th key={col.key} className="px-4 py-3" aria-sort={ariaSort}>
+                <th key={col.key} scope="col" className="px-4 py-3" aria-sort={ariaSort}>
                   {sortable ? (
                     <button
                       type="button"
@@ -736,7 +736,7 @@ export function InventoryPage() {
             </div>
           </>
         ) : null}
-        {vms.data ? (
+        {vms.data && vms.data.items.length > 0 ? (
           <PaginationFooter
             total={total}
             page={view.page}

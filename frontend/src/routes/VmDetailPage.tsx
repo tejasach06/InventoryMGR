@@ -8,6 +8,7 @@ import { api, detailMessage, NetworkRole, Vm } from '../api/client';
 import {
   Alert, Badge, ConfirmDialog, EmptyState, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, dangerButtonClass, inputClass, labelClass, monoClass, secondaryButtonClass, selectClass,
+  tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass,
 } from '../components/ui';
 import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
@@ -164,19 +165,25 @@ function DisksPanel({ vm }: { vm: Vm }) {
         onCancel={() => setDeleteDiskId(null)}
       />
       {vm.disks.length === 0 ? <EmptyState title="No disks configured" body="Add a disk below to start tracking storage for this VM." /> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm"><thead>
-            <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
-              <th className="pb-1 pr-4">Name</th><th className="pb-1 pr-4">Storage</th><th className="pb-1 pr-4">Size (GB)</th><th className="pb-1 pr-4">Type</th><th />
-            </tr></thead>
-            <tbody className="divide-y divide-[var(--color-border)]">
+        <div className={tableWrapClass}>
+          <table className={tableClass}>
+            <thead className={tableHeadClass}>
+              <tr>
+                <th scope="col" className="px-4 py-3">Name</th>
+                <th scope="col" className="px-4 py-3">Storage</th>
+                <th scope="col" className="px-4 py-3">Size (GB)</th>
+                <th scope="col" className="px-4 py-3">Type</th>
+                <th scope="col" className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className={tableBodyClass}>
               {vm.disks.map((d) => (
-                <tr key={d.id}>
-                  <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">{d.disk_name}</td>
-                  <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_name ?? '—'}</td>
-                  <td className="py-1.5 pr-4 tabular-nums text-[var(--color-text-primary)]">{d.size_gb}</td>
-                  <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_type ?? '—'}</td>
-                  <td className="py-1.5">
+                <tr key={d.id} className={tableRowClass}>
+                  <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-primary)]')}>{d.disk_name}</td>
+                  <td className={cn(tableCellClass, 'text-[var(--color-text-secondary)]')}>{d.storage_name ?? '—'}</td>
+                  <td className={cn(tableCellClass, 'tabular-nums text-[var(--color-text-primary)]')}>{d.size_gb}</td>
+                  <td className={cn(tableCellClass, 'text-[var(--color-text-secondary)]')}>{d.storage_type ?? '—'}</td>
+                  <td className={tableCellClass}>
                     <button
                       type="button"
                       onClick={() => setDeleteDiskId(d.id)}
@@ -239,24 +246,30 @@ function NetworksPanel({ vm }: { vm: Vm }) {
         onCancel={() => setDeleteNetworkId(null)}
       />
       {vm.networks.length === 0 ? <EmptyState title="No network entries configured" body="Add an IP address below to start tracking network configuration." /> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm"><thead>
-            <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
-              <th className="pb-1 pr-4">IP Address</th><th className="pb-1 pr-4">Role</th><th className="pb-1 pr-4">VLAN</th><th className="pb-1 pr-4">Gateway</th><th />
-            </tr></thead>
-            <tbody className="divide-y divide-[var(--color-border)]">
+        <div className={tableWrapClass}>
+          <table className={tableClass}>
+            <thead className={tableHeadClass}>
+              <tr>
+                <th scope="col" className="px-4 py-3">IP Address</th>
+                <th scope="col" className="px-4 py-3">Role</th>
+                <th scope="col" className="px-4 py-3">VLAN</th>
+                <th scope="col" className="px-4 py-3">Gateway</th>
+                <th scope="col" className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className={tableBodyClass}>
               {vm.networks.map((n) => (
-                <tr key={n.id}>
-                  <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">
+                <tr key={n.id} className={tableRowClass}>
+                  <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-primary)]')}>
                     <div className="flex items-center gap-1.5">
                       <span>{n.ip_address}</span>
                       <CopyButton text={n.ip_address} />
                     </div>
                   </td>
-                  <td className="py-1.5 pr-4 capitalize text-[var(--color-text-secondary)]">{n.role}</td>
-                  <td className="py-1.5 pr-4 font-mono tabular-nums text-[var(--color-text-secondary)]">{n.vlan ?? '—'}</td>
-                  <td className="py-1.5 pr-4 font-mono text-[var(--color-text-secondary)]">{n.gateway ?? '—'}</td>
-                  <td className="py-1.5">
+                  <td className={cn(tableCellClass, 'capitalize text-[var(--color-text-secondary)]')}>{n.role}</td>
+                  <td className={cn(tableCellClass, 'font-mono tabular-nums text-[var(--color-text-secondary)]')}>{n.vlan ?? '—'}</td>
+                  <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-secondary)]')}>{n.gateway ?? '—'}</td>
+                  <td className={tableCellClass}>
                     <button
                       type="button"
                       onClick={() => setDeleteNetworkId(n.id)}
@@ -353,19 +366,25 @@ function AuditPanel({ vmId }: { vmId: string }) {
   if (auditQ.isLoading) return <Skeleton className="h-24" />;
   if (!auditQ.data?.length) return <EmptyState title="No changes recorded yet" body="Audit entries appear here as this VM's fields are edited." />;
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm"><thead>
-        <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
-          <th className="pb-1 pr-4">Date</th><th className="pb-1 pr-4">User</th><th className="pb-1 pr-4">Field</th><th className="pb-1 pr-4">Old</th><th className="pb-1">New</th>
-        </tr></thead>
-        <tbody className="divide-y divide-[var(--color-border)]">
+    <div className={tableWrapClass}>
+      <table className={tableClass}>
+        <thead className={tableHeadClass}>
+          <tr>
+            <th scope="col" className="px-4 py-3">Date</th>
+            <th scope="col" className="px-4 py-3">User</th>
+            <th scope="col" className="px-4 py-3">Field</th>
+            <th scope="col" className="px-4 py-3">Old</th>
+            <th scope="col" className="px-4 py-3">New</th>
+          </tr>
+        </thead>
+        <tbody className={tableBodyClass}>
           {auditQ.data.map((e) => (
-            <tr key={e.id}>
-              <td className="py-1.5 pr-4 whitespace-nowrap tabular-nums text-[var(--color-text-tertiary)]">{new Date(e.changed_at).toLocaleString()}</td>
-              <td className="py-1.5 pr-4 text-[var(--color-text-primary)]">{e.user?.email ?? '—'}</td>
-              <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">{e.field_name}</td>
-              <td className="max-w-xs truncate py-1.5 pr-4 text-[var(--color-text-secondary)]">{e.old_value ?? '—'}</td>
-              <td className="max-w-xs truncate py-1.5 text-[var(--color-text-primary)]">{e.new_value ?? '—'}</td>
+            <tr key={e.id} className={tableRowClass}>
+              <td className={cn(tableCellClass, 'whitespace-nowrap tabular-nums text-[var(--color-text-tertiary)]')}>{new Date(e.changed_at).toLocaleString()}</td>
+              <td className={cn(tableCellClass, 'text-[var(--color-text-primary)]')}>{e.user?.email ?? '—'}</td>
+              <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-primary)]')}>{e.field_name}</td>
+              <td className={cn(tableCellClass, 'max-w-xs truncate text-[var(--color-text-secondary)]')}>{e.old_value ?? '—'}</td>
+              <td className={cn(tableCellClass, 'max-w-xs truncate text-[var(--color-text-primary)]')}>{e.new_value ?? '—'}</td>
             </tr>
           ))}
         </tbody>

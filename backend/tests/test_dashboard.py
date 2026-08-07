@@ -136,3 +136,12 @@ def test_dashboard_alerts(client, db_session):
     assert str(vm_no_ip.id) in missing_ids
     assert str(vm_no_ip_backup.id) not in missing_ids
     assert str(vm_stale.id) not in missing_ids
+
+    # Verify aggregates
+    assert "total_vcpu" in data
+    assert "total_memory_gb" in data
+    assert "total_disk_gb" in data
+    assert "by_status" in data
+    assert "by_environment" in data
+    assert "by_criticality" in data
+    assert "by_os_family" in data

@@ -45,7 +45,7 @@ typography:
     fontWeight: 600
     letterSpacing: "0.12em"
   mono:
-    fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace"
+    fontFamily: "Geist Mono, ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace"
     fontSize: "0.8125rem"
     letterSpacing: "-0.01em"
 rounded:
@@ -62,7 +62,7 @@ spacing:
 components:
   button-primary:
     backgroundColor: "{colors.accent}"
-    textColor: "#ffffff"
+    textColor: "{colors.on-accent}"
     rounded: "{rounded.md}"
     padding: "8px 16px"
   button-primary-hover:
@@ -114,7 +114,7 @@ Restrained neutrals carry the interface; one orange accent marks interactivity; 
 - **Border Subtle** (`#eef0f7` / dark `#1c2b3c`): subtle inner borders.
 - **Text Primary** (`#0f1222` / dark `#d4e4fa`): headings, primary content.
 - **Text Secondary** (`#4a4f63` / dark `#909bb1`): labels, body copy.
-- **Text Tertiary** (`#9aa0b4` / dark `#6b7a8f`): placeholders, help text, table header labels.
+- **Text Tertiary** (`#6b7186` / dark `#6b7a8f`): placeholders, help text, table header labels.
 
 Dark mode is a dedicated navy scale (`#051424` page, `#0d1c2d` cards, `#d4e4fa` primary text) defined in `html.dark` in `globals.css` with a full semantic-color pass for every data category.
 
@@ -123,7 +123,7 @@ Dark mode is a dedicated navy scale (`#051424` page, `#0d1c2d` cards, `#d4e4fa` 
 ## 3. Typography
 
 **Display & Body Font:** Geist (with ui-sans-serif, system-ui fallback)
-**Label/Mono Font:** ui-monospace / SF Mono, for IPs, hostnames, UUIDs, sizes, counts
+**Label/Mono Font:** Geist Mono / ui-monospace / SF Mono, for IPs, hostnames, UUIDs, sizes, counts
 
 **Character:** Geist provides a clean modern technical grotesque for both display headings and body copy across all density levels.
 ### Hierarchy
