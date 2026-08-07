@@ -16,6 +16,7 @@ from app.db.models import (
     ImportStatus,
     NetworkRole,
     Platform,
+    StorageArray,
     User,
     Vm,
     VmApplication,
@@ -44,7 +45,8 @@ IP_ROLE_HEADERS = {
     "public_ip": NetworkRole.public,
     "backup_ip": NetworkRole.backup,
 }
-CHILD_HEADERS = {"disks", "applications"} | set(IP_ROLE_HEADERS)
+DISK_DEFAULT_HEADERS = {"storage_name", "storage_type"}
+CHILD_HEADERS = {"disks", "applications"} | set(IP_ROLE_HEADERS) | DISK_DEFAULT_HEADERS
 
 OPTIONAL_HEADERS = (set(VmBase.model_fields) - EXCLUDED_FROM_CSV - REQUIRED_HEADERS) | CHILD_HEADERS
 ALL_HEADERS = REQUIRED_HEADERS | OPTIONAL_HEADERS
@@ -60,7 +62,7 @@ TEMPLATE_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("identity", ("name", "external_id", "fqdn", "sr_id")),
     ("placement", ("platform", "datacenter", "cluster", "node")),
     ("classification", ("status", "environment", "criticality", "lifecycle", "vm_type")),
-    ("capacity", ("cpu_cores", "memory_mb", "disks")),
+    ("capacity", ("cpu_cores", "memory_mb", "disks", "storage_name", "storage_type")),
     ("operating system", ("os_family", "os_name", "os_distribution", "os_version")),
     ("network", ("private_ip", "public_ip", "backup_ip")),
     ("ownership", ("owner", "business_owner", "technical_owner", "applications")),
@@ -106,6 +108,8 @@ TEMPLATE_SAMPLE_ROWS: tuple[dict[str, str], ...] = (
         "cpu_cores": "4",
         "memory_mb": "8192",
         "disks": "os:100;data:500",
+        "storage_name": "SAMPLE-SAN-01",
+        "storage_type": "ssd",
         "os_family": "linux",
         "os_name": "Ubuntu Server",
         "os_distribution": "ubuntu",
@@ -147,6 +151,8 @@ TEMPLATE_SAMPLE_ROWS: tuple[dict[str, str], ...] = (
         "cpu_cores": "2",
         "memory_mb": "4096",
         "disks": "os:60",
+        "storage_name": "",
+        "storage_type": "",
         "os_family": "windows",
         "os_name": "Windows Server",
         "os_distribution": "",
@@ -275,7 +281,7 @@ def _parse_int_list(row: dict[str, str], field: str, errors: list[dict[str, str]
 def _parse_disks(
     row: dict[str, str], field: str = "disks", errors: list[dict[str, str]] | None = None
 ) -> list[tuple[str, int, str | None, str | None]]:
-    """Parse `name:size[:storage_name[:storage_type]];…` into disk tuples.
+    """Parse disks with optional row-level storage fallbacks into disk tuples.
 
     Returns [] for a blank cell, so a blank supplies nothing and the skip
     semantics hold. `errors` is optional because the classification and attach
@@ -284,6 +290,8 @@ def _parse_disks(
     raw = str(row.get(field) or "").strip()
     if not raw:
         return []
+    default_storage_name = str(row.get("storage_name") or "").strip() or None
+    default_storage_type = str(row.get("storage_type") or "").strip() or None
     disks: list[tuple[str, int, str | None, str | None]] = []
     seen: set[str] = set()
     for part in raw.split(";"):
@@ -298,8 +306,8 @@ def _parse_disks(
                 )
             return []
         name, size = fields[0], int(fields[1])
-        storage_name = fields[2] or None if len(fields) > 2 else None
-        storage_type = fields[3] or None if len(fields) > 3 else None
+        storage_name = (fields[2] or None if len(fields) > 2 else None) or default_storage_name
+        storage_type = (fields[3] or None if len(fields) > 3 else None) or default_storage_type
         if name.lower() in seen:
             continue
         seen.add(name.lower())
@@ -479,24 +487,45 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
     return normalized, []
 
 
-def identity_key(normalized: dict[str, Any]) -> tuple[str, str, str]:
+class ProxmoxIdentityMismatch(Exception):
+    """Proxmox vmid matches an existing VM recorded under a different name."""
+
+    def __init__(self, existing_name: str) -> None:
+        super().__init__(existing_name)
+        self.existing_name = existing_name
+
+
+def identity_key(normalized: dict[str, Any]) -> tuple[str, ...]:
     platform = normalized["platform"]
     external_id = normalized.get("external_id")
+    name = normalized["name"].lower()
+    if external_id and platform == "proxmox":
+        return ("external_id+name", platform, external_id, name)
     if external_id:
         return ("external_id", platform, external_id)
-    return ("name", platform, normalized["name"].lower())
+    return ("name", platform, name)
 
 
 def find_matching_vm(db: Session, normalized: dict[str, Any]) -> Vm | None:
     platform = Platform(normalized["platform"])
     external_id = normalized.get("external_id")
     if external_id:
-        return db.scalar(
-            select(Vm).where(
-                Vm.platform == platform,
-                Vm.external_id == external_id,
+        if platform == Platform.proxmox:
+            candidates = list(
+                db.scalars(
+                    select(Vm)
+                    .where(Vm.platform == platform, Vm.external_id == external_id)
+                    .order_by(Vm.created_at)
+                )
             )
-        )
+            if not candidates:
+                return None
+            wanted = normalized["name"].lower()
+            for candidate in candidates:
+                if candidate.name.lower() == wanted:
+                    return candidate
+            raise ProxmoxIdentityMismatch(candidates[0].name)
+        return db.scalar(select(Vm).where(Vm.platform == platform, Vm.external_id == external_id))
     return db.scalar(
         select(Vm).where(
             Vm.platform == platform,
@@ -536,6 +565,26 @@ def parse_csv_bytes(content: bytes) -> tuple[list[dict[str, Any]], list[str]]:
     return rows, ignored
 
 
+def _storage_warnings(db: Session, raw: dict[str, Any]) -> list[dict[str, str]]:
+    """Flag effective disk storage names that match no storage_arrays row."""
+    clean = _clean_row(raw)
+    names: list[str] = []
+    seen: set[str] = set()
+    for _disk, _size, storage_name, _storage_type in _parse_disks(clean):
+        if storage_name and storage_name.lower() not in seen:
+            seen.add(storage_name.lower())
+            names.append(storage_name)
+    if not names:
+        return []
+    known = {
+        name.lower()
+        for name in db.scalars(
+            select(StorageArray.name).where(func.lower(StorageArray.name).in_(seen))
+        )
+    }
+    return [_error("storage_name", f"no storage array named '{name}' exists") for name in names if name.lower() not in known]
+
+
 def create_preview_batch(
     db: Session, *, filename: str, content: bytes, user: User
 ) -> CsvImportBatch:
@@ -554,7 +603,7 @@ def create_preview_batch(
     db.add(batch)
     db.flush()
 
-    seen: set[tuple[str, str, str, str]] = set()
+    seen: set[tuple[str, ...]] = set()
     summary = {"create": 0, "update": 0, "unchanged": 0, "conflict": 0, "invalid": 0}
     field_changes: dict[str, int] = {}
     for idx, raw in enumerate(rows, start=2):
@@ -562,6 +611,7 @@ def create_preview_batch(
         action = ImportAction.invalid
         target_vm_id: uuid.UUID | None = None
         changes: dict[str, list[Any]] = {}
+        warnings = _storage_warnings(db, raw) if normalized is not None else []
         if normalized is not None:
             key = identity_key(normalized)
             if key in seen:
@@ -569,15 +619,24 @@ def create_preview_batch(
                 errors = [_error("identity", "duplicate CSV identity")]
             else:
                 seen.add(key)
-                match = find_matching_vm(db, normalized)
-                if match is None:
-                    action = ImportAction.create
+                try:
+                    match = find_matching_vm(db, normalized)
+                except ProxmoxIdentityMismatch as exc:
+                    errors = [
+                        _error(
+                            "external_id",
+                            f"vmid already belongs to Proxmox VM '{exc.existing_name}'; rename the CSV row or the existing VM",
+                        )
+                    ]
                 else:
-                    target_vm_id = match.id
-                    changes = diff_against_vm(normalized, match, raw)
-                    action = ImportAction.update if changes else ImportAction.unchanged
-                    for field in changes:
-                        field_changes[field] = field_changes.get(field, 0) + 1
+                    if match is None:
+                        action = ImportAction.create
+                    else:
+                        target_vm_id = match.id
+                        changes = diff_against_vm(normalized, match, raw)
+                        action = ImportAction.update if changes else ImportAction.unchanged
+                        for field in changes:
+                            field_changes[field] = field_changes.get(field, 0) + 1
         summary[action.value] += 1
         db.add(
             CsvImportRow(
@@ -588,6 +647,7 @@ def create_preview_batch(
                 action=action,
                 target_vm_id=target_vm_id,
                 errors=errors,
+                warnings=warnings,
                 changes=changes,
             )
         )

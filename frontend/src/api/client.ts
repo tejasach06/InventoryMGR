@@ -181,6 +181,7 @@ export interface ImportRow {
   action: ImportAction;
   target_vm_id: string | null;
   errors: ImportRowError[];
+  warnings: ImportRowError[];
   changes: Record<string, [unknown, unknown]>;
 }
 

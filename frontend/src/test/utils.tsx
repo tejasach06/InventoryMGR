@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { CurrentUserProvider } from '../components/AuthContext';
 import { AccentProvider } from '../components/AccentProvider';
 import { ThemeProvider } from '../components/ThemeProvider';
+import type { ImportBatch, ImportRow, User, Vm } from '../api/client';
 
 export function createTestQueryClient(): QueryClient {
   return new QueryClient({
@@ -115,6 +116,7 @@ export function makeImportRow(overrides: Partial<ImportRow> = {}): ImportRow {
     action: 'create',
     target_vm_id: null,
     errors: [],
+    warnings: [],
     changes: {},
     ...overrides,
   };

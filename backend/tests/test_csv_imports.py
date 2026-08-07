@@ -974,3 +974,124 @@ def test_repo_sample_csv_previews_and_commits(client, db_session: Session) -> No
     )
     assert commit.status_code == 200, commit.text
     assert commit.json() == {"created": 104, "updated": 0}
+
+def test_disk_storage_defaults_and_overrides_commit(client, db_session: Session) -> None:
+    user = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, user.email)
+    csv_content = "\n".join(
+        [
+            "name,platform,cluster,disks,storage_name,storage_type",
+            "Defaults,proxmox,pve-a,os:100,SAN-A,ssd",
+            "Overrides,proxmox,pve-a,data:500:SAN-B,SAN-A,ssd",
+            "Blank defaults,proxmox,pve-a,logs:50,,",
+        ]
+    )
+
+    preview = upload_csv(client, csrf, csv_content)
+    assert preview.status_code == 201, preview.text
+    assert all(row["action"] == ImportAction.create.value for row in preview.json()["rows"])
+    commit = client.post(f"/api/imports/{preview.json()['id']}/commit", headers=auth_headers(csrf))
+    assert commit.status_code == 200, commit.text
+
+    disks = {
+        disk.disk_name: disk
+        for disk in db_session.scalars(select(VmDisk).order_by(VmDisk.disk_name))
+    }
+    assert (disks["os"].storage_name, disks["os"].storage_type) == ("SAN-A", "ssd")
+    assert (disks["data"].storage_name, disks["data"].storage_type) == ("SAN-B", "ssd")
+    assert (disks["logs"].storage_name, disks["logs"].storage_type) == (None, None)
+
+
+def test_unknown_storage_warning_does_not_block_commit(client, db_session: Session) -> None:
+    user = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, user.email)
+    preview = upload_csv(
+        client,
+        csrf,
+        "name,platform,cluster,disks,storage_name\nWarned,proxmox,pve-a,os:100,MISSING-SAN\n",
+    )
+
+    assert preview.status_code == 201, preview.text
+    row = preview.json()["rows"][0]
+    assert row["errors"] == []
+    assert row["warnings"] == [
+        {"field": "storage_name", "message": "no storage array named 'MISSING-SAN' exists"}
+    ]
+    assert row["action"] == ImportAction.create.value
+    assert client.post(f"/api/imports/{preview.json()['id']}/commit", headers=auth_headers(csrf)).status_code == 200
+
+
+def test_known_storage_array_matches_case_insensitively(client, db_session: Session) -> None:
+    user = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, user.email)
+    array = client.post(
+        "/api/storage/arrays",
+        headers=auth_headers(csrf),
+        json={"name": "San-A", "vendor": "synology", "total_capacity_gb": 1, "used_capacity_gb": 0},
+    )
+    assert array.status_code == 201, array.text
+
+    preview = upload_csv(
+        client,
+        csrf,
+        "name,platform,cluster,disks,storage_name\nKnown,proxmox,pve-a,os:100,SAN-A\n",
+    )
+    assert preview.status_code == 201, preview.text
+    assert preview.json()["rows"][0]["warnings"] == []
+
+
+def test_proxmox_vmid_identity_includes_name_and_rejects_renames(client, db_session: Session) -> None:
+    user = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, user.email)
+    preview = upload_csv(
+        client,
+        csrf,
+        "\n".join(
+            [
+                "name,platform,cluster,external_id",
+                "stg-a,proxmox,pve-a,VM-9001",
+                "stg-c,proxmox,pve-a,VM-9001",
+                "stg-a,proxmox,pve-a,VM-9001",
+            ]
+        ),
+    )
+    assert preview.status_code == 201, preview.text
+    rows = preview.json()["rows"]
+    assert [row["action"] for row in rows] == ["create", "create", "conflict"]
+    assert rows[2]["errors"] == [{"field": "identity", "message": "duplicate CSV identity"}]
+    assert client.post(f"/api/imports/{preview.json()['id']}/commit", headers=auth_headers(csrf)).status_code == 409
+
+    accepted = upload_csv(
+        client,
+        csrf,
+        "name,platform,cluster,external_id\nstg-a,proxmox,pve-a,VM-9001\nstg-c,proxmox,pve-a,VM-9001\n",
+    )
+    assert client.post(f"/api/imports/{accepted.json()['id']}/commit", headers=auth_headers(csrf)).status_code == 200
+    renamed = upload_csv(
+        client,
+        csrf,
+        "name,platform,cluster,external_id\nrenamed-x,proxmox,pve-a,VM-9001\n",
+    )
+    row = renamed.json()["rows"][0]
+    assert row["action"] == "invalid"
+    assert row["errors"] == [
+        {
+            "field": "external_id",
+            "message": "vmid already belongs to Proxmox VM 'stg-a'; rename the CSV row or the existing VM",
+        }
+    ]
+
+
+def test_non_proxmox_external_id_still_matches_without_name(client, db_session: Session) -> None:
+    user = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    create_vm_row(
+        db_session, user, name="old-vmware", platform="vmware", external_id="VM-1001"
+    )
+    csrf = login(client, user.email)
+    preview = upload_csv(
+        client,
+        csrf,
+        "name,platform,cluster,external_id\nnew-vmware,vmware,vc-a,VM-1001\n",
+    )
+    assert preview.status_code == 201, preview.text
+    assert preview.json()["rows"][0]["action"] == "update"
