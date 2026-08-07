@@ -8,6 +8,7 @@ import { api, detailMessage, NetworkRole, Vm } from '../api/client';
 import {
   Alert, Badge, ConfirmDialog, EmptyState, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, dangerButtonClass, inputClass, labelClass, monoClass, secondaryButtonClass, selectClass,
+  tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass,
 } from '../components/ui';
 import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
@@ -90,46 +91,38 @@ function HealthScore({ score }: { score: number }) {
 
 function AddRowForm({ fields, onSubmit, pending }: {
   fields: Array<{ name: string; placeholder: string; type?: string; options?: readonly string[] }>;
-  onSubmit: (values: Record<string, string>) => Promise<unknown>;
+  onSubmit: (values: Record<string, string>) => void;
   pending: boolean;
 }) {
   const blank = () => Object.fromEntries(fields.map((f) => [f.name, f.options?.[0] ?? '']));
   const [values, setValues] = useState<Record<string, string>>(blank);
-  const [error, setError] = useState<string>();
-  const firstFieldRef: { current: HTMLInputElement | HTMLSelectElement | null } = { current: null };
-  async function submit() {
-    try {
-      setError(undefined);
-      await onSubmit(Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value.trim()])));
-      setValues(blank());
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Unable to add record.');
-      firstFieldRef.current?.focus();
-    }
+  function submit() {
+    onSubmit(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()])));
+    setValues(blank());
   }
   return (
     <div className="mt-3 border-t border-[var(--color-border)] pt-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {fields.map((f, index) => (
+        {fields.map((f) => (
           <label key={f.name} className="flex flex-col gap-1">
             <span className={labelClass}>{f.placeholder}</span>
             {f.options ? (
-              <select ref={index === 0 ? (element) => { firstFieldRef.current = element; } : undefined} value={values[f.name]}
-                onChange={(e) => setValues((current) => ({ ...current, [f.name]: e.target.value }))}
+              <select value={values[f.name]}
+                onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
                 className={selectClass}>
-                {f.options.map((option) => <option key={option} value={option}>{option[0].toUpperCase() + option.slice(1)}</option>)}
+                {f.options.map((o) => <option key={o} value={o}>{o[0].toUpperCase() + o.slice(1)}</option>)}
               </select>
             ) : (
-              <input ref={index === 0 ? (element) => { firstFieldRef.current = element; } : undefined} type={f.type ?? 'text'} value={values[f.name]}
-                onChange={(e) => setValues((current) => ({ ...current, [f.name]: e.target.value }))}
+              <input type={f.type ?? 'text'} value={values[f.name]}
+                onChange={(e) => setValues((c) => ({ ...c, [f.name]: e.target.value }))}
                 placeholder={f.placeholder}
                 className={cn(inputClass, (f.type === 'number' || f.type === 'date') && 'tabular-nums')} />
             )}
           </label>
         ))}
       </div>
-      {error ? <Alert>{error}</Alert> : null}
-      <button type="button" onClick={submit} disabled={pending} className={`${secondaryButtonClass} mt-3`}>
+      <button type="button" onClick={submit} disabled={pending}
+        className={`${secondaryButtonClass} mt-3`}>
         {pending ? <Spinner /> : null}+ Add
       </button>
     </div>
@@ -172,20 +165,35 @@ function DisksPanel({ vm }: { vm: Vm }) {
         onCancel={() => setDeleteDiskId(null)}
       />
       {vm.disks.length === 0 ? <EmptyState title="No disks configured" body="Add a disk below to start tracking storage for this VM." /> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm"><thead>
-            <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
-              <th className="pb-1 pr-4">Name</th><th className="pb-1 pr-4">Storage</th><th className="pb-1 pr-4">Size (GB)</th><th className="pb-1 pr-4">Type</th><th />
-            </tr></thead>
-            <tbody className="divide-y divide-[var(--color-border)]">
+        <div className={tableWrapClass}>
+          <table className={tableClass}>
+            <thead className={tableHeadClass}>
+              <tr>
+                <th scope="col" className="px-4 py-3">Name</th>
+                <th scope="col" className="px-4 py-3">Storage</th>
+                <th scope="col" className="px-4 py-3">Size (GB)</th>
+                <th scope="col" className="px-4 py-3">Type</th>
+                <th scope="col" className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className={tableBodyClass}>
               {vm.disks.map((d) => (
-                <tr key={d.id}>
-                  <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">{d.disk_name}</td>
-                  <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_name ?? '—'}</td>
-                  <td className="py-1.5 pr-4 tabular-nums text-[var(--color-text-primary)]">{d.size_gb}</td>
-                  <td className="py-1.5 pr-4 text-[var(--color-text-secondary)]">{d.storage_type ?? '—'}</td>
-                  <td className="py-1.5">
-                    <RemoveButton onClick={() => setDeleteDiskId(d.id)} label={`Remove disk ${d.disk_name}`} />
+                <tr key={d.id} className={tableRowClass}>
+                  <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-primary)]')}>{d.disk_name}</td>
+                  <td className={cn(tableCellClass, 'text-[var(--color-text-secondary)]')}>{d.storage_name ?? '—'}</td>
+                  <td className={cn(tableCellClass, 'tabular-nums text-[var(--color-text-primary)]')}>{d.size_gb}</td>
+                  <td className={cn(tableCellClass, 'text-[var(--color-text-secondary)]')}>{d.storage_type ?? '—'}</td>
+                  <td className={tableCellClass}>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteDiskId(d.id)}
+                      className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
+                      title={`Remove ${d.disk_name}`}
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -198,7 +206,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
         { name: 'storage_name', placeholder: 'Storage' },
         { name: 'size_gb', placeholder: 'Size GB', type: 'number' },
         { name: 'storage_type', placeholder: 'Type' },
-      ]} onSubmit={(v) => addMut.mutateAsync(v)} pending={addMut.isPending} />
+      ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
       {addMut.isError && <Alert>{detailMessage(addMut.error)}</Alert>}
     </div>
   );
@@ -238,25 +246,40 @@ function NetworksPanel({ vm }: { vm: Vm }) {
         onCancel={() => setDeleteNetworkId(null)}
       />
       {vm.networks.length === 0 ? <EmptyState title="No network entries configured" body="Add an IP address below to start tracking network configuration." /> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm"><thead>
-            <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
-              <th className="pb-1 pr-4">IP Address</th><th className="pb-1 pr-4">Role</th><th className="pb-1 pr-4">VLAN</th><th className="pb-1 pr-4">Gateway</th><th />
-            </tr></thead>
-            <tbody className="divide-y divide-[var(--color-border)]">
+        <div className={tableWrapClass}>
+          <table className={tableClass}>
+            <thead className={tableHeadClass}>
+              <tr>
+                <th scope="col" className="px-4 py-3">IP Address</th>
+                <th scope="col" className="px-4 py-3">Role</th>
+                <th scope="col" className="px-4 py-3">VLAN</th>
+                <th scope="col" className="px-4 py-3">Gateway</th>
+                <th scope="col" className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className={tableBodyClass}>
               {vm.networks.map((n) => (
-                <tr key={n.id}>
-                  <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">
+                <tr key={n.id} className={tableRowClass}>
+                  <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-primary)]')}>
                     <div className="flex items-center gap-1.5">
                       <span>{n.ip_address}</span>
                       <CopyButton text={n.ip_address} />
                     </div>
                   </td>
-                  <td className="py-1.5 pr-4 capitalize text-[var(--color-text-secondary)]">{n.role}</td>
-                  <td className="py-1.5 pr-4 font-mono tabular-nums text-[var(--color-text-secondary)]">{n.vlan ?? '—'}</td>
-                  <td className="py-1.5 pr-4 font-mono text-[var(--color-text-secondary)]">{n.gateway ?? '—'}</td>
-                  <td className="py-1.5">
-                    <RemoveButton onClick={() => setDeleteNetworkId(n.id)} label={`Remove network ${n.ip_address}`} />
+                  <td className={cn(tableCellClass, 'capitalize text-[var(--color-text-secondary)]')}>{n.role}</td>
+                  <td className={cn(tableCellClass, 'font-mono tabular-nums text-[var(--color-text-secondary)]')}>{n.vlan ?? '—'}</td>
+                  <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-secondary)]')}>{n.gateway ?? '—'}</td>
+                  <td className={tableCellClass}>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteNetworkId(n.id)}
+                      className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
+                      title={`Remove ${n.ip_address}`}
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -269,7 +292,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
         { name: 'role', placeholder: 'IP role', options: ['private', 'public', 'backup'] as const },
         { name: 'vlan', placeholder: 'VLAN', type: 'number' },
         { name: 'gateway', placeholder: 'Gateway' },
-      ]} onSubmit={(v) => addMut.mutateAsync(v)} pending={addMut.isPending} />
+      ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
       {addMut.isError && <Alert>{detailMessage(addMut.error)}</Alert>}
     </div>
   );
@@ -314,7 +337,16 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
                 <span className="font-medium text-[var(--color-text-primary)]">{a.app_name}</span>
                 {a.description && <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">{a.description}</p>}
               </div>
-              <RemoveButton onClick={() => setDeleteAppId(a.id)} label={`Remove application ${a.app_name}`} />
+              <button
+                type="button"
+                onClick={() => setDeleteAppId(a.id)}
+                className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
+                title={`Remove ${a.app_name}`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
             </li>
           ))}
         </ul>
@@ -322,7 +354,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
       <AddRowForm fields={[
         { name: 'app_name', placeholder: 'Application name' },
         { name: 'description', placeholder: 'Description' },
-      ]} onSubmit={(v) => addMut.mutateAsync(v)} pending={addMut.isPending} />
+      ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
       {addMut.isError && <Alert>{detailMessage(addMut.error)}</Alert>}
     </div>
   );
@@ -334,19 +366,25 @@ function AuditPanel({ vmId }: { vmId: string }) {
   if (auditQ.isLoading) return <Skeleton className="h-24" />;
   if (!auditQ.data?.length) return <EmptyState title="No changes recorded yet" body="Audit entries appear here as this VM's fields are edited." />;
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm"><thead>
-        <tr className="text-left text-xs text-[var(--color-text-tertiary)]">
-          <th className="pb-1 pr-4">Date</th><th className="pb-1 pr-4">User</th><th className="pb-1 pr-4">Field</th><th className="pb-1 pr-4">Old</th><th className="pb-1">New</th>
-        </tr></thead>
-        <tbody className="divide-y divide-[var(--color-border)]">
+    <div className={tableWrapClass}>
+      <table className={tableClass}>
+        <thead className={tableHeadClass}>
+          <tr>
+            <th scope="col" className="px-4 py-3">Date</th>
+            <th scope="col" className="px-4 py-3">User</th>
+            <th scope="col" className="px-4 py-3">Field</th>
+            <th scope="col" className="px-4 py-3">Old</th>
+            <th scope="col" className="px-4 py-3">New</th>
+          </tr>
+        </thead>
+        <tbody className={tableBodyClass}>
           {auditQ.data.map((e) => (
-            <tr key={e.id}>
-              <td className="py-1.5 pr-4 whitespace-nowrap tabular-nums text-[var(--color-text-tertiary)]">{new Date(e.changed_at).toLocaleString()}</td>
-              <td className="py-1.5 pr-4 text-[var(--color-text-primary)]">{e.user?.email ?? '—'}</td>
-              <td className="py-1.5 pr-4 font-mono text-[var(--color-text-primary)]">{e.field_name}</td>
-              <td className="max-w-xs truncate py-1.5 pr-4 text-[var(--color-text-secondary)]">{e.old_value ?? '—'}</td>
-              <td className="max-w-xs truncate py-1.5 text-[var(--color-text-primary)]">{e.new_value ?? '—'}</td>
+            <tr key={e.id} className={tableRowClass}>
+              <td className={cn(tableCellClass, 'whitespace-nowrap tabular-nums text-[var(--color-text-tertiary)]')}>{new Date(e.changed_at).toLocaleString()}</td>
+              <td className={cn(tableCellClass, 'text-[var(--color-text-primary)]')}>{e.user?.email ?? '—'}</td>
+              <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-primary)]')}>{e.field_name}</td>
+              <td className={cn(tableCellClass, 'max-w-xs truncate text-[var(--color-text-secondary)]')}>{e.old_value ?? '—'}</td>
+              <td className={cn(tableCellClass, 'max-w-xs truncate text-[var(--color-text-primary)]')}>{e.new_value ?? '—'}</td>
             </tr>
           ))}
         </tbody>

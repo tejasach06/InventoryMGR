@@ -4,7 +4,6 @@ import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { api, detailMessage } from '../api/client';
-
 import { Alert, FieldError, Logo, Spinner, authInputClass, labelClass, primaryButtonClass } from '../components/ui';
 
 const authCardClass = 'w-full max-w-[420px] animate-rise rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/85 p-8 shadow-overlay backdrop-blur-xl';
@@ -26,8 +25,7 @@ function validateSetup(email: string, password: string, confirmPassword: string)
 
 function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <main className="relative min-h-screen lg:grid lg:grid-cols-[1.05fr_1fr]">
-
+    <main className="relative min-h-[100dvh] lg:grid lg:grid-cols-[1.05fr_1fr]">
       <aside className="auth-gradient relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="pointer-events-none absolute inset-0 opacity-[0.18]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '28px 28px' }} aria-hidden="true" />
         <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
@@ -52,7 +50,7 @@ function AuthShell({ children }: { children: ReactNode }) {
         </div>
         <p className="relative text-xs text-white/60">Secure, role-based VM inventory management.</p>
       </aside>
-      <div className="flex min-h-screen items-center justify-center bg-[var(--color-surface-secondary)] px-4 py-12">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--color-surface-secondary)] px-4 py-12">
         {children}
       </div>
     </main>
@@ -143,17 +141,17 @@ export function LoginPage() {
           <div className="space-y-4">
             <div>
               <label className={labelClass} htmlFor="setup-email">Email</label>
-              <input className={authInputClass} id="setup-email" name="email" type="email" value={setupEmail} onChange={(event) => setSetupEmail(event.target.value)} aria-describedby={setupEmailError ? 'setup-email-error' : undefined} autoComplete="email" />
+              <input className={authInputClass} id="setup-email" name="email" type="email" value={setupEmail} onChange={(event) => setSetupEmail(event.target.value)} aria-describedby={setupEmailError ? 'setup-email-error' : undefined} aria-invalid={Boolean(setupEmailError) || undefined} autoComplete="email" />
               <FieldError id="setup-email-error" message={setupEmailError} />
             </div>
             <div>
               <label className={labelClass} htmlFor="setup-password">Password</label>
-              <input className={authInputClass} id="setup-password" name="password" type="password" value={setupPassword} onChange={(event) => setSetupPassword(event.target.value)} aria-describedby={setupPasswordError ? 'setup-password-error' : undefined} autoComplete="new-password" />
+              <input className={authInputClass} id="setup-password" name="password" type="password" value={setupPassword} onChange={(event) => setSetupPassword(event.target.value)} aria-describedby={setupPasswordError ? 'setup-password-error' : undefined} aria-invalid={Boolean(setupPasswordError) || undefined} autoComplete="new-password" />
               <FieldError id="setup-password-error" message={setupPasswordError} />
             </div>
             <div>
               <label className={labelClass} htmlFor="setup-confirm-password">Confirm password</label>
-              <input className={authInputClass} id="setup-confirm-password" name="confirm-password" type="password" value={setupConfirmPassword} onChange={(event) => setSetupConfirmPassword(event.target.value)} aria-describedby={setupConfirmPasswordError ? 'setup-confirm-password-error' : undefined} autoComplete="new-password" />
+              <input className={authInputClass} id="setup-confirm-password" name="confirm-password" type="password" value={setupConfirmPassword} onChange={(event) => setSetupConfirmPassword(event.target.value)} aria-describedby={setupConfirmPasswordError ? 'setup-confirm-password-error' : undefined} aria-invalid={Boolean(setupConfirmPasswordError) || undefined} autoComplete="new-password" />
               <FieldError id="setup-confirm-password-error" message={setupConfirmPasswordError} />
             </div>
           </div>
@@ -178,12 +176,12 @@ export function LoginPage() {
         <div className="space-y-4">
           <div>
             <label className={labelClass} htmlFor="email">Email</label>
-            <input className={authInputClass} id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-describedby={emailError ? 'email-error' : undefined} autoComplete="email" autoFocus />
+            <input className={authInputClass} id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-describedby={emailError ? 'email-error' : undefined} aria-invalid={Boolean(emailError) || undefined} autoComplete="email" autoFocus />
             <FieldError id="email-error" message={emailError} />
           </div>
           <div>
             <label className={labelClass} htmlFor="password">Password</label>
-            <input className={authInputClass} id="password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby={passwordError ? 'password-error' : undefined} autoComplete="current-password" />
+            <input className={authInputClass} id="password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby={passwordError ? 'password-error' : undefined} aria-invalid={Boolean(passwordError) || undefined} autoComplete="current-password" />
             <FieldError id="password-error" message={passwordError} />
           </div>
         </div>

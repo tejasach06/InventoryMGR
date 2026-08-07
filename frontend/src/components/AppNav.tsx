@@ -100,7 +100,7 @@ function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolea
       aria-label={collapsed ? item.label : undefined}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'relative flex items-center rounded-lg text-sm font-medium transition-colors duration-150 min-w-0',
+        'relative flex items-center rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.98] min-w-0',
         collapsed ? 'justify-center px-2 py-2.5' : 'gap-2.5 px-3 py-2',
         active
           ? 'bg-[var(--color-accent)]/10 font-semibold text-[var(--color-accent-text)]'

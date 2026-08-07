@@ -118,7 +118,7 @@ function CheckboxInput({ name, label, values, onChange }: BaseFieldProps) {
 }
 
 
-type DiskRow = { name: string; size: string; unit: 'GB' | 'TB'; storage: string; type: string };
+type DiskRow = { rowId: string; name: string; size: string; unit: 'GB' | 'TB'; storage: string; type: string };
 
 function parseDiskPaste(text: string): DiskRow[] | null {
   const parts = text.split(';').map((s) => s.trim()).filter(Boolean);
@@ -127,7 +127,7 @@ function parseDiskPaste(text: string): DiskRow[] | null {
   for (const part of parts) {
     const [name, size] = part.split(':').map((s) => s.trim());
     if (!name || !size || !Number.isFinite(Number(size)) || Number(size) <= 0) return null;
-    rows.push({ name, size, unit: 'GB', storage: '', type: '' });
+    rows.push({ rowId: crypto.randomUUID(), name, size, unit: 'GB', storage: '', type: '' });
   }
   return rows;
 }
@@ -139,9 +139,9 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
       <p className={labelClass}>Disks</p>
       <p className={helpTextClass}>Paste a semicolon-separated list (e.g. os:100;data:500) into the first disk name field to add several at once.</p>
       <div className="overflow-x-auto">
-        <div className="mt-3 space-y-3 min-w-[600px] sm:min-w-0">
+        <div className="mt-3 space-y-3">
           {disks.map((d, i) => (
-            <div key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end">
+            <div key={d.rowId} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end">
               <label className="flex flex-col gap-1">
                 <span className={labelClass}>Disk {i + 1} name</span>
                 <input aria-label={`Disk ${i + 1} name`} className={inputClass} type="text" placeholder="Disk name" value={d.name} onChange={(e) => update(i, { name: e.target.value })}
@@ -166,7 +166,7 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
                 <span className={labelClass}>Storage</span>
                 <input aria-label={`Disk ${i + 1} storage`} className={inputClass} type="text" placeholder="Storage" value={d.storage} onChange={(e) => update(i, { storage: e.target.value })} />
               </label>
-              <label className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1">
                 <span className={labelClass}>Type</span>
                 <div className="flex gap-2 items-end">
                   <input aria-label={`Disk ${i + 1} type`} className={inputClass} type="text" placeholder="Type" value={d.type} onChange={(e) => update(i, { type: e.target.value })} />
@@ -174,26 +174,25 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
                     <RemoveButton onClick={() => setDisks((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove disk ${i + 1}`} />
                   )}
                 </div>
-              </label>
+              </div>
             </div>
           ))}
         </div>
       </div>
-      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setDisks((rows) => [...rows, { name: '', size: '', unit: 'GB', storage: '', type: '' }])}>
+      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setDisks((rows) => [...rows, { rowId: crypto.randomUUID(), name: '', size: '', unit: 'GB', storage: '', type: '' }])}>
         + Add another disk
       </button>
     </div>
   );
 }
 
-type IpRow = { ip: string; role: NetworkRole; vlan: string; gateway: string };
+type IpRow = { rowId: string; ip: string; role: NetworkRole; vlan: string; gateway: string };
 
 function parseIpPaste(text: string): IpRow[] | null {
   const parts = text.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
   if (parts.length < 2) return null;
-  return parts.map((ip) => ({ ip, role: 'private' as NetworkRole, vlan: '', gateway: '' }));
+  return parts.map((ip) => ({ rowId: crypto.randomUUID(), ip, role: 'private' as NetworkRole, vlan: '', gateway: '' }));
 }
-
 function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction<IpRow[]>> }) {
   const update = (i: number, patch: Partial<IpRow>) => setIps((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   return (
@@ -201,9 +200,9 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
       <p className={labelClass}>IP addresses</p>
       <p className={helpTextClass}>Paste a semicolon- or comma-separated list into the first address field to add several at once.</p>
       <div className="overflow-x-auto">
-        <div className="mt-3 space-y-3 min-w-[600px] sm:min-w-0">
+        <div className="mt-3 space-y-3">
           {ips.map((r, i) => (
-            <div key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-end">
+            <div key={r.rowId} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-end">
               <label className="flex flex-col gap-1">
                 <span className={labelClass}>IP Address {i + 1}</span>
                 <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })}
@@ -225,7 +224,7 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
                 <span className={labelClass}>VLAN</span>
                 <input aria-label={`VLAN ${i + 1}`} className={cn(inputClass, 'tabular-nums')} type="number" min="0" placeholder="VLAN" value={r.vlan} onChange={(e) => update(i, { vlan: e.target.value })} />
               </label>
-              <label className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1">
                 <span className={labelClass}>Gateway</span>
                 <div className="flex gap-2 items-end">
                   <input aria-label={`Gateway ${i + 1}`} className={inputClass} type="text" placeholder="Gateway" value={r.gateway} onChange={(e) => update(i, { gateway: e.target.value })} />
@@ -233,12 +232,12 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
                     <RemoveButton onClick={() => setIps((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove IP address ${i + 1}`} />
                   )}
                 </div>
-              </label>
+              </div>
             </div>
           ))}
         </div>
       </div>
-      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setIps((rows) => [...rows, { ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }])}>
+      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setIps((rows) => [...rows, { rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }])}>
         + Add IP address
       </button>
     </div>
@@ -254,8 +253,8 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const queryClient = useQueryClient();
   const [values, setValues] = useState<VmFormValues>(() => emptyVmFormValues());
   const [errors, setErrors] = useState<VmFormErrors>({});
-  const [disks, setDisks] = useState<DiskRow[]>([{ name: '', size: '', unit: 'GB', storage: '', type: '' }]);
-  const [ips, setIps] = useState<IpRow[]>([{ ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }]);
+  const [disks, setDisks] = useState<DiskRow[]>(() => [{ rowId: crypto.randomUUID(), name: '', size: '', unit: 'GB', storage: '', type: '' }]);
+  const [ips, setIps] = useState<IpRow[]>(() => [{ rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }]);
   const initialSnapshot = useRef<string>(JSON.stringify({ values, disks, ips }));
   const isDirty = JSON.stringify({ values, disks, ips }) !== initialSnapshot.current;
 
@@ -270,18 +269,20 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
     if (vmQuery.data) {
       const loadedValues = vmToFormValues(vmQuery.data);
       const loadedDisks = vmQuery.data.disks.length > 0 ? vmQuery.data.disks.map((d) => ({
+        rowId: crypto.randomUUID(),
         name: d.disk_name,
         size: String(d.size_gb >= 1024 ? d.size_gb / 1024 : d.size_gb),
         unit: (d.size_gb >= 1024 ? 'TB' : 'GB') as 'GB' | 'TB',
         storage: d.storage_name ?? '',
         type: d.storage_type ?? '',
-      })) : [{ name: '', size: '', unit: 'GB' as const, storage: '', type: '' }];
+      })) : [{ rowId: crypto.randomUUID(), name: '', size: '', unit: 'GB' as const, storage: '', type: '' }];
       const loadedIps = vmQuery.data.networks.length > 0 ? vmQuery.data.networks.map((n) => ({
+        rowId: crypto.randomUUID(),
         ip: n.ip_address,
         role: n.role,
         vlan: n.vlan !== null ? String(n.vlan) : '',
         gateway: n.gateway ?? '',
-      })) : [{ ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }];
+      })) : [{ rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }];
       setValues(loadedValues);
       setDisks(loadedDisks);
       setIps(loadedIps);

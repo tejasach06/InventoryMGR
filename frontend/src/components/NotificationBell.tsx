@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, type DueVm } from '../api/client';
 import { cn } from '../lib/classNames';
 
-export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right' } = {}) {
+export function NotificationBell() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -36,6 +36,10 @@ export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right'
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['decommissions'] }),
   });
 
+  // ack-all-on-open: mark everything currently listed as read when the panel opens
+  useEffect(() => {
+    if (open && unread > 0 && !ack.isPending) ack.mutate();
+  }, [open]);
 
   // Close on outside click or Escape key
   useEffect(() => {
@@ -55,7 +59,7 @@ export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right'
   }, [open]);
 
   return (
-    <div ref={wrapperRef} className="relative z-30">
+    <div ref={wrapperRef} className="relative">
       <button
         type="button"
         aria-label="Notifications"
@@ -73,7 +77,7 @@ export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right'
         ) : null}
       </button>
       {open ? (
-        <div className={cn('absolute mt-2 w-72 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-overlay)]', align === 'left' ? 'left-0' : 'right-0')} role="menu">
+        <div className="absolute left-0 top-full z-10 mt-2 w-72 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-overlay)]" role="menu">
           <p className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">Upcoming decommissions</p>
           {data.length === 0 ? (
             <p className="px-2 py-3 text-sm text-[var(--color-text-tertiary)]">No upcoming decommissions.</p>
@@ -108,11 +112,6 @@ export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right'
               ))}
             </ul>
           )}
-          <div className="border-t border-[var(--color-border)] px-2 pt-2">
-            <button type="button" className="inline-flex w-full items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] disabled:cursor-not-allowed disabled:opacity-60" onClick={() => ack.mutate()} disabled={data.length === 0 || ack.isPending}>
-              Mark all read
-            </button>
-          </div>
         </div>
       ) : null}
     </div>
