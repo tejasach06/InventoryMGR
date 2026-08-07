@@ -98,6 +98,14 @@ describe('AppLayout', () => {
     renderWithProviders(<AppLayout user={makeUser()}>body</AppLayout>);
     expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
   });
+  it('renders the collapse toggle outside the navigation landmark', () => {
+    renderWithProviders(<AppLayout user={makeUser()}>body</AppLayout>);
+    const toggle = screen.getByRole('button', { name: 'Collapse sidebar' });
+    expect(screen.getByLabelText('Primary navigation')).not.toContainElement(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(toggle).toHaveAttribute('aria-controls', 'primary-nav');
+  });
+
 
   it('logs out and redirects to /login', async () => {
     const logout = vi.spyOn(api, 'logout').mockResolvedValue(null);
