@@ -1,6 +1,7 @@
 'use client';
 
 import { ChangeEvent, createContext, ReactElement, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { cn } from '../lib/classNames';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -57,14 +58,21 @@ export function ThemeProvider({ children }: { children: ReactNode }): ReactEleme
   const [theme, setThemeState] = useState<ThemePreference>(DEFAULT_THEME);
   const [prefersDark, setPrefersDark] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const resolvedTheme = resolveThemePreference(theme, prefersDark);
+  let pathname = '';
+  try {
+    pathname = usePathname?.() ?? (typeof window !== 'undefined' ? window.location.pathname : '');
+  } catch {
+    pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  }
+  const forceDark = pathname === '/login';
+  const resolvedTheme = forceDark ? 'dark' : resolveThemePreference(theme, prefersDark);
 
   useEffect(() => {
     const nextTheme = readStoredTheme();
     const nextPrefersDark = readSystemPreference();
     setThemeState(nextTheme);
     setPrefersDark(nextPrefersDark);
-    applyResolvedTheme(resolveThemePreference(nextTheme, nextPrefersDark));
+    applyResolvedTheme(forceDark ? 'dark' : resolveThemePreference(nextTheme, nextPrefersDark));
     setMounted(true);
 
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
