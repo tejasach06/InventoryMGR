@@ -3,13 +3,14 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { usePathname } from 'next/navigation';
 import { AppNav, buildNavItems, canSeeUsers } from '../components/AppNav';
 import { ImportBatch } from '../api/client';
 import { summarizePreview } from '../routes/ImportCsvPage';
 import { ThemeProvider, ThemeToggle, THEME_STORAGE_KEY, resolveThemePreference } from '../components/ThemeProvider';
 
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/users',
+  usePathname: vi.fn(() => '/users'),
 }));
 
 afterEach(() => {
@@ -108,6 +109,7 @@ describe('role-based navigation', () => {
 describe('theme controls', () => {
   beforeEach(() => {
     resetThemeDom();
+    vi.mocked(usePathname).mockReturnValue('/users');
   });
 
   it('resolves explicit and system theme preferences', () => {
@@ -153,6 +155,18 @@ describe('theme controls', () => {
     await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
     expect(document.documentElement.style.colorScheme).toBe('dark');
     expect(systemButton).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('forces dark on the login route despite a stored light preference', async () => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'light');
+    mockMatchMedia(false);
+    vi.mocked(usePathname).mockReturnValue('/login');
+
+    render(createElement(ThemeProvider, null, createElement(ThemeSelect)));
+
+    await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('light');
   });
 });
 
