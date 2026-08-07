@@ -240,7 +240,7 @@ Index(
     Vm.platform,
     Vm.external_id,
     unique=True,
-    postgresql_where=Vm.external_id.is_not(None),
+    postgresql_where=(Vm.external_id.is_not(None)) & (Vm.platform != Platform.proxmox),
 )
 Index(
     "uq_vms_platform_name_without_external_id",
@@ -389,6 +389,7 @@ class CsvImportRow(Base):
         UUID(as_uuid=True), ForeignKey("vms.id", ondelete="SET NULL"), nullable=True
     )
     errors: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False, default=list)
+    warnings: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False, default=list)
     changes: Mapped[dict[str, list[Any]]] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now_utc, nullable=False

@@ -45,7 +45,14 @@ function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
       <td className={tableCellClass}>{row.normalized?.cluster ?? String(row.raw.cluster ?? '—')}</td>
       <td className={tableCellClass}>{String(row.raw.disks || '—')}</td>
       <td className={cn(tableCellClass, monoClass)}>{IP_ROLE_HEADERS.map((header) => row.raw[header]).filter(Boolean).join(', ') || '—'}</td>
-      <td className="min-w-72 px-4 py-3 text-[var(--color-text-secondary)]">{row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5 text-[var(--color-criticality-critical)]">{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : '—'}</td>
+      <td className="min-w-72 px-4 py-3 text-[var(--color-text-secondary)]">
+        {row.errors.length > 0 || row.warnings.length > 0 ? (
+          <>
+            {row.errors.length > 0 ? <ul className="list-disc space-y-1 pl-5 text-[var(--color-criticality-critical)]">{row.errors.map((error) => <li key={`${error.field}:${error.message}`}>{error.field}: {error.message}</li>)}</ul> : null}
+            {row.warnings.length > 0 ? <ul className="list-disc space-y-1 pl-5 text-[var(--color-status-warning)]">{row.warnings.map((warning) => <li key={`${warning.field}:${warning.message}`}>{warning.field}: {warning.message}</li>)}</ul> : null}
+          </>
+        ) : '—'}
+      </td>
     </tr>
   );
 }
