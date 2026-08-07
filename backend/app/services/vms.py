@@ -1,11 +1,11 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-import uuid
 from typing import Any
 
 from fastapi import HTTPException, status
 from psycopg.errors import UniqueViolation
-from sqlalchemy import Select, String, and_, case, cast, exists, func, or_, select
+from sqlalchemy import Select, String, and_, case, cast, exists, func, literal_column, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -274,8 +274,10 @@ def shutdown_since_expr():
         select(func.max(AuditLog.changed_at))
         .where(
             AuditLog.vm_id == Vm.id,
-            AuditLog.field_name == "status",
-            AuditLog.new_value == "powered_off",
+            # Literals, not binds: the partial index on audit_log is only
+            # matched by the planner when these appear as constants.
+            AuditLog.field_name == literal_column("'status'"),
+            AuditLog.new_value == literal_column("'powered_off'"),
         )
         .scalar_subquery()
     )

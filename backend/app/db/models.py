@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    literal_column,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -330,6 +331,13 @@ class AuditLog(Base):
 
 
 Index("ix_audit_log_vm_id_changed_at", AuditLog.vm_id, AuditLog.changed_at)
+Index(
+    "ix_audit_log_powered_off",
+    AuditLog.vm_id,
+    AuditLog.changed_at.desc(),
+    postgresql_where=(AuditLog.field_name == literal_column("'status'"))
+    & (AuditLog.new_value == literal_column("'powered_off'")),
+)
 
 
 class DropdownOption(Base, TimestampMixin):

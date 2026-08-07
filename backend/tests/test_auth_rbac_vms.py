@@ -150,14 +150,14 @@ def test_duplicate_vm_identity_returns_409(client, db_session: Session) -> None:
 
     with_external_id = client.post(
         "/api/vms",
-        json=vm_payload(name="External A", external_id="vm-100"),
+        json=vm_payload(name="External A", external_id="vm-100", platform="vmware"),
         headers=auth_headers(csrf),
     )
     assert with_external_id.status_code == 201, with_external_id.text
 
     duplicate_external_id = client.post(
         "/api/vms",
-        json=vm_payload(name="External B", external_id="vm-100"),
+        json=vm_payload(name="External B", external_id="vm-100", platform="vmware"),
         headers=auth_headers(csrf),
     )
     assert duplicate_external_id.status_code == 409

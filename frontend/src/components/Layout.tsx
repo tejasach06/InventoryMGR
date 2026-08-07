@@ -64,20 +64,9 @@ export function AppLayout({ user, children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-[var(--color-surface-secondary)] lg:flex">
       <NotificationBell />
-      <aside className={`sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-4 backdrop-blur lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
+      <aside id="primary-nav" className={`sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-4 backdrop-blur lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 min-w-0 w-full lg:block">
-          <div className={`flex items-center gap-2.5 min-w-0 ${collapsed ? 'lg:w-full lg:flex-col lg:items-center lg:gap-2' : ''}`}>
-            <button
-              type="button"
-              onClick={toggleCollapsed}
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] lg:inline-flex"
-            >
-              <svg className={`h-4 w-4 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M10 4L6 8l4 4" />
-              </svg>
-            </button>
+          <div className={`flex items-center gap-2.5 min-w-0 ${collapsed ? 'lg:justify-center lg:w-full' : ''}`}>
             <Logo className="h-8 w-8 flex-shrink-0" />
             {!collapsed && <span className="truncate font-display text-[1.05rem] font-semibold tracking-tight text-[var(--color-text-primary)] min-w-0">Inventory<span className="text-[var(--color-accent-text)]">MGR</span></span>}
           </div>
@@ -136,6 +125,19 @@ export function AppLayout({ user, children }: LayoutProps) {
           )}
         </div>
       </aside>
+      <button
+        type="button"
+        onClick={toggleCollapsed}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-expanded={!collapsed}
+        aria-controls="primary-nav"
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className={`fixed top-1/2 z-30 hidden h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-tertiary)] shadow-[var(--shadow-raised)] transition-colors duration-150 hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-secondary)] lg:inline-flex ${collapsed ? 'lg:left-16' : 'lg:left-60'}`}
+      >
+        <svg className={`h-3.5 w-3.5 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M10 4L6 8l4 4" />
+        </svg>
+      </button>
       <main className={`w-full min-w-0 px-4 py-6 sm:px-6 lg:min-h-screen lg:flex-1 lg:px-8 lg:py-8 2xl:px-12 min-[1920px]:px-16 ${collapsed ? 'lg:ml-16' : 'lg:ml-60'}`} tabIndex={-1}>
         {children}
       </main>
