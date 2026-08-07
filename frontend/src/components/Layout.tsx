@@ -6,7 +6,8 @@ import { ReactNode, useCallback, useState } from 'react';
 import { api, User } from '../api/client';
 import { Logo, secondaryButtonClass } from './ui';
 import { AppNav } from './AppNav';
-import { ThemeToggle } from './ThemeProvider';
+import { ThemeSelect, ThemeSegmented } from './ThemeProvider';
+import { useAccentSync } from './AccentProvider';
 import { NotificationBell } from './NotificationBell';
 
 interface LayoutProps {
@@ -38,6 +39,7 @@ function UserAvatarInitial({ email }: { email: string }): ReactNode {
 export function AppLayout({ user, children }: LayoutProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  useAccentSync();
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('sidebar-collapsed') === 'true';

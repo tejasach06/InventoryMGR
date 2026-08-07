@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, type RenderResult } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { CurrentUserProvider } from '../components/AuthContext';
+import { AccentProvider } from '../components/AccentProvider';
 import { ThemeProvider } from '../components/ThemeProvider';
 import type { ImportBatch, ImportRow, User, Vm } from '../api/client';
 
@@ -35,7 +36,7 @@ export function renderWithProviders(
   );
   const result = render(
     <ThemeProvider>
-      <QueryClientProvider client={queryClient}>{wrapped}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}><AccentProvider>{wrapped}</AccentProvider></QueryClientProvider>
     </ThemeProvider>,
   );
   return Object.assign(result, { queryClient });
@@ -47,6 +48,7 @@ export function makeUser(overrides: Partial<User> = {}): User {
     email: 'admin@example.local',
     role: 'admin',
     is_active: true,
+    auth_source: 'local',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-02T00:00:00Z',
     ...overrides,
@@ -114,6 +116,7 @@ export function makeImportRow(overrides: Partial<ImportRow> = {}): ImportRow {
     action: 'create',
     target_vm_id: null,
     errors: [],
+    warnings: [],
     changes: {},
     ...overrides,
   };

@@ -136,6 +136,9 @@ class User(Base, TimestampMixin):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    auth_source: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="local", default="local"
+    )
     preferences: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
 
 
@@ -237,7 +240,7 @@ Index(
     Vm.platform,
     Vm.external_id,
     unique=True,
-    postgresql_where=Vm.external_id.is_not(None),
+    postgresql_where=(Vm.external_id.is_not(None)) & (Vm.platform != Platform.proxmox),
 )
 Index(
     "uq_vms_platform_name_without_external_id",
@@ -386,6 +389,7 @@ class CsvImportRow(Base):
         UUID(as_uuid=True), ForeignKey("vms.id", ondelete="SET NULL"), nullable=True
     )
     errors: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False, default=list)
+    warnings: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False, default=list)
     changes: Mapped[dict[str, list[Any]]] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now_utc, nullable=False
@@ -401,6 +405,30 @@ class AppSetting(Base):
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[str] = mapped_column(String(255), nullable=False)
 
+
+class LdapConfig(Base, TimestampMixin):
+    __tablename__ = "ldap_config"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_ldap_config_singleton"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    server_uri: Mapped[str] = mapped_column(String(255), nullable=False)
+    start_tls: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    verify_tls: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    bind_dn: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    bind_password_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_base_dn: Mapped[str] = mapped_column(String(512), nullable=False)
+    user_filter: Mapped[str] = mapped_column(
+        String(512), nullable=False, default="(uid={username})"
+    )
+    email_attribute: Mapped[str] = mapped_column(String(64), nullable=False, default="mail")
+    group_attribute: Mapped[str] = mapped_column(String(64), nullable=False, default="memberOf")
+    admin_group_dn: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    editor_group_dn: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    viewer_group_dn: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    default_role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="user_role"), nullable=False, default=UserRole.viewer
+    )
 
 class DecommissionAck(Base, TimestampMixin):
     __tablename__ = "decommission_acks"

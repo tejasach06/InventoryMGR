@@ -16,6 +16,7 @@ from app.core.security import (
 from app.db.models import User, UserRole
 from app.schemas.auth import LoginRequest, LoginResponse, SetupAdminRequest, SetupStatusResponse
 from app.schemas.users import UserRead
+from app.services import ldap_auth
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
@@ -141,11 +142,9 @@ def login(
 ) -> LoginResponse:
     email = payload.email.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
-    if (
-        user is None
-        or not user.is_active
-        or not verify_password(payload.password, user.password_hash)
-    ):
+    if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
+        user = ldap_auth.authenticate(db, email, payload.password)
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )

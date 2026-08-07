@@ -3,7 +3,7 @@ import { SettingsPage } from '../../../routes/SettingsPage';
 
 export default function SettingsRoute() {
   return (
-    <RoleGate allowed={['admin']} message="You need an admin account to manage settings.">
+    <RoleGate allowed={['admin', 'editor', 'viewer']} message="You need an account to manage preferences.">
       <SettingsPage />
     </RoleGate>
   );

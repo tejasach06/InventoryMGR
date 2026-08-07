@@ -17,6 +17,7 @@ class ImportRowRead(BaseModel):
     action: ImportAction
     target_vm_id: uuid.UUID | None
     errors: list[dict[str, str]]
+    warnings: list[dict[str, str]]
     changes: dict[str, list[Any]]
     created_at: datetime
 

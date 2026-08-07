@@ -55,8 +55,8 @@ describe('CSV preview summary rendering', () => {
     const batch = {
       summary: { create: 1, update: 1, unchanged: 0, conflict: 0, invalid: 0 },
       rows: [
-        { id: 'row-1', row_number: 2, raw: {}, normalized: { name: 'new-vm' }, action: 'create', target_vm_id: null, errors: [], changes: {} },
-        { id: 'row-2', row_number: 3, raw: {}, normalized: { name: 'existing-vm' }, action: 'update', target_vm_id: 'vm-1', errors: [], changes: {} },
+        { id: 'row-1', row_number: 2, raw: {}, normalized: { name: 'new-vm' }, action: 'create', target_vm_id: null, errors: [], warnings: [], changes: {} },
+        { id: 'row-2', row_number: 3, raw: {}, normalized: { name: 'existing-vm' }, action: 'update', target_vm_id: 'vm-1', errors: [], warnings: [], changes: {} },
       ],
     } satisfies Pick<ImportBatch, 'summary' | 'rows'>;
 
@@ -88,15 +88,15 @@ describe('role-based navigation', () => {
     expect(canSeeUsers('editor')).toBe(false);
     expect(canSeeUsers('viewer')).toBe(false);
 
-    expect(buildNavItems({ role: 'viewer' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Clusters']);
-    expect(buildNavItems({ role: 'editor' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Clusters', 'Import']);
+    expect(buildNavItems({ role: 'viewer' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Clusters', 'Settings']);
+    expect(buildNavItems({ role: 'editor' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Clusters', 'Import', 'Settings']);
     expect(buildNavItems({ role: 'admin' }).filter((item) => item.visible).map((item) => item.label)).toEqual(['Inventory', 'Storage', 'Clusters', 'Import', 'Settings']);
   });
 
   it('renders Settings only for admins and never shows Users in nav', () => {
     const { rerender } = render(createElement(AppNav, { user: { role: 'viewer' } }));
     expect(screen.getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
 
     rerender(createElement(AppNav, { user: { role: 'admin' } }));

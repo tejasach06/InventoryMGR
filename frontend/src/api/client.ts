@@ -1,3 +1,5 @@
+import { AccentId } from '../lib/accentPresets';
+
 export type UserRole = 'admin' | 'editor' | 'viewer';
 export type Platform = 'proxmox' | 'vmware';
 export type VmStatus = 'running' | 'powered_off' | 'decommissioned' | 'unknown';
@@ -31,6 +33,7 @@ export interface User {
   email: string;
   role: UserRole;
   is_active: boolean;
+  auth_source: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -178,6 +181,7 @@ export interface ImportRow {
   action: ImportAction;
   target_vm_id: string | null;
   errors: ImportRowError[];
+  warnings: ImportRowError[];
   changes: Record<string, [unknown, unknown]>;
 }
 
@@ -209,6 +213,23 @@ export interface DueVm {
 export interface AppSettings {
   decommission_notify_days: number;
   storage_usage_warn_pct: number;
+}
+
+export interface LdapConfig {
+  enabled: boolean;
+  server_uri: string;
+  start_tls: boolean;
+  verify_tls: boolean;
+  bind_dn: string | null;
+  bind_password_set: boolean;
+  user_base_dn: string;
+  user_filter: string;
+  email_attribute: string;
+  group_attribute: string;
+  admin_group_dn: string | null;
+  editor_group_dn: string | null;
+  viewer_group_dn: string | null;
+  default_role: 'viewer' | 'editor' | 'admin';
 }
 
 export interface Lun {
@@ -555,12 +576,25 @@ export const api = {
     apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(
       `/user/preferences/${pageKey}`, { method: 'PUT', body: JSON.stringify({ columns }) },
     ),
+  getAccent: () => apiRequest<{ accent: AccentId }>('/user/accent'),
+  setAccent: (accent: AccentId) =>
+    apiRequest<{ accent: AccentId }>('/user/accent', { method: 'PUT', body: JSON.stringify({ accent }) }),
+
 
   getAppSettings: () => apiRequest<AppSettings>('/settings/app'),
   updateAppSettings: (patch: { decommission_notify_days?: number; storage_usage_warn_pct?: number }) =>
     apiRequest<AppSettings>('/settings/app', {
       method: 'PATCH',
       body: JSON.stringify(patch),
+    }),
+
+  getLdapConfig: () => apiRequest<LdapConfig>('/settings/ldap'),
+  updateLdapConfig: (body: Omit<LdapConfig, 'bind_password_set'> & { bind_password?: string | null }) =>
+    apiRequest<LdapConfig>('/settings/ldap', { method: 'PUT', body: JSON.stringify(body) }),
+  testLdapConnection: (body: { username?: string; password?: string }) =>
+    apiRequest<{ ok: boolean; message: string }>('/settings/ldap/test', {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
 
   decommissionNotifications: () => apiRequest<DueVm[]>('/notifications/decommissions'),

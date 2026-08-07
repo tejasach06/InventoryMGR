@@ -23,6 +23,7 @@ class UserRead(BaseModel):
     email: str
     role: UserRole
     is_active: bool
+    auth_source: str
     created_at: datetime
     updated_at: datetime
 
