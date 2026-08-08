@@ -357,10 +357,10 @@ export function ConfirmDialog({
 }
 
 /* RemoveButton — small destructive icon action for inline table/list rows */
-export function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
+export function RemoveButton({ onClick, label, disabled = false }: { onClick: () => void; label: string; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick} aria-label={label}
-      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-criticality-critical)]/40 hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)]">
+    <button type="button" onClick={onClick} aria-label={label} disabled={disabled}
+      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-criticality-critical)]/40 hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] disabled:cursor-not-allowed disabled:opacity-50">
       ×
     </button>
   );
