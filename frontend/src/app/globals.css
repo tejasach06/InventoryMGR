@@ -3,7 +3,7 @@
 
 @theme {
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
   /* Surface & Text */
@@ -23,6 +23,7 @@
   --color-surface-inverse: #0f1222;
   --color-text-inverse: #ffffff;
   --color-scrim: rgba(0, 0, 0, 0.4);
+  --color-scrollbar: #c8ccdc;
   --color-criticality-critical: #dc2626;
   --color-status-running: #059669;
 
@@ -152,6 +153,7 @@ html.dark {
   --color-surface-inverse: #122131;
   --color-text-inverse: #d4e4fa;
   --color-scrim: rgba(0, 0, 0, 0.6);
+  --color-scrollbar: #273647;
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px -4px rgba(0, 0, 0, 0.5);
   --shadow-overlay: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 2px 8px -2px rgba(0, 0, 0, 0.4);
 }
@@ -204,6 +206,8 @@ body {
   min-width: 320px;
   min-height: 100dvh;
   font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   background: var(--color-surface-secondary);
@@ -327,14 +331,14 @@ textarea:focus-visible,
 /* Scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #c8ccdc transparent;
+  scrollbar-color: var(--color-scrollbar) transparent;
 }
 html.dark * {
-  scrollbar-color: #2a2f44 transparent;
+  scrollbar-color: var(--color-scrollbar) transparent;
 }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #c8ccdc; border-radius: 9999px; border: 3px solid transparent; background-clip: content-box; }
-html.dark ::-webkit-scrollbar-thumb { background: #273647; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb { background: var(--color-scrollbar); border-radius: 9999px; border: 3px solid transparent; background-clip: content-box; }
+html.dark ::-webkit-scrollbar-thumb { background: var(--color-scrollbar); border: 3px solid transparent; background-clip: content-box; }
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {

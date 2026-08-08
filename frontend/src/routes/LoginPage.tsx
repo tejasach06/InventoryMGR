@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { api, detailMessage } from '../api/client';
 import { Alert, FieldError, Logo, Spinner, authInputClass, labelClass, primaryButtonClass } from '../components/ui';
 
-const authCardClass = 'w-full max-w-[420px] animate-rise rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/85 p-8 shadow-overlay backdrop-blur-xl';
+const authCardClass = 'w-full max-w-[420px] animate-rise rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/85 p-6 sm:p-8 shadow-overlay backdrop-blur-xl';
 
 function validateLogin(email: string, password: string) {
   return {
@@ -40,7 +40,7 @@ function AuthShell({ children }: { children: ReactNode }) {
           <ul className="mt-8 space-y-3 text-sm text-white/80">
             {['Unified Proxmox + VMware inventory', 'Role-based access for every team', 'Preview-then-commit CSV import'].map((f) => (
               <li key={f} className="flex items-center gap-2.5">
-                <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#ffb690]/20 text-[#ffb690]">
+                <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/85">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-6" /></svg>
                 </span>
                 {f}
@@ -51,7 +51,10 @@ function AuthShell({ children }: { children: ReactNode }) {
         <p className="relative text-xs text-white/60">Secure, role-based VM inventory management.</p>
       </aside>
       <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--color-surface-secondary)] px-4 py-12">
-        {children}
+        <div className="w-full max-w-[420px]">
+          <div className="mb-5 flex items-center gap-2.5 lg:hidden"><Logo /><span className="font-display text-lg font-semibold">InventoryMGR</span></div>
+          {children}
+        </div>
       </div>
     </main>
   );

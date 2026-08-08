@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { EmptyState, primaryButtonClass } from '../components/ui';
+import { EmptyState, primaryButtonClass, secondaryButtonClass } from '../components/ui';
 
 export default function NotFound() {
   return (
@@ -8,11 +8,10 @@ export default function NotFound() {
         <EmptyState
           title="Page not found"
           body="That URL doesn't match anything in the inventory. It may have been renamed or the record deleted."
-          actions={
-            <Link href="/dashboard" className={primaryButtonClass}>
-              Go to dashboard
-            </Link>
-          }
+          actions={<>
+            <Link href="/inventory" className={primaryButtonClass}>Open inventory</Link>
+            <Link href="/dashboard" className={secondaryButtonClass}>Dashboard</Link>
+          </>}
         />
       </div>
     </div>

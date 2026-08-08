@@ -132,6 +132,7 @@ describe('SettingsPage', () => {
 
   it('opens LDAP settings from its tab', async () => {
     vi.spyOn(api, 'listUsers').mockResolvedValue(mockUsers);
+    vi.spyOn(api, 'getLdapConfig').mockResolvedValue({ enabled: false, server_uri: 'ldap://localhost', start_tls: false, verify_tls: true, bind_dn: null, bind_password_set: false, user_base_dn: '', user_filter: '(uid={username})', email_attribute: 'mail', group_attribute: 'memberOf', admin_group_dn: null, editor_group_dn: null, viewer_group_dn: null, default_role: 'viewer' });
     const user = userEvent.setup();
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });

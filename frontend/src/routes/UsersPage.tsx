@@ -64,8 +64,8 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
         <div>
           <span className={cn('font-semibold text-[var(--color-text-primary)]', monoClass)}>{user.email}</span>
           <div className="mt-1 flex items-center gap-2">
-            <Badge value={user.role} />
-            <span className={cn('inline-flex h-2 w-2 rounded-full', user.is_active ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-surface-tertiary)]')} title={user.is_active ? 'Active' : 'Inactive'} />
+            <Badge value={user.role} tone={{ type: 'neutral' }} />
+            <Badge value={user.is_active ? 'Active' : 'Inactive'} tone={{ type: 'status', value: user.is_active ? 'running' : 'powered_off' }} />
           </div>
         </div>
         <button type="button" className={secondaryButtonClass} onClick={() => setEditing(!editing)}>{editing ? 'Cancel' : 'Edit'}</button>
@@ -230,7 +230,7 @@ export function UsersPage() {
   return (
     <PageTransition>
       <section>
-        <PageHeader title="Users" eyebrow="Admin only" />
+        <PageHeader title="Users" context="Administration" description="Manage local accounts, roles, and access state." />
         <UsersPanel />
       </section>
     </PageTransition>

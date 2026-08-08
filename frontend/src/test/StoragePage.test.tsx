@@ -57,7 +57,7 @@ describe('StoragePage', () => {
     vi.spyOn(api, 'listArrays').mockResolvedValue([]);
     renderWithProviders(<StoragePage />, { user: makeUser() });
 
-    expect(await screen.findByText('No storage arrays yet.')).toBeInTheDocument();
+    expect(await screen.findByText('No storage arrays yet')).toBeInTheDocument();
   });
 
   it('renders a dash for null usage and an error alert on failure', async () => {
@@ -76,7 +76,7 @@ describe('StoragePage', () => {
   it('hides the New array button for viewers', async () => {
     vi.spyOn(api, 'listArrays').mockResolvedValue([]);
     renderWithProviders(<StoragePage />, { user: makeUser({ role: 'viewer' }) });
-    await screen.findByText('No storage arrays yet.');
+    await screen.findByText('No storage arrays yet');
     expect(screen.queryByRole('button', { name: /new array/i })).not.toBeInTheDocument();
   });
 

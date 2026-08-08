@@ -94,7 +94,6 @@ describe('DashboardPage', () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(emptyVms);
     vi.spyOn(api, 'listArrays').mockResolvedValue([]);
     renderWithProviders(<DashboardPage />);
-    expect(await screen.findByText('ALL IS WELL')).toBeInTheDocument();
-    expect(screen.getByText('All clear')).toBeInTheDocument();
+    expect((await screen.findAllByText('All clear')).length).toBeGreaterThan(0);
   });
 });

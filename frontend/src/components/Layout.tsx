@@ -2,13 +2,14 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { ReactNode, useCallback, useState } from 'react';
+import { ReactNode, useCallback, useRef, useState } from 'react';
 import { api, User } from '../api/client';
 import { Logo, secondaryButtonClass } from './ui';
 import { AppNav } from './AppNav';
 import { ThemeSelect, ThemeSegmented } from './ThemeProvider';
 import { useAccentSync } from './AccentProvider';
 import { NotificationBell } from './NotificationBell';
+import { useModalOverlay } from '../hooks/useModalOverlay';
 
 interface LayoutProps {
   user: User;
@@ -44,6 +45,11 @@ export function AppLayout({ user, children }: LayoutProps) {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('sidebar-collapsed') === 'true';
   });
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const mobilePanelRef = useRef<HTMLDivElement>(null);
+  const mobileCloseRef = useRef<HTMLButtonElement>(null);
+  const closeMobile = useCallback(() => setMobileOpen(false), []);
+  useModalOverlay({ open: mobileOpen, onClose: closeMobile, containerRef: mobilePanelRef, initialFocusRef: mobileCloseRef });
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
@@ -66,7 +72,36 @@ export function AppLayout({ user, children }: LayoutProps) {
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:border focus:border-[var(--color-border)] focus:bg-[var(--color-surface)] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-[var(--color-text-primary)] focus:shadow-[var(--shadow-overlay)]">
         Skip to content
       </a>
-      <aside id="primary-nav" className={`sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-4 backdrop-blur lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
+      <header className="sticky top-0 z-30 flex h-[var(--app-header-h)] items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 backdrop-blur lg:hidden">
+        <div className="flex items-center gap-2.5">
+          <Logo className="h-8 w-8" />
+          <span className="font-display text-base font-semibold tracking-tight">Inventory<span className="text-[var(--color-accent-text)]">MGR</span></span>
+        </div>
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+          <button type="button" onClick={() => setMobileOpen(true)} aria-label="Open navigation" aria-expanded={mobileOpen} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]">
+            <svg className="h-5 w-5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" /></svg>
+          </button>
+        </div>
+      </header>
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
+          <div className="absolute inset-0 bg-[var(--color-scrim)] backdrop-blur-sm" onClick={closeMobile} aria-hidden="true" />
+          <div ref={mobilePanelRef} className="relative flex h-full w-[min(22rem,88vw)] flex-col overflow-y-auto bg-[var(--color-surface)] p-5 shadow-[var(--shadow-overlay)]">
+            <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-4">
+              <div className="flex items-center gap-2.5"><Logo /><span className="font-display font-semibold">InventoryMGR</span></div>
+              <button ref={mobileCloseRef} type="button" onClick={closeMobile} aria-label="Close navigation" className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)]">×</button>
+            </div>
+            <AppNav user={user} onNavigate={closeMobile} />
+            <div className="mt-auto space-y-4 border-t border-[var(--color-border-subtle)] pt-5">
+              <div className="flex items-center justify-between"><span className="text-sm text-[var(--color-text-secondary)]">Theme</span><ThemeSegmented /></div>
+              <div className="flex items-center gap-3"><UserAvatarInitial email={user.email} /><div className="min-w-0"><p className="truncate text-sm font-medium">{user.email}</p><p className="text-xs text-[var(--color-text-tertiary)]">{user.role}</p></div></div>
+              <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending} className={secondaryButtonClass}>{logout.isPending ? 'Signing out…' : 'Logout'}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <aside id="primary-nav" className={`hidden bg-[var(--color-surface)] lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:flex-col lg:border-r lg:border-[var(--color-border)] lg:py-6 ${collapsed ? 'lg:w-16 lg:px-3' : 'lg:w-60 lg:px-5'}`} aria-label="Primary navigation">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 min-w-0 w-full lg:block">
           <div className={`flex items-center gap-2.5 min-w-0 ${collapsed ? 'lg:flex-col lg:justify-center lg:w-full lg:gap-3' : 'justify-between'}`}>
             <div className="flex items-center gap-2.5 min-w-0">
@@ -144,7 +179,7 @@ export function AppLayout({ user, children }: LayoutProps) {
         </svg>
       </button>
       <main id="main-content" className={`w-full min-w-0 px-4 py-6 sm:px-6 lg:min-h-[100dvh] lg:flex-1 lg:px-8 lg:py-8 2xl:px-12 min-[1920px]:px-16 ${collapsed ? 'lg:ml-16' : 'lg:ml-60'}`} tabIndex={-1}>
-        {children}
+        <div className="mx-auto w-full max-w-[100rem]">{children}</div>
       </main>
     </div>
   );

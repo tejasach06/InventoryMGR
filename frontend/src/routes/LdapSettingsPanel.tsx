@@ -5,9 +5,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, type LdapConfig } from '../api/client';
 import {
   Alert,
+  Skeleton,
   inputClass,
   labelClass,
-  monoClass,
   primaryButtonClass,
   secondaryButtonClass,
   selectClass,
@@ -74,7 +74,7 @@ export function LdapPanel() {
       <label className={labelClass} htmlFor={`ldap-${key}`}>{label}</label>
       <input
         id={`ldap-${key}`}
-        className={cn(inputClass, technical && monoClass)}
+        className={cn(inputClass, technical && 'tech')}
         value={(form[key] as string | null) ?? ''}
         onChange={(event) => set(key, (event.target.value || null) as FormValues[typeof key])}
       />
@@ -82,6 +82,9 @@ export function LdapPanel() {
     </div>
   );
   const submit = (event: FormEvent) => { event.preventDefault(); save.mutate(); };
+
+  if (configQuery.isLoading) return <div role="status" aria-label="Loading LDAP settings" className="space-y-3"><Skeleton className="h-10 w-48" /><Skeleton className="h-56 w-full" /></div>;
+  if (configQuery.isError) return <Alert>LDAP settings could not be loaded. <button type="button" className="ml-2 underline" onClick={() => configQuery.refetch()}>Retry</button></Alert>;
 
   return (
     <div role="tabpanel" id="panel-ldap" aria-labelledby="tab-ldap" className="animate-fade-in">

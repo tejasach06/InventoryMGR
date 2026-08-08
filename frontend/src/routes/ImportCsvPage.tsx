@@ -3,10 +3,17 @@
 import { DragEvent, FormEvent, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, ImportAction, ImportBatch } from '../api/client';
-import { Alert, Badge, EmptyState, PageHeader, PageTransition, Spinner, cardClass, helpTextClass, primaryButtonClass, secondaryButtonClass, statTileClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
+import { Alert, Badge, BadgeTone, EmptyState, PageHeader, PageTransition, Spinner, cardClass, helpTextClass, primaryButtonClass, secondaryButtonClass, statTileClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 
 const actions: ImportAction[] = ['create', 'update', 'unchanged', 'conflict', 'invalid'];
+const actionTone: Record<ImportAction, BadgeTone> = {
+  create: { type: 'status', value: 'running' },
+  update: { type: 'lifecycle', value: 'planned' },
+  unchanged: { type: 'neutral' },
+  conflict: { type: 'criticality', value: 'high' },
+  invalid: { type: 'criticality', value: 'critical' },
+};
 
 export interface PreviewSummary {
   create: number;
@@ -33,7 +40,7 @@ function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
     <tr className={tableRowClass}>
       <th className={cn('whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]', monoClass, 'tabular-nums')} scope="row">{row.row_number}</th>
       <td className="whitespace-nowrap px-4 py-3">
-        <Badge value={row.action} />
+        <Badge value={row.action} tone={actionTone[row.action]} />
         {row.action === 'update' && Object.keys(row.changes ?? {}).length > 0 ? (
           <span className={cn('ml-2 text-xs text-[var(--color-text-tertiary)]', monoClass, 'tabular-nums')}>
             {Object.keys(row.changes).length} fields
@@ -121,7 +128,7 @@ export function ImportCsvPage() {
   return (
     <PageTransition>
       <section className="mx-auto w-full max-w-4xl">
-        <PageHeader title="Import" eyebrow="Preview before upsert" />
+        <PageHeader title="Import" context="Operations" description="Validate every row before committing inventory changes." />
         <form className={cardClass + ' mb-6 grid gap-4'} onSubmit={submit}>
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--color-text-secondary)]" htmlFor="csv-file">CSV file</label>
@@ -221,7 +228,7 @@ export function ImportCsvPage() {
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Preview summary">
               {actions.map((action) => (
                 <div key={action} data-testid={`summary-${action}`} className={statTileClass}>
-                  <Badge value={action} />
+                  <Badge value={action} tone={actionTone[action]} />
                   <strong className={cn('mt-1 block text-2xl font-semibold text-[var(--color-text-primary)]', monoClass, 'tabular-nums')}>{summary[action]}</strong>
                 </div>
               ))}

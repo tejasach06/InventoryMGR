@@ -204,3 +204,12 @@ The `/login` screen sits outside the main app shell and contains three deliberat
 - **Don't** add a second left-border color accent pattern outside the existing status-row convention — that one exception is load-bearing (it *is* the data), a second one would just be a stripe.
 - **Don't** turn a routine two-second edit into a multi-step wizard or add a confirmation modal where none is currently required.
 - **Don't** pair a token class with a `dark:` palette override (`text-[var(--color-text-primary)] dark:text-slate-100`). The token already flips; the override reintroduces an off-system color.
+
+## 12. Operational shell and responsive hierarchy
+
+- **Navigation groups:** The authenticated sidebar is organized as Overview, Inventory, Infrastructure, Operations, and Administration. Mobile uses a fixed-height app bar and an accessible transient navigation panel; the full desktop navigation never expands in normal mobile document flow.
+- **Page hierarchy:** Page headers use a neutral context label, balanced title, optional concise description, and one primary action. Breadcrumb navigation sits above detail titles.
+- **Badge tones:** Visible badge copy is separate from its semantic token value. Unsupported readings fall back to a neutral outlined badge rather than an unresolved CSS variable.
+- **Progress indicators:** Neutral data uses `--color-text-secondary`; semantic colors are passed explicitly only when the measurement belongs to a documented category.
+- **Inline empty states:** Empty collections nested inside a detail surface use compact, borderless status regions. Full composed empty states are reserved for page-level absence.
+- **Overlay contract:** Drawers and mobile navigation trap focus, close on Escape, restore trigger focus, and lock background scrolling.

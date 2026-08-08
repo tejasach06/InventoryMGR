@@ -73,7 +73,7 @@ function BarList({ rows, total }: { rows: { key: string; label: string; value: n
                 {fmtInt(r.value)} <span className="text-[var(--color-text-tertiary)]">({pct}%)</span>
               </span>
             </div>
-            <ProgressBar value={pct > 0 ? Math.max(4, pct) : 0} label={`${r.label}: ${fmtInt(r.value)} VMs, ${pct}%`} colorVar={r.colorVar} />
+            <ProgressBar value={pct} label={`${r.label}: ${fmtInt(r.value)} VMs, ${pct}%`} colorVar={r.colorVar} />
           </div>
         );
         return (
@@ -224,7 +224,7 @@ function Panel({ title, children, action, className = '' }: { title: string; chi
   return (
     <section className={`${cardClass} ${className}`}>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-tertiary)]">{title}</h2>
+        <h2 className="font-display text-base font-semibold text-[var(--color-text-primary)]">{title}</h2>
         {action}
       </div>
       <div className="mt-4">{children}</div>
@@ -236,6 +236,7 @@ export function DashboardPage() {
   const statsQ = useQuery({ queryKey: ['dashboard'], queryFn: api.getDashboard });
   const arraysQ = useQuery({ queryKey: ['arrays'], queryFn: () => api.listArrays() });
   const arraysOverThreshold = (arraysQ.data ?? []).filter((a) => a.over_threshold).length;
+  const infrastructureState = arraysQ.isLoading ? 'checking' : arraysQ.isError ? 'unavailable' : arraysOverThreshold > 0 ? 'risk' : 'operational';
 
   const loading = statsQ.isLoading;
   const d = statsQ.data;
@@ -277,7 +278,7 @@ export function DashboardPage() {
   const disk = fmtCapacity(totalDisk).split(' ');
   return (
     <PageTransition>
-      <PageHeader title="Overview" eyebrow="Infrastructure" />
+      <PageHeader title="Overview" context="Infrastructure" description="Live fleet health, capacity, and operational exceptions." />
       {loading ? (
         <div className="space-y-6">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -296,20 +297,21 @@ export function DashboardPage() {
         <div className="space-y-6">
           <div className={cn(
             "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-[var(--color-border)]/70 p-4 shadow-[var(--shadow-raised)] transition-all",
-            arraysOverThreshold > 0
+            infrastructureState === 'risk'
               ? "border-[var(--color-criticality-critical)]/40 bg-[var(--color-criticality-critical-bg)] text-[var(--color-text-primary)]"
               : "bg-[var(--color-surface)]"
           )}>
             <div className="flex items-center gap-3">
               <span className={cn(
                 "h-3 w-3 shrink-0 rounded-full",
-                arraysOverThreshold > 0 ? "bg-[var(--color-criticality-critical)]" : "bg-[var(--color-status-running)]"
+                infrastructureState === 'risk' ? "bg-[var(--color-criticality-critical)]" : infrastructureState === 'operational' ? "bg-[var(--color-status-running)]" : "bg-[var(--color-text-tertiary)]"
               )} />
               <div>
                 <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  {arraysOverThreshold > 0
-                    ? `${arraysOverThreshold} Storage Array${arraysOverThreshold === 1 ? '' : 's'} Exceed Usage Threshold`
-                    : 'Fleet Operational — Infrastructure Normal'}
+                  {infrastructureState === 'checking' ? 'Checking infrastructure…'
+                    : infrastructureState === 'unavailable' ? 'Storage status unavailable'
+                    : infrastructureState === 'risk' ? `${arraysOverThreshold} storage array${arraysOverThreshold === 1 ? '' : 's'} exceed usage threshold`
+                    : 'Fleet operational'}
                 </h2>
                 <p className="text-xs text-[var(--color-text-tertiary)]">
                   {fmtInt(total)} VMs tracked across clusters and storage arrays
@@ -317,14 +319,12 @@ export function DashboardPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {arraysOverThreshold > 0 && (
+              {infrastructureState === 'risk' && (
                 <Link href="/storage" className={cn(primaryButtonClass, 'px-3 py-1.5 text-xs bg-[var(--color-criticality-critical)] text-[var(--color-on-danger)] hover:opacity-90')}>
                   View Storage Alerts →
                 </Link>
               )}
-              <Link href="/inventory" className={cn(secondaryButtonClass, 'px-3 py-1.5 text-xs')}>
-                Open Fleet Inventory →
-              </Link>
+              {infrastructureState === 'operational' ? <Link href="/inventory" className="text-xs font-medium text-[var(--color-accent-text)] hover:underline">Open fleet inventory →</Link> : null}
             </div>
           </div>
           {statsQ.isError ? (
@@ -359,7 +359,7 @@ export function DashboardPage() {
 
           <div className="grid gap-4 lg:grid-cols-3">
             <Panel title="Power state">
-              <div className="flex items-center gap-5">
+              <div className="flex flex-col items-center gap-5 sm:flex-row">
                 <Donut segments={powerSegments} total={total} />
                 <ul className="min-w-0 flex-1 space-y-2">
                   {powerSegments.map((s) => (
@@ -416,7 +416,7 @@ export function DashboardPage() {
                 </div>
                 {total === 0 ? (
                   <div className="px-5 py-10 text-center">
-                    <p className="text-sm font-semibold tracking-wide text-[var(--color-status-running)]">ALL IS WELL</p>
+                    <p className="text-sm font-semibold tracking-wide text-[var(--color-status-running)]">All clear</p>
                     <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">No stale shutdowns, overdue decommissions, or missing IPs.</p>
                   </div>
                 ) : (
