@@ -4,10 +4,35 @@ setup:
 	devbox run setup
 
 db-up:
-	docker compose -f docker-compose.e2e-db.yml up -d
-	docker compose -f docker-compose.e2e-db.yml exec -T db-test pg_isready -U inventorymgr -d inventorymgr_test
-	docker compose -f docker-compose.e2e-db.yml exec -T db-test psql -U inventorymgr -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='inventorymgr'" | grep -q 1 || docker compose -f docker-compose.e2e-db.yml exec -T db-test createdb -U inventorymgr inventorymgr
+	podman compose -f docker-compose.e2e-db.yml up -d
+	podman compose -f docker-compose.e2e-db.yml exec -T db-test pg_isready -U inventorymgr -d inventorymgr_test
+	podman compose -f docker-compose.e2e-db.yml exec -T db-test psql -U inventorymgr -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='inventorymgr'" | grep -q 1 || podman compose -f docker-compose.e2e-db.yml exec -T db-test createdb -U inventorymgr inventorymgr
 
+env:
+	@test -f .env && echo ".env exists — leaving it alone" && exit 0 || true
+	@sed "s|^JWT_SECRET=.*|JWT_SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))')|" .env.example > .env
+	@echo "wrote .env with a generated JWT_SECRET"
+
+up: env
+	podman compose up -d --build
+	@echo "frontend: http://127.0.0.1:${FRONTEND_PORT:-3000}  api: http://127.0.0.1:${BACKEND_PORT:-8000}/api/health"
+
+down:
+	podman compose down
+
+logs:
+	podman compose logs -f
+
+ps:
+	podman compose ps
+
+up-local: env db-up
+	cd backend && uv sync
+	cd backend && uv run alembic upgrade head
+	cd frontend && bun install
+	cd frontend && bun run build
+	pm2 start ecosystem.config.js
+	@echo "frontend: http://127.0.0.1:3000  api: http://127.0.0.1:8000/api/health"
 api-dev:
 	cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 

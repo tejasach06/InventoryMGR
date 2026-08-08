@@ -1,13 +1,12 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 from sqlalchemy import case, func, select
 
 from app.api.deps import DbSession, ViewerUser
-from app.db.models import OsFamily, Vm, VmApplication, VmDisk, VmStatus
+from app.db.models import OsFamily, Vm, VmApplication, VmDisk
 from app.schemas.vms import DashboardAlertVm, DashboardStats
 from app.services.vms import (
-    SHUTDOWN_STALE_DAYS,
     decommission_overdue_condition,
     missing_ip_condition,
     shutdown_since_expr,
