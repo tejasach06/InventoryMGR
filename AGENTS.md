@@ -4,26 +4,25 @@
 
 InventoryMGR is a documentation-only infrastructure inventory for virtual machines, storage arrays, and physical hardware clusters. It serves as the single source of truth for sysadmins and IT ops staff. The hypervisor is never contacted; all data is user-entered or CSV-imported. The application prioritizes fast, auditable, and trustworthy record-keeping over enterprise chrome or multi-step wizards.
 
-## Architecture & Data Flow
-
 - **Backend Architecture**: Built with FastAPI (`backend/app/main.py`), SQLAlchemy 2.0 ORM (`app/db/models.py`), and Pydantic v2 schemas (`app/schemas/`). Business logic resides in `app/services/`.
-- **Double-Submit Auth & Stateless CSRF**: Authentication uses an HTTP-only JWT session cookie (`inventorymgr_session`). CSRF tokens (`inventorymgr_csrf`) are derived statelessly via `HMAC-SHA256(jwt_secret, session_token)` and verified against incoming `X-CSRF-Token` headers — no server-side token storage.
+- **Double-Submit Auth & Stateless CSRF**: Authentication uses an HTTP-only JWT session cookie (`inventorymgr_session`). CSRF tokens (`inventorymgr_csrf`) are derived statelessly via `HMAC-SHA256(jwt_secret, session_token)` and verified against incoming `X-CSRF-Token` headers — no server-side token storage. Optional LDAP/Active Directory authentication (`services/ldap_auth.py`) is configured in Settings (admin-only) with group-DN-to-role mapping.
 - **RBAC Ladder**: Numeric role order (`viewer:1 < editor:2 < admin:3`) enforced in `app/api/deps.py` via typed aliases (`ViewerUser`, `EditorUser`, `AdminUser`, `Csrf`). Every state-changing route MUST declare the `Csrf` dependency.
 - **Denormalized Health Score**: `Vm.health_score` (0–100) is stored on the VM row. Any VM or child record mutation triggers `services/vms.py::recompute_health(db, vm_id)`.
 - **Audit Logging**: Every VM field modification creates an `AuditLog` row recording `field_name`, `old_value`, `new_value`, `user_id`, and timestamp.
+- **Per-User Preferences & Accent**: User preferences (including page column layout and accent color preset) are stored in `users.preferences` JSONB (`app/api/routes/preferences.py`).
+- **Server-Side Fleet Aggregates**: `GET /api/dashboard` and `GET /api/reports/summary` compute exact fleet statistics in SQL directly without fetching capped client-side VM lists.
 - **Frontend Architecture**: Built with Next.js 15 App Router and React 18. Pages under `src/app/**/page.tsx` act as thin shells re-exporting client implementation components from `src/routes/*.tsx`.
 - **HTTP & State Management**: All network requests pass through a single typed API client (`src/api/client.ts`) that handles CSRF header injection and single-shot 401 refresh retries. Server state is managed via TanStack Query; search, filter, sort, and pagination states are reflected in URL `searchParams`.
-
 ## Key Directories
 
 - `backend/app/api/`: FastAPI route definitions (`routes/`) and auth dependency surface (`deps.py`).
-- `backend/app/services/`: Service layer (`vms.py`, `vms_bulk.py`, `clusters.py`, `storage.py`, `csv_import.py`).
+- `backend/app/services/`: Service layer (`vms.py`, `vms_bulk.py`, `clusters.py`, `storage.py`, `csv_import.py`, `ldap_auth.py`).
 - `backend/app/db/`: Database models (`models.py`), session configuration (`session.py`), and Alembic migrations (`alembic/`).
-- `backend/app/schemas/`: Pydantic request and response validation models (`vms.py`, `clusters.py`, `storage.py`).
+- `backend/app/schemas/`: Pydantic request and response validation models (`vms.py`, `clusters.py`, `storage.py`, `preferences.py`).
 - `backend/tests/`: Pytest suite and real Postgres test fixtures (`conftest.py`).
 - `frontend/src/app/`: Next.js App Router thin shell pages (excluded from Vitest coverage).
-- `frontend/src/routes/`: Main client-side route components (`InventoryPage.tsx`, `VmFormPage.tsx`, etc.).
-- `frontend/src/components/`: Reusable UI components (`ui.tsx`, `Layout.tsx`, `InventoryToolbar.tsx`, `ColumnDrawer.tsx`, `BulkEditDrawer.tsx`, `filters/`).
+- `frontend/src/routes/`: Client-side route surfaces (`InventoryPage.tsx`, `VmDetailPage.tsx`, `VmFormPage.tsx`, `DashboardPage.tsx`, `ReportsPage.tsx`, `StoragePage.tsx`, `StorageDetailPage.tsx`, `ClustersPage.tsx`, `ClusterDetailPage.tsx`, `SettingsPage.tsx`, `UsersPage.tsx`, `ImportCsvPage.tsx`, `LdapSettingsPanel.tsx`, `LoginPage.tsx`).
+- `frontend/src/components/`: Reusable UI components (`ui.tsx`, `Layout.tsx`, `InventoryToolbar.tsx`, `ColumnDrawer.tsx`, `BulkEditDrawer.tsx`, `AccentProvider.tsx`, `ThemeProvider.tsx`, `NotificationBell.tsx`, `SegmentedControl.tsx`, `FuzzyMultiSelect.tsx`, `PaginationFooter.tsx`, `filters/`).
 - `frontend/src/api/`: Central API client (`client.ts`).
 - `frontend/src/test/`: Vitest + React Testing Library component tests and helpers (`utils.tsx`, `setup.ts`).
 - `frontend/e2e/`: Playwright E2E regression specs.
@@ -45,6 +44,7 @@ Always run commands inside `devbox shell`. Use `just` recipes for primary tasks:
   - Lint & typecheck: `cd frontend && bun run lint && bun run typecheck` (`tsc --noEmit`)
   - Run Playwright E2E: `just e2e` (`bunx playwright test`)
 - **Database Helper**: `just db-up` (starts Docker Postgres container and creates `inventorymgr_test` DB).
+- **Deployment Commands**: `just up` (podman compose container stack), `just up-local` (PM2 process manager stack). See `docs/RUNBOOK.md` for full operations guide.
 
 ## Code Conventions & Common Patterns
 
@@ -63,7 +63,7 @@ Always run commands inside `devbox shell`. Use `just` recipes for primary tasks:
   - **The Signal Rule**: Saturated colors are strictly reserved for semantic data categories (`status`, `criticality`, `environment`, `platform`, `os_family`, `lifecycle`). Chrome surfaces stay neutral.
   - **The Flat-By-Default Rule**: Resting components use hairline borders (`border-[var(--color-border)]`) and ambient shadows (`shadow-raised`). Overlay shadows (`shadow-overlay`) are reserved for transient drawers/dialogs.
   - **The Tabular Rule**: Scannable technical values (IPs, UUIDs, memory/CPU sizes, counts) MUST use the mono stack (`monoClass`) + `tabular-nums`.
-  - **UI Class Constants**: Reuse pre-styled Tailwind class constants exported from `src/components/ui.tsx` (`primaryButtonClass`, `secondaryButtonClass`, `inputClass`, `selectClass`, `cardClass`, `tableClass`, etc.).
+  - **UI Class Constants**: Reuse pre-styled Tailwind class constants exported from `src/components/ui.tsx` (`primaryButtonClass`, `secondaryButtonClass`, `dangerButtonClass`, `inputClass`, `selectClass`, `textareaClass`, `authInputClass`, `cardClass`, `tableWrapClass`, `filterBarClass`, `statTileClass`, `labelClass`, `helpTextClass`, `sectionTitleClass`, `eyebrowClass`, `tableClass`, `tableHeadClass`, `tableBodyClass`, `tableRowClass`, `tableCellClass`, `monoClass`).
 - **URL-Driven List & Filter State**: Search query, filters, page number, page size, sort key, and direction are synchronized with URL `searchParams`.
 
 ### CSV Import & Export Round-Trip
@@ -86,6 +86,7 @@ Always run commands inside `devbox shell`. Use `just` recipes for primary tasks:
 ## Runtime/Tooling Preferences
 
 - **Environment Manager**: Devbox (`devbox.json`). All commands should run inside `devbox shell`.
+- **Branching Model**: Active development takes place on `dev`. The `main` branch is deploy-only and uses an expanded `.gitignore` to exclude dev assets; deployments run `deploy.sh` (`git pull origin main && git clean -fdX`).
 - **Backend Runtime**: Python >=3.12 managed via `uv`. Dependencies listed in `backend/pyproject.toml` and locked in `backend/uv.lock`.
 - **Frontend Runtime**: Node.js 22 environment using **Bun** package manager (`bun run`, `bun install`, `bunx`).
 - **Container Topology**: Postgres 16 running on `127.0.0.1:54329` for local testing (`docker-compose.e2e-db.yml`).
