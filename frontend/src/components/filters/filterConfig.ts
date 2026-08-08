@@ -1,5 +1,5 @@
 import { api } from '../../api/client';
-import type { Filters, FilterName } from '../../routes/InventoryPage';
+import type { Filters, FilterName } from '../../lib/inventoryFilters';
 
 export type AdvancedFilterName = Exclude<FilterName, 'q'>;
 export type DynamicFilterName = 'owner' | 'cluster' | 'node' | 'tag' | 'application';

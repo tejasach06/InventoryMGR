@@ -8,7 +8,7 @@ import { ActiveFilterChips } from './filters/ActiveFilterChips';
 import { FilterDrawer } from './filters/FilterDrawer';
 import { emptyFilterState } from './filters/filterConfig';
 import type { ColumnConfig } from '../hooks/useColumnPreferences';
-import type { Filters, FilterName } from '../routes/InventoryPage';
+import type { Filters, FilterName } from '../lib/inventoryFilters';
 
 type OpenDrawer = 'none' | 'filters' | 'columns';
 

@@ -124,6 +124,7 @@ function RamBar({ used, total }: { used: number | null; total: number }) {
 
 function NodesArea({ cluster, canEdit }: { cluster: PhysicalCluster; canEdit: boolean }) {
   const [showAdd, setShowAdd] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ['cluster', cluster.id] });
   const addNode = useMutation({
@@ -133,6 +134,7 @@ function NodesArea({ cluster, canEdit }: { cluster: PhysicalCluster; canEdit: bo
   const delNode = useMutation({
     mutationFn: (nodeId: string) => api.deleteNode(cluster.id, nodeId),
     onSuccess: invalidate,
+    onSettled: () => setConfirmId(null),
   });
 
   return (
@@ -145,6 +147,17 @@ function NodesArea({ cluster, canEdit }: { cluster: PhysicalCluster; canEdit: bo
           </button>
         )}
       </div>
+      {delNode.isError && <Alert>{detailMessage(delNode.error)}</Alert>}
+      <ConfirmDialog
+        open={confirmId !== null}
+        title="Remove node"
+        body="This removes the record from the inventory. Audit history is retained."
+        confirmLabel="Remove"
+        tone="danger"
+        pending={delNode.isPending}
+        onConfirm={() => confirmId && delNode.mutate(confirmId)}
+        onCancel={() => setConfirmId(null)}
+      />
       {cluster.nodes.length === 0 ? (
         <p className="text-sm text-[var(--color-text-tertiary)]">No nodes yet.</p>
       ) : (
@@ -171,7 +184,7 @@ function NodesArea({ cluster, canEdit }: { cluster: PhysicalCluster; canEdit: bo
                   <td className={tableCellClass}>
                     {[n.datacenter, n.rack, n.rack_unit].filter(Boolean).join(' / ') || '—'}
                   </td>
-                  <td className={tableCellClass}>{canEdit && <RemoveButton onClick={() => delNode.mutate(n.id)} label={`Remove node ${n.name}`} />}</td>
+                  <td className={tableCellClass}>{canEdit && <RemoveButton onClick={() => setConfirmId(n.id)} label={`Remove node ${n.name}`} disabled={delNode.isPending && confirmId === n.id} />}</td>
                 </tr>
               ))}
             </tbody>
