@@ -158,7 +158,7 @@ function VmCard({ vm }: { vm: Vm }) {
       {/* Primary row: name + status */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-display font-semibold text-[0.9375rem] text-[var(--color-text-primary)] truncate">{vm.name}</h3>
+          <h3 className={cn(monoClass, "truncate font-semibold text-[var(--color-text-primary)]")}>{vm.name}</h3>
           <p className={cn('mt-0.5 text-xs text-[var(--color-text-tertiary)]', monoClass)}>{vm.platform} · {vm.cluster}</p>
         </div>
         <Badge value={vm.status} type="status" size="sm" />
@@ -314,6 +314,7 @@ function VmTable({
               <tr
                 key={vm.id}
                 className={cn(tableRowClass, isSelected && 'bg-[var(--color-accent)]/10')}
+                style={{ borderLeft: `3px solid var(--color-status-${vm.status.toLowerCase().replace(/\s+/g, '_')})` }}
               >
                 <td className="py-3 pl-3 pr-4">
                   <input
@@ -423,7 +424,7 @@ function VmTable({
                       ) : (
                         <>
                           {col.key === 'name' && (
-                            <Link href={`/inventory/${vm.id}`} className="hover:text-[var(--color-accent)] transition-colors">
+                            <Link href={`/inventory/${vm.id}`} className={cn(monoClass, "font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent-text)]")}>
                               {vm.name}
                             </Link>
                           )}
@@ -661,15 +662,17 @@ export function InventoryPage() {
       <section>
         <PageHeader
           title="Inventory"
-          eyebrow="Infrastructure"
+          context="Virtual machines"
+          description="Search, compare, and update the documented fleet."
           actions={
-            <div className="flex items-center gap-2">
-              <a href={api.exportVmsUrl(queryParams, 'csv')} download="vm-inventory.csv" className={secondaryButtonClass}>
-                Export CSV
-              </a>
-              <a href={api.exportVmsUrl(queryParams, 'xlsx')} download="vm-inventory.xlsx" className={secondaryButtonClass}>
-                Export Excel
-              </a>
+            <div className="flex flex-wrap items-center gap-2">
+              <details className="relative">
+                <summary className={`${secondaryButtonClass} cursor-pointer list-none`}>Export</summary>
+                <div className="absolute right-0 z-20 mt-2 grid min-w-44 gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-overlay)]">
+                  <a href={api.exportVmsUrl(queryParams, 'csv')} download="vm-inventory.csv" className="rounded-md px-3 py-2 text-sm hover:bg-[var(--color-surface-tertiary)]">CSV</a>
+                  <a href={api.exportVmsUrl(queryParams, 'xlsx')} download="vm-inventory.xlsx" className="rounded-md px-3 py-2 text-sm hover:bg-[var(--color-surface-tertiary)]">Excel</a>
+                </div>
+              </details>
               {canCreateVm && <Link className={primaryButtonClass} href="/inventory/new">New VM</Link>}
             </div>
           }

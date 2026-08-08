@@ -158,8 +158,8 @@ export function SettingsPage() {
 
   return (
     <PageTransition>
-      <section>
-        <PageHeader title="Settings" eyebrow="Your preferences" />
+      <section className="mx-auto max-w-5xl">
+        <PageHeader title="Settings" context="Administration" description="Manage appearance, notifications, users, and directory access." />
         <div className={cardClass}>
           <div
             className="mb-6 flex gap-1 overflow-x-auto border-b border-[var(--color-border-subtle)]"
@@ -176,7 +176,7 @@ export function SettingsPage() {
               className={cn(
                 '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                 activeTab === 'appearance'
-                  ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                  ? 'border-[var(--color-accent)] bg-[var(--color-surface-tertiary)] text-[var(--color-accent-text)]'
                   : 'border-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]',
               )}
             >
@@ -194,7 +194,7 @@ export function SettingsPage() {
                   className={cn(
                     '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                     activeTab === 'users'
-                      ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                      ? 'border-[var(--color-accent)] bg-[var(--color-surface-tertiary)] text-[var(--color-accent-text)]'
                       : 'border-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]',
                   )}
                 >
@@ -210,7 +210,7 @@ export function SettingsPage() {
                   className={cn(
                     '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                     activeTab === 'notifications'
-                      ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                      ? 'border-[var(--color-accent)] bg-[var(--color-surface-tertiary)] text-[var(--color-accent-text)]'
                       : 'border-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]',
                   )}
                 >
@@ -226,7 +226,7 @@ export function SettingsPage() {
                   className={cn(
                     '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                     activeTab === 'ldap'
-                      ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                      ? 'border-[var(--color-accent)] bg-[var(--color-surface-tertiary)] text-[var(--color-accent-text)]'
                       : 'border-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]',
                   )}
                 >

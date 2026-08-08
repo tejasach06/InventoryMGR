@@ -7,6 +7,8 @@ import {
   Alert,
   Badge,
   EmptyState,
+  InlineEmptyState,
+  ProgressBar,
   FieldError,
   PageHeader,
   PageTransition,
@@ -107,6 +109,15 @@ describe('AppLayout', () => {
   });
 
 
+  it('opens and closes the mobile navigation dialog', () => {
+    renderWithProviders(<AppLayout user={makeUser()}>body</AppLayout>);
+    const menu = screen.getByRole('button', { name: 'Open navigation' });
+    fireEvent.click(menu);
+    expect(screen.getByRole('dialog', { name: 'Navigation' })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).not.toBeInTheDocument();
+  });
+
   it('logs out and redirects to /login', async () => {
     const logout = vi.spyOn(api, 'logout').mockResolvedValue(null);
     renderWithProviders(<AppLayout user={makeUser()}>body</AppLayout>);
@@ -136,6 +147,21 @@ describe('ui primitives', () => {
     );
     expect(screen.getByText('running')).toBeInTheDocument();
     expect(screen.getByText('mystery')).toBeInTheDocument();
+  });
+
+  it('uses explicit semantic badges and safe neutral fallbacks', () => {
+    renderWithProviders(<div>
+      <Badge value="running" tone={{ type: 'status', value: 'running' }} />
+      <Badge value="admin" tone={{ type: 'neutral' }} />
+      <Badge value="mystery" />
+      <ProgressBar value={42} label="Capacity" />
+      <InlineEmptyState title="No disks" body="Add a disk to track storage." />
+    </div>);
+    expect(screen.getByText('running')).toHaveAttribute('data-tone', 'status');
+    expect(screen.getByText('admin')).toHaveAttribute('data-tone', 'neutral');
+    expect(screen.getByText('mystery')).toHaveAttribute('data-tone', 'neutral');
+    expect(screen.getByRole('progressbar')).toHaveStyle({ '--progress-color': 'var(--color-text-secondary)' });
+    expect(screen.getByRole('status')).toHaveClass('py-6');
   });
 
   it('renders FieldError only when a message is present', () => {

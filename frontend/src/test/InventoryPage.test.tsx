@@ -198,8 +198,10 @@ describe('InventoryPage', () => {
   it('renders Export CSV and Export Excel links', async () => {
     vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
-    const csvLink = await screen.findByRole('link', { name: 'Export CSV' });
-    const excelLink = await screen.findByRole('link', { name: 'Export Excel' });
+    await screen.findByRole('button', { name: 'Filters' });
+    await userEvent.setup().click(screen.getByText('Export'));
+    const csvLink = screen.getByRole('link', { name: 'CSV' });
+    const excelLink = screen.getByRole('link', { name: 'Excel' });
     expect(csvLink).toHaveAttribute('href', expect.stringContaining('/api/vms/export'));
     expect(excelLink).toHaveAttribute('href', expect.stringContaining('format=xlsx'));
   });

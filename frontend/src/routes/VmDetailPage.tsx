@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api, detailMessage, NetworkRole, Vm } from '../api/client';
 import {
-  Alert, Badge, ConfirmDialog, EmptyState, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
+  Alert, Badge, ConfirmDialog, EmptyState, InlineEmptyState, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, dangerButtonClass, inputClass, labelClass, monoClass, secondaryButtonClass, selectClass,
   tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass,
 } from '../components/ui';
@@ -164,7 +164,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
         onConfirm={() => deleteDiskId && delMut.mutate(deleteDiskId)}
         onCancel={() => setDeleteDiskId(null)}
       />
-      {vm.disks.length === 0 ? <EmptyState title="No disks configured" body="Add a disk below to start tracking storage for this VM." /> : (
+      {vm.disks.length === 0 ? <InlineEmptyState title="No disks configured" body="Add a disk below to start tracking storage for this VM." /> : (
         <div className={tableWrapClass}>
           <table className={tableClass}>
             <thead className={tableHeadClass}>
@@ -245,7 +245,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
         onConfirm={() => deleteNetworkId && delMut.mutate(deleteNetworkId)}
         onCancel={() => setDeleteNetworkId(null)}
       />
-      {vm.networks.length === 0 ? <EmptyState title="No network entries configured" body="Add an IP address below to start tracking network configuration." /> : (
+      {vm.networks.length === 0 ? <InlineEmptyState title="No network entries configured" body="Add an IP address below to start tracking network configuration." /> : (
         <div className={tableWrapClass}>
           <table className={tableClass}>
             <thead className={tableHeadClass}>
@@ -329,7 +329,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
         onConfirm={() => deleteAppId && delMut.mutate(deleteAppId)}
         onCancel={() => setDeleteAppId(null)}
       />
-      {vm.applications.length === 0 ? <EmptyState title="No applications linked" body="Add an application below to track what runs on this VM." /> : (
+      {vm.applications.length === 0 ? <InlineEmptyState title="No applications linked" body="Add an application below to track what runs on this VM." /> : (
         <ul className="space-y-1">
           {vm.applications.map((a) => (
             <li key={a.id} className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 py-2">
@@ -364,7 +364,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
 function AuditPanel({ vmId }: { vmId: string }) {
   const auditQ = useQuery({ queryKey: ['audit', vmId], queryFn: () => api.getAuditLog(vmId) });
   if (auditQ.isLoading) return <Skeleton className="h-24" />;
-  if (!auditQ.data?.length) return <EmptyState title="No changes recorded yet" body="Audit entries appear here as this VM's fields are edited." />;
+  if (!auditQ.data?.length) return <InlineEmptyState title="No changes recorded yet" body="Audit entries appear here as this VM's fields are edited." />;
   return (
     <div className={tableWrapClass}>
       <table className={tableClass}>
@@ -441,7 +441,8 @@ export function VmDetailPage() {
       <section className="mx-auto w-full max-w-5xl space-y-5 2xl:max-w-6xl">
         <PageHeader
           title={vm.name}
-          eyebrow={<Badge value={vm.environment} type="environment" />}
+          context="Virtual machine"
+        description="Configuration, ownership, health, and audited changes."
           actions={
             <>
               <button className={secondaryButtonClass} onClick={() => router.push('/inventory')}>← Back</button>

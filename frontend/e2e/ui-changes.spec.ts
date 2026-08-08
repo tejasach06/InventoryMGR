@@ -31,7 +31,7 @@ async function openNewVmForm(page: Page) {
 test('sidebar collapses to icons and expands again', async ({ page }) => {
   await loginAsAdmin(page);
   const sidebar = page.getByRole('navigation', { name: 'Primary' });
-  await expect(sidebar.getByText('Inventory')).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'Inventory' })).toBeVisible();
 
   const collapseButton = page.getByRole('button', { name: 'Collapse sidebar' });
   await expect(collapseButton).toBeVisible();
@@ -44,7 +44,7 @@ test('sidebar collapses to icons and expands again', async ({ page }) => {
   await expect(sidebar.getByRole('link', { name: 'Inventory' })).toBeVisible();
 
   await expandButton.click();
-  await expect(sidebar.getByText('Inventory')).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'Inventory' })).toBeVisible();
 });
 
 test('New VM form uses VM-ID label, Location section, Owner in Identity, no Lifecycle', async ({ page }) => {
