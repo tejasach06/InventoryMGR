@@ -113,7 +113,7 @@ docker compose -f docker-compose.e2e.yml run --rm playwright
 
 ## Deployment
 
-See **[docs/RUNBOOK.md](docs/RUNBOOK.md)** for the complete PM2 deployment guide, health checks, common issues, and rollback procedures.
+Run `just up` (podman) or `just up-local` (PM2) to deploy. See **[docs/RUNBOOK.md](docs/RUNBOOK.md)** for details, health checks, common issues, and rollback procedures.
 
 ## API Reference
 

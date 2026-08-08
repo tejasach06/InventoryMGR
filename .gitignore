@@ -34,10 +34,6 @@ frontend/playwright-report/
 .devbox
 AGENTS.md
 gan-harness/
-ecosystem.config.js
-backend/ecosystem.config.js
-frontend/ecosystem.config.js
-frontend/ecosystem.config.cjs
 tailwind.config.js
 *.tsbuildinfo
 debug-*.png

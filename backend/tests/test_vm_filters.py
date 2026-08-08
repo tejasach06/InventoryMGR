@@ -1,8 +1,8 @@
 from datetime import UTC, datetime, timedelta
+
 from sqlalchemy.orm import Session
 
-from app.db.models import NetworkRole, UserRole, VmApplication, VmNetwork
-from app.db.models import AuditLog, VmStatus
+from app.db.models import AuditLog, NetworkRole, UserRole, VmApplication, VmNetwork, VmStatus
 
 from .conftest import create_user, create_vm_row, login
 
@@ -150,7 +150,7 @@ def test_shutdown_stale_filter(client, db_session: Session) -> None:
     editor = create_user(db_session, email="stale_editor@example.local", role=UserRole.editor)
     stale_vm = create_vm_row(db_session, editor, name="stale-off", status=VmStatus.powered_off)
     fresh_vm = create_vm_row(db_session, editor, name="fresh-off", status=VmStatus.powered_off)
-    running_vm = create_vm_row(db_session, editor, name="running-vm", status=VmStatus.running)
+    create_vm_row(db_session, editor, name="running-vm", status=VmStatus.running)
 
     now = datetime.now(UTC)
     db_session.add(
@@ -186,13 +186,13 @@ def test_shutdown_stale_filter(client, db_session: Session) -> None:
 def test_decommission_overdue_filter(client, db_session: Session) -> None:
     editor = create_user(db_session, email="decom_editor@example.local", role=UserRole.editor)
     today = datetime.now(UTC).date()
-    overdue_vm = create_vm_row(
+    create_vm_row(
         db_session, editor, name="overdue-vm", decommission_date=today - timedelta(days=5), status=VmStatus.running
     )
-    already_decom = create_vm_row(
+    create_vm_row(
         db_session, editor, name="decom-done", decommission_date=today - timedelta(days=5), status=VmStatus.decommissioned
     )
-    future_vm = create_vm_row(
+    create_vm_row(
         db_session, editor, name="future-vm", decommission_date=today + timedelta(days=5), status=VmStatus.running
     )
     login(client, "decom_editor@example.local")
@@ -208,9 +208,9 @@ def test_decommission_overdue_filter(client, db_session: Session) -> None:
 
 def test_missing_ip_filter_and_tag_parity(client, db_session: Session) -> None:
     editor = create_user(db_session, email="ip_editor@example.local", role=UserRole.editor)
-    no_ip_vm = create_vm_row(db_session, editor, name="no-ip-vm")
+    create_vm_row(db_session, editor, name="no-ip-vm")
     has_ip_vm = create_vm_row(db_session, editor, name="has-ip-vm")
-    template_no_ip = create_vm_row(db_session, editor, name="template-no-ip", tags=["template"])
+    create_vm_row(db_session, editor, name="template-no-ip", tags=["template"])
 
     db_session.add(VmNetwork(vm_id=has_ip_vm.id, ip_address="10.0.0.1", role=NetworkRole.private))
     db_session.commit()
