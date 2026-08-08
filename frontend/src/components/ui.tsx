@@ -2,6 +2,7 @@
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/classNames';
+import { useModalOverlay } from '../hooks/useModalOverlay';
 
 export const primaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-on-accent)] transition-all duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]';
 export const secondaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-all duration-150 hover:bg-[var(--color-surface-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]';
@@ -56,41 +57,80 @@ export function semanticBorder(type: 'status' | 'criticality' | 'environment' | 
 
 
 
-/* Badge with semantic color. size="sm" for dense table cells, "md" for card contexts. */
-export function Badge({ value, type = 'status', size = 'sm' }: { value: string; type?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle'; size?: 'sm' | 'md' }) {
-  const normalized = value.toLowerCase().replace(/\s+/g, '_');
+/* Badge with explicit semantic color and a safe neutral fallback. */
+export type SemanticType = 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle';
+export type BadgeTone = { type: SemanticType; value: string } | { type: 'neutral' };
+
+const semanticValues: Record<SemanticType, ReadonlySet<string>> = {
+  status: new Set(['running', 'powered_off', 'decommissioned', 'unknown']),
+  criticality: new Set(['critical', 'high', 'medium', 'low']),
+  environment: new Set(['production', 'staging', 'uat', 'testing', 'development', 'dr', 'sandbox']),
+  platform: new Set(['proxmox', 'vmware']),
+  os_family: new Set(['linux', 'windows']),
+  lifecycle: new Set(['active', 'planned', 'retiring', 'retired']),
+};
+
+export function Badge({
+  value,
+  type = 'status',
+  tone,
+  size = 'sm',
+}: {
+  value: string;
+  type?: SemanticType;
+  tone?: BadgeTone;
+  size?: 'sm' | 'md';
+}) {
+  const requestedType = tone?.type === 'neutral' ? null : (tone?.type ?? type);
+  const requestedValue = tone?.type === 'neutral' ? null : (tone?.value ?? value);
+  const normalized = requestedValue?.toLowerCase().replace(/\s+/g, '_') ?? '';
+  const semantic = requestedType !== null && semanticValues[requestedType].has(normalized);
+  const fg = semantic ? `var(--color-${requestedType}-${normalized})` : 'var(--color-text-secondary)';
+  const bg = semantic ? `var(--color-${requestedType}-${normalized}-bg)` : 'var(--color-surface-tertiary)';
+
   return (
     <span
+      data-tone={semantic ? requestedType : 'neutral'}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border font-medium',
-        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'
+        'animate-pill-pop inline-flex items-center gap-1.5 rounded-md border font-medium transition-[filter] duration-150 hover:brightness-95 dark:hover:brightness-110',
+        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm',
       )}
       style={{
-        backgroundColor: `var(--color-${type}-${normalized}-bg)`,
-        color: `var(--color-${type}-${normalized})`,
-        borderColor: `color-mix(in srgb, var(--color-${type}-${normalized}) 35%, transparent)`,
+        backgroundColor: bg,
+        color: fg,
+        borderColor: semantic ? `color-mix(in srgb, ${fg} 35%, transparent)` : 'var(--color-border)',
       } as React.CSSProperties}
     >
-      <span
-        className="h-1.5 w-1.5 shrink-0 rounded-full"
-        style={{ backgroundColor: `var(--color-${type}-${normalized})` } as React.CSSProperties}
-        aria-hidden="true"
-      />
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: fg }} aria-hidden="true" />
       {value}
     </span>
   );
 }
 
 /* PageHeader */
-export function PageHeader({ title, actions, eyebrow }: { title: string; actions?: ReactNode; eyebrow?: ReactNode }) {
+export interface PageHeaderProps {
+  title: string;
+  context?: ReactNode;
+  eyebrow?: ReactNode;
+  description?: ReactNode;
+  breadcrumb?: ReactNode;
+  actions?: ReactNode;
+}
+
+export function PageHeader({ title, context, eyebrow, description, breadcrumb, actions }: PageHeaderProps) {
+  const label = context ?? eyebrow;
   return (
-    <div className="mb-8 grid gap-4 sm:flex sm:items-end sm:justify-between">
-      <div>
-        {eyebrow ? <div className="eyebrow-label text-[var(--color-accent)]">{eyebrow}</div> : null}
-        <h1 className="font-display mt-1 text-[length:var(--text-fluid-h1)] font-semibold leading-[1.05] tracking-tight text-[var(--color-text-primary)]">{title}</h1>
+    <header className="mb-8">
+      {breadcrumb ? <div className="mb-4 text-sm text-[var(--color-text-secondary)]">{breadcrumb}</div> : null}
+      <div className="grid gap-5 sm:flex sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          {label ? <div className="eyebrow-label text-[var(--color-text-tertiary)]">{label}</div> : null}
+          <h1 className="font-display mt-1 text-balance text-[length:var(--text-fluid-h1)] font-semibold leading-[1.05] tracking-tight text-[var(--color-text-primary)]">{title}</h1>
+          {description ? <p className="mt-2 max-w-[65ch] text-pretty text-sm leading-6 text-[var(--color-text-secondary)]">{description}</p> : null}
+        </div>
+        {actions ? <div className="flex flex-wrap items-center gap-2 sm:justify-end">{actions}</div> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-    </div>
+    </header>
   );
 }
 
@@ -148,6 +188,16 @@ export function EmptyState({ title, body, icon, actions }: { title: string; body
       <h3 className="font-display text-xl font-semibold text-[var(--color-text-primary)]">{title}</h3>
       <p className="text-base text-[var(--color-text-secondary)] max-w-md leading-relaxed">{body}</p>
       {actions ? <div className="mt-2 flex flex-wrap items-center justify-center gap-2">{actions}</div> : null}
+    </div>
+  );
+}
+
+export function InlineEmptyState({ title, body, actions }: { title: string; body?: string; actions?: ReactNode }) {
+  return (
+    <div role="status" className="flex flex-col items-start gap-2 py-6 text-left">
+      <p className="font-medium text-[var(--color-text-primary)]">{title}</p>
+      {body ? <p className="max-w-[60ch] text-sm text-[var(--color-text-secondary)]">{body}</p> : null}
+      {actions ? <div className="mt-1 flex flex-wrap gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -228,27 +278,27 @@ export function Drawer({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useModalOverlay({ open, onClose, containerRef: panelRef, initialFocusRef: closeRef });
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
-      <div className="absolute inset-0 bg-[var(--color-scrim)] backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
-      <div className="relative ml-auto w-full max-w-xl bg-[var(--color-surface)] rounded-tl-2xl rounded-bl-2xl shadow-[var(--shadow-overlay)] animate-rise overflow-hidden flex flex-col">
+      <div className="absolute inset-0 animate-fade-in bg-[var(--color-scrim)] backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div ref={panelRef} className="relative ml-auto flex w-full max-w-xl animate-rise flex-col overflow-hidden rounded-l-2xl bg-[var(--color-surface)] shadow-[var(--shadow-overlay)]">
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
           <h2 id="drawer-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
-          <button type="button" onClick={onClose} className="p-1 rounded-lg text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-tertiary)] transition-colors" aria-label="Close">
+          <button ref={closeRef} type="button" onClick={onClose} className="rounded-lg p-2 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-tertiary)]" aria-label="Close">
             <svg className="h-5 w-5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">{children}</div>
-        {footer && (
-          <div className="border-t border-[var(--color-border)] px-5 py-4 flex gap-2 justify-end bg-[var(--color-surface)]">
-            {footer}
-          </div>
-        )}
+        {footer ? <div className="flex justify-end gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">{footer}</div> : null}
       </div>
     </div>
   );
 }
+
 
 /* ConfirmDialog — styled replacement for native confirm() on destructive actions */
 export function ConfirmDialog({
@@ -307,10 +357,10 @@ export function ConfirmDialog({
 }
 
 /* RemoveButton — small destructive icon action for inline table/list rows */
-export function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
+export function RemoveButton({ onClick, label, disabled = false }: { onClick: () => void; label: string; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick} aria-label={label}
-      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-criticality-critical)]/40 hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)]">
+    <button type="button" onClick={onClick} aria-label={label} disabled={disabled}
+      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-criticality-critical)]/40 hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] disabled:cursor-not-allowed disabled:opacity-50">
       ×
     </button>
   );
@@ -448,7 +498,7 @@ export function SectionNav({ titles }: { titles: string[] }) {
 }
 
 /* ProgressBar — progress indicator with semantic color */
-export function ProgressBar({ value, label, colorVar = 'var(--color-accent)' }: { value: number; label: string; colorVar?: string }) {
+export function ProgressBar({ value, label, colorVar = 'var(--color-text-secondary)' }: { value: number; label: string; colorVar?: string }) {
   const pct = Math.max(0, Math.min(100, value));
   return (
     <div
@@ -458,7 +508,7 @@ export function ProgressBar({ value, label, colorVar = 'var(--color-accent)' }: 
       aria-valuemax={100}
       aria-valuenow={pct}
       className="h-2 w-full rounded-full"
-      style={{ backgroundColor: 'var(--color-surface-tertiary)' }}
+      style={{ backgroundColor: 'var(--color-surface-tertiary)', '--progress-color': colorVar } as React.CSSProperties}
     >
       <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: colorVar }} />
     </div>
@@ -471,7 +521,7 @@ export function FilterChip({ label, value, onRemove, type = 'status' }: { label:
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 hover:shadow-md animate-pill-pop',
+        'inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all duration-200 animate-pill-pop',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)]'
       )}
       style={{

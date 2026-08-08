@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, ArrayPayload, StorageArrayListItem } from '../api/client';
-import { Alert, Badge, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass, monoClass } from '../components/ui';
+import { Alert, Badge, PageHeader, PageTransition, TableSkeleton, EmptyState, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass, monoClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
 import { ArrayForm } from '../components/ArrayForm';
@@ -27,7 +27,7 @@ function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
 }
 
 function ThresholdBadge() {
-  return <Badge value="Over threshold" type="criticality" />;
+  return <Badge value="Over threshold" tone={{ type: 'criticality', value: 'critical' }} />;
 }
 
 export function StoragePage() {
@@ -51,7 +51,7 @@ export function StoragePage() {
 
   return (
     <PageTransition>
-      <PageHeader title="Storage" eyebrow="Infrastructure" actions={
+      <PageHeader title="Storage" context="Storage arrays" description="Review provisioned capacity, utilization, and attached volumes." actions={
         canEdit && !showForm ? (
           <button className={primaryButtonClass} onClick={() => setShowForm(true)}>+ New array</button>
         ) : null
@@ -72,11 +72,9 @@ export function StoragePage() {
       {arraysQ.isError ? <Alert>{detailMessage(arraysQ.error)}</Alert> : null}
 
       {arraysQ.isLoading ? (
-        <Skeleton className="h-40 w-full" />
+        <TableSkeleton rows={4} cols={7} />
       ) : arrays.length === 0 ? (
-        <div className={`${cardClass} text-center text-sm text-[var(--color-text-tertiary)]`}>
-          No storage arrays yet.
-        </div>
+        <EmptyState title="No storage arrays yet" body="Create the first array to document capacity and attached volumes." actions={canEdit ? <button className={primaryButtonClass} onClick={() => setShowForm(true)}>New array</button> : undefined} />
       ) : (
         <div className={tableWrapClass}>
           <table className={tableClass}>

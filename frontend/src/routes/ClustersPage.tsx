@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, detailMessage, ClusterPayload, PhysicalClusterListItem } from '../api/client';
-import { Alert, EmptyState, PageHeader, PageTransition, Skeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass, monoClass } from '../components/ui';
+import { Alert, EmptyState, PageHeader, PageTransition, TableSkeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass, monoClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
 import { ClusterForm } from '../components/ClusterForm';
@@ -31,7 +31,7 @@ export function ClustersPage() {
 
   return (
     <PageTransition>
-      <PageHeader title="Clusters" eyebrow="Infrastructure" actions={
+      <PageHeader title="Clusters" context="Physical compute" description="Track clusters, nodes, and documented capacity." actions={
         canEdit && !showForm ? (
           <button className={primaryButtonClass} onClick={() => setShowForm(true)}>+ New cluster</button>
         ) : null
@@ -52,9 +52,9 @@ export function ClustersPage() {
       {clustersQ.isError ? <Alert>{detailMessage(clustersQ.error)}</Alert> : null}
 
       {clustersQ.isLoading ? (
-        <Skeleton className="h-40 w-full" />
+        <TableSkeleton rows={4} cols={6} />
       ) : clusters.length === 0 ? (
-        <EmptyState title="No clusters yet" body="Create the first physical cluster to start tracking nodes." />
+        <EmptyState title="No clusters yet" body="Create the first physical cluster to start tracking nodes." actions={canEdit ? <button className={primaryButtonClass} onClick={() => setShowForm(true)}>New cluster</button> : undefined} />
       ) : (
         <div className={tableWrapClass}>
           <table className={tableClass}>

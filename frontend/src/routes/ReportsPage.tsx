@@ -12,16 +12,17 @@ interface ReportDef {
   description: string;
   suffix: string;
   colorVar?: string;
+  coverage?: boolean;
 }
 
 const REPORTS: ReportDef[] = [
   { name: 'linux', label: 'Linux Inventory', description: 'Every Linux-family guest', suffix: 'VMs', colorVar: 'var(--color-os_family-linux)' },
   { name: 'windows', label: 'Windows Inventory', description: 'Every Windows-family guest', suffix: 'VMs', colorVar: 'var(--color-os_family-windows)' },
   { name: 'production', label: 'Production Inventory', description: 'Workloads in the production environment', suffix: 'VMs', colorVar: 'var(--color-environment-production)' },
-  { name: 'monitoring', label: 'Monitoring Status', description: 'Guests with monitoring enabled', suffix: 'monitored', colorVar: 'var(--color-accent)' },
-  { name: 'applications', label: 'Application Inventory', description: 'Guests with at least one linked app', suffix: 'VMs', colorVar: 'var(--color-accent)' },
-  { name: 'owner', label: 'Owner Report', description: 'Distinct business/technical owners', suffix: 'owners', colorVar: 'var(--color-accent)' },
-  { name: 'pmp_access', label: 'PMP Access Report', description: 'VMs accessible via PMP', suffix: 'VMs', colorVar: 'var(--color-accent)' },
+  { name: 'monitoring', label: 'Monitoring Status', description: 'Guests with monitoring enabled', suffix: 'monitored' },
+  { name: 'applications', label: 'Application Inventory', description: 'Guests with at least one linked app', suffix: 'VMs' },
+  { name: 'owner', label: 'Owner Report', description: 'Distinct business/technical owners', suffix: 'owners', coverage: false },
+  { name: 'pmp_access', label: 'PMP Access Report', description: 'VMs accessible via PMP', suffix: 'VMs' },
   { name: 'lifecycle', label: 'Lifecycle Report', description: 'Guests with a decommission date set', suffix: 'scheduled', colorVar: 'var(--color-lifecycle-retiring)' },
 ];
 
@@ -39,7 +40,7 @@ export function ReportsPage() {
   const counts = summaryQ.data?.counts ?? {};
   return (
     <PageTransition>
-      <PageHeader title="Reports" eyebrow="Exports" actions={
+      <PageHeader title="Reports" context="Exports" description="Download focused fleet views with server-verified counts." actions={
         <a
           href={api.exportVmsUrl(new URLSearchParams('all=true'))}
           download="vm-inventory.csv"
@@ -63,41 +64,21 @@ export function ReportsPage() {
         />
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
-            {REPORTS.map((r) => {
-              const value = summaryQ.isLoading ? 0 : (counts[r.name] ?? 0);
+          <div className="overflow-hidden rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] shadow-[var(--shadow-raised)]">
+            {REPORTS.map((report) => {
+              const value = summaryQ.isLoading ? 0 : (counts[report.name] ?? 0);
               const pct = total > 0 ? Math.round((value / total) * 100) : 0;
               return (
-                <section key={r.name} className={`${cardClass} flex flex-col`}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">{r.label}</h2>
-                      <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{r.description}</p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      {summaryQ.isLoading ? (
-                        <Skeleton className="h-7 w-10" />
-                      ) : (
-                        <>
-                          <span className={cn(monoClass, 'text-2xl font-bold text-[var(--color-text-primary)] tabular-nums')}>{value}</span>
-                          <span className="ml-1 text-[0.7rem] uppercase tracking-wide text-[var(--color-text-tertiary)]">{r.suffix}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <ProgressBar value={pct} label={`${r.label}: ${value} of ${total} VMs`} colorVar={r.colorVar} />
-                  </div>
-                  <div className="mt-4 flex justify-end border-t border-[var(--color-border)] pt-3">
-                    <a href={api.reportUrl(r.name)} download={`${r.name}.csv`} className={secondaryButtonClass}>
-                      <DownloadIcon /> Download CSV
-                    </a>
-                  </div>
+                <section key={report.name} className="group grid gap-4 border-b border-[var(--color-border-subtle)] p-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_7rem_10rem_auto] sm:items-center">
+                  <div className="min-w-0"><h2 className="font-semibold text-[var(--color-text-primary)]">{report.label}</h2><p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{report.description}</p></div>
+                  <div>{summaryQ.isLoading ? <Skeleton className="h-7 w-12" /> : <><span className={cn(monoClass, 'text-xl font-semibold text-[var(--color-text-primary)]')}>{value}</span><span className="ml-1 text-xs text-[var(--color-text-tertiary)]">{report.suffix}</span></>}</div>
+                  <div>{report.coverage === false ? <span className="text-xs text-[var(--color-text-tertiary)]">Distinct count</span> : <ProgressBar value={pct} label={`${report.label}: ${value} of ${total} VMs`} colorVar={report.colorVar} />}</div>
+                  <a href={api.reportUrl(report.name)} download={`${report.name}.csv`} className={cn(secondaryButtonClass, 'whitespace-nowrap')}><DownloadIcon /> Download</a>
                 </section>
               );
             })}
           </div>
-          <p className={cn(monoClass, 'mt-4 text-center tabular-nums')}>
+          <p className={cn(monoClass, 'mt-4 text-center text-xs text-[var(--color-text-tertiary)] tabular-nums')}>
             {summaryQ.isLoading ? 'loading…' : `${total} VMs across ${REPORTS.length} report views`}
           </p>
         </>

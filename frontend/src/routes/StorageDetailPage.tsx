@@ -325,7 +325,7 @@ export function StorageDetailPage() {
   return (
     <PageTransition>
       <section className="mx-auto w-full max-w-5xl space-y-5">
-        <PageHeader title={array.name} eyebrow={array.vendor} actions={
+        <PageHeader title={array.name} context="Storage array" description={`${array.vendor} capacity, volumes, LUNs, and shares.`} actions={
           <>
             <button className={secondaryButtonClass} onClick={() => router.push('/storage')}>← Back</button>
             {canEdit && (

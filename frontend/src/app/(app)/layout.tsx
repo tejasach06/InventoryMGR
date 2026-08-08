@@ -6,6 +6,7 @@ import { ReactNode, useEffect } from 'react';
 import { api } from '../../api/client';
 import { CurrentUserProvider } from '../../components/AuthContext';
 import { AppLayout } from '../../components/Layout';
+import { Logo, Skeleton } from '../../components/ui';
 
 export default function AuthenticatedLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -20,9 +21,15 @@ export default function AuthenticatedLayout({ children }: { children: ReactNode 
   }, [me.data, me.isError, me.isLoading, router]);
   const user = me.data;
   
-  // Show loading screen while fetching
   if (me.isLoading) {
-    return <div className="p-6" role="status">Loading session…</div>;
+    return (
+      <div className="min-h-[100dvh] bg-[var(--color-surface-secondary)] p-4 sm:p-8" role="status" aria-label="Loading session">
+        <div className="mx-auto flex max-w-6xl gap-8">
+          <div className="hidden w-56 space-y-5 lg:block"><Logo /><Skeleton className="h-8 w-full" /><Skeleton className="h-40 w-full" /></div>
+          <div className="flex-1 space-y-6"><Skeleton className="h-12 w-64 max-w-full" /><Skeleton className="h-36 w-full" /><Skeleton className="h-72 w-full" /></div>
+        </div>
+      </div>
+    );
   }
   
   // If user is not authenticated or data is missing, show redirecting message

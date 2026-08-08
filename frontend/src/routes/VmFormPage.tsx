@@ -32,9 +32,9 @@ function TextInput({ name, label, values, errors, onChange, required = false, ty
   const value = values[name];
   const isNumericOrDate = type === 'number' || type === 'date';
   return (
-    <div>
+    <div className="relative">
       <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
-      <input className={cn(inputClass, isNumericOrDate && 'tabular-nums')} id={String(name)} name={String(name)} type={type}
+      <input className={cn(inputClass, isNumericOrDate && 'tech tabular-nums')} id={String(name)} name={String(name)} type={type}
         value={typeof value === 'boolean' ? '' : value}
         onChange={(e) => onChange(name, e.target.value)}
         disabled={disabled}
@@ -92,7 +92,7 @@ function ComboInput({ name, label, values, errors, onChange, options, required =
         onKeyDown={onKeyDown}
         aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])} />
       {matches.length > 0 && (
-        <ul id={listId} role="listbox" className="mt-1 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-surface)]">
+        <ul id={listId} role="listbox" className="absolute left-0 top-full z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-overlay)]">
           {matches.map((m, i) => (
             <li key={m} id={`${String(name)}-option-${i}`} role="option" aria-selected={i === activeIndex}>
               <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => selectMatch(m)}
@@ -367,7 +367,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   return (
     <PageTransition>
       <section className="mx-auto w-full max-w-5xl 2xl:max-w-6xl">
-        <PageHeader title={title} />
+        <PageHeader title={title} context="Virtual machine" description="Record identity, placement, capacity, operations, and ownership." />
         {save.isError ? <Alert>{detailMessage(save.error)}</Alert> : null}
         <SectionNav titles={['Identity', 'Location', 'Hardware', 'Network', 'Operating System', 'Ownership', 'Operations', 'Security', 'Notes & Tags']} />
         <form className="space-y-5 pb-20" onSubmit={submit} noValidate>
@@ -473,7 +473,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <p className={helpTextClass}>Applications are managed on the VM detail page.</p>
           </SectionCard>
 
-          <div className="sticky bottom-4 z-20 flex items-center gap-3 rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)]/95 px-5 py-3 shadow-[var(--shadow-raised)] backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+          <div className="sticky bottom-4 z-20 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)]/95 px-5 py-3 shadow-[var(--shadow-overlay)] backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
             <button className={primaryButtonClass} type="submit" disabled={save.isPending}>
               {save.isPending ? <><Spinner /> Saving…</> : 'Save VM'}
             </button>

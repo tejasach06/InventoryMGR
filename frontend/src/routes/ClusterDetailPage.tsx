@@ -231,7 +231,7 @@ export function ClusterDetailPage() {
   return (
     <PageTransition>
       <section className="mx-auto w-full max-w-5xl space-y-5">
-        <PageHeader title={cluster.name} eyebrow="Cluster" actions={
+        <PageHeader title={cluster.name} context="Physical cluster" description="Documented node placement and hardware capacity." actions={
           <>
             <button className={secondaryButtonClass} onClick={() => router.push('/clusters')}>← Back</button>
             {canEdit && (

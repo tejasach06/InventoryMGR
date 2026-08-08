@@ -103,11 +103,11 @@ function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolea
         'relative flex items-center rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.98] min-w-0',
         collapsed ? 'justify-center px-2 py-2.5' : 'gap-2.5 px-3 py-2',
         active
-          ? 'bg-[var(--color-accent)]/10 font-semibold text-[var(--color-accent-text)]'
+          ? 'bg-[var(--color-surface-tertiary)] font-semibold text-[var(--color-accent-text)]'
           : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]',
       )}
     >
-      {active && !collapsed ? (
+      {active ? (
         <span aria-hidden="true" className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--color-accent)]" />
       ) : null}
       <span className="flex-shrink-0">{item.icon}</span>
@@ -121,20 +121,30 @@ function GroupLabel({ children, collapsed }: { children: string; collapsed: bool
   return <p className="truncate px-3 pb-1 pt-3 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">{children}</p>;
 }
 
-export function AppNav({ user, collapsed = false }: { user: Pick<User, 'role'>; collapsed?: boolean }) {
+export function AppNav({ user, collapsed = false, onNavigate }: { user: Pick<User, 'role'>; collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   const isActive = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
-  const primary = buildNavItems(user).filter((item) => item.visible);
+  const items = [...OVERVIEW_ITEMS, ...buildNavItems(user).filter((item) => item.visible)];
+  const byPath = (paths: string[]) => items.filter((item) => paths.includes(item.to));
+  const groups = [
+    { label: 'Overview', items: byPath(['/dashboard', '/reports']) },
+    { label: 'Inventory', items: byPath(['/inventory']) },
+    { label: 'Infrastructure', items: byPath(['/storage', '/clusters']) },
+    { label: 'Operations', items: byPath(['/imports/new']) },
+    { label: 'Administration', items: byPath(['/settings']) },
+  ];
 
   return (
-    <nav className="mt-4 flex flex-col gap-0.5 min-w-0 w-full lg:mt-5" aria-label="Primary">
-      <GroupLabel collapsed={collapsed}>Overview</GroupLabel>
-      {OVERVIEW_ITEMS.map((item) => (
-        <NavLink key={item.to} item={item} collapsed={collapsed} active={isActive(item.to)} />
-      ))}
-      <GroupLabel collapsed={collapsed}>Manage</GroupLabel>
-      {primary.map((item) => (
-        <NavLink key={item.to} item={item} collapsed={collapsed} active={isActive(item.to)} />
+    <nav className="mt-4 flex min-w-0 w-full flex-col gap-0.5 lg:mt-5" aria-label="Primary">
+      {groups.filter((group) => group.items.length > 0).map((group) => (
+        <div key={group.label}>
+          <GroupLabel collapsed={collapsed}>{group.label}</GroupLabel>
+          {group.items.map((item) => (
+            <div key={item.to} onClick={onNavigate}>
+              <NavLink item={item} collapsed={collapsed} active={isActive(item.to)} />
+            </div>
+          ))}
+        </div>
       ))}
     </nav>
   );
