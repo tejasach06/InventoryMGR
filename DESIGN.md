@@ -104,7 +104,7 @@ This explicitly rejects the bloated-enterprise-SaaS look — dense chrome, modal
 Restrained neutrals carry the interface; one orange accent marks interactivity; a wide semantic palette (six categories × light/dark) carries all data meaning.
 
 ### Primary
-- **Orange Accent** (`#f97316`, hover `#ea580c`): links, primary buttons, focus rings, the recurring brand accent (nav active state, logo mark). Used deliberately — it marks "you can act here."
+- **Accent System** (per-user preference, six presets: `orange`, `blue`, `violet`, `emerald`, `rose`, `amber`; default `orange`): links, primary buttons, focus rings, brand accent (nav active state, logo mark). `AccentProvider` (`frontend/src/components/AccentProvider.tsx`) sets four custom properties on `document.documentElement` — `--color-accent`, `--color-accent-hover`, `--color-accent-text`, `--color-on-accent` — resolved per theme from `frontend/src/lib/accentPresets.ts`. Components reference `var(--color-accent*)` custom properties only; hardcoding color hex values like `#f97316` in UI components is prohibited.
 
 ### Neutral (Light Mode / Navy Dark Mode)
 - **Surface** (`#ffffff` / dark `#0d1c2d`): card and table backgrounds.
@@ -113,10 +113,10 @@ Restrained neutrals carry the interface; one orange accent marks interactivity; 
 - **Border** (`#e3e6ef` / dark `#273647`): default hairline border on cards, tables, inputs.
 - **Border Subtle** (`#eef0f7` / dark `#1c2b3c`): subtle inner borders.
 - **Text Primary** (`#0f1222` / dark `#d4e4fa`): headings, primary content.
-- **Text Secondary** (`#4a4f63` / dark `#909bb1`): labels, body copy.
-- **Text Tertiary** (`#6b7186` / dark `#6b7a8f`): placeholders, help text, table header labels.
+- **Text Secondary** (`#4a4f63` / dark `#b4c3d6`): labels, body copy.
+- **Text Tertiary** (`#6b7186` / dark `#9aa9bd`): placeholders, help text, table header labels.
 
-Dark mode is a dedicated navy scale (`#051424` page, `#0d1c2d` cards, `#d4e4fa` primary text) defined in `html.dark` in `globals.css` with a full semantic-color pass for every data category.
+Dark mode is a dedicated navy scale (`#051424` page, `#0d1c2d` cards, `#d4e4fa` primary text) defined in `html.dark` in `globals.css`. Dark neutrals were retuned to hold WCAG AA text contrast (secondary ≈9.6:1, tertiary ≈7.2:1) and semantic `*-bg` tokens darkened to maintain a ≥5.5:1 contrast floor against text, regression-locked by `frontend/src/test/darkContrast.test.ts`.
 
 ### Named Rules
 **The Signal Rule.** Saturated color appears only where it encodes a real, current data value — a VM's status, a host's criticality tier, an environment or platform badge. It never appears as page chrome, decoration, or emphasis-for-emphasis's-sake. If a color can't be traced to a specific field's value, it doesn't belong on screen. Color reaches the DOM only through a `var(--color-*)` custom property. A raw Tailwind palette class (`bg-slate-900`, `text-red-600`) in `src/**` is a build error — see `frontend/eslint.config.mjs`. The two sanctioned literals are `src/app/icon.svg` (a standalone file with no CSS context) and the `.app-select` chevron data URI.
@@ -157,7 +157,7 @@ Flat by default. Cards, tables, and inputs sit at rest with only a 1px hairline 
 - **Focus:** 2px accent-color ring, 2px offset, on every interactive element uniformly (buttons, links, inputs, selects) via a single global `:focus-visible` rule — never a component-specific focus treatment.
 
 ### Badges
-- **Style:** rounded-md pill, semantic background + matching text color pulled from the six-category color system (status/criticality/environment/platform/os_family/lifecycle), plus a small solid dot repeating the same hue. `sm` size for dense table cells, `md` for card contexts.
+- **Style:** rounded-md pill, semantic background + matching text color pulled from the six-category color system (status/criticality/environment/platform/os_family/lifecycle), plus a small solid dot repeating the same hue. Pill outlines feature a hairline border (`borderColor: color-mix(in srgb, var(--color-${type}-${normalized}) 35%, transparent)`) to preserve pill definition over darkened dark-mode backgrounds. `sm` size for dense table cells, `md` for card contexts.
 - **State:** a subtle pop-in animation (`animate-pill-pop`) on mount/change, `hover:brightness-95` (dark: `brightness-110`) as the only interactive feedback — badges are informational, not clickable.
 
 ### Cards / Containers

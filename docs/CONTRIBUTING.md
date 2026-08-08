@@ -33,6 +33,12 @@ just setup
 |---------|-------------|
 | `just setup` | Install all dependencies, run migrations (requires Docker PG running) |
 | `just db-up` | Start Docker PostgreSQL for E2E/tests |
+| `just env` | Generate `.env` with a random `JWT_SECRET` |
+| `just up` | Build and start container stack (`POSTGRES_PORT`, `BACKEND_PORT`, `FRONTEND_PORT`) |
+| `just down` | Stop container stack |
+| `just logs` | Tail container stack logs |
+| `just ps` | Show container stack status |
+| `just up-local` | PM2 bootstrap: provision DB, sync deps, migrate, build frontend, start PM2 |
 | `just api-dev` | FastAPI dev server on `127.0.0.1:8000` with reload |
 | `just web-dev` | Next.js dev server on `:3000` |
 | `just api-test` | Run backend pytest suite against the test database |
@@ -48,7 +54,6 @@ just setup
 | `just pm2-save` | Persist PM2 process list |
 | `just pm2-startup` | Generate OS init script for PM2 |
 | `just pm2-kill` | Kill the PM2 daemon |
-
 ## Frontend Scripts
 
 <!-- AUTO-GENERATED from frontend/package.json -->
@@ -59,7 +64,7 @@ just setup
 | `bun run build` | Production build with type checking |
 | `bun run start` | Production server on `0.0.0.0:3000` |
 | `bun run test` | Vitest unit test suite |
-| `bun run lint` | TypeScript type check (no-emit) |
+| `bun run lint` | ESLint + TypeScript type check (`eslint . && tsc --noEmit`) |
 | `bun run typecheck` | TypeScript type check (no-emit) |
 | `bun run e2e` | Playwright E2E tests |
 
@@ -105,7 +110,7 @@ No pre-commit hooks are configured — run `just verify` before submitting a PR.
 
 ## Pull Requests
 
-- Create a feature branch from `main`.
+- Create a feature branch from `dev`. `main` is the deploy-only branch: it carries an expanded `.gitignore` that excludes tests, docs, and dev tooling, and `deploy.sh` runs `git pull origin main` + `git clean -fdX`. Do not open PRs directly against `main`.
 - Keep changes focused and describe the intent clearly in the PR summary.
 - Include testing details and any relevant screenshots or notes.
 - Run `just verify` before requesting review.
