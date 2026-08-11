@@ -487,52 +487,35 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
     return normalized, []
 
 
-class ProxmoxIdentityMismatch(Exception):
-    """Proxmox vmid matches an existing VM recorded under a different name."""
-
-    def __init__(self, existing_name: str) -> None:
-        super().__init__(existing_name)
-        self.existing_name = existing_name
-
-
 def identity_key(normalized: dict[str, Any]) -> tuple[str, ...]:
     platform = normalized["platform"]
-    external_id = normalized.get("external_id")
     name = normalized["name"].lower()
-    if external_id and platform == "proxmox":
-        return ("external_id+name", platform, external_id, name)
-    if external_id:
-        return ("external_id", platform, external_id)
-    return ("name", platform, name)
+    node = (normalized.get("node") or "").lower()
+    datacenter = (normalized.get("datacenter") or "").lower()
+    if platform == "proxmox":
+        return ("proxmox", normalized.get("external_id"), name, node, datacenter)
+    return ("vmware", name, node, datacenter)
 
 
 def find_matching_vm(db: Session, normalized: dict[str, Any]) -> Vm | None:
     platform = Platform(normalized["platform"])
-    external_id = normalized.get("external_id")
-    if external_id:
-        if platform == Platform.proxmox:
-            candidates = list(
-                db.scalars(
-                    select(Vm)
-                    .where(Vm.platform == platform, Vm.external_id == external_id)
-                    .order_by(Vm.created_at)
-                )
-            )
-            if not candidates:
-                return None
-            wanted = normalized["name"].lower()
-            for candidate in candidates:
-                if candidate.name.lower() == wanted:
-                    return candidate
-            raise ProxmoxIdentityMismatch(candidates[0].name)
-        return db.scalar(select(Vm).where(Vm.platform == platform, Vm.external_id == external_id))
-    return db.scalar(
-        select(Vm).where(
-            Vm.platform == platform,
-            Vm.external_id.is_(None),
-            func.lower(Vm.name) == normalized["name"].lower(),
+    name = normalized["name"].lower()
+    node = normalized.get("node")
+    datacenter = normalized.get("datacenter")
+    conditions = [
+        Vm.platform == platform,
+        func.lower(Vm.name) == name,
+        Vm.node.is_(None) if node is None else func.lower(Vm.node) == node.lower(),
+        Vm.datacenter.is_(None)
+        if datacenter is None
+        else func.lower(Vm.datacenter) == datacenter.lower(),
+    ]
+    if platform == Platform.proxmox:
+        external_id = normalized.get("external_id")
+        conditions.append(
+            Vm.external_id.is_(None) if external_id is None else Vm.external_id == external_id
         )
-    )
+    return db.scalar(select(Vm).where(*conditions))
 
 
 def parse_csv_bytes(content: bytes) -> tuple[list[dict[str, Any]], list[str]]:
@@ -619,24 +602,15 @@ def create_preview_batch(
                 errors = [_error("identity", "duplicate CSV identity")]
             else:
                 seen.add(key)
-                try:
-                    match = find_matching_vm(db, normalized)
-                except ProxmoxIdentityMismatch as exc:
-                    errors = [
-                        _error(
-                            "external_id",
-                            f"vmid already belongs to Proxmox VM '{exc.existing_name}'; rename the CSV row or the existing VM",
-                        )
-                    ]
+                match = find_matching_vm(db, normalized)
+                if match is None:
+                    action = ImportAction.create
                 else:
-                    if match is None:
-                        action = ImportAction.create
-                    else:
-                        target_vm_id = match.id
-                        changes = diff_against_vm(normalized, match, raw)
-                        action = ImportAction.update if changes else ImportAction.unchanged
-                        for field in changes:
-                            field_changes[field] = field_changes.get(field, 0) + 1
+                    target_vm_id = match.id
+                    changes = diff_against_vm(normalized, match, raw)
+                    action = ImportAction.update if changes else ImportAction.unchanged
+                    for field in changes:
+                        field_changes[field] = field_changes.get(field, 0) + 1
         summary[action.value] += 1
         db.add(
             CsvImportRow(

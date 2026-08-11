@@ -26,11 +26,11 @@ def test_csv_preview_persists_classification_for_create_update_conflict_and_inva
 
     csv_content = "\n".join(
         [
-            "name,platform,cluster,status,cpu_cores,memory_mb,external_id,tags,ha_enabled,last_verified_at",
-            "Existing App,Proxmox,pve-cluster-a,running,4,8192,,web; critical,yes,2026-06-13",
-            " existing app ,pve,pve-cluster-a,powered_off,2,4096,,,false,",
-            "New VMware,vcenter,vc-cluster,unknown,8,16384,vm-200,db;prod,no,2026-01-01",
-            "Broken Row,vmware,vc-cluster,unknown,-1,1024,,,false,",
+            "name,platform,cluster,status,cpu_cores,memory_mb,external_id,tags,ha_enabled,last_verified_at,datacenter",
+            "Existing App,Proxmox,pve-cluster-a,running,4,8192,,web; critical,yes,2026-06-13,dc-a",
+            " existing app ,pve,pve-cluster-a,powered_off,2,4096,,,false,,dc-a",
+            "New VMware,vcenter,vc-cluster,unknown,8,16384,vm-200,db;prod,no,2026-01-01,",
+            "Broken Row,vmware,vc-cluster,unknown,-1,1024,,,false,,",
         ]
     )
 
@@ -88,7 +88,7 @@ def test_csv_commit_uses_persisted_rows_and_rolls_back_when_later_upsert_fails(
     client, db_session: Session
 ) -> None:
     editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
-    existing = create_vm_row(db_session, editor, name="Manual Proxmox", external_id=None)
+    existing = create_vm_row(db_session, editor, name="Manual Proxmox", external_id=None, datacenter=None)
     csrf = login(client, "editor@example.local")
     csv_content = "\n".join(
         [
@@ -272,6 +272,7 @@ def test_partial_column_update_preserves_unmentioned_fields(client, db_session: 
         editor,
         name="Existing App",
         external_id=None,
+        datacenter=None,
         fqdn="existing-app.corp.example",
         owner="alice",
         description="payments api",
@@ -315,6 +316,7 @@ def test_blank_cell_in_present_column_does_not_overwrite(client, db_session: Ses
         editor,
         name="Existing App",
         external_id=None,
+        datacenter=None,
         fqdn="existing-app.corp.example",
         owner="alice",
         cpu_cores=8,
@@ -457,6 +459,7 @@ def test_unchanged_rows_are_classified_separately(client, db_session: Session) -
         editor,
         name="Existing App",
         external_id=None,
+        datacenter=None,
         cluster="pve-cluster-a",
         owner="alice",
         cpu_cores=8,
@@ -486,6 +489,7 @@ def test_update_rows_record_changed_fields(client, db_session: Session) -> None:
         editor,
         name="Existing App",
         external_id=None,
+        datacenter=None,
         cluster="pve-cluster-a",
         owner="alice",
         cpu_cores=8,
@@ -510,7 +514,7 @@ def test_update_rows_record_changed_fields(client, db_session: Session) -> None:
 def test_disk_and_ip_attach_additively_on_update(client, db_session: Session) -> None:
     """Children were parsed and previewed on update, then discarded at commit."""
     editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
-    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None)
+    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None, datacenter=None)
     db_session.add(VmDisk(vm_id=vm.id, disk_name="os", size_gb=50, sort_order=0))
     db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.5", sort_order=0))
     db_session.commit()
@@ -540,7 +544,7 @@ def test_disk_and_ip_attach_additively_on_update(client, db_session: Session) ->
 
 def test_repeated_import_does_not_duplicate_children(client, db_session: Session) -> None:
     editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
-    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None)
+    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None, datacenter=None)
     db_session.add(VmDisk(vm_id=vm.id, disk_name="os", size_gb=50, sort_order=0))
     db_session.commit()
     vm_id = vm.id
@@ -571,7 +575,7 @@ def test_preview_promises_exactly_the_ips_commit_creates(client, db_session: Ses
     promised once per column and created once.
     """
     editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
-    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None)
+    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None, datacenter=None)
     db_session.commit()
     vm_id = vm.id
     csrf = login(client, "editor@example.local")
@@ -636,7 +640,7 @@ def test_multi_disk_update_adds_only_unmatched_and_never_resizes(
 ) -> None:
     """Additive means additive: a matched disk keeps its size even when the CSV disagrees."""
     editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
-    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None)
+    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None, datacenter=None)
     db_session.add(VmDisk(vm_id=vm.id, disk_name="os", size_gb=250, sort_order=0))
     db_session.commit()
     vm_id = vm.id
@@ -742,7 +746,7 @@ def test_malformed_disks_cell_errors_the_row(client, db_session: Session) -> Non
 
 def test_blank_disks_cell_on_update_touches_no_children(client, db_session: Session) -> None:
     editor = create_user(db_session, email="editor@example.local", role=UserRole.editor)
-    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None)
+    vm = create_vm_row(db_session, editor, name="Existing App", external_id=None, datacenter=None)
     db_session.add(VmDisk(vm_id=vm.id, disk_name="os", size_gb=50, sort_order=0))
     db_session.commit()
     vm_id = vm.id
@@ -1039,7 +1043,7 @@ def test_known_storage_array_matches_case_insensitively(client, db_session: Sess
     assert preview.json()["rows"][0]["warnings"] == []
 
 
-def test_proxmox_vmid_identity_includes_name_and_rejects_renames(client, db_session: Session) -> None:
+def test_proxmox_rename_with_same_vmid_creates_new_vm(client, db_session: Session) -> None:
     user = create_user(db_session, email="editor@example.local", role=UserRole.editor)
     csrf = login(client, user.email)
     preview = upload_csv(
@@ -1066,31 +1070,163 @@ def test_proxmox_vmid_identity_includes_name_and_rejects_renames(client, db_sess
         "name,platform,cluster,external_id\nstg-a,proxmox,pve-a,VM-9001\nstg-c,proxmox,pve-a,VM-9001\n",
     )
     assert client.post(f"/api/imports/{accepted.json()['id']}/commit", headers=auth_headers(csrf)).status_code == 200
+
     renamed = upload_csv(
         client,
         csrf,
         "name,platform,cluster,external_id\nrenamed-x,proxmox,pve-a,VM-9001\n",
     )
     row = renamed.json()["rows"][0]
-    assert row["action"] == "invalid"
-    assert row["errors"] == [
-        {
-            "field": "external_id",
-            "message": "vmid already belongs to Proxmox VM 'stg-a'; rename the CSV row or the existing VM",
-        }
-    ]
+    assert row["action"] == "create"
 
 
-def test_non_proxmox_external_id_still_matches_without_name(client, db_session: Session) -> None:
+def test_proxmox_matches_only_when_vmid_name_node_datacenter_all_match(
+    client, db_session: Session
+) -> None:
     user = create_user(db_session, email="editor@example.local", role=UserRole.editor)
     create_vm_row(
-        db_session, user, name="old-vmware", platform="vmware", external_id="VM-1001"
+        db_session,
+        user,
+        name="pve-app-01",
+        platform="proxmox",
+        external_id="VM-100",
+        datacenter="dc-a",
+        node="pve-node-1",
     )
     csrf = login(client, user.email)
+
+    same = upload_csv(
+        client,
+        csrf,
+        "\n".join(
+            [
+                "name,platform,cluster,external_id,datacenter,node,owner",
+                "pve-app-01,proxmox,pve-cluster-a,VM-100,dc-a,pve-node-1,newowner",
+            ]
+        ),
+    )
+    assert same.json()["rows"][0]["action"] == "update"
+
+    diff_node = upload_csv(
+        client,
+        csrf,
+        "\n".join(
+            [
+                "name,platform,cluster,external_id,datacenter,node",
+                "pve-app-01,proxmox,pve-cluster-a,VM-100,dc-a,pve-node-2",
+            ]
+        ),
+    )
+    assert diff_node.json()["rows"][0]["action"] == "create"
+
+    diff_datacenter = upload_csv(
+        client,
+        csrf,
+        "\n".join(
+            [
+                "name,platform,cluster,external_id,datacenter,node",
+                "pve-app-01,proxmox,pve-cluster-a,VM-100,dc-b,pve-node-1",
+            ]
+        ),
+    )
+    assert diff_datacenter.json()["rows"][0]["action"] == "create"
+
+    renamed = upload_csv(
+        client,
+        csrf,
+        "\n".join(
+            [
+                "name,platform,cluster,external_id,datacenter,node",
+                "renamed-app,proxmox,pve-cluster-a,VM-100,dc-a,pve-node-1",
+            ]
+        ),
+    )
+    assert renamed.json()["rows"][0]["action"] == "create"
+
+
+def test_proxmox_without_vmid_still_requires_node_and_datacenter_match(
+    client, db_session: Session
+) -> None:
+    user = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    create_vm_row(
+        db_session,
+        user,
+        name="pve-app-02",
+        platform="proxmox",
+        external_id=None,
+        datacenter="dc-a",
+        node="pve-node-1",
+    )
+    csrf = login(client, user.email)
+
+    same = upload_csv(
+        client,
+        csrf,
+        "name,platform,cluster,datacenter,node,owner\npve-app-02,proxmox,pve-cluster-a,dc-a,pve-node-1,newowner\n",
+    )
+    assert same.json()["rows"][0]["action"] == "update"
+
+    diff_node = upload_csv(
+        client,
+        csrf,
+        "name,platform,cluster,datacenter,node\npve-app-02,proxmox,pve-cluster-a,dc-a,pve-node-9\n",
+    )
+    assert diff_node.json()["rows"][0]["action"] == "create"
+
+
+def test_vmware_ignores_vmid_matches_on_name_node_datacenter(
+    client, db_session: Session
+) -> None:
+    user = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    create_vm_row(
+        db_session,
+        user,
+        name="vc-app-01",
+        platform="vmware",
+        external_id="VM-1001",
+        datacenter="dc-vc",
+        node="esxi-1",
+    )
+    csrf = login(client, user.email)
+
+    diff_vmid = upload_csv(
+        client,
+        csrf,
+        "name,platform,cluster,external_id,datacenter,node\nvc-app-01,vmware,vc-cluster,VM-9999,dc-vc,esxi-1\n",
+    )
+    assert diff_vmid.json()["rows"][0]["action"] == "update"
+
+    no_vmid = upload_csv(
+        client,
+        csrf,
+        "name,platform,cluster,datacenter,node\nvc-app-01,vmware,vc-cluster,dc-vc,esxi-1\n",
+    )
+    assert no_vmid.json()["rows"][0]["action"] == "update"
+
+    diff_node = upload_csv(
+        client,
+        csrf,
+        "name,platform,cluster,external_id,datacenter,node\nvc-app-01,vmware,vc-cluster,VM-1001,dc-vc,esxi-2\n",
+    )
+    assert diff_node.json()["rows"][0]["action"] == "create"
+
+
+def test_in_batch_same_vmid_name_different_placement_are_two_creates(
+    client, db_session: Session
+) -> None:
+    user = create_user(db_session, email="editor@example.local", role=UserRole.editor)
+    csrf = login(client, user.email)
+
     preview = upload_csv(
         client,
         csrf,
-        "name,platform,cluster,external_id\nnew-vmware,vmware,vc-a,VM-1001\n",
+        "\n".join(
+            [
+                "name,platform,cluster,external_id,datacenter,node",
+                "dup-app,proxmox,pve-cluster-a,VM-500,dc-a,pve-node-1",
+                "dup-app,proxmox,pve-cluster-a,VM-500,dc-b,pve-node-2",
+            ]
+        ),
     )
     assert preview.status_code == 201, preview.text
-    assert preview.json()["rows"][0]["action"] == "update"
+    assert [row["action"] for row in preview.json()["rows"]] == ["create", "create"]
