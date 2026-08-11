@@ -63,13 +63,6 @@ class Criticality(StrEnum):
     critical = "critical"
 
 
-class Lifecycle(StrEnum):
-    planned = "planned"
-    active = "active"
-    retiring = "retiring"
-    retired = "retired"
-
-
 class VmType(StrEnum):
     permanent = "permanent"
     temporary = "temporary"
@@ -169,14 +162,12 @@ class Vm(Base, TimestampMixin):
     criticality: Mapped[Criticality] = mapped_column(
         Enum(Criticality, name="criticality"), nullable=False
     )
-    lifecycle: Mapped[Lifecycle] = mapped_column(Enum(Lifecycle, name="lifecycle"), nullable=False)
     vm_type: Mapped[VmType] = mapped_column(
         Enum(VmType, name="vm_type"), nullable=False, default=VmType.permanent
     )
     cpu_cores: Mapped[int] = mapped_column(Integer, nullable=False)
     memory_mb: Mapped[int] = mapped_column(Integer, nullable=False)
     os_family: Mapped[OsFamily | None] = mapped_column(os_family_enum, nullable=True)
-    os_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     os_distribution: Mapped[str | None] = mapped_column(String(255), nullable=True)
     os_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
     owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -218,6 +209,8 @@ class Vm(Base, TimestampMixin):
 
 
 def compute_health_score(vm: "Vm") -> int:
+    if any(tag.strip().lower() == "template" for tag in (vm.tags or [])):
+        return 0
     score = 0
     if vm.description:
         score += 10
@@ -254,7 +247,6 @@ Index("ix_vms_platform", Vm.platform)
 Index("ix_vms_cluster", Vm.cluster)
 Index("ix_vms_status", Vm.status)
 Index("ix_vms_criticality", Vm.criticality)
-Index("ix_vms_lifecycle", Vm.lifecycle)
 Index("ix_vms_vm_type", Vm.vm_type)
 Index("ix_vms_environment", Vm.environment)
 Index("ix_vms_monitoring_enabled", Vm.monitoring_enabled)
@@ -287,8 +279,6 @@ class VmNetwork(Base):
     role: Mapped[NetworkRole] = mapped_column(
         Enum(NetworkRole, name="network_role"), nullable=False, default=NetworkRole.private
     )
-    vlan: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    gateway: Mapped[str | None] = mapped_column(String(50), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     vm: Mapped[Vm] = relationship(back_populates="networks")

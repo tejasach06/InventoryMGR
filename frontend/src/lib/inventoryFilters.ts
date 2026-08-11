@@ -3,7 +3,6 @@ import { PAGE_SIZES } from '../components/PaginationFooter';
 export const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
 export const advancedFilterNames = [
   'cluster',
-  'lifecycle',
   'environment',
   'monitoring_enabled',
   'node',
@@ -40,7 +39,7 @@ export type ViewState = { page: number; size: number; sort: string | null; dir: 
 // health_score server-side; keeping one list here stops the two from drifting.
 export const SORTABLE_COLUMNS = new Set([
   'name', 'status', 'criticality', 'health', 'updated_at',
-  'cluster', 'platform', 'environment', 'lifecycle',
+  'cluster', 'platform', 'environment',
   'cpu_cores', 'memory_mb', 'owner',
 ]);
 

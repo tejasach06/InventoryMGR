@@ -11,7 +11,6 @@ const SELECT_FIELDS = [
   { key: 'status', label: 'Status', options: ['running', 'powered_off', 'decommissioned', 'unknown'] },
   { key: 'environment', label: 'Environment', options: ['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'] },
   { key: 'criticality', label: 'Criticality', options: ['critical', 'high', 'medium', 'low'] },
-  { key: 'lifecycle', label: 'Lifecycle', options: ['planned', 'active', 'retiring', 'retired'] },
   { key: 'vm_type', label: 'VM type', options: ['permanent', 'temporary'] },
 ] as const;
 
@@ -144,11 +143,11 @@ export function BulkEditDrawer({
         })}
       </div>
       <div>
-        {/* Tab 1: State & Lifecycle */}
+        {/* Tab 1: State */}
         <div className={activeTab === 'state' ? 'block' : 'hidden'}>
           <fieldset className="rounded-xl border border-[var(--color-border)] p-4">
             <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent-text)]">
-              Core State & Lifecycle
+              Core State
             </legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
               {SELECT_FIELDS.map((field) => (
@@ -250,10 +249,6 @@ export function BulkEditDrawer({
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">
-        Setting VM type to temporary on a VM with a decommission date also moves its
-        lifecycle to retiring, exactly as the VM form does.
-      </p>
     </Drawer>
   );
 }

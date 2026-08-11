@@ -9,6 +9,7 @@ from app.schemas.vms import DashboardAlertVm, DashboardStats
 from app.services.vms import (
     decommission_overdue_condition,
     missing_ip_condition,
+    non_template_condition,
     shutdown_since_expr,
     shutdown_stale_condition,
 )
@@ -16,12 +17,13 @@ from app.services.vms import (
 router = APIRouter()
 
 ALERT_LIST_LIMIT = 50
-EXCLUDED_TAGS = {"template", "backup"}
 
 
 @router.get("", response_model=DashboardStats)
 def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
     vm_with_apps = select(VmApplication.vm_id).distinct().scalar_subquery()
+
+    inventory_condition = non_template_condition()
 
     row = db.execute(
         select(
@@ -36,21 +38,23 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
             func.count(case((Vm.id.not_in(vm_with_apps), 1))).label("without_applications"),
             func.coalesce(func.sum(Vm.cpu_cores), 0).label("total_vcpu"),
             func.coalesce(func.sum(Vm.memory_mb), 0).label("total_memory_mb"),
-        )
+        ).where(inventory_condition)
     ).one()
 
-    total_disk_gb = db.scalar(select(func.coalesce(func.sum(VmDisk.size_gb), 0))) or 0
+    total_disk_gb = db.scalar(
+        select(func.coalesce(func.sum(VmDisk.size_gb), 0)).join(Vm).where(inventory_condition)
+    ) or 0
 
-    status_rows = db.execute(select(Vm.status, func.count(Vm.id)).group_by(Vm.status)).all()
+    status_rows = db.execute(select(Vm.status, func.count(Vm.id)).where(inventory_condition).group_by(Vm.status)).all()
     by_status = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in status_rows if k is not None}
 
-    env_rows = db.execute(select(Vm.environment, func.count(Vm.id)).group_by(Vm.environment)).all()
+    env_rows = db.execute(select(Vm.environment, func.count(Vm.id)).where(inventory_condition).group_by(Vm.environment)).all()
     by_environment = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in env_rows if k is not None}
 
-    crit_rows = db.execute(select(Vm.criticality, func.count(Vm.id)).group_by(Vm.criticality)).all()
+    crit_rows = db.execute(select(Vm.criticality, func.count(Vm.id)).where(inventory_condition).group_by(Vm.criticality)).all()
     by_criticality = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in crit_rows if k is not None}
 
-    os_rows = db.execute(select(Vm.os_family, func.count(Vm.id)).group_by(Vm.os_family)).all()
+    os_rows = db.execute(select(Vm.os_family, func.count(Vm.id)).where(inventory_condition).group_by(Vm.os_family)).all()
     by_os_family = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in os_rows if k is not None}
 
     now = datetime.now(UTC)
@@ -61,15 +65,12 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
     status_cond, age_cond = shutdown_stale_condition()
     rows1 = db.execute(
         select(Vm, since.label("since"))
-        .where(status_cond, age_cond)
+        .where(status_cond, age_cond, inventory_condition)
         .order_by(since.asc())
         .limit(ALERT_LIST_LIMIT)
     ).all()
     shutdown_stale: list[DashboardAlertVm] = []
     for vm, vm_since in rows1:
-        tags = {t.strip().lower() for t in (vm.tags or [])}
-        if tags & EXCLUDED_TAGS:
-            continue
         # Handle naive or aware datetime comparison for Python side
         since_dt = vm_since if vm_since.tzinfo else vm_since.replace(tzinfo=UTC)
         days = (now - since_dt).days
@@ -85,7 +86,7 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
     # List 2: Past decommission date
     overdue_vms = db.scalars(
         select(Vm)
-        .where(decommission_overdue_condition())
+        .where(decommission_overdue_condition(), inventory_condition)
         .order_by(Vm.decommission_date.asc())
         .limit(ALERT_LIST_LIMIT)
     ).all()
@@ -101,13 +102,10 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
 
     # List 3: Missing IP address
     no_ip_vms = db.scalars(
-        select(Vm).where(missing_ip_condition()).order_by(Vm.name.asc()).limit(ALERT_LIST_LIMIT)
+        select(Vm).where(missing_ip_condition(), inventory_condition).order_by(Vm.name.asc()).limit(ALERT_LIST_LIMIT)
     ).all()
     missing_ip: list[DashboardAlertVm] = []
     for vm in no_ip_vms:
-        tags = {t.strip().lower() for t in (vm.tags or [])}
-        if tags & EXCLUDED_TAGS:
-            continue
         missing_ip.append(
             DashboardAlertVm(
                 id=vm.id,

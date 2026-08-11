@@ -44,7 +44,6 @@ function VmCard({ vm }: { vm: Vm }) {
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <Badge value={vm.criticality} type="criticality" size="sm" />
         {vm.environment && <Badge value={vm.environment} type="environment" size="sm" />}
-        {vm.lifecycle && <Badge value={vm.lifecycle} type="lifecycle" size="sm" />}
         {vm.os_family && <Badge value={vm.os_family} type="os_family" size="sm" />}
         {vm.owner && <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--color-text-secondary)]">{vm.owner}</span>}
         {vm.tags && vm.tags.length > 0 && (

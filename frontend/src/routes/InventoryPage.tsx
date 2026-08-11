@@ -35,7 +35,7 @@ import { InventoryToolbar } from '../components/InventoryToolbar';
 import { PaginationFooter } from '../components/PaginationFooter';
 
 export const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
-export const advancedFilterNames = ['cluster', 'lifecycle', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'ip_role', 'health', 'shutdown_stale', 'decommission_overdue', 'missing_ip'] as const;
+export const advancedFilterNames = ['cluster', 'environment', 'monitoring_enabled', 'node', 'os_family', 'owner', 'pmp_enabled', 'tag', 'application', 'ip_role', 'health', 'shutdown_stale', 'decommission_overdue', 'missing_ip'] as const;
 export const filterNames = [...coreFilterNames, ...advancedFilterNames] as const;
 
 export type FilterName = (typeof filterNames)[number];
@@ -48,7 +48,6 @@ function emptyFilters(): Filters {
     status: [],
     criticality: [],
     cluster: [],
-    lifecycle: [],
     environment: [],
     monitoring_enabled: [],
     node: [],
@@ -75,7 +74,7 @@ export type ViewState = { page: number; size: number; sort: string | null; dir: 
 // health_score server-side; keeping one list here stops the two from drifting.
 export const SORTABLE_COLUMNS = new Set([
   'name', 'status', 'criticality', 'health', 'updated_at',
-  'cluster', 'platform', 'environment', 'lifecycle',
+  'cluster', 'platform', 'environment',
   'cpu_cores', 'memory_mb', 'owner',
 ]);
 
@@ -184,7 +183,6 @@ function VmCard({ vm }: { vm: Vm }) {
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <Badge value={vm.criticality} type="criticality" size="sm" />
         {vm.environment && <Badge value={vm.environment} type="environment" size="sm" />}
-        {vm.lifecycle && <Badge value={vm.lifecycle} type="lifecycle" size="sm" />}
         {vm.os_family && <Badge value={vm.os_family} type="os_family" size="sm" />}
         {vm.owner && <span className="inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--color-text-secondary)]">{vm.owner}</span>}
         {vm.tags && vm.tags.length > 0 && (
@@ -327,7 +325,7 @@ function VmTable({
                 </td>
                 {columns.map((col) => {
                   const isEditing = editingCell?.vmId === vm.id && editingCell?.field === col.key;
-                  const isEditable = canEdit && ['status', 'environment', 'criticality', 'lifecycle', 'owner'].includes(col.key);
+                  const isEditable = canEdit && ['status', 'environment', 'criticality', 'owner'].includes(col.key);
 
                   return (
                     <td
@@ -393,21 +391,6 @@ function VmTable({
                               ))}
                             </select>
                           )}
-                          {col.key === 'lifecycle' && (
-                            <select
-                              autoFocus
-                              className={selectClass}
-                              value={editValue}
-                              disabled={isSaving}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              onBlur={commitEdit}
-                            >
-                              {['planned', 'active', 'retiring', 'retired'].map((opt) => (
-                                <option key={opt} value={opt}>{humanize(opt)}</option>
-                              ))}
-                            </select>
-                          )}
                           {col.key === 'owner' && (
                             <input
                               autoFocus
@@ -434,7 +417,6 @@ function VmTable({
                           {col.key === 'status' && <Badge value={vm.status} type="status" />}
                           {col.key === 'environment' && <Badge value={vm.environment} type="environment" />}
                           {col.key === 'criticality' && <Badge value={vm.criticality} type="criticality" />}
-                          {col.key === 'lifecycle' && <Badge value={vm.lifecycle} type="lifecycle" />}
                           {col.key === 'os_family' && <Badge value={vm.os_family ?? 'unknown'} type="os_family" />}
                           {col.key === 'owner' && <span className="truncate max-w-xs">{vm.owner ?? ''}</span>}
                           {col.key === 'monitoring_enabled' && <span>{vm.monitoring_enabled ? 'Enabled' : 'Disabled'}</span>}

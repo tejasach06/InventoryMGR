@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { AppNav, buildNavItems, canSeeUsers } from '../components/AppNav';
 import { ImportBatch } from '../api/client';
 import { summarizePreview } from '../routes/ImportCsvPage';
-import { ThemeProvider, ThemeToggle, THEME_STORAGE_KEY, resolveThemePreference } from '../components/ThemeProvider';
+import { ThemeProvider, ThemeSegmented, ThemeSelect, THEME_STORAGE_KEY, resolveThemePreference } from '../components/ThemeProvider';
 
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(() => '/users'),
@@ -123,18 +123,18 @@ describe('theme controls', () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, 'dark');
     mockMatchMedia(false);
 
-    render(createElement(ThemeProvider, null, createElement(ThemeToggle)));
+    render(createElement(ThemeProvider, null, createElement(ThemeSegmented)));
 
     await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
     expect(document.documentElement.style.colorScheme).toBe('dark');
-    // ThemeToggle is a radiogroup with buttons, check the active button
+    // ThemeSegmented is a radiogroup with buttons, check the active button
     const darkButton = screen.getByLabelText('Dark theme');
     expect(darkButton).toHaveAttribute('aria-checked', 'true');
   });
 
   it('stores explicit light theme and persists an explicit system theme', async () => {
     mockMatchMedia(true);
-    render(createElement(ThemeProvider, null, createElement(ThemeToggle)));
+    render(createElement(ThemeProvider, null, createElement(ThemeSegmented)));
 
     await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
     // Click the Light theme button

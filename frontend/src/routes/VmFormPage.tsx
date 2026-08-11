@@ -186,12 +186,12 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
   );
 }
 
-type IpRow = { rowId: string; ip: string; role: NetworkRole; vlan: string; gateway: string };
+type IpRow = { rowId: string; ip: string; role: NetworkRole };
 
 function parseIpPaste(text: string): IpRow[] | null {
   const parts = text.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
   if (parts.length < 2) return null;
-  return parts.map((ip) => ({ rowId: crypto.randomUUID(), ip, role: 'private' as NetworkRole, vlan: '', gateway: '' }));
+  return parts.map((ip) => ({ rowId: crypto.randomUUID(), ip, role: 'private' as NetworkRole }));
 }
 function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction<IpRow[]>> }) {
   const update = (i: number, patch: Partial<IpRow>) => setIps((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -208,7 +208,7 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
                 <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })}
                   onPaste={i === 0 ? (e) => {
                     const parsed = parseIpPaste(e.clipboardData.getData('text'));
-                    const isPristine = ips.length === 1 && !ips[0].ip && !ips[0].vlan && !ips[0].gateway;
+                    const isPristine = ips.length === 1 && !ips[0].ip;
                     if (parsed && isPristine) { e.preventDefault(); setIps(parsed); }
                   } : undefined} />
               </label>
@@ -220,24 +220,16 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
                   <option value="backup">Backup</option>
                 </select>
               </label>
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>VLAN</span>
-                <input aria-label={`VLAN ${i + 1}`} className={cn(inputClass, 'tabular-nums')} type="number" min="0" placeholder="VLAN" value={r.vlan} onChange={(e) => update(i, { vlan: e.target.value })} />
-              </label>
-              <div className="flex flex-col gap-1">
-                <span className={labelClass}>Gateway</span>
-                <div className="flex gap-2 items-end">
-                  <input aria-label={`Gateway ${i + 1}`} className={inputClass} type="text" placeholder="Gateway" value={r.gateway} onChange={(e) => update(i, { gateway: e.target.value })} />
-                  {ips.length > 1 && (
-                    <RemoveButton onClick={() => setIps((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove IP address ${i + 1}`} />
-                  )}
-                </div>
+              <div className="flex items-end">
+                {ips.length > 1 && (
+                  <RemoveButton onClick={() => setIps((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove IP address ${i + 1}`} />
+                )}
               </div>
             </div>
           ))}
         </div>
       </div>
-      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setIps((rows) => [...rows, { rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }])}>
+      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setIps((rows) => [...rows, { rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole }])}>
         + Add IP address
       </button>
     </div>
@@ -254,7 +246,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const [values, setValues] = useState<VmFormValues>(() => emptyVmFormValues());
   const [errors, setErrors] = useState<VmFormErrors>({});
   const [disks, setDisks] = useState<DiskRow[]>(() => [{ rowId: crypto.randomUUID(), name: '', size: '', unit: 'GB', storage: '', type: '' }]);
-  const [ips, setIps] = useState<IpRow[]>(() => [{ rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }]);
+  const [ips, setIps] = useState<IpRow[]>(() => [{ rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole }]);
   const initialSnapshot = useRef<string>(JSON.stringify({ values, disks, ips }));
   const isDirty = JSON.stringify({ values, disks, ips }) !== initialSnapshot.current;
 
@@ -280,9 +272,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
         rowId: crypto.randomUUID(),
         ip: n.ip_address,
         role: n.role,
-        vlan: n.vlan !== null ? String(n.vlan) : '',
-        gateway: n.gateway ?? '',
-      })) : [{ rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole, vlan: '', gateway: '' }];
+      })) : [{ rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole }];
       setValues(loadedValues);
       setDisks(loadedDisks);
       setIps(loadedIps);
@@ -342,8 +332,6 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
           .map((r, i) => ({
             ip_address: r.ip.trim(),
             role: r.role,
-            vlan: r.vlan.trim() ? Number(r.vlan) : null,
-            gateway: r.gateway.trim() || null,
             sort_order: i,
           })),
       };

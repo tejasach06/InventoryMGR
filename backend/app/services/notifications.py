@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import DecommissionAck, Lifecycle, Vm, VmStatus
+from app.db.models import DecommissionAck, Vm, VmStatus
 from app.schemas.notifications import DueVmRead
 from app.services.app_settings import get_notify_days
 
@@ -14,7 +14,6 @@ def _due_vms(db: Session, cutoff: date) -> list[Vm]:
         select(Vm)
         .where(Vm.decommission_date.is_not(None))
         .where(Vm.decommission_date <= cutoff)
-        .where(Vm.lifecycle != Lifecycle.retired)
         .where(Vm.status != VmStatus.decommissioned)
         .order_by(Vm.decommission_date.asc())
     )

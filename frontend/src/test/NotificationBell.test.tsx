@@ -59,7 +59,7 @@ describe('NotificationBell', () => {
   });
 
   it('left-aligns its panel when used in sidebar chrome', async () => {
-    renderWithProviders(<NotificationBell align="left" />);
+    renderWithProviders(<NotificationBell />);
     fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
     expect(await screen.findByRole('menu')).toHaveClass('left-0');
   });

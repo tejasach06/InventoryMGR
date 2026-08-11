@@ -54,9 +54,9 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
   await expect(page.getByRole('link', { name: proxmoxName })).toBeVisible();
   await page.getByRole('link', { name: 'Import' }).click();
   const csv = [
-    'name,platform,cluster,status,cpu_cores,memory_mb,criticality,lifecycle,external_id,owner',
-    `${vmwareName},vmware,vc-cluster,running,2,4096,medium,active,vmw-${runId},platform-team`,
-    `${proxmoxName},proxmox,pve-cluster-a,powered_off,6,12288,critical,active,,ops-team`,
+    'name,platform,cluster,status,cpu_cores,memory_mb,criticality,external_id,owner',
+    `${vmwareName},vmware,vc-cluster,running,2,4096,medium,vmw-${runId},platform-team`,
+    `${proxmoxName},proxmox,pve-cluster-a,powered_off,6,12288,critical,,ops-team`,
   ].join('\n');
   await page.getByLabel('CSV file', { exact: true }).setInputFiles({
     name: `inventory-${runId}.csv`,
@@ -99,6 +99,7 @@ test('pages through the inventory and changes rows per page', async ({ page }) =
   });
   await page.getByRole('button', { name: 'Preview CSV' }).click();
   await page.getByRole('button', { name: 'Commit persisted batch' }).click();
+  await expect(page.getByText('Import committed. Inventory has been updated from persisted preview rows.')).toBeVisible();
 
   await page.goto('/inventory');
 

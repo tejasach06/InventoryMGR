@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.db.models import (
     Criticality,
     Environment,
-    Lifecycle,
     NetworkRole,
     OsFamily,
     Platform,
@@ -24,7 +23,6 @@ STRING_FIELDS = {
     "sr_id",
     "cluster",
     "node",
-    "os_name",
     "os_distribution",
     "os_version",
     "owner",
@@ -58,7 +56,6 @@ class VmBase(BaseModel):
     cpu_cores: int | None = Field(default=None, ge=0)
     memory_mb: int | None = Field(default=None, ge=0)
     os_family: OsFamily | None = None
-    os_name: str | None = None
     os_distribution: str | None = None
     os_version: str | None = None
     owner: str | None = None
@@ -70,7 +67,6 @@ class VmBase(BaseModel):
     backup_location: str | None = None
     ha_enabled: bool | None = None
     criticality: Criticality | None = None
-    lifecycle: Lifecycle | None = None
     vm_type: VmType | None = None
     tags: list[str] | None = None
     last_patch_date: date | None = None
@@ -85,7 +81,6 @@ class VmBase(BaseModel):
         "platform",
         "status",
         "criticality",
-        "lifecycle",
         "os_family",
         "environment",
         "vm_type",
@@ -121,7 +116,6 @@ class VmCreate(VmBase):
     cpu_cores: int = Field(ge=0)
     memory_mb: int = Field(ge=0)
     criticality: Criticality
-    lifecycle: Lifecycle
     vm_type: VmType = VmType.permanent
     pmp_enabled: bool = False
     monitoring_enabled: bool = False
@@ -163,8 +157,6 @@ class DiskRead(DiskCreate):
 class NetworkCreate(BaseModel):
     ip_address: str
     role: NetworkRole = NetworkRole.private
-    vlan: int | None = Field(default=None, ge=0, le=4094)
-    gateway: str | None = None
     sort_order: int = 0
 
 
@@ -197,8 +189,6 @@ class DiskUpdate(BaseModel):
 class NetworkUpdate(BaseModel):
     ip_address: str | None = None
     role: NetworkRole | None = None
-    vlan: int | None = Field(default=None, ge=0, le=4094)
-    gateway: str | None = None
     sort_order: int | None = None
 
 
@@ -297,7 +287,6 @@ class VmBulkFilters(BaseModel):
     status: list[VmStatus] | None = None
     environment: list[Environment] | None = None
     criticality: list[Criticality] | None = None
-    lifecycle: list[Lifecycle] | None = None
     monitoring_enabled: bool | None = None
     node: list[str] | None = None
     os_family: list[OsFamily] | None = None
@@ -325,7 +314,6 @@ class VmBulkUpdate(BaseModel):
     status: VmStatus | None = None
     environment: Environment | None = None
     criticality: Criticality | None = None
-    lifecycle: Lifecycle | None = None
     vm_type: VmType | None = None
     cluster: str | None = None
     node: str | None = None

@@ -42,7 +42,6 @@ DEFAULT_COLUMNS = [
     {"key": "updated_at", "visible": True, "order": 7},
     {"key": "fqdn", "visible": False, "order": 8},
     {"key": "environment", "visible": False, "order": 9},
-    {"key": "lifecycle", "visible": False, "order": 10},
     {"key": "vm_type", "visible": False, "order": 11},
     {"key": "datacenter", "visible": False, "order": 12},
     {"key": "node", "visible": False, "order": 13},
