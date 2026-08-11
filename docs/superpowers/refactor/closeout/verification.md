@@ -28,6 +28,8 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 | Frontend lint + typecheck after coverage remediation | d5e6d24 | 0 | `devbox run -- bash -lc 'cd frontend && bun run lint && bun run typecheck'` passed: ESLint completed and `tsc --noEmit` completed. |
 | Frontend Vitest coverage after remediation | d5e6d24 | 0 | `devbox run -- bash -lc 'cd frontend && bun run test -- --coverage'` passed: 39 test files / 268 tests; coverage statements 87.25%, branches 80.13%, functions 83.22%, lines 90.00%, satisfying the configured 80% global thresholds. |
 | Frontend Playwright after coverage remediation | d5e6d24 | 1 | `devbox run -- bash -lc 'cd frontend && bunx playwright test --workers=1'` ran 21 tests: 20 passed, 1 failed. Failure: `e2e/performance.spec.ts:96:1` (`records production route performance`) asserted `PERF_OUTPUT is required`; closeout stopped before production build and later gates, with no source/test fixes applied. |
+| Frontend Playwright after performance opt-in remediation | 6e34290 | 0 | Parent verified `devbox run -- bash -lc 'cd frontend && bunx playwright test --workers=1'` after the performance-spec opt-in remediation: 20 passed, 1 skipped. |
+| Frontend production build | 6e34290 | 0 | `devbox run -- bash -lc 'cd frontend && rm -rf .next && bun run build'` passed with Next.js 16.2.9/Turbopack; generated 14 static pages and listed 17 app route entries (`/`, `/_not-found`, `/clusters`, `/clusters/[id]`, `/dashboard`, `/icon.svg`, `/imports/new`, `/inventory`, `/inventory/[id]`, `/inventory/[id]/edit`, `/inventory/new`, `/login`, `/reports`, `/settings`, `/storage`, `/storage/[id]`, `/users`). |
 
 ## Migration Gate
 
