@@ -4,7 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, detailMessage, ClusterPayload, PhysicalClusterListItem } from '../api/client';
+import { clusters as clustersApi } from '../api/clusters';
+import { detailMessage } from '../api/core';
+import type { ClusterPayload, PhysicalClusterListItem } from '../api/types';
 import { Alert, EmptyState, PageHeader, PageTransition, TableSkeleton, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass, monoClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
@@ -17,11 +19,11 @@ export function ClustersPage() {
   const canEdit = user.role === 'editor' || user.role === 'admin';
   const [showForm, setShowForm] = useState(false);
 
-  const clustersQ = useQuery({ queryKey: ['clusters'], queryFn: () => api.listClusters() });
+  const clustersQ = useQuery({ queryKey: ['clusters'], queryFn: () => clustersApi.listClusters() });
   const clusters: PhysicalClusterListItem[] = clustersQ.data ?? [];
 
   const createMut = useMutation({
-    mutationFn: (payload: ClusterPayload) => api.createCluster(payload),
+    mutationFn: (payload: ClusterPayload) => clustersApi.createCluster(payload),
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['clusters'] });
       setShowForm(false);

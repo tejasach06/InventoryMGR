@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { api, ApiError } from '../api/client';
-import type { VmList } from '../api/client';
+import { vms as vmsApi } from '../api/vms';
+import { ApiError } from '../api/core';
+import type { VmList } from '../api/types';
 import { InventoryPage } from '../routes/InventoryPage';
 import { makeUser, makeVm, renderWithProviders } from './utils';
 
@@ -36,7 +37,7 @@ afterEach(() => {
 
 describe('InventoryPage', () => {
   it('renders a single VM in both the table and the card', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     // The same VM name renders once in the desktop table and once in the mobile card.
@@ -46,7 +47,7 @@ describe('InventoryPage', () => {
   });
 
   it('reflects the total in the count when multiple VMs are returned', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(
       makeVmList({ items: [makeVm(), makeVm({ id: 'vm-2', name: 'db-02' })], total: 2 }),
     );
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
@@ -56,7 +57,7 @@ describe('InventoryPage', () => {
   });
 
   it('does not render the redundant quick-stat tiles', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     await screen.findAllByText('web-01');
@@ -67,7 +68,7 @@ describe('InventoryPage', () => {
   });
 
   it('renders no context panel and shows bulk actions when rows are selected', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     await screen.findAllByText('web-01');
@@ -81,7 +82,7 @@ describe('InventoryPage', () => {
   });
 
   it('has no Actions column in the table', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findAllByText('web-01');
@@ -91,7 +92,7 @@ describe('InventoryPage', () => {
   });
 
   it('renders status, criticality, and platform badges with semantic color', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     await screen.findAllByText('web-01');
@@ -106,14 +107,14 @@ describe('InventoryPage', () => {
   });
 
   it('shows the empty state when no VMs match', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     expect(await screen.findByText('No VMs yet')).toBeInTheDocument();
   });
 
   it('shows the loading skeleton while the query is pending', () => {
-    vi.spyOn(api, 'listVms').mockImplementation(() => new Promise(() => {}));
+    vi.spyOn(vmsApi, 'listVms').mockImplementation(() => new Promise(() => {}));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     // TableSkeleton renders a table with skeleton rows
@@ -121,7 +122,7 @@ describe('InventoryPage', () => {
   });
 
   it('shows an Alert with the error detail when the query rejects', async () => {
-    vi.spyOn(api, 'listVms').mockRejectedValue(new ApiError(500, 'boom'));
+    vi.spyOn(vmsApi, 'listVms').mockRejectedValue(new ApiError(500, 'boom'));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     const alert = await screen.findByRole('alert');
@@ -129,7 +130,7 @@ describe('InventoryPage', () => {
   });
 
   it('shows the "New VM" link for editors', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'editor' }) });
 
     await screen.findByText('No VMs yet');
@@ -137,14 +138,14 @@ describe('InventoryPage', () => {
   });
 
   it('hides the "New VM" link for viewers', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
 
     await screen.findByText('No VMs yet');
     expect(screen.queryByRole('link', { name: 'New VM' })).not.toBeInTheDocument();
   });
   it('clears a typed search term from the search field itself, not "Clear all"', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList({ items: [], total: 0 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findByText('No VMs yet');
@@ -162,7 +163,7 @@ describe('InventoryPage', () => {
   });
   it('seeds the search field from the URL and clears it back to empty', async () => {
     hoisted.searchParams = new URLSearchParams('q=web');
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findAllByText('web-01');
@@ -177,26 +178,26 @@ describe('InventoryPage', () => {
   });
   it('requests the second page with limit and offset', async () => {
     // listVms mock resolves { items, total: 120, limit: 50, offset: 0 }
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList({ total: 120 }));
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList({ total: 120 }));
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
     await userEvent.click(await screen.findByRole('button', { name: 'Next page' }));
 
-    const lastCall = vi.mocked(api.listVms).mock.calls.at(-1)![0];
+    const lastCall = vi.mocked(vmsApi.listVms).mock.calls.at(-1)![0];
     expect(lastCall.get('limit')).toBe('50');
     expect(lastCall.get('offset')).toBe('50');
   });
 
   it('sends sort and dir when a sortable column header is clicked', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
     await userEvent.click(await screen.findByRole('button', { name: /Name/ }));
 
-    const lastCall = vi.mocked(api.listVms).mock.calls.at(-1)![0];
+    const lastCall = vi.mocked(vmsApi.listVms).mock.calls.at(-1)![0];
     expect(lastCall.get('sort')).toBe('name');
     expect(lastCall.get('dir')).toBe('asc');
   });
   it('renders Export CSV and Export Excel links', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(makeVmList());
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
     await screen.findByRole('button', { name: 'Filters' });
     await userEvent.setup().click(screen.getByText('Export'));
@@ -206,10 +207,10 @@ describe('InventoryPage', () => {
     expect(excelLink).toHaveAttribute('href', expect.stringContaining('format=xlsx'));
   });
   it('sends ids when editing a page selection', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(
       makeVmList({ items: [makeVm({ id: 'vm-01-id', name: 'vm-01' })], total: 1 }),
     );
-    vi.spyOn(api, 'bulkUpdateVms').mockResolvedValue({ updated: 1, failed: [] });
+    vi.spyOn(vmsApi, 'bulkUpdateVms').mockResolvedValue({ updated: 1, failed: [] });
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     await userEvent.click(await screen.findByLabelText('Select vm-01'));
@@ -217,17 +218,17 @@ describe('InventoryPage', () => {
     await userEvent.selectOptions(screen.getByLabelText('Status'), 'running');
     await userEvent.click(screen.getByRole('button', { name: /^Apply to 1 VM$/ }));
 
-    expect(vi.mocked(api.bulkUpdateVms)).toHaveBeenCalledWith({
+    expect(vi.mocked(vmsApi.bulkUpdateVms)).toHaveBeenCalledWith({
       ids: ['vm-01-id'],
       patch: { status: 'running' },
     });
   });
 
   it('sends filters after selecting everything matching', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(
       makeVmList({ items: [makeVm({ id: 'vm-01-id', name: 'vm-01' })], total: 120 }),
     );
-    vi.spyOn(api, 'bulkUpdateVms').mockResolvedValue({ updated: 120, failed: [] });
+    vi.spyOn(vmsApi, 'bulkUpdateVms').mockResolvedValue({ updated: 120, failed: [] });
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     await userEvent.click(await screen.findByLabelText('Select all'));
@@ -237,16 +238,16 @@ describe('InventoryPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /^Apply to all/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Bulk Edit' }));
 
-    const body = vi.mocked(api.bulkUpdateVms).mock.calls.at(-1)![0];
+    const body = vi.mocked(vmsApi.bulkUpdateVms).mock.calls.at(-1)![0];
     expect(body.ids).toBeUndefined();
     expect(body.patch).toEqual({ criticality: 'high' });
   });
 
   it('renders bulk error alert when bulk update has failures', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(
       makeVmList({ items: [makeVm({ id: 'vm-01-id', name: 'vm-01' })], total: 1 }),
     );
-    vi.spyOn(api, 'bulkUpdateVms').mockResolvedValue({
+    vi.spyOn(vmsApi, 'bulkUpdateVms').mockResolvedValue({
       updated: 0,
       failed: [{ id: 'vm-01-id', message: 'Update failed' }],
     });
@@ -260,10 +261,10 @@ describe('InventoryPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('0 updated, 1 failed');
   });
   it('presents confirmation modal before executing bulk edits on matching filters', async () => {
-    vi.spyOn(api, 'listVms').mockResolvedValue(
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(
       makeVmList({ items: [makeVm({ id: 'vm-01-id', name: 'vm-01' })], total: 50 }),
     );
-    vi.spyOn(api, 'bulkUpdateVms').mockResolvedValue({ updated: 50, failed: [] });
+    vi.spyOn(vmsApi, 'bulkUpdateVms').mockResolvedValue({ updated: 50, failed: [] });
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     await userEvent.click(await screen.findByLabelText('Select all'));
@@ -274,9 +275,9 @@ describe('InventoryPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Confirm Bulk Update' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Confirm Bulk Edit' })).toBeInTheDocument();
-    expect(api.bulkUpdateVms).not.toHaveBeenCalled();
+    expect(vmsApi.bulkUpdateVms).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Bulk Edit' }));
-    expect(api.bulkUpdateVms).toHaveBeenCalledTimes(1);
+    expect(vmsApi.bulkUpdateVms).toHaveBeenCalledTimes(1);
   });
 });

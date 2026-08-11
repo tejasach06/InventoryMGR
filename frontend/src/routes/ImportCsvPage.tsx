@@ -2,7 +2,9 @@
 
 import { DragEvent, FormEvent, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, detailMessage, ImportAction, ImportBatch } from '../api/client';
+import { imports as importsApi } from '../api/imports';
+import { detailMessage } from '../api/core';
+import type { ImportAction, ImportBatch } from '../api/types';
 import { Alert, Badge, BadgeTone, EmptyState, PageHeader, PageTransition, Spinner, cardClass, helpTextClass, primaryButtonClass, secondaryButtonClass, statTileClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 
@@ -73,7 +75,7 @@ export function ImportCsvPage() {
   const preview = useMutation({
     mutationFn: () => {
       if (!file) throw new Error('Choose a CSV file before previewing.');
-      return api.previewImport(file);
+      return importsApi.previewImport(file);
     },
     onMutate: () => {
       setBatch(null);
@@ -82,7 +84,7 @@ export function ImportCsvPage() {
     onSuccess: (result) => setBatch(result),
   });
   const commit = useMutation({
-    mutationFn: () => api.commitImport(batch?.id ?? ''),
+    mutationFn: () => importsApi.commitImport(batch?.id ?? ''),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vms'] });
       if (batch) setBatch({ ...batch, status: 'committed', committed_at: new Date().toISOString() });

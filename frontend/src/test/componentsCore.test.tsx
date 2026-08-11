@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { api } from '../api/client';
+
 import { RoleGate, useCurrentUser } from '../components/AuthContext';
 import { AppLayout } from '../components/Layout';
 import {
@@ -17,6 +17,7 @@ import {
   TableSkeleton,
 } from '../components/ui';
 import { makeUser, renderWithProviders } from './utils';
+import { auth as authApi } from '../api/auth';
 
 const { replaceMock } = vi.hoisted(() => ({ replaceMock: vi.fn() }));
 
@@ -108,6 +109,16 @@ describe('AppLayout', () => {
     expect(toggle).toHaveAttribute('aria-controls', 'primary-nav');
   });
 
+  it('keeps the sidebar footer grouped and visually quiet', () => {
+    renderWithProviders(<AppLayout user={makeUser({ role: 'admin' })}>body</AppLayout>);
+
+    const primaryNav = screen.getByLabelText('Primary navigation');
+    expect(within(primaryNav).getByText('admin')).toHaveClass('text-xs');
+    expect(within(primaryNav).getByText('admin')).not.toHaveClass('uppercase');
+    expect(within(primaryNav).getAllByRole('button', { name: 'Logout' })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ textContent: '' })]),
+    );
+  });
 
   it('opens and closes the mobile navigation dialog', () => {
     renderWithProviders(<AppLayout user={makeUser()}>body</AppLayout>);
@@ -119,7 +130,7 @@ describe('AppLayout', () => {
   });
 
   it('logs out and redirects to /login', async () => {
-    const logout = vi.spyOn(api, 'logout').mockResolvedValue(null);
+    const logout = vi.spyOn(authApi, 'logout').mockResolvedValue(null);
     renderWithProviders(<AppLayout user={makeUser()}>body</AppLayout>);
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Logout' })[0]);

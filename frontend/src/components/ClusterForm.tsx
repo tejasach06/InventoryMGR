@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { ClusterPayload } from '../api/client';
+import type { ClusterPayload } from '../api/types';
 import { Spinner, inputClass, textareaClass, labelClass, primaryButtonClass, secondaryButtonClass } from './ui';
 
 export interface ClusterFormValues {

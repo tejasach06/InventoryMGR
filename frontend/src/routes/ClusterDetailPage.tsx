@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { api, detailMessage, ClusterPayload, PhysicalCluster, PhysicalNode } from '../api/client';
+import { clusters as clustersApi } from '../api/clusters';
+import { detailMessage } from '../api/core';
+import type { ClusterPayload, PhysicalCluster, PhysicalNode } from '../api/types';
 import {
   Alert, ConfirmDialog, FieldError, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, cardClass, inputClass, labelClass,
   tableClass, tableBodyClass, tableCellClass, monoClass, tableWrapClass,
@@ -127,11 +129,11 @@ function NodesArea({ cluster, canEdit }: { cluster: PhysicalCluster; canEdit: bo
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ['cluster', cluster.id] });
   const addNode = useMutation({
-    mutationFn: (payload: Partial<PhysicalNode> & { name: string }) => api.addNode(cluster.id, payload),
+    mutationFn: (payload: Partial<PhysicalNode> & { name: string }) => clustersApi.addNode(cluster.id, payload),
     onSuccess: invalidate,
   });
   const delNode = useMutation({
-    mutationFn: (nodeId: string) => api.deleteNode(cluster.id, nodeId),
+    mutationFn: (nodeId: string) => clustersApi.deleteNode(cluster.id, nodeId),
     onSuccess: invalidate,
   });
 
@@ -192,18 +194,18 @@ export function ClusterDetailPage() {
   const user = useCurrentUser();
   const canEdit = user.role === 'editor' || user.role === 'admin';
 
-  const clusterQ = useQuery({ queryKey: ['cluster', id], queryFn: () => api.getCluster(id) });
+  const clusterQ = useQuery({ queryKey: ['cluster', id], queryFn: () => clustersApi.getCluster(id) });
   const cluster = clusterQ.data;
 
   const deleteMut = useMutation({
-    mutationFn: () => api.deleteCluster(id),
+    mutationFn: () => clustersApi.deleteCluster(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['clusters'] }); router.push('/clusters'); },
   });
 
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const updateMut = useMutation({
-    mutationFn: (payload: ClusterPayload) => api.updateCluster(id, payload),
+    mutationFn: (payload: ClusterPayload) => clustersApi.updateCluster(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cluster', id] });
       qc.invalidateQueries({ queryKey: ['clusters'] });

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api } from '../api/client';
+import { storage as storageApi } from '../api/storage';
 
 function mockFetch(status = 200, body: unknown = {}) {
   const res = {
@@ -27,47 +27,47 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe('storage api client methods', () => {
   it('routes each storage call to the right method + path', async () => {
     let spy = mockFetch(200, []);
-    await api.listArrays();
+    await storageApi.listArrays();
     expect(lastCall(spy)).toEqual({ url: '/api/storage/arrays', method: 'GET' });
 
     spy = mockFetch(200, { id: 'a1' });
-    await api.getArray('a1');
+    await storageApi.getArray('a1');
     expect(lastCall(spy).url).toBe('/api/storage/arrays/a1');
 
     spy = mockFetch(201, { id: 'a1' });
-    await api.createArray({ name: 'syn', vendor: 'synology' });
+    await storageApi.createArray({ name: 'syn', vendor: 'synology' });
     expect(lastCall(spy)).toEqual({ url: '/api/storage/arrays', method: 'POST' });
 
     spy = mockFetch(200, { id: 'a1' });
-    await api.updateArray('a1', { name: 'x' });
+    await storageApi.updateArray('a1', { name: 'x' });
     expect(lastCall(spy)).toEqual({ url: '/api/storage/arrays/a1', method: 'PATCH' });
 
     spy = mockFetch(204, null);
-    await api.deleteArray('a1');
+    await storageApi.deleteArray('a1');
     expect(lastCall(spy).method).toBe('DELETE');
 
     spy = mockFetch(201, { id: 'v1' });
-    await api.addVolume('a1', { name: 'vol' });
+    await storageApi.addVolume('a1', { name: 'vol' });
     expect(lastCall(spy)).toEqual({ url: '/api/storage/arrays/a1/volumes', method: 'POST' });
 
     spy = mockFetch(204, null);
-    await api.deleteVolume('a1', 'v1');
+    await storageApi.deleteVolume('a1', 'v1');
     expect(lastCall(spy).url).toBe('/api/storage/arrays/a1/volumes/v1');
 
     spy = mockFetch(201, { id: 'l1' });
-    await api.addLun('v1', { name: 'lun' });
+    await storageApi.addLun('v1', { name: 'lun' });
     expect(lastCall(spy)).toEqual({ url: '/api/storage/volumes/v1/luns', method: 'POST' });
 
     spy = mockFetch(204, null);
-    await api.deleteLun('v1', 'l1');
+    await storageApi.deleteLun('v1', 'l1');
     expect(lastCall(spy).url).toBe('/api/storage/volumes/v1/luns/l1');
 
     spy = mockFetch(201, { id: 's1' });
-    await api.addShare('v1', { export_path: '/x' });
+    await storageApi.addShare('v1', { export_path: '/x' });
     expect(lastCall(spy)).toEqual({ url: '/api/storage/volumes/v1/shares', method: 'POST' });
 
     spy = mockFetch(204, null);
-    await api.deleteShare('v1', 's1');
+    await storageApi.deleteShare('v1', 's1');
     expect(lastCall(spy).url).toBe('/api/storage/volumes/v1/shares/s1');
   });
 });

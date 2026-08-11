@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, screen } from '@testing-library/react';
-import { api } from '../api/client';
-import type { DashboardStats, StorageArrayListItem, VmList } from '../api/client';
+
+import type { DashboardStats, StorageArrayListItem, VmList } from '../api/types';
 import { DashboardPage } from '../routes/DashboardPage';
 import { renderWithProviders } from './utils';
+import { vms as vmsApi } from '../api/vms';
+import { dashboard as dashboardApi } from '../api/dashboard';
+import { storage as storageApi } from '../api/storage';
 
 const stats: DashboardStats = {
   total: 0, linux: 0, windows: 0, production: 0, development: 0,
@@ -24,9 +27,9 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('DashboardPage', () => {
   it('shows a storage-alerts tile with the over-threshold count linking to /storage', async () => {
-    vi.spyOn(api, 'getDashboard').mockResolvedValue(stats);
-    vi.spyOn(api, 'listVms').mockResolvedValue(emptyVms);
-    vi.spyOn(api, 'listArrays').mockResolvedValue([array(true, 'a1'), array(false, 'a2')]);
+    vi.spyOn(dashboardApi, 'getDashboard').mockResolvedValue(stats);
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(emptyVms);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([array(true, 'a1'), array(false, 'a2')]);
     renderWithProviders(<DashboardPage />);
 
     const tile = await screen.findByText('Storage alerts');
@@ -42,9 +45,9 @@ describe('DashboardPage', () => {
       decommission_overdue: [{ id: 'vm-2', name: 'overdue-vm-2', environment: 'development', days: 10 }],
       missing_ip: [{ id: 'vm-3', name: 'noip-vm-3', environment: 'testing', days: 0 }],
     };
-    vi.spyOn(api, 'getDashboard').mockResolvedValue(statsWithAlerts);
-    vi.spyOn(api, 'listVms').mockResolvedValue(emptyVms);
-    vi.spyOn(api, 'listArrays').mockResolvedValue([]);
+    vi.spyOn(dashboardApi, 'getDashboard').mockResolvedValue(statsWithAlerts);
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(emptyVms);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([]);
     renderWithProviders(<DashboardPage />);
 
     expect(await screen.findByText('VM Alerts')).toBeInTheDocument();
@@ -76,9 +79,9 @@ describe('DashboardPage', () => {
       ...stats,
       shutdown_stale: manyShutdowns,
     };
-    vi.spyOn(api, 'getDashboard').mockResolvedValue(statsWithOverflow);
-    vi.spyOn(api, 'listVms').mockResolvedValue(emptyVms);
-    vi.spyOn(api, 'listArrays').mockResolvedValue([]);
+    vi.spyOn(dashboardApi, 'getDashboard').mockResolvedValue(statsWithOverflow);
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(emptyVms);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([]);
     renderWithProviders(<DashboardPage />);
 
     expect(await screen.findByText('VM Alerts')).toBeInTheDocument();
@@ -90,9 +93,9 @@ describe('DashboardPage', () => {
   });
 
   it('renders all clear state when all alert lists are empty', async () => {
-    vi.spyOn(api, 'getDashboard').mockResolvedValue(stats);
-    vi.spyOn(api, 'listVms').mockResolvedValue(emptyVms);
-    vi.spyOn(api, 'listArrays').mockResolvedValue([]);
+    vi.spyOn(dashboardApi, 'getDashboard').mockResolvedValue(stats);
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(emptyVms);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([]);
     renderWithProviders(<DashboardPage />);
     expect((await screen.findAllByText('All clear')).length).toBeGreaterThan(0);
   });

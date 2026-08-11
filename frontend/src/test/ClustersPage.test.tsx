@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { api } from '../api/client';
-import type { PhysicalClusterListItem } from '../api/client';
+import { clusters as clustersApi } from '../api/clusters';
+import type { PhysicalClusterListItem } from '../api/types';
 import { ClustersPage } from '../routes/ClustersPage';
 import { makeUser, renderWithProviders } from './utils';
 
@@ -25,7 +25,7 @@ function makeCluster(overrides: Partial<PhysicalClusterListItem> = {}): Physical
 
 describe('ClustersPage', () => {
   it('renders a cluster row with node count and totals', async () => {
-    vi.spyOn(api, 'listClusters').mockResolvedValue([makeCluster()]);
+    vi.spyOn(clustersApi, 'listClusters').mockResolvedValue([makeCluster()]);
     renderWithProviders(<ClustersPage />, { user: makeUser({ role: 'viewer' }) });
     expect(await screen.findByText('pve-cluster-a')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
@@ -34,28 +34,28 @@ describe('ClustersPage', () => {
   });
 
   it('shows an empty state when there are no clusters', async () => {
-    vi.spyOn(api, 'listClusters').mockResolvedValue([]);
+    vi.spyOn(clustersApi, 'listClusters').mockResolvedValue([]);
     renderWithProviders(<ClustersPage />, { user: makeUser({ role: 'viewer' }) });
     expect(await screen.findByText(/no clusters yet/i)).toBeInTheDocument();
   });
 
   it('renders an error alert on failure', async () => {
-    vi.spyOn(api, 'listClusters').mockRejectedValue(new Error('boom'));
+    vi.spyOn(clustersApi, 'listClusters').mockRejectedValue(new Error('boom'));
     renderWithProviders(<ClustersPage />, { user: makeUser({ role: 'viewer' }) });
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 
   it('hides the New cluster button for viewers', async () => {
-    vi.spyOn(api, 'listClusters').mockResolvedValue([]);
+    vi.spyOn(clustersApi, 'listClusters').mockResolvedValue([]);
     renderWithProviders(<ClustersPage />, { user: makeUser({ role: 'viewer' }) });
-    await waitFor(() => expect(api.listClusters).toHaveBeenCalled());
+    await waitFor(() => expect(clustersApi.listClusters).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: /new cluster/i })).not.toBeInTheDocument();
   });
 
   it('creates a cluster and navigates to its detail page (editor)', async () => {
-    vi.spyOn(api, 'listClusters').mockResolvedValue([]);
+    vi.spyOn(clustersApi, 'listClusters').mockResolvedValue([]);
     const created = makeCluster();
-    vi.spyOn(api, 'createCluster').mockResolvedValue({
+    vi.spyOn(clustersApi, 'createCluster').mockResolvedValue({
       id: created.id, name: created.name, description: null, notes: null, nodes: [],
       created_at: '2026-07-22T00:00:00Z', updated_at: '2026-07-22T00:00:00Z',
     });
@@ -63,7 +63,7 @@ describe('ClustersPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /new cluster/i }));
     fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'pve-cluster-a' } });
     fireEvent.click(screen.getByRole('button', { name: /create cluster/i }));
-    await waitFor(() => expect(api.createCluster).toHaveBeenCalledWith(
+    await waitFor(() => expect(clustersApi.createCluster).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'pve-cluster-a' }),
     ));
     await waitFor(() => expect(hoisted.pushMock).toHaveBeenCalledWith('/clusters/c1'));

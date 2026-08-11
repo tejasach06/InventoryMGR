@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { api } from '../api/client';
-import type { StorageArray } from '../api/client';
+import { storage as storageApi } from '../api/storage';
+import type { StorageArray } from '../api/types';
 import { StorageDetailPage } from '../routes/StorageDetailPage';
 import { makeUser, renderWithProviders } from './utils';
+import { settings as settingsApi } from '../api/settings';
 
 const hoisted = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
@@ -32,8 +33,8 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('StorageDetailPage', () => {
   it('renders array header, volume panel, and LUN + share rows', async () => {
-    vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
-    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+    vi.spyOn(storageApi, 'getArray').mockResolvedValue(makeArray());
+    vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({
       cpu: [], datacenter: [], disk: [], cluster: ['pve-a'], os: [], os_by_family: { linux: [], windows: [] },
     });
     renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'editor' }) });
@@ -45,12 +46,12 @@ describe('StorageDetailPage', () => {
     expect(screen.getByText('/vol1/share')).toBeInTheDocument();
   });
 
-  it('adding a LUN calls api.addLun', async () => {
-    vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
-    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+  it('adding a LUN calls storageApi.addLun', async () => {
+    vi.spyOn(storageApi, 'getArray').mockResolvedValue(makeArray());
+    vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({
       cpu: [], datacenter: [], disk: [], cluster: ['pve-a'], os: [], os_by_family: { linux: [], windows: [] },
     });
-    const addSpy = vi.spyOn(api, 'addLun').mockResolvedValue({
+    const addSpy = vi.spyOn(storageApi, 'addLun').mockResolvedValue({
       id: 'l2', volume_id: 'v1', name: 'lun1', size_gb: 50, used_gb: null, target_iqn: null, cluster: null, status: null, sort_order: 1,
     });
     renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'editor' }) });
@@ -64,8 +65,8 @@ describe('StorageDetailPage', () => {
   });
 
   it('hides add forms and delete buttons for viewers', async () => {
-    vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
-    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+    vi.spyOn(storageApi, 'getArray').mockResolvedValue(makeArray());
+    vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({
       cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] },
     });
     renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'viewer' }) });
@@ -77,18 +78,18 @@ describe('StorageDetailPage', () => {
   });
 
   it('deletes a LUN, share, volume, and the array (editor)', async () => {
-    vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
-    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+    vi.spyOn(storageApi, 'getArray').mockResolvedValue(makeArray());
+    vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({
       cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] },
     });
-    const delLun = vi.spyOn(api, 'deleteLun').mockResolvedValue(null);
-    const delShare = vi.spyOn(api, 'deleteShare').mockResolvedValue(null);
-    const delVol = vi.spyOn(api, 'deleteVolume').mockResolvedValue(null);
-    const delArr = vi.spyOn(api, 'deleteArray').mockResolvedValue(null);
-    const addShare = vi.spyOn(api, 'addShare').mockResolvedValue({
+    const delLun = vi.spyOn(storageApi, 'deleteLun').mockResolvedValue(null);
+    const delShare = vi.spyOn(storageApi, 'deleteShare').mockResolvedValue(null);
+    const delVol = vi.spyOn(storageApi, 'deleteVolume').mockResolvedValue(null);
+    const delArr = vi.spyOn(storageApi, 'deleteArray').mockResolvedValue(null);
+    const addShare = vi.spyOn(storageApi, 'addShare').mockResolvedValue({
       id: 's2', volume_id: 'v1', export_path: '/new', used_gb: null, allowed_clients: null, notes: null, sort_order: 1,
     });
-    const addVolume = vi.spyOn(api, 'addVolume').mockResolvedValue({
+    const addVolume = vi.spyOn(storageApi, 'addVolume').mockResolvedValue({
       id: 'v2', array_id: 'a1', name: 'vol2', capacity_gb: 0, used_gb: 0, notes: null, sort_order: 1, used_pct: null, over_threshold: false, luns: [], shares: [],
     });
     renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'editor' }) });
@@ -118,12 +119,12 @@ describe('StorageDetailPage', () => {
     });
   });
 
-  it('edits the array and calls api.updateArray (editor)', async () => {
-    vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
-    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+  it('edits the array and calls storageApi.updateArray (editor)', async () => {
+    vi.spyOn(storageApi, 'getArray').mockResolvedValue(makeArray());
+    vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({
       cpu: [], datacenter: [], disk: [], cluster: ['pve-a'], os: [], os_by_family: { linux: [], windows: [] },
     });
-    const updateSpy = vi.spyOn(api, 'updateArray').mockResolvedValue({ ...makeArray(), name: 'syn-renamed' });
+    const updateSpy = vi.spyOn(storageApi, 'updateArray').mockResolvedValue({ ...makeArray(), name: 'syn-renamed' });
     renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'editor' }) });
 
     fireEvent.click(await screen.findByRole('button', { name: /^edit$/i }));
@@ -134,8 +135,8 @@ describe('StorageDetailPage', () => {
   });
 
   it('cancels editing and hides the Edit button for viewers', async () => {
-    vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
-    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+    vi.spyOn(storageApi, 'getArray').mockResolvedValue(makeArray());
+    vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({
       cpu: [], datacenter: [], disk: [], cluster: ['pve-a'], os: [], os_by_family: { linux: [], windows: [] },
     });
     const { unmount } = renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'editor' }) });
@@ -144,8 +145,8 @@ describe('StorageDetailPage', () => {
     expect(await screen.findByRole('button', { name: /^edit$/i })).toBeInTheDocument();
     unmount();
 
-    vi.spyOn(api, 'getArray').mockResolvedValue(makeArray());
-    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+    vi.spyOn(storageApi, 'getArray').mockResolvedValue(makeArray());
+    vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({
       cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] },
     });
     renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'viewer' }) });
@@ -155,10 +156,10 @@ describe('StorageDetailPage', () => {
 
   it('renders an empty-volumes message and an error state', async () => {
     const empty = { ...makeArray(), volumes: [] };
-    vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+    vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({
       cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] },
     });
-    const getArray = vi.spyOn(api, 'getArray').mockResolvedValue(empty);
+    const getArray = vi.spyOn(storageApi, 'getArray').mockResolvedValue(empty);
     const { unmount } = renderWithProviders(<StorageDetailPage />, { user: makeUser({ role: 'viewer' }) });
     expect(await screen.findByText('No volumes yet.')).toBeInTheDocument();
     unmount();

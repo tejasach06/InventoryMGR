@@ -4,7 +4,9 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { api, detailMessage, Vm, BulkResult } from '../api/client';
+import { vms as vmsApi } from '../api/vms';
+import { detailMessage } from '../api/core';
+import type { Vm, BulkResult } from '../api/types';
 import { BulkEditDrawer, BulkPatch } from '../components/BulkEditDrawer';
 import { useCurrentUser } from '../components/AuthContext';
 import { cn } from '../lib/classNames';
@@ -472,7 +474,7 @@ export function InventoryPage() {
 
   const updateVmCellMutation = useMutation({
     mutationFn: ({ vmId, patch }: { vmId: string; patch: Record<string, unknown> }) =>
-      api.updateVm(vmId, patch as any),
+      vmsApi.updateVm(vmId, patch as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vms'] });
     },
@@ -535,9 +537,9 @@ export function InventoryPage() {
   );
   function exportSelected(format: 'csv' | 'xlsx' = 'csv') {
     if (selectedIds.size === 0) return;
-    window.location.href = api.exportSelectedUrl([...selectedIds], format);
+    window.location.href = vmsApi.exportSelectedUrl([...selectedIds], format);
   }
-  const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => api.listVms(queryParams) });
+  const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => vmsApi.listVms(queryParams) });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentFilters = useMemo(() => filtersFromParams(searchParams), [searchParams]);
@@ -592,7 +594,7 @@ export function InventoryPage() {
 
   const bulkMutation = useMutation({
     mutationFn: (patch: BulkPatch) =>
-      api.bulkUpdateVms(
+      vmsApi.bulkUpdateVms(
         selectAllMatching ? { filters: bulkFilters(), patch } : { ids: [...selectedIds], patch },
       ),
     onSuccess: (result) => {
@@ -651,8 +653,8 @@ export function InventoryPage() {
               <details className="relative">
                 <summary className={`${secondaryButtonClass} cursor-pointer list-none`}>Export</summary>
                 <div className="absolute right-0 z-20 mt-2 grid min-w-44 gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-overlay)]">
-                  <a href={api.exportVmsUrl(queryParams, 'csv')} download="vm-inventory.csv" className="rounded-md px-3 py-2 text-sm hover:bg-[var(--color-surface-tertiary)]">CSV</a>
-                  <a href={api.exportVmsUrl(queryParams, 'xlsx')} download="vm-inventory.xlsx" className="rounded-md px-3 py-2 text-sm hover:bg-[var(--color-surface-tertiary)]">Excel</a>
+                  <a href={vmsApi.exportVmsUrl(queryParams, 'csv')} download="vm-inventory.csv" className="rounded-md px-3 py-2 text-sm hover:bg-[var(--color-surface-tertiary)]">CSV</a>
+                  <a href={vmsApi.exportVmsUrl(queryParams, 'xlsx')} download="vm-inventory.xlsx" className="rounded-md px-3 py-2 text-sm hover:bg-[var(--color-surface-tertiary)]">Excel</a>
                 </div>
               </details>
               {canCreateVm && <Link className={primaryButtonClass} href="/inventory/new">New VM</Link>}

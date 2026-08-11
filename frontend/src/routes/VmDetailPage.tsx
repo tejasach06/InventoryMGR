@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { api, detailMessage, NetworkRole, Vm } from '../api/client';
+import { vms as vmsApi } from '../api/vms';
+import { detailMessage } from '../api/core';
+import type { NetworkRole, Vm } from '../api/types';
 import {
   Alert, Badge, ConfirmDialog, EmptyState, InlineEmptyState, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, dangerButtonClass, inputClass, labelClass, monoClass, secondaryButtonClass, selectClass,
@@ -133,7 +135,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
   const qc = useQueryClient();
   const [deleteDiskId, setDeleteDiskId] = useState<string | null>(null);
   const addMut = useMutation({
-    mutationFn: (v: Record<string, string>) => api.addDisk(vm.id, {
+    mutationFn: (v: Record<string, string>) => vmsApi.addDisk(vm.id, {
       disk_name: v.disk_name || `disk${vm.disks.length}`,
       storage_name: v.storage_name || null,
       size_gb: Number(v.size_gb) || 0,
@@ -143,7 +145,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
   });
   const delMut = useMutation({
-    mutationFn: (id: string) => api.deleteDisk(vm.id, id),
+    mutationFn: (id: string) => vmsApi.deleteDisk(vm.id, id),
     onSuccess: () => {
       setDeleteDiskId(null);
       qc.invalidateQueries({ queryKey: ['vm', vm.id] });
@@ -216,13 +218,13 @@ function NetworksPanel({ vm }: { vm: Vm }) {
   const qc = useQueryClient();
   const [deleteNetworkId, setDeleteNetworkId] = useState<string | null>(null);
   const addMut = useMutation({
-    mutationFn: (v: Record<string, string>) => api.addNetwork(vm.id, {
+    mutationFn: (v: Record<string, string>) => vmsApi.addNetwork(vm.id, {
       ip_address: v.ip_address, role: (v.role as NetworkRole) || 'private', sort_order: vm.networks.length,
     }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
   });
   const delMut = useMutation({
-    mutationFn: (id: string) => api.deleteNetwork(vm.id, id),
+    mutationFn: (id: string) => vmsApi.deleteNetwork(vm.id, id),
     onSuccess: () => {
       setDeleteNetworkId(null);
       qc.invalidateQueries({ queryKey: ['vm', vm.id] });
@@ -294,13 +296,13 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
   const qc = useQueryClient();
   const [deleteAppId, setDeleteAppId] = useState<string | null>(null);
   const addMut = useMutation({
-    mutationFn: (v: Record<string, string>) => api.addApplication(vm.id, {
+    mutationFn: (v: Record<string, string>) => vmsApi.addApplication(vm.id, {
       app_name: v.app_name, app_owner: null, description: v.description || null,
     }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
   });
   const delMut = useMutation({
-    mutationFn: (id: string) => api.deleteApplication(vm.id, id),
+    mutationFn: (id: string) => vmsApi.deleteApplication(vm.id, id),
     onSuccess: () => {
       setDeleteAppId(null);
       qc.invalidateQueries({ queryKey: ['vm', vm.id] });
@@ -354,7 +356,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
 
 
 function AuditPanel({ vmId }: { vmId: string }) {
-  const auditQ = useQuery({ queryKey: ['audit', vmId], queryFn: () => api.getAuditLog(vmId) });
+  const auditQ = useQuery({ queryKey: ['audit', vmId], queryFn: () => vmsApi.getAuditLog(vmId) });
   if (auditQ.isLoading) return <Skeleton className="h-24" />;
   if (!auditQ.data?.length) return <InlineEmptyState title="No changes recorded yet" body="Audit entries appear here as this VM's fields are edited." />;
   return (
@@ -391,15 +393,15 @@ export function VmDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
 
-  const vmQ = useQuery({ queryKey: ['vm', id], queryFn: () => api.getVm(id) });
+  const vmQ = useQuery({ queryKey: ['vm', id], queryFn: () => vmsApi.getVm(id) });
   const vm = vmQ.data;
 
   const cloneMut = useMutation({
-    mutationFn: () => api.cloneVm(id),
+    mutationFn: () => vmsApi.cloneVm(id),
     onSuccess: (cloned) => { qc.setQueryData(['vm', cloned.id], cloned); router.push(`/inventory/${cloned.id}`); },
   });
   const deleteMut = useMutation({
-    mutationFn: () => api.deleteVm(id),
+    mutationFn: () => vmsApi.deleteVm(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vms'] }); router.push('/inventory'); },
   });
   const user = useCurrentUser();

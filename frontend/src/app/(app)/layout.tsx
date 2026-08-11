@@ -3,14 +3,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ReactNode, useEffect } from 'react';
-import { api } from '../../api/client';
+import { auth as authApi } from '../../api/auth';
 import { CurrentUserProvider } from '../../components/AuthContext';
 import { AppLayout } from '../../components/Layout';
 import { Logo, Skeleton } from '../../components/ui';
 
 export default function AuthenticatedLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const me = useQuery({ queryKey: ['me'], queryFn: api.me });
+  const me = useQuery({ queryKey: ['me'], queryFn: authApi.me });
 
 
   useEffect(() => {

@@ -2,15 +2,11 @@ import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationBell } from '../components/NotificationBell';
 import { renderWithProviders } from './utils';
-import { api } from '../api/client';
+import { vms as vmsApi } from '../api/vms';
 
-vi.mock('../api/client', async () => {
-  const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
-  return {
-    ...actual,
-    api: { ...actual.api, decommissionNotifications: vi.fn(), ackDecommissions: vi.fn() },
-  };
-});
+vi.mock('../api/vms', () => ({
+  vms: { decommissionNotifications: vi.fn(), ackDecommissions: vi.fn() },
+}));
 
 const due = [
   { vm_id: '1', name: 'web-01', decommission_date: '2026-08-01', days_remaining: 5, unread: true },
@@ -23,14 +19,14 @@ describe('NotificationBell', () => {
   });
 
   beforeEach(() => {
-    vi.mocked(api.decommissionNotifications).mockResolvedValue(due as never);
-    vi.mocked(api.ackDecommissions).mockResolvedValue(null as never);
+    vi.mocked(vmsApi.decommissionNotifications).mockResolvedValue(due as never);
+    vi.mocked(vmsApi.ackDecommissions).mockResolvedValue(null as never);
   });
 
   it('hides the badge when nothing is unread', async () => {
-    vi.mocked(api.decommissionNotifications).mockResolvedValueOnce([] as never);
+    vi.mocked(vmsApi.decommissionNotifications).mockResolvedValueOnce([] as never);
     renderWithProviders(<NotificationBell />);
-    await waitFor(() => expect(api.decommissionNotifications).toHaveBeenCalled());
+    await waitFor(() => expect(vmsApi.decommissionNotifications).toHaveBeenCalled());
     expect(screen.queryByTestId('notif-badge')).toBeNull();
   });
 
@@ -40,7 +36,7 @@ describe('NotificationBell', () => {
     fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
     expect(await screen.findByText('web-01')).toBeInTheDocument();
     expect(screen.getByText('db-02').closest('a')).toHaveClass('text-[var(--color-criticality-critical)]');
-    await waitFor(() => expect(api.ackDecommissions).toHaveBeenCalledWith());
+    await waitFor(() => expect(vmsApi.ackDecommissions).toHaveBeenCalledWith());
   });
   it('dismisses a single alert optimistically and calls scoped ackDecommissions', async () => {
     renderWithProviders(<NotificationBell />);
@@ -49,11 +45,11 @@ describe('NotificationBell', () => {
     expect(await screen.findByText('web-01')).toBeInTheDocument();
     expect(screen.getByText('db-02')).toBeInTheDocument();
 
-    vi.mocked(api.decommissionNotifications).mockResolvedValue([due[1]] as never);
+    vi.mocked(vmsApi.decommissionNotifications).mockResolvedValue([due[1]] as never);
     fireEvent.click(screen.getByRole('button', { name: /dismiss alert for web-01/i }));
     await waitFor(() => expect(screen.queryByText('web-01')).toBeNull());
     expect(screen.getByText('db-02')).toBeInTheDocument();
-    expect(api.ackDecommissions).toHaveBeenCalledWith(['1']);
+    expect(vmsApi.ackDecommissions).toHaveBeenCalledWith(['1']);
   });
 
   it('closes panel on outside click and Escape key', async () => {

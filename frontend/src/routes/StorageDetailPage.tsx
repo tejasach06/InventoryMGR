@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { api, detailMessage, ArrayPayload, StorageArray, StorageVolume } from '../api/client';
+import { storage as storageApi } from '../api/storage';
+import { settings as settingsApi } from '../api/settings';
+import { detailMessage } from '../api/core';
+import type { ArrayPayload, StorageArray, StorageVolume } from '../api/types';
 import {
   Alert, ConfirmDialog, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, cardClass, inputClass,
   tableClass, tableBodyClass, tableCellClass, monoClass,
@@ -88,7 +91,7 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
     qc.invalidateQueries({ queryKey: ['arrays'] });
   };
   const addLun = useMutation({
-    mutationFn: (v: Record<string, string>) => api.addLun(volume.id, {
+    mutationFn: (v: Record<string, string>) => storageApi.addLun(volume.id, {
       name: v.name, size_gb: Number(v.size_gb) || 0,
       used_gb: v.used_gb ? Number(v.used_gb) : null,
       target_iqn: v.target_iqn || null, cluster: v.cluster || null, status: v.status || null,
@@ -96,18 +99,18 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
     }),
     onSuccess: invalidate,
   });
-  const delLun = useMutation({ mutationFn: (id: string) => api.deleteLun(volume.id, id), onSuccess: invalidate });
+  const delLun = useMutation({ mutationFn: (id: string) => storageApi.deleteLun(volume.id, id), onSuccess: invalidate });
   const addShare = useMutation({
-    mutationFn: (v: Record<string, string>) => api.addShare(volume.id, {
+    mutationFn: (v: Record<string, string>) => storageApi.addShare(volume.id, {
       export_path: v.export_path, used_gb: v.used_gb ? Number(v.used_gb) : null,
       allowed_clients: v.allowed_clients || null, sort_order: volume.shares.length,
     }),
     onSuccess: invalidate,
   });
-  const delShare = useMutation({ mutationFn: (id: string) => api.deleteShare(volume.id, id), onSuccess: invalidate });
+  const delShare = useMutation({ mutationFn: (id: string) => storageApi.deleteShare(volume.id, id), onSuccess: invalidate });
   const [confirmDelVolume, setConfirmDelVolume] = useState(false);
   const delVolume = useMutation({
-    mutationFn: () => api.deleteVolume(volume.array_id, volume.id),
+    mutationFn: () => storageApi.deleteVolume(volume.array_id, volume.id),
     onSuccess: () => { setConfirmDelVolume(false); invalidate(); },
   });
 
@@ -222,7 +225,7 @@ function VolumesArea({ array, clusters, canEdit }: { array: StorageArray; cluste
   const [showAddVolume, setShowAddVolume] = useState(false);
   const qc = useQueryClient();
   const addVolume = useMutation({
-    mutationFn: (v: Record<string, string>) => api.addVolume(array.id, {
+    mutationFn: (v: Record<string, string>) => storageApi.addVolume(array.id, {
       name: v.name, capacity_gb: Number(v.capacity_gb) || 0, used_gb: Number(v.used_gb) || 0,
       sort_order: array.volumes.length,
     }),
@@ -265,20 +268,20 @@ export function StorageDetailPage() {
   const user = useCurrentUser();
   const canEdit = user.role === 'editor' || user.role === 'admin';
 
-  const arrayQ = useQuery({ queryKey: ['array', id], queryFn: () => api.getArray(id) });
-  const optionsQ = useQuery({ queryKey: ['dropdown-options'], queryFn: () => api.getDropdownOptions() });
+  const arrayQ = useQuery({ queryKey: ['array', id], queryFn: () => storageApi.getArray(id) });
+  const optionsQ = useQuery({ queryKey: ['dropdown-options'], queryFn: () => settingsApi.getDropdownOptions() });
   const array = arrayQ.data;
   const clusters = optionsQ.data?.cluster ?? [];
 
   const deleteMut = useMutation({
-    mutationFn: () => api.deleteArray(id),
+    mutationFn: () => storageApi.deleteArray(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['arrays'] }); router.push('/storage'); },
   });
 
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const updateMut = useMutation({
-    mutationFn: (payload: ArrayPayload) => api.updateArray(id, payload),
+    mutationFn: (payload: ArrayPayload) => storageApi.updateArray(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['array', id] });
       qc.invalidateQueries({ queryKey: ['arrays'] });

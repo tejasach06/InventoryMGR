@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { createContext, ReactElement, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api } from '../api/client';
+import { settings as settingsApi } from '../api/settings';
 import { ACCENT_STORAGE_KEY, AccentId, accentVars, DEFAULT_ACCENT, isAccentId } from '../lib/accentPresets';
 import { useTheme } from './ThemeProvider';
 
@@ -62,7 +62,7 @@ export function useAccent(): { accent: AccentId; setAccent: (accent: AccentId) =
 
 export function useAccentSync() {
   const { accent, setAccent } = useAccent();
-  const { data } = useQuery({ queryKey: ['preferences', 'accent'], queryFn: api.getAccent });
+  const { data } = useQuery({ queryKey: ['preferences', 'accent'], queryFn: settingsApi.getAccent });
 
   useEffect(() => {
     if (data && data.accent !== accent) setAccent(data.accent);

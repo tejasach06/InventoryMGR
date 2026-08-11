@@ -4,7 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, detailMessage, ArrayPayload, StorageArrayListItem } from '../api/client';
+import { storage as storageApi } from '../api/storage';
+import { detailMessage } from '../api/core';
+import type { ArrayPayload, StorageArrayListItem } from '../api/types';
 import { Alert, Badge, PageHeader, PageTransition, TableSkeleton, EmptyState, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass, monoClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
@@ -37,11 +39,11 @@ export function StoragePage() {
   const canEdit = user.role === 'editor' || user.role === 'admin';
   const [showForm, setShowForm] = useState(false);
 
-  const arraysQ = useQuery({ queryKey: ['arrays'], queryFn: () => api.listArrays() });
+  const arraysQ = useQuery({ queryKey: ['arrays'], queryFn: () => storageApi.listArrays() });
   const arrays: StorageArrayListItem[] = arraysQ.data ?? [];
 
   const createMut = useMutation({
-    mutationFn: (payload: ArrayPayload) => api.createArray(payload),
+    mutationFn: (payload: ArrayPayload) => storageApi.createArray(payload),
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['arrays'] });
       setShowForm(false);

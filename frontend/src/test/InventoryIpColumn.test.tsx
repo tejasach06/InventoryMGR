@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, screen, waitFor } from '@testing-library/react';
-import { api } from '../api/client';
+
 import { InventoryPage } from '../routes/InventoryPage';
 import { makeUser, makeVm, renderWithProviders } from './utils';
-import type { VmList } from '../api/client';
+import type { VmList } from '../api/types';
+import { vms as vmsApi } from '../api/vms';
 
 const hoisted = vi.hoisted(() => ({
   pushMock: vi.fn(),
@@ -17,7 +18,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 beforeEach(() => {
-  vi.spyOn(api, 'listVmOwners').mockResolvedValue([]);
+  vi.spyOn(vmsApi, 'listVmOwners').mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -28,7 +29,7 @@ afterEach(() => {
 describe('InventoryPage IP address column', () => {
   it('shows the first network IP by sort_order and drops the Health column', async () => {
     const list: VmList = { items: [makeVm()], total: 1, limit: 50, offset: 0 };
-    vi.spyOn(api, 'listVms').mockResolvedValue(list);
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(list);
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findAllByText('10.0.0.10');
@@ -41,7 +42,7 @@ describe('InventoryPage IP address column', () => {
 
   it('shows a dash when the VM has no networks', async () => {
     const list: VmList = { items: [makeVm({ networks: [] })], total: 1, limit: 50, offset: 0 };
-    vi.spyOn(api, 'listVms').mockResolvedValue(list);
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(list);
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
     // VMs might be queried through a delayed promise
     await waitFor(() => {

@@ -3,7 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { api, type DueVm } from '../api/client';
+import { vms as vmsApi } from '../api/vms';
+import type { DueVm } from '../api/types';
 import { cn } from '../lib/classNames';
 
 export function NotificationBell() {
@@ -12,18 +13,18 @@ export function NotificationBell() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { data = [] } = useQuery({
     queryKey: ['decommissions'],
-    queryFn: api.decommissionNotifications,
+    queryFn: vmsApi.decommissionNotifications,
     refetchOnWindowFocus: true,
     refetchInterval: 5 * 60 * 1000,
   });
   const unread = data.filter((d) => d.unread).length;
 
   const ack = useMutation({
-    mutationFn: () => api.ackDecommissions(),
+    mutationFn: () => vmsApi.ackDecommissions(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['decommissions'] }),
   });
   const dismiss = useMutation({
-    mutationFn: (vmId: string) => api.ackDecommissions([vmId]),
+    mutationFn: (vmId: string) => vmsApi.ackDecommissions([vmId]),
     onMutate: async (vmId: string) => {
       await queryClient.cancelQueries({ queryKey: ['decommissions'] });
       const previous = queryClient.getQueryData<DueVm[]>(['decommissions']);

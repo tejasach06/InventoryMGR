@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Vm, VmPayload } from '../api/client';
+import type { Vm, VmPayload } from '../api/types';
 
 export const platforms = ['proxmox', 'vmware'] as const;
 export const statuses = ['running', 'powered_off', 'decommissioned', 'unknown'] as const;

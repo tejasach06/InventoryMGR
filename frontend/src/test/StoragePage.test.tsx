@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { api } from '../api/client';
-import type { StorageArray, StorageArrayListItem } from '../api/client';
+
+import type { StorageArray, StorageArrayListItem } from '../api/types';
 import { StoragePage } from '../routes/StoragePage';
 import { makeUser, renderWithProviders } from './utils';
+import { storage as storageApi } from '../api/storage';
 
 const hoisted = vi.hoisted(() => ({ pushMock: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: hoisted.pushMock }) }));
@@ -34,7 +35,7 @@ afterEach(() => {
 
 describe('StoragePage', () => {
   it('renders an array row with usage and an over-threshold badge linking to detail', async () => {
-    vi.spyOn(api, 'listArrays').mockResolvedValue([makeArray()]);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([makeArray()]);
     renderWithProviders(<StoragePage />, { user: makeUser() });
 
     const link = await screen.findByRole('link', { name: 'syn-01' });
@@ -44,7 +45,7 @@ describe('StoragePage', () => {
   });
 
   it('hides the threshold badge when the array is under threshold', async () => {
-    vi.spyOn(api, 'listArrays').mockResolvedValue([
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([
       makeArray({ used_pct: 40, over_threshold: false }),
     ]);
     renderWithProviders(<StoragePage />, { user: makeUser() });
@@ -54,41 +55,41 @@ describe('StoragePage', () => {
   });
 
   it('shows an empty state when there are no arrays', async () => {
-    vi.spyOn(api, 'listArrays').mockResolvedValue([]);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([]);
     renderWithProviders(<StoragePage />, { user: makeUser() });
 
     expect(await screen.findByText('No storage arrays yet')).toBeInTheDocument();
   });
 
   it('renders a dash for null usage and an error alert on failure', async () => {
-    vi.spyOn(api, 'listArrays').mockResolvedValue([
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([
       makeArray({ used_pct: null, over_threshold: false, datacenter: null }),
     ]);
     const { unmount } = renderWithProviders(<StoragePage />, { user: makeUser() });
     await screen.findByRole('link', { name: 'syn-01' });
     unmount();
 
-    vi.spyOn(api, 'listArrays').mockRejectedValue(new Error('kaboom'));
+    vi.spyOn(storageApi, 'listArrays').mockRejectedValue(new Error('kaboom'));
     renderWithProviders(<StoragePage />, { user: makeUser() });
     expect(await screen.findByText(/kaboom/i)).toBeInTheDocument();
   });
 
   it('hides the New array button for viewers', async () => {
-    vi.spyOn(api, 'listArrays').mockResolvedValue([]);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([]);
     renderWithProviders(<StoragePage />, { user: makeUser({ role: 'viewer' }) });
     await screen.findByText('No storage arrays yet');
     expect(screen.queryByRole('button', { name: /new array/i })).not.toBeInTheDocument();
   });
 
   it('creates an array and navigates to its detail page (editor)', async () => {
-    vi.spyOn(api, 'listArrays').mockResolvedValue([]);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([]);
     const created: StorageArray = {
       id: 'a9', name: 'syn-09', vendor: 'synology', model: null, mgmt_host: null,
       datacenter: null, description: null, total_capacity_gb: 500, used_capacity_gb: 0,
       notes: null, used_pct: 0, over_threshold: false,
       created_at: '2026-07-22T00:00:00Z', updated_at: '2026-07-22T00:00:00Z', volumes: [],
     };
-    const createSpy = vi.spyOn(api, 'createArray').mockResolvedValue(created);
+    const createSpy = vi.spyOn(storageApi, 'createArray').mockResolvedValue(created);
     renderWithProviders(<StoragePage />, { user: makeUser({ role: 'editor' }) });
 
     fireEvent.click(await screen.findByRole('button', { name: /new array/i }));

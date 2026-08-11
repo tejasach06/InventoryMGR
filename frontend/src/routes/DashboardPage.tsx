@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { ReactNode, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api, detailMessage, DashboardAlertVm } from '../api/client';
+import { dashboard as dashboardApi } from '../api/dashboard';
+import { storage as storageApi } from '../api/storage';
+import { detailMessage } from '../api/core';
+import type { DashboardAlertVm } from '../api/types';
 import { Alert, Badge, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, primaryButtonClass, secondaryButtonClass, statTileClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 
@@ -233,8 +236,8 @@ function Panel({ title, children, action, className = '' }: { title: string; chi
 }
 
 export function DashboardPage() {
-  const statsQ = useQuery({ queryKey: ['dashboard'], queryFn: api.getDashboard });
-  const arraysQ = useQuery({ queryKey: ['arrays'], queryFn: () => api.listArrays() });
+  const statsQ = useQuery({ queryKey: ['dashboard'], queryFn: dashboardApi.getDashboard });
+  const arraysQ = useQuery({ queryKey: ['arrays'], queryFn: () => storageApi.listArrays() });
   const arraysOverThreshold = (arraysQ.data ?? []).filter((a) => a.over_threshold).length;
   const infrastructureState = arraysQ.isLoading ? 'checking' : arraysQ.isError ? 'unavailable' : arraysOverThreshold > 0 ? 'risk' : 'operational';
 
