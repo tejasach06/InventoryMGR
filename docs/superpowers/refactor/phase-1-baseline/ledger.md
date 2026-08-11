@@ -12,3 +12,5 @@ Status values: `suspected`, `confirmed`, `ambiguous`, `rejected`, `resolved`.
 No performance candidates are confirmed by Phase 1 baseline alone; later optimization requires stricter before/after measurement.
 
 Phase 5 performance selection: all measured paths are `rejected` for optimization in this phase; see `docs/superpowers/refactor/phase-5-performance/baseline.json` and `docs/superpowers/refactor/phase-5-performance/README.md`. Timing-only candidates were rejected where CV exceeded 5%, and no deterministic query-count or byte-count reduction target was demonstrated.
+
+Phase 5 close: no selected candidate remains open; Graphify update succeeded with no topology changes.

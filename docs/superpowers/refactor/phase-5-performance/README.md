@@ -88,3 +88,7 @@ This committed baseline supersedes the invalid Phase 1 backend duration attempt.
 | PERF-frontend-inventory | 1176446 median transfer bytes; 32.700 ms median duration; CV 0.0396 | Graphify maps inventory route/component imports, but bundle and transfer bytes are repeatable with no proven removable chunk or route-split target. | none demonstrated | rejected |
 
 No candidate qualifies for PERF-001. Phase 5 therefore stops without a production-code optimization commit or a candidate-specific implementation plan.
+
+## Phase Close
+
+Phase 5 is closed with no selected PERF-001 candidate. All measured paths have terminal `rejected` decisions, baseline evidence is committed at `docs/superpowers/refactor/phase-5-performance/baseline.json`, frontend coverage remains a known quality-gate blocker, and `graphify update .` completed successfully with no code-graph topology changes.
