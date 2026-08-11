@@ -18,12 +18,14 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 
 | Gate | Commit | Exit status | Evidence summary |
 |---|---|---:|---|
+| Backend Ruff + Pytest | a411335 | 1 | `devbox run -- bash -lc 'cd backend && uv run ruff check app tests && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest'` stopped at Ruff before Pytest. Ruff reported `I001 Import block is un-sorted or un-formatted` in `backend/tests/performance/test_endpoint_performance.py:1`; Pytest was not run because the hard gate used `&&`. BLOCKED: closeout stopped without source/test fixes. |
 
 ## Migration Gate
 
 | Check | Exit status | Evidence summary |
 |---|---:|---|
-| Test database startup/reset precheck | 1 | `devbox run -- just db-up` failed before schema reset: `rootlessport listen tcp 127.0.0.1:54329: bind: address already in use`; closeout stopped per stop-on-gate-failure rule. |
+| Test database startup/reset precheck | 0 | `devbox run -- just db-up` succeeded after parent cleared the port conflict; `DATABASE_URL=postgresql+psycopg://inventorymgr@127.0.0.1:54329/inventorymgr_test` was verified before resetting only the dedicated test schema; schema reset completed. |
+| Clean-schema Alembic upgrade | 0 | `devbox run -- bash -lc 'cd backend && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run alembic upgrade head && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run alembic current'` succeeded; `alembic current` reported `0022 (head)`. |
 
 ## Performance Gate
 
