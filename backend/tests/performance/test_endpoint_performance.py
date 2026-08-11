@@ -7,13 +7,14 @@ import time
 from pathlib import Path
 from typing import Any
 
-from alembic import command
+import pytest
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
+from alembic import command
 from app.core.security import hash_password
 from app.db.models import (
     Criticality,
@@ -153,7 +154,8 @@ def _measure_request(client: TestClient, name: str, path: str) -> tuple[float, i
 
 def test_endpoint_performance_baseline() -> None:
     output = os.environ.get("PERF_OUTPUT")
-    assert output, "PERF_OUTPUT is required"
+    if not output:
+        pytest.skip("PERF_OUTPUT is required for the opt-in performance baseline")
     _reset_public_schema(engine)
     with SessionLocal() as db:
         _create_admin_and_vms(db)
