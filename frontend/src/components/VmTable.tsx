@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Vm } from '../api/types';
 import {
-  Badge, FieldError,
+  Badge,
   inputClass,
   monoClass,
   selectClass,
@@ -14,7 +14,7 @@ import {
   tableHeadClass,
   tableRowClass,
   tableWrapClass,
-} from '../components/ui';
+} from './ui';
 import { COLUMN_LABELS } from '../hooks/useColumnPreferences';
 import { SORTABLE_COLUMNS, humanize } from '../lib/inventoryFilters';
 import { formatMemory } from '../lib/units';
@@ -22,14 +22,7 @@ import { cn } from '../lib/classNames';
 
 function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
   return (
-    <svg
-      className={cn('h-3 w-3 transition-opacity', direction ? 'opacity-100 text-[var(--color-accent)]' : 'opacity-30')}
-      viewBox="0 0 12 12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      aria-hidden="true"
-    >
+    <svg className={cn('h-3 w-3 transition-opacity', direction ? 'opacity-100 text-[var(--color-accent)]' : 'opacity-30')} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
       {direction === 'desc' ? (
         <path d="M3 4.5L6 8l3-3.5" strokeLinecap="round" strokeLinejoin="round" />
       ) : (
@@ -39,12 +32,7 @@ function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
   );
 }
 
-function editableValue(vm: Vm, field: string): string {
-  const value = vm[field as keyof Vm];
-  return typeof value === 'string' ? value : '';
-}
-
-function VmTable({
+export function VmTable({
   vms,
   columns,
   selectedIds,
@@ -72,19 +60,16 @@ function VmTable({
   const [editingCell, setEditingCell] = useState<{ vmId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [editError, setEditError] = useState<string | undefined>();
 
   const startEdit = (vmId: string, field: string, initialVal: string) => {
     if (!canEdit) return;
     setEditingCell({ vmId, field });
     setEditValue(initialVal ?? '');
-    setEditError(undefined);
   };
 
   const cancelEdit = () => {
     setEditingCell(null);
     setEditValue('');
-    setEditError(undefined);
   };
 
   const commitEdit = async () => {
@@ -92,26 +77,25 @@ function VmTable({
     try {
       setIsSaving(true);
       await onUpdateCell(editingCell.vmId, editingCell.field, editValue);
-    } catch (error) {
-      setEditError(error instanceof Error ? error.message : 'Unable to save this value.');
-      return;
+    } catch {
+      // handled by parent toast/alert
     } finally {
       setIsSaving(false);
+      setEditingCell(null);
     }
-    setEditingCell(null);
-    setEditError(undefined);
   };
   const selectAllRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (selectAllRef.current) selectAllRef.current.indeterminate = selectedIds.size > 0 && selectedIds.size < vms.length;
   }, [selectedIds, vms.length]);
 
+
   return (
     <div className={tableWrapClass}>
       <table className={tableClass} style={{ '--row-height': 'var(--row-height-comfortable)' } as React.CSSProperties}>
-        <thead>
-          <tr className={tableHeadClass}>
-            <th className="px-4 py-3 w-10">
+        <thead className={tableHeadClass}>
+          <tr>
+            <th scope="col" className="px-4 py-3 w-10">
               <input
                 ref={selectAllRef}
                 type="checkbox"
@@ -126,7 +110,7 @@ function VmTable({
               const active = sortKey === col.key;
               const ariaSort = sortable ? (active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined;
               return (
-                <th key={col.key} className="px-4 py-3" aria-sort={ariaSort}>
+                <th key={col.key} scope="col" className="px-4 py-3" aria-sort={ariaSort}>
                   {sortable ? (
                     <button
                       type="button"
@@ -145,13 +129,14 @@ function VmTable({
           </tr>
         </thead>
         <tbody className={tableBodyClass}>
-          {vms.map((vm) => {
+          {vms.map((vm, index) => {
             const isSelected = selectedIds.has(vm.id);
 
             return (
               <tr
                 key={vm.id}
                 className={cn(tableRowClass, isSelected && 'bg-[var(--color-accent)]/10')}
+                style={{ borderLeft: `3px solid var(--color-status-${vm.status.toLowerCase().replace(/\s+/g, '_')})` }}
               >
                 <td className="py-3 pl-3 pr-4">
                   <input
@@ -175,16 +160,12 @@ function VmTable({
                         col.key === 'name' && 'font-medium',
                         isEditable && !isEditing && 'group/cell cursor-pointer hover:bg-[var(--color-accent)]/10 transition-colors'
                       )}
-                      title={isEditable && !isEditing ? 'Press Enter to edit' : undefined}
-                      tabIndex={isEditable && !isEditing ? 0 : undefined}
-                      onKeyDown={(event) => {
-                        if (isEditable && !isEditing && (event.key === 'Enter' || event.key === 'F2')) {
-                          event.preventDefault();
-                          startEdit(vm.id, col.key, editableValue(vm, col.key));
-                        }
-                      }}
+                      title={isEditable && !isEditing ? 'Click to edit inline' : undefined}
                       onClick={() => {
-                        if (isEditable && !isEditing) startEdit(vm.id, col.key, editableValue(vm, col.key));
+                        if (isEditable && !isEditing) {
+                          const currentVal = (vm as any)[col.key] ?? '';
+                          startEdit(vm.id, col.key, currentVal);
+                        }
                       }}
                     >
                       {isEditing ? (
@@ -197,7 +178,7 @@ function VmTable({
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              onBlur={cancelEdit}
+                              onBlur={commitEdit}
                             >
                               {['running', 'powered_off', 'decommissioned'].map((opt) => (
                                 <option key={opt} value={opt}>{humanize(opt)}</option>
@@ -212,7 +193,7 @@ function VmTable({
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              onBlur={cancelEdit}
+                              onBlur={commitEdit}
                             >
                               {['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'].map((opt) => (
                                 <option key={opt} value={opt}>{humanize(opt)}</option>
@@ -227,7 +208,7 @@ function VmTable({
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              onBlur={cancelEdit}
+                              onBlur={commitEdit}
                             >
                               {['critical', 'high', 'medium', 'low'].map((opt) => (
                                 <option key={opt} value={opt}>{humanize(opt)}</option>
@@ -243,15 +224,14 @@ function VmTable({
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              onBlur={cancelEdit}
+                              onBlur={commitEdit}
                             />
                           )}
-                          <FieldError id={`edit-error-${vm.id}-${col.key}`} message={editError} />
                         </div>
                       ) : (
                         <>
                           {col.key === 'name' && (
-                            <Link href={`/inventory/${vm.id}`} className="hover:text-[var(--color-accent)] transition-colors">
+                            <Link href={`/inventory/${vm.id}`} className={cn(monoClass, "font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent-text)]")}>
                               {vm.name}
                             </Link>
                           )}
@@ -294,5 +274,3 @@ function VmTable({
     </div>
   );
 }
-
-export { VmTable, SortIcon };
