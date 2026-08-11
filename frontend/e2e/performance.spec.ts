@@ -95,7 +95,7 @@ async function measuredGoto(page: Page, route: string, baseURL: string) {
 
 test('records production route performance', async ({ page, baseURL }) => {
   const output = process.env.PERF_OUTPUT;
-  expect(output, 'PERF_OUTPUT is required').toBeTruthy();
+  test.skip(!output, 'PERF_OUTPUT is required for the opt-in performance baseline');
   expect(baseURL, 'baseURL is required').toBeTruthy();
   await authenticateOnce(page);
 
