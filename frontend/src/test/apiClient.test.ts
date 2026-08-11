@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { vms as vmsApi } from '../api/vms';
+import { clusters as clustersApi } from '../api/clusters';
+import { dashboard as dashboardApi } from '../api/dashboard';
 import { imports as importsApi } from '../api/imports';
 import { settings as settingsApi } from '../api/settings';
 import { auth as authApi } from '../api/auth';
@@ -201,6 +203,42 @@ describe('api client methods', () => {
       { run: () => settingsApi.createDropdownOption('cpu', '8'), url: '/api/settings/options', method: 'POST' },
       { run: () => settingsApi.updateDropdownOption('o1', '16'), url: '/api/settings/options/o1', method: 'PATCH' },
       { run: () => settingsApi.deleteDropdownOption('o1'), url: '/api/settings/options/o1', method: 'DELETE' },
+      { run: () => settingsApi.getColumnPreferences('inventory'), url: '/api/user/preferences/inventory', method: 'GET' },
+      { run: () => settingsApi.updateColumnPreferences('inventory', [{ key: 'name', visible: true, order: 0 }]), url: '/api/user/preferences/inventory', method: 'PUT' },
+      { run: () => settingsApi.getAccent(), url: '/api/user/accent', method: 'GET' },
+      { run: () => settingsApi.setAccent('blue'), url: '/api/user/accent', method: 'PUT' },
+      { run: () => settingsApi.getAppSettings(), url: '/api/settings/app', method: 'GET' },
+      { run: () => settingsApi.updateAppSettings({ decommission_notify_days: 30 }), url: '/api/settings/app', method: 'PATCH' },
+      { run: () => settingsApi.getLdapConfig(), url: '/api/settings/ldap', method: 'GET' },
+      { run: () => settingsApi.updateLdapConfig({ enabled: true, server_uri: 'ldap://example', start_tls: false, verify_tls: true, bind_dn: null, user_base_dn: 'dc=example', user_filter: '(uid={username})', email_attribute: 'mail', group_attribute: 'memberOf', admin_group_dn: null, editor_group_dn: null, viewer_group_dn: null, default_role: 'viewer' }), url: '/api/settings/ldap', method: 'PUT' },
+      { run: () => settingsApi.testLdapConnection({ username: 'u', password: 'p' }), url: '/api/settings/ldap/test', method: 'POST' },
+      { run: () => clustersApi.listClusters(), url: '/api/clusters', method: 'GET' },
+      { run: () => clustersApi.getCluster('c1'), url: '/api/clusters/c1', method: 'GET' },
+      { run: () => clustersApi.createCluster({ name: 'c1', description: 'cluster' }), url: '/api/clusters', method: 'POST' },
+      { run: () => clustersApi.updateCluster('c1', { name: 'c2' }), url: '/api/clusters/c1', method: 'PATCH' },
+      { run: () => clustersApi.deleteCluster('c1'), url: '/api/clusters/c1', method: 'DELETE' },
+      { run: () => clustersApi.addNode('c1', { name: 'n1' }), url: '/api/clusters/c1/nodes', method: 'POST' },
+      { run: () => clustersApi.updateNode('c1', 'n1', { name: 'n2' }), url: '/api/clusters/c1/nodes/n1', method: 'PATCH' },
+      { run: () => clustersApi.deleteNode('c1', 'n1'), url: '/api/clusters/c1/nodes/n1', method: 'DELETE' },
+      { run: () => dashboardApi.getDashboard(), url: '/api/dashboard', method: 'GET' },
+      { run: () => dashboardApi.getReportSummary(), url: '/api/reports/summary', method: 'GET' },
+      { run: () => vmsApi.cloneVm('v1'), url: '/api/vms/v1/clone', method: 'POST' },
+      { run: () => vmsApi.bulkUpdateVms({ ids: ['v1'], patch: { environment: 'production' } }), url: '/api/vms/bulk', method: 'POST' },
+      { run: () => vmsApi.listVmClusters(), url: '/api/vms/clusters', method: 'GET' },
+      { run: () => vmsApi.listVmNodes(), url: '/api/vms/nodes', method: 'GET' },
+      { run: () => vmsApi.listVmApplications(), url: '/api/vms/applications', method: 'GET' },
+      { run: () => vmsApi.listVmTags(), url: '/api/vms/tags', method: 'GET' },
+      { run: () => vmsApi.listDisks('v1'), url: '/api/vms/v1/disks', method: 'GET' },
+      { run: () => vmsApi.addDisk('v1', { disk_name: 'disk1', size_gb: 10, storage_name: null, storage_type: null, sort_order: 0 }), url: '/api/vms/v1/disks', method: 'POST' },
+      { run: () => vmsApi.deleteDisk('v1', 'd1'), url: '/api/vms/v1/disks/d1', method: 'DELETE' },
+      { run: () => vmsApi.listNetworks('v1'), url: '/api/vms/v1/networks', method: 'GET' },
+      { run: () => vmsApi.addNetwork('v1', { ip_address: '10.0.0.1', role: 'private', sort_order: 0 }), url: '/api/vms/v1/networks', method: 'POST' },
+      { run: () => vmsApi.deleteNetwork('v1', 'n1'), url: '/api/vms/v1/networks/n1', method: 'DELETE' },
+      { run: () => vmsApi.listApplications('v1'), url: '/api/vms/v1/applications', method: 'GET' },
+      { run: () => vmsApi.addApplication('v1', { app_name: 'app', app_owner: null, description: null }), url: '/api/vms/v1/applications', method: 'POST' },
+      { run: () => vmsApi.deleteApplication('v1', 'a1'), url: '/api/vms/v1/applications/a1', method: 'DELETE' },
+      { run: () => vmsApi.getAuditLog('v1'), url: '/api/vms/v1/audit?limit=50', method: 'GET' },
+      { run: () => vmsApi.decommissionNotifications(), url: '/api/notifications/decommissions', method: 'GET' },
     ];
 
     for (const tc of cases) {
@@ -275,5 +313,7 @@ describe('api client methods', () => {
     expect(vmsApi.exportVmsUrl(new URLSearchParams({ q: 'test' }), 'xlsx')).toBe('/api/vms/export?q=test&format=xlsx');
     expect(vmsApi.exportSelectedUrl(['id1', 'id2'])).toBe('/api/vms/export?ids=id1&ids=id2');
     expect(vmsApi.exportSelectedUrl(['id1', 'id2'], 'xlsx')).toBe('/api/vms/export?ids=id1&ids=id2&format=xlsx');
+    expect(vmsApi.exportVmsUrl()).toBe('/api/vms/export');
+    expect(dashboardApi.reportUrl('linux')).toBe('/api/reports/linux?format=csv');
   });
 });

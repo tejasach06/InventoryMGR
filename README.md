@@ -27,7 +27,7 @@ InventoryMGR is a full-stack virtual machine inventory application for small and
  - Dashboard with 9 infrastructure summary cards and recently added VMs.
  - 8 predefined downloadable CSV reports (Linux, Windows, Production, Monitoring, etc.).
  - CSV/XLSX export of all VMs or a filtered subset (`format=csv` or `format=xlsx`).
- - CSV import with preview, per-row change detail, duplicate detection, and error report. Supports all VM fields including `vm_type`, `applications` (`Name;Owner;Desc`), extended disk cell format (`Name:Storage:Size:Type`), and IP cell format (`IP/VLAN/Role/GW`). Imports only ever add disks, IPs, and applications; blank cells never clear a field.
+ - CSV import with preview, per-row change detail, duplicate detection, and error report. Supports all importable VM fields including `vm_type`, role-scoped IP columns (`private_ip`, `public_ip`, `backup_ip` as semicolon-separated addresses), `applications` (`name[:owner]` entries separated by `;`), and disk cells (`name:size[:storage_name[:storage_type]]` entries separated by `;`). Imports only ever add disks, IPs, and applications; blank cells never clear a field.
  - Light/dark theme plus a per-user accent color (six presets), persisted server-side.
  - Per-user saved column preferences per page, and bulk edit across selected or all matching VMs.
  - Admin-only user management.
@@ -136,7 +136,7 @@ All routes are prefixed with `/api`. Authentication uses a session cookie set on
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/vms` | List VMs (`q`, `platform`, `status`, `environment`, `criticality`, `lifecycle`, `vm_type`, `monitoring_enabled`, `health`, `sort_by`, `sort_order`, `limit`, `offset`) |
+| GET | `/vms` | List VMs (`q`, `platform`, `status`, `environment`, `criticality`, `vm_type`, `monitoring_enabled`, `health`, `sort_by`, `sort_order`, `limit`, `offset`) |
 | POST | `/vms` | Create VM |
 | GET | `/vms/clusters` | List distinct cluster names |
 | GET | `/vms/nodes` | List distinct node names |

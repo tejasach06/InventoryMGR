@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import type { Vm } from '../api/types';
-import { Badge, cardClass, monoClass } from '../components/ui';
-import { formatMemory, formatDisks } from '../lib/units';
+import { Badge, cardClass, monoClass } from './ui';
 import { cn } from '../lib/classNames';
+import { formatDisks, formatMemory } from '../lib/units';
 
-function VmCard({ vm }: { vm: Vm }) {
+export function VmCard({ vm }: { vm: Vm }) {
   return (
     <Link
       href={`/inventory/${vm.id}`}
@@ -18,7 +18,7 @@ function VmCard({ vm }: { vm: Vm }) {
       {/* Primary row: name + status */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-display font-semibold text-[0.9375rem] text-[var(--color-text-primary)] truncate">{vm.name}</h3>
+          <h3 className={cn(monoClass, "truncate font-semibold text-[var(--color-text-primary)]")}>{vm.name}</h3>
           <p className={cn('mt-0.5 text-xs text-[var(--color-text-tertiary)]', monoClass)}>{vm.platform} · {vm.cluster}</p>
         </div>
         <Badge value={vm.status} type="status" size="sm" />
@@ -55,5 +55,3 @@ function VmCard({ vm }: { vm: Vm }) {
     </Link>
   );
 }
-
-export { VmCard };
