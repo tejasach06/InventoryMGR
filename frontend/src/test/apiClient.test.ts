@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { ApiError, apiRequest, detailMessage, api, type VmPayload } from '../api/client';
+import { vms as vmsApi } from '../api/vms';
+import { imports as importsApi } from '../api/imports';
+import { settings as settingsApi } from '../api/settings';
+import { auth as authApi } from '../api/auth';
+import { ApiError, apiRequest, detailMessage } from '../api/core';
+import type { VmPayload } from '../api/types';
 
 interface FakeResponseInit {
   status: number;
@@ -178,24 +183,24 @@ describe('api client methods', () => {
 
   it('builds the expected request for each endpoint helper', async () => {
     const cases: Array<{ run: () => Promise<unknown>; url: string; method: string }> = [
-      { run: () => api.setupStatus(), url: '/api/auth/setup', method: 'GET' },
-      { run: () => api.setupAdmin('a@b.c', 'pw'), url: '/api/auth/setup', method: 'POST' },
-      { run: () => api.login('a@b.c', 'pw'), url: '/api/auth/login', method: 'POST' },
-      { run: () => api.logout(), url: '/api/auth/logout', method: 'POST' },
-      { run: () => api.me(), url: '/api/auth/me', method: 'GET' },
-      { run: () => api.listUsers(), url: '/api/users', method: 'GET' },
-      { run: () => api.createUser({ email: 'a@b.c', password: 'pw', role: 'viewer', is_active: true }), url: '/api/users', method: 'POST' },
-      { run: () => api.updateUser('u1', { role: 'admin' }), url: '/api/users/u1', method: 'PATCH' },
-      { run: () => api.getVm('v1'), url: '/api/vms/v1', method: 'GET' },
-      { run: () => api.deleteVm('v1'), url: '/api/vms/v1', method: 'DELETE' },
-      { run: () => api.getImport('i1'), url: '/api/imports/i1', method: 'GET' },
-      { run: () => api.commitImport('i1'), url: '/api/imports/i1/commit', method: 'POST' },
-      { run: () => api.listVmOwners(), url: '/api/vms/owners', method: 'GET' },
-      { run: () => api.getDropdownOptions(), url: '/api/settings/options', method: 'GET' },
-      { run: () => api.getAllDropdownOptions(), url: '/api/settings/options/all', method: 'GET' },
-      { run: () => api.createDropdownOption('cpu', '8'), url: '/api/settings/options', method: 'POST' },
-      { run: () => api.updateDropdownOption('o1', '16'), url: '/api/settings/options/o1', method: 'PATCH' },
-      { run: () => api.deleteDropdownOption('o1'), url: '/api/settings/options/o1', method: 'DELETE' },
+      { run: () => authApi.setupStatus(), url: '/api/auth/setup', method: 'GET' },
+      { run: () => authApi.setupAdmin('a@b.c', 'pw'), url: '/api/auth/setup', method: 'POST' },
+      { run: () => authApi.login('a@b.c', 'pw'), url: '/api/auth/login', method: 'POST' },
+      { run: () => authApi.logout(), url: '/api/auth/logout', method: 'POST' },
+      { run: () => authApi.me(), url: '/api/auth/me', method: 'GET' },
+      { run: () => authApi.listUsers(), url: '/api/users', method: 'GET' },
+      { run: () => authApi.createUser({ email: 'a@b.c', password: 'pw', role: 'viewer', is_active: true }), url: '/api/users', method: 'POST' },
+      { run: () => authApi.updateUser('u1', { role: 'admin' }), url: '/api/users/u1', method: 'PATCH' },
+      { run: () => vmsApi.getVm('v1'), url: '/api/vms/v1', method: 'GET' },
+      { run: () => vmsApi.deleteVm('v1'), url: '/api/vms/v1', method: 'DELETE' },
+      { run: () => importsApi.getImport('i1'), url: '/api/imports/i1', method: 'GET' },
+      { run: () => importsApi.commitImport('i1'), url: '/api/imports/i1/commit', method: 'POST' },
+      { run: () => vmsApi.listVmOwners(), url: '/api/vms/owners', method: 'GET' },
+      { run: () => settingsApi.getDropdownOptions(), url: '/api/settings/options', method: 'GET' },
+      { run: () => settingsApi.getAllDropdownOptions(), url: '/api/settings/options/all', method: 'GET' },
+      { run: () => settingsApi.createDropdownOption('cpu', '8'), url: '/api/settings/options', method: 'POST' },
+      { run: () => settingsApi.updateDropdownOption('o1', '16'), url: '/api/settings/options/o1', method: 'PATCH' },
+      { run: () => settingsApi.deleteDropdownOption('o1'), url: '/api/settings/options/o1', method: 'DELETE' },
     ];
 
     for (const tc of cases) {
@@ -207,7 +212,7 @@ describe('api client methods', () => {
   });
 
   it('serializes list params and preview file uploads', async () => {
-    await api.listVms(new URLSearchParams({ limit: '50', q: 'web' }));
+    await vmsApi.listVms(new URLSearchParams({ limit: '50', q: 'web' }));
     expect(lastFetchCall()[0]).toBe('/api/vms?limit=50&q=web');
 
     const payload: VmPayload = {
@@ -246,29 +251,29 @@ describe('api client methods', () => {
       disks: [],
       networks: [],
     };
-    await api.createVm(payload);
+    await vmsApi.createVm(payload);
     expect(lastFetchCall()[0]).toBe('/api/vms');
 
-    await api.updateVm('v1', { name: 'y' });
+    await vmsApi.updateVm('v1', { name: 'y' });
     expect(lastFetchCall()).toEqual(['/api/vms/v1', expect.objectContaining({ method: 'PATCH' })]);
 
-    await api.previewImport(new File(['a'], 'in.csv', { type: 'text/csv' }));
+    await importsApi.previewImport(new File(['a'], 'in.csv', { type: 'text/csv' }));
     const [url, init] = lastFetchCall();
     expect(url).toBe('/api/imports/preview');
     expect(init.body).toBeInstanceOf(FormData);
   });
 
   it('ackDecommissions posts null vm_ids when omitted', async () => {
-    await api.ackDecommissions();
+    await vmsApi.ackDecommissions();
     const [url, init] = lastFetchCall();
     expect(url).toBe('/api/notifications/decommissions/ack');
     expect(init.method).toBe('POST');
     expect(init.body).toBe(JSON.stringify({ vm_ids: null }));
   });
   it('builds export URLs for csv and xlsx formats', () => {
-    expect(api.exportVmsUrl(new URLSearchParams({ q: 'test' }))).toBe('/api/vms/export?q=test');
-    expect(api.exportVmsUrl(new URLSearchParams({ q: 'test' }), 'xlsx')).toBe('/api/vms/export?q=test&format=xlsx');
-    expect(api.exportSelectedUrl(['id1', 'id2'])).toBe('/api/vms/export?ids=id1&ids=id2');
-    expect(api.exportSelectedUrl(['id1', 'id2'], 'xlsx')).toBe('/api/vms/export?ids=id1&ids=id2&format=xlsx');
+    expect(vmsApi.exportVmsUrl(new URLSearchParams({ q: 'test' }))).toBe('/api/vms/export?q=test');
+    expect(vmsApi.exportVmsUrl(new URLSearchParams({ q: 'test' }), 'xlsx')).toBe('/api/vms/export?q=test&format=xlsx');
+    expect(vmsApi.exportSelectedUrl(['id1', 'id2'])).toBe('/api/vms/export?ids=id1&ids=id2');
+    expect(vmsApi.exportSelectedUrl(['id1', 'id2'], 'xlsx')).toBe('/api/vms/export?ids=id1&ids=id2&format=xlsx');
   });
 });

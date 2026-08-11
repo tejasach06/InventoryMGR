@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, ReactNode, useContext } from 'react';
-import { User } from '../api/client';
+import type { User } from '../api/types';
 import { Alert } from './ui';
 
 const CurrentUserContext = createContext<User | null>(null);

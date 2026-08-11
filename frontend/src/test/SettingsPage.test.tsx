@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { api } from '../api/client';
-import type { User } from '../api/client';
+
+import type { User } from '../api/types';
 import { SettingsPage } from '../routes/SettingsPage';
 import { buildNavItems } from '../components/AppNav';
 import { makeUser, renderWithProviders } from './utils';
+import { auth as authApi } from '../api/auth';
+import { settings as settingsApi } from '../api/settings';
 
 const mockUsers: User[] = [
   { id: 'u1', email: 'admin@example.com', role: 'admin', is_active: true, auth_source: 'local', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
@@ -30,7 +32,7 @@ describe('SettingsPage', () => {
   });
 
   it('persists Violet after applying its light accent immediately', async () => {
-    const setAccent = vi.spyOn(api, 'setAccent').mockResolvedValue({ accent: 'violet' });
+    const setAccent = vi.spyOn(settingsApi, 'setAccent').mockResolvedValue({ accent: 'violet' });
     const user = userEvent.setup();
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
@@ -43,7 +45,7 @@ describe('SettingsPage', () => {
   });
 
   it('restores prior accent and shows error when accent save fails', async () => {
-    vi.spyOn(api, 'setAccent').mockRejectedValue(new Error('Accent save failed'));
+    vi.spyOn(settingsApi, 'setAccent').mockRejectedValue(new Error('Accent save failed'));
     const user = userEvent.setup();
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
@@ -65,7 +67,7 @@ describe('SettingsPage', () => {
       rejectFirst = reject;
     });
     const firstSavePromise = firstSave; // Alias for clarity if needed
-    const setAccent = vi.spyOn(api, 'setAccent')
+    const setAccent = vi.spyOn(settingsApi, 'setAccent')
       .mockImplementationOnce(() => firstSave)
       .mockResolvedValueOnce({ accent: 'blue' });
     const user = userEvent.setup();
@@ -85,7 +87,7 @@ describe('SettingsPage', () => {
   });
 
   it('selects and focuses adjacent accent swatch with arrow keys', async () => {
-    vi.spyOn(api, 'setAccent').mockResolvedValue({ accent: 'blue' });
+    vi.spyOn(settingsApi, 'setAccent').mockResolvedValue({ accent: 'blue' });
     const user = userEvent.setup();
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
@@ -110,8 +112,8 @@ describe('SettingsPage', () => {
   });
 
   it('switches between Users and Notifications tabs', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue(mockUsers);
-    vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue(mockUsers);
+    vi.spyOn(settingsApi, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
     const user = userEvent.setup();
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
@@ -131,7 +133,8 @@ describe('SettingsPage', () => {
   });
 
   it('opens LDAP settings from its tab', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue(mockUsers);
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue(mockUsers);
+    vi.spyOn(settingsApi, 'getLdapConfig').mockResolvedValue({ enabled: false, server_uri: 'ldap://localhost', start_tls: false, verify_tls: true, bind_dn: null, bind_password_set: false, user_base_dn: '', user_filter: '(uid={username})', email_attribute: 'mail', group_attribute: 'memberOf', admin_group_dn: null, editor_group_dn: null, viewer_group_dn: null, default_role: 'viewer' });
     const user = userEvent.setup();
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
@@ -143,9 +146,9 @@ describe('SettingsPage', () => {
   });
 
   it('saves the decommission notify window from Notifications tab', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue(mockUsers);
-    vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
-    const updateSpy = vi.spyOn(api, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 60, storage_usage_warn_pct: 85 });
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue(mockUsers);
+    vi.spyOn(settingsApi, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
+    const updateSpy = vi.spyOn(settingsApi, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 60, storage_usage_warn_pct: 85 });
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
 
@@ -158,9 +161,9 @@ describe('SettingsPage', () => {
   });
 
   it('saves the storage usage warning threshold from Notifications tab', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue(mockUsers);
-    vi.spyOn(api, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
-    const updateSpy = vi.spyOn(api, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 90 });
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue(mockUsers);
+    vi.spyOn(settingsApi, 'getAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 85 });
+    const updateSpy = vi.spyOn(settingsApi, 'updateAppSettings').mockResolvedValue({ decommission_notify_days: 30, storage_usage_warn_pct: 90 });
 
     renderWithProviders(<SettingsPage />, { user: makeUser() });
 

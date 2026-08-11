@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePathname } from 'next/navigation';
 import { AppNav, buildNavItems, canSeeUsers } from '../components/AppNav';
-import { ImportBatch } from '../api/client';
+import type { ImportBatch } from '../api/types';
 import { summarizePreview } from '../routes/ImportCsvPage';
 import { ThemeProvider, ThemeSegmented, ThemeSelect, THEME_STORAGE_KEY, resolveThemePreference } from '../components/ThemeProvider';
 

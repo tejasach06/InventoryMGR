@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { api, ApiError } from '../api/client';
-import type { Vm } from '../api/client';
+import { ApiError } from '../api/core';
+import type { Vm } from '../api/types';
 import { VmDetailPage } from '../routes/VmDetailPage';
 import { makeUser, makeVm, renderWithProviders } from './utils';
+import { vms as vmsApi } from '../api/vms';
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
@@ -23,19 +24,19 @@ afterEach(() => {
 
 describe('VmDetailPage', () => {
   it('shows the loading skeleton while the VM query is pending', () => {
-    vi.spyOn(api, 'getVm').mockReturnValue(Promise.race<Vm>([]));
+    vi.spyOn(vmsApi, 'getVm').mockReturnValue(Promise.race<Vm>([]));
     renderWithProviders(<VmDetailPage />, { user: makeUser() });
     expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
   });
 
   it('renders an alert when the VM query fails', async () => {
-    vi.spyOn(api, 'getVm').mockRejectedValue(new ApiError(404, 'VM not found'));
+    vi.spyOn(vmsApi, 'getVm').mockRejectedValue(new ApiError(404, 'VM not found'));
     renderWithProviders(<VmDetailPage />, { user: makeUser() });
     expect(await screen.findByText('VM not found')).toBeInTheDocument();
   });
 
   it('renders VM details on success', async () => {
-    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(makeVm());
     renderWithProviders(<VmDetailPage />, { user: makeUser() });
     expect(await screen.findByRole('heading', { name: 'web-01' })).toBeInTheDocument();
     expect(screen.getByText('8 GB')).toBeInTheDocument();
@@ -49,7 +50,7 @@ describe('VmDetailPage', () => {
   });
 
   it('hides Edit and Delete for viewers', async () => {
-    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(makeVm());
     renderWithProviders(<VmDetailPage />, { user: makeUser({ role: 'viewer' }) });
 
     await screen.findByRole('heading', { name: 'web-01' });
@@ -58,7 +59,7 @@ describe('VmDetailPage', () => {
   });
 
   it('shows Edit but not Delete for editors', async () => {
-    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(makeVm());
     renderWithProviders(<VmDetailPage />, { user: makeUser({ role: 'editor' }) });
 
     await screen.findByRole('heading', { name: 'web-01' });
@@ -68,7 +69,7 @@ describe('VmDetailPage', () => {
   });
 
   it('shows both Edit and Delete for admins', async () => {
-    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(makeVm());
     renderWithProviders(<VmDetailPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findByRole('heading', { name: 'web-01' });
@@ -77,7 +78,7 @@ describe('VmDetailPage', () => {
   });
 
   it('renders all detail fields including OS name and technical owner', async () => {
-    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(makeVm());
     renderWithProviders(<VmDetailPage />, { user: makeUser() });
 
     await screen.findByRole('heading', { name: 'web-01' });
@@ -86,7 +87,7 @@ describe('VmDetailPage', () => {
   });
 
   it('navigates to inventory list when Back is clicked', async () => {
-    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(makeVm());
     renderWithProviders(<VmDetailPage />, { user: makeUser() });
 
     await screen.findByRole('heading', { name: 'web-01' });
@@ -95,8 +96,8 @@ describe('VmDetailPage', () => {
   });
 
   it('deletes the VM and navigates home when delete is confirmed', async () => {
-    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
-    const deleteSpy = vi.spyOn(api, 'deleteVm').mockResolvedValue(null);
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(makeVm());
+    const deleteSpy = vi.spyOn(vmsApi, 'deleteVm').mockResolvedValue(null);
     renderWithProviders(<VmDetailPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findByRole('heading', { name: 'web-01' });
@@ -109,8 +110,8 @@ describe('VmDetailPage', () => {
   });
 
   it('does not delete when the confirmation is dismissed', async () => {
-    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
-    const deleteSpy = vi.spyOn(api, 'deleteVm').mockResolvedValue(null);
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(makeVm());
+    const deleteSpy = vi.spyOn(vmsApi, 'deleteVm').mockResolvedValue(null);
     renderWithProviders(<VmDetailPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findByRole('heading', { name: 'web-01' });
@@ -122,8 +123,8 @@ describe('VmDetailPage', () => {
   });
 
   it('shows an alert when the delete mutation fails', async () => {
-    vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
-    vi.spyOn(api, 'deleteVm').mockRejectedValue(new ApiError(500, 'Delete failed'));
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(makeVm());
+    vi.spyOn(vmsApi, 'deleteVm').mockRejectedValue(new ApiError(500, 'Delete failed'));
     renderWithProviders(<VmDetailPage />, { user: makeUser({ role: 'admin' }) });
 
     await screen.findByRole('heading', { name: 'web-01' });

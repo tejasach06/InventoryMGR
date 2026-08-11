@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, detailMessage } from '../api/client';
+import { settings as settingsApi } from '../api/settings';
+import { detailMessage } from '../api/core';
 import { useAccent } from '../components/AccentProvider';
 import { useCurrentUser } from '../components/AuthContext';
 import { ThemeSegmented, useTheme } from '../components/ThemeProvider';
@@ -23,7 +24,7 @@ function AppearancePanel() {
     latestAccent.current = accent;
   }, [accent]);
   const save = useMutation<{ accent: AccentId }, Error, AccentId>({
-    mutationFn: (accent: AccentId) => api.setAccent(accent),
+    mutationFn: (accent: AccentId) => settingsApi.setAccent(accent),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['preferences', 'accent'] }),
   });
 
@@ -98,7 +99,7 @@ function AppearancePanel() {
 
 function NotificationsPanel() {
   const queryClient = useQueryClient();
-  const settingsQuery = useQuery({ queryKey: ['settings', 'app'], queryFn: api.getAppSettings });
+  const settingsQuery = useQuery({ queryKey: ['settings', 'app'], queryFn: settingsApi.getAppSettings });
   const [days, setDays] = useState('');
   const [warnPct, setWarnPct] = useState('');
   const touched = useRef(false);
@@ -108,11 +109,11 @@ function NotificationsPanel() {
     if (settingsQuery.data && !pctTouched.current) setWarnPct(String(settingsQuery.data.storage_usage_warn_pct));
   }, [settingsQuery.data]);
   const save = useMutation({
-    mutationFn: () => api.updateAppSettings({ decommission_notify_days: Number(days) }),
+    mutationFn: () => settingsApi.updateAppSettings({ decommission_notify_days: Number(days) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'app'] }),
   });
   const savePct = useMutation({
-    mutationFn: () => api.updateAppSettings({ storage_usage_warn_pct: Number(warnPct) }),
+    mutationFn: () => settingsApi.updateAppSettings({ storage_usage_warn_pct: Number(warnPct) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'app'] }),
   });
   return (

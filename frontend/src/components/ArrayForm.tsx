@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { ArrayPayload, StorageVendor } from '../api/client';
+import type { ArrayPayload, StorageVendor } from '../api/types';
 import {
   Spinner, inputClass, selectClass, textareaClass, labelClass,
   primaryButtonClass, secondaryButtonClass,

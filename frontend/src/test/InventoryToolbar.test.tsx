@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { api } from '../api/client';
+
 import { InventoryToolbar } from '../components/InventoryToolbar';
 import { emptyFilterState } from '../components/filters/filterConfig';
 import type { ColumnConfig } from '../hooks/useColumnPreferences';
 import type { Filters } from '../lib/inventoryFilters';
+import { vms as vmsApi } from '../api/vms';
 
 const columns: ColumnConfig[] = [
   { key: 'name', visible: true, order: 0 },
@@ -33,11 +34,11 @@ function renderToolbar(filters: Filters = { ...emptyFilterState }) {
 }
 
 beforeEach(() => {
-  vi.spyOn(api, 'listVmOwners').mockResolvedValue(['alice']);
-  vi.spyOn(api, 'listVmClusters').mockResolvedValue(['cluster-a']);
-  vi.spyOn(api, 'listVmNodes').mockResolvedValue(['node-1']);
-  vi.spyOn(api, 'listVmTags').mockResolvedValue(['web']);
-  vi.spyOn(api, 'listVmApplications').mockResolvedValue(['app-1']);
+  vi.spyOn(vmsApi, 'listVmOwners').mockResolvedValue(['alice']);
+  vi.spyOn(vmsApi, 'listVmClusters').mockResolvedValue(['cluster-a']);
+  vi.spyOn(vmsApi, 'listVmNodes').mockResolvedValue(['node-1']);
+  vi.spyOn(vmsApi, 'listVmTags').mockResolvedValue(['web']);
+  vi.spyOn(vmsApi, 'listVmApplications').mockResolvedValue(['app-1']);
 });
 
 afterEach(() => {

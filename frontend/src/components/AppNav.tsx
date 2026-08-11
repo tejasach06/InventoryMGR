@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
-import { User } from '../api/client';
+import type { User } from '../api/types';
 import { cn } from '../lib/classNames';
 
 export interface NavItem {

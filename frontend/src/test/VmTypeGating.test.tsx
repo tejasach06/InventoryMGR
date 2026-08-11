@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
-import { api } from '../api/client';
+
 import { VmFormPage } from '../routes/VmFormPage';
 import { makeVm, renderWithProviders } from './utils';
+import { vms as vmsApi } from '../api/vms';
+import { settings as settingsApi } from '../api/settings';
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
@@ -14,10 +16,10 @@ vi.mock('next/navigation', () => ({
 beforeEach(() => {
   pushMock.mockReset();
   HTMLElement.prototype.scrollIntoView = vi.fn();
-  vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+  vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({
     cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] },
   });
-  vi.spyOn(api, 'listVmOwners').mockResolvedValue([]);
+  vi.spyOn(vmsApi, 'listVmOwners').mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -47,7 +49,7 @@ describe('VmFormPage vm_type / decommission_date gating', () => {
   });
 
   it('rejects submitting a temporary VM without a decommission date', async () => {
-    const create = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-new' }));
+    const create = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm({ id: 'vm-new' }));
     renderWithProviders(<VmFormPage mode="create" />);
 
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'temp-vm' } });

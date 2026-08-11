@@ -2,7 +2,9 @@
 
 import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, detailMessage, User, UserRole } from '../api/client';
+import { auth as authApi } from '../api/auth';
+import { detailMessage } from '../api/core';
+import type { User, UserRole } from '../api/types';
 import { Alert, Badge, ConfirmDialog, EmptyState, FieldError, PageHeader, PageTransition, Spinner, TableSkeleton, cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
 import { useCurrentUser } from '../components/AuthContext';
 import { cn } from '../lib/classNames';
@@ -38,7 +40,7 @@ function buildUpdateUserMutation(
     mutationFn: () => {
       const payload: Partial<{ role: UserRole; is_active: boolean; password: string }> = { role, is_active: isActive };
       if (password.length > 0) payload.password = password;
-      return api.updateUser(userId, payload);
+      return authApi.updateUser(userId, payload);
     },
     onSuccess: () => {
       setPassword('');
@@ -171,9 +173,9 @@ export function UsersPanel() {
   const [form, setForm] = useState<NewUserForm>(() => defaultNewUser());
   const [submitted, setSubmitted] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const users = useQuery({ queryKey: ['users'], queryFn: api.listUsers });
+  const users = useQuery({ queryKey: ['users'], queryFn: authApi.listUsers });
   const create = useMutation({
-    mutationFn: () => api.createUser(form),
+    mutationFn: () => authApi.createUser(form),
     onSuccess: () => {
       setForm(defaultNewUser());
       setSubmitted(false);

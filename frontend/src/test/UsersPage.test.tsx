@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { api, ApiError } from '../api/client';
-import type { User } from '../api/client';
+import { ApiError } from '../api/core';
+import type { User } from '../api/types';
 import { UsersPanel } from '../routes/UsersPage';
 import { makeUser, renderWithProviders } from './utils';
+import { auth as authApi } from '../api/auth';
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -16,7 +17,7 @@ afterEach(() => {
 
 describe('UsersPanel query states', () => {
   it('shows the loading skeleton while listUsers is pending', () => {
-    vi.spyOn(api, 'listUsers').mockReturnValue(new Promise<User[]>(() => {}));
+    vi.spyOn(authApi, 'listUsers').mockReturnValue(new Promise<User[]>(() => {}));
 
     renderWithProviders(<UsersPanel />, { user: makeUser() });
 
@@ -24,12 +25,12 @@ describe('UsersPanel query states', () => {
   });
 
   it('renders an error alert when listUsers rejects', async () => {
-    vi.spyOn(api, 'listUsers').mockRejectedValue(new ApiError(500, 'Server explosion'));
+    vi.spyOn(authApi, 'listUsers').mockRejectedValue(new ApiError(500, 'Server explosion'));
     renderWithProviders(<UsersPanel />, { user: makeUser() });
     expect(await screen.findByRole('alert')).toHaveTextContent('Server explosion');
   });
   it('shows the empty state when listUsers resolves no users', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue([]);
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([]);
 
     renderWithProviders(<UsersPanel />, { user: makeUser() });
 
@@ -38,13 +39,13 @@ describe('UsersPanel query states', () => {
   });
 
   it('shows the loading skeleton while listUsers is pending', () => {
-    vi.spyOn(api, 'listUsers').mockImplementation(() => new Promise(() => {}));
+    vi.spyOn(authApi, 'listUsers').mockImplementation(() => new Promise(() => {}));
     renderWithProviders(<UsersPanel />, { user: makeUser() });
     expect(screen.getByRole('table', { name: 'Loading data' })).toBeInTheDocument();
   });
 
   it('renders a row and card for each user', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue([
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([
       makeUser({ id: 'u1', email: 'a@b.c', role: 'viewer' }),
     ]);
 
@@ -58,7 +59,7 @@ describe('UsersPanel query states', () => {
 
 describe('UsersPanel create flow', () => {
   it('reveals the create form when New user is clicked', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue([]);
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([]);
 
     renderWithProviders(<UsersPanel />, { user: makeUser() });
 
@@ -69,8 +70,8 @@ describe('UsersPanel create flow', () => {
   });
 
   it('shows validation errors and does not submit when email and password are invalid', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue([]);
-    const createSpy = vi.spyOn(api, 'createUser').mockResolvedValue(makeUser());
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([]);
+    const createSpy = vi.spyOn(authApi, 'createUser').mockResolvedValue(makeUser());
 
     renderWithProviders(<UsersPanel />, { user: makeUser() });
 
@@ -83,8 +84,8 @@ describe('UsersPanel create flow', () => {
   });
 
   it('keeps the password error when the password is shorter than 8 characters', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue([]);
-    const createSpy = vi.spyOn(api, 'createUser').mockResolvedValue(makeUser());
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([]);
+    const createSpy = vi.spyOn(authApi, 'createUser').mockResolvedValue(makeUser());
 
     renderWithProviders(<UsersPanel />, { user: makeUser() });
 
@@ -99,8 +100,8 @@ describe('UsersPanel create flow', () => {
   });
 
   it('calls createUser with the form payload and closes the form on success', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue([]);
-    const createSpy = vi.spyOn(api, 'createUser').mockResolvedValue(makeUser());
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([]);
+    const createSpy = vi.spyOn(authApi, 'createUser').mockResolvedValue(makeUser());
 
     renderWithProviders(<UsersPanel />, { user: makeUser() });
 
@@ -124,10 +125,10 @@ describe('UsersPanel create flow', () => {
 
 describe('UsersPanel update flow', () => {
   it('updates a user from the desktop row with the changed role and active flag', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue([
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([
       makeUser({ id: 'u1', email: 'a@b.c', role: 'viewer', is_active: true }),
     ]);
-    const updateSpy = vi.spyOn(api, 'updateUser').mockResolvedValue(
+    const updateSpy = vi.spyOn(authApi, 'updateUser').mockResolvedValue(
       makeUser({ id: 'u1', email: 'a@b.c', role: 'editor', is_active: false }),
     );
 
@@ -150,10 +151,10 @@ describe('UsersPanel update flow', () => {
   });
 
   it('updates a user from the mobile card after entering edit mode', async () => {
-    vi.spyOn(api, 'listUsers').mockResolvedValue([
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([
       makeUser({ id: 'u1', email: 'a@b.c', role: 'viewer', is_active: true }),
     ]);
-    const updateSpy = vi.spyOn(api, 'updateUser').mockResolvedValue(
+    const updateSpy = vi.spyOn(authApi, 'updateUser').mockResolvedValue(
       makeUser({ id: 'u1', email: 'a@b.c', role: 'admin', is_active: true }),
     );
 

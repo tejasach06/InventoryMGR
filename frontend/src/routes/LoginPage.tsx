@@ -3,7 +3,8 @@
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { api, detailMessage } from '../api/client';
+import { auth as authApi } from '../api/auth';
+import { detailMessage } from '../api/core';
 import { Alert, FieldError, Logo, Spinner, authInputClass, labelClass, primaryButtonClass } from '../components/ui';
 
 const authCardClass = 'w-full max-w-[420px] animate-rise rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/85 p-6 sm:p-8 shadow-overlay backdrop-blur-xl';
@@ -72,16 +73,16 @@ export function LoginPage() {
   const [setupConfirmPassword, setSetupConfirmPassword] = useState('');
   const [setupSubmitted, setSetupSubmitted] = useState(false);
 
-  const setup = useQuery({ queryKey: ['setup-status'], queryFn: api.setupStatus, retry: false });
+  const setup = useQuery({ queryKey: ['setup-status'], queryFn: authApi.setupStatus, retry: false });
   const login = useMutation({
-    mutationFn: () => api.login(email.trim(), password, remember),
+    mutationFn: () => authApi.login(email.trim(), password, remember),
     onSuccess: ({ user }) => {
       queryClient.setQueryData(['me'], user);
       router.replace('/inventory');
     },
   });
   const setupAdmin = useMutation({
-    mutationFn: () => api.setupAdmin(setupEmail.trim(), setupPassword),
+    mutationFn: () => authApi.setupAdmin(setupEmail.trim(), setupPassword),
     onSuccess: ({ user }) => {
       queryClient.setQueryData(['me'], user);
       queryClient.setQueryData(['setup-status'], { setup_required: false });

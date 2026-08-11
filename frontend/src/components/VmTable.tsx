@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Vm } from '../api/client';
+import type { Vm } from '../api/types';
 import {
   Badge, FieldError,
   inputClass,

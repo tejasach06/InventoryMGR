@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { api, type LdapConfig } from '../api/client';
+import { settings as settingsApi } from '../api/settings';
+import type { LdapConfig } from '../api/types';
 import { LdapPanel } from '../routes/LdapSettingsPanel';
 import { renderWithProviders } from './utils';
 
@@ -25,8 +26,8 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('LdapPanel', () => {
   it('saves full configuration without an untouched password', async () => {
-    vi.spyOn(api, 'getLdapConfig').mockResolvedValue(config);
-    const save = vi.spyOn(api, 'updateLdapConfig').mockResolvedValue(config);
+    vi.spyOn(settingsApi, 'getLdapConfig').mockResolvedValue(config);
+    const save = vi.spyOn(settingsApi, 'updateLdapConfig').mockResolvedValue(config);
     renderWithProviders(<LdapPanel />);
 
     expect(await screen.findByDisplayValue('ldap://ldap.example.com')).toBeInTheDocument();
@@ -38,14 +39,14 @@ describe('LdapPanel', () => {
   });
 
   it('sends touched password and renders connection result', async () => {
-    vi.spyOn(api, 'getLdapConfig').mockResolvedValue(config);
-    vi.spyOn(api, 'updateLdapConfig').mockResolvedValue(config);
-    const testConnection = vi.spyOn(api, 'testLdapConnection').mockResolvedValue({ ok: true, message: 'Service bind succeeded' });
+    vi.spyOn(settingsApi, 'getLdapConfig').mockResolvedValue(config);
+    vi.spyOn(settingsApi, 'updateLdapConfig').mockResolvedValue(config);
+    const testConnection = vi.spyOn(settingsApi, 'testLdapConnection').mockResolvedValue({ ok: true, message: 'Service bind succeeded' });
     renderWithProviders(<LdapPanel />);
 
     fireEvent.change(await screen.findByLabelText('Bind password'), { target: { value: 's3cret' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save LDAP settings' }));
-    await waitFor(() => expect(api.updateLdapConfig).toHaveBeenCalledWith(expect.objectContaining({ bind_password: 's3cret' })));
+    await waitFor(() => expect(settingsApi.updateLdapConfig).toHaveBeenCalledWith(expect.objectContaining({ bind_password: 's3cret' })));
 
     fireEvent.change(screen.getByLabelText('Test username'), { target: { value: 'jdoe' } });
     fireEvent.click(screen.getByRole('button', { name: 'Test connection' }));

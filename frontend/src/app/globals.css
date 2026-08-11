@@ -128,9 +128,9 @@
 @media (min-width: 1024px) { :root { --app-header-h: 0px; } }
 
 html.dark {
-  --color-surface: #0d1c2d;
-  --color-surface-secondary: #051424;
-  --color-surface-tertiary: #122131;
+  --color-surface: #1a1a1a;
+  --color-surface-secondary: #0d0d0d;
+  --color-surface-tertiary: #242424;
   --color-border: #273647;
   --color-border-subtle: #1c2b3c;
   --color-text-primary: #d4e4fa;
@@ -141,7 +141,7 @@ html.dark {
   --color-accent-text: #fb923c;
   --color-on-accent: #1c0a00;
   --color-on-danger: #1c0a00;
-  --color-surface-inverse: #122131;
+  --color-surface-inverse: #242424;
   --color-text-inverse: #d4e4fa;
   --color-scrim: rgba(0, 0, 0, 0.6);
   --color-scrollbar: #273647;
@@ -175,7 +175,7 @@ html.dark {
   50% { background-position: 100% 50%; }
 }
 .auth-gradient {
-  background: linear-gradient(135deg, #051424, #122131, #582200, #f97316);
+  background: linear-gradient(135deg, #0d0d0d, #242424, #582200, #f97316);
   background-size: 400% 400%;
   animation: authGradient 15s ease infinite;
 }

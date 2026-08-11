@@ -3,7 +3,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ReactNode, useCallback, useRef, useState } from 'react';
-import { api, User } from '../api/client';
+import { auth as authApi } from '../api/auth';
+import type { User } from '../api/types';
 import { Logo, secondaryButtonClass } from './ui';
 import { AppNav } from './AppNav';
 import { ThemeSelect, ThemeSegmented } from './ThemeProvider';
@@ -60,7 +61,7 @@ export function AppLayout({ user, children }: LayoutProps) {
   }, []);
 
   const logout = useMutation({
-    mutationFn: api.logout,
+    mutationFn: authApi.logout,
     onSettled: () => {
       queryClient.clear();
       router.replace('/login');
@@ -93,10 +94,27 @@ export function AppLayout({ user, children }: LayoutProps) {
               <button ref={mobileCloseRef} type="button" onClick={closeMobile} aria-label="Close navigation" className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)]">×</button>
             </div>
             <AppNav user={user} onNavigate={closeMobile} />
-            <div className="mt-auto space-y-4 border-t border-[var(--color-border-subtle)] pt-5">
-              <div className="flex items-center justify-between"><span className="text-sm text-[var(--color-text-secondary)]">Theme</span><ThemeSegmented /></div>
-              <div className="flex items-center gap-3"><UserAvatarInitial email={user.email} /><div className="min-w-0"><p className="truncate text-sm font-medium">{user.email}</p><p className="text-xs text-[var(--color-text-tertiary)]">{user.role}</p></div></div>
-              <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending} className={secondaryButtonClass}>{logout.isPending ? 'Signing out…' : 'Logout'}</button>
+            <div className="mt-auto space-y-4 border-t border-[var(--color-border-subtle)] pt-4">
+              <div className="flex items-center gap-3">
+                <UserAvatarInitial email={user.email} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">{user.email}</p>
+                  <p className="text-xs text-[var(--color-text-tertiary)]">{user.role}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <ThemeSegmented />
+                <button
+                  type="button"
+                  onClick={() => logout.mutate()}
+                  disabled={logout.isPending}
+                  aria-label="Logout"
+                  title={logout.isPending ? 'Signing out…' : 'Logout'}
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <LogoutIcon />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -120,36 +138,31 @@ export function AppLayout({ user, children }: LayoutProps) {
         <AppNav user={user} collapsed={collapsed} />
         <div className={`mt-4 hidden pt-4 border-[var(--color-border-subtle)] lg:mt-auto lg:block ${collapsed ? '' : 'border-t'}`}>
           {!collapsed ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-[var(--color-text-secondary)]">Theme</span>
-                <ThemeSegmented />
-              </div>
-              <div className="h-px w-full bg-[var(--color-border-subtle)]" />
+            <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <UserAvatarInitial email={user.email} />
-                <div className="min-w-0 flex-1 flex-col">
+                <div className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-[var(--color-text-primary)]">{user.email}</span>
-                  <span className="mt-0.5 inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-surface-tertiary)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-tertiary)]">
-                    {user.role}
-                  </span>
+                  <span className="block text-xs text-[var(--color-text-tertiary)]">{user.role}</span>
                 </div>
               </div>
-              <div className="h-px w-full bg-[var(--color-border-subtle)]" />
-              <button
-                type="button"
-                onClick={() => logout.mutate()}
-                disabled={logout.isPending}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-[var(--color-criticality-critical)] transition-colors hover:bg-[var(--color-criticality-critical-bg)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <LogoutIcon />
-                <span>{logout.isPending ? 'Signing out…' : 'Logout'}</span>
-              </button>
+              <div className="flex items-center justify-between gap-3">
+                <ThemeSegmented />
+                <button
+                  type="button"
+                  onClick={() => logout.mutate()}
+                  disabled={logout.isPending}
+                  aria-label="Logout"
+                  title={logout.isPending ? 'Signing out…' : 'Logout'}
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <LogoutIcon />
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
               <ThemeSegmented direction="col" />
-              <div className="h-px w-8 bg-[var(--color-border-subtle)]" />
               <UserAvatarInitial email={user.email} />
               <button
                 type="button"

@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, detailMessage } from '../api/client';
+import { settings as settingsApi } from '../api/settings';
+import { detailMessage } from '../api/core';
 
 export interface ColumnConfig {
   key: string;
@@ -86,7 +87,7 @@ export function useColumnPreferences(pageKey: string) {
 
   useEffect(() => {
     let cancelled = false;
-    api.getColumnPreferences(pageKey)
+    settingsApi.getColumnPreferences(pageKey)
       .then((data) => { if (!cancelled) setColumns(mergeWithDefaults(data.columns)); })
       .catch((err) => { if (!cancelled) setError(detailMessage(err)); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -96,7 +97,7 @@ export function useColumnPreferences(pageKey: string) {
   const save = useCallback((cols: ColumnConfig[]) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      api.updateColumnPreferences(pageKey, cols).catch((err) => {
+      settingsApi.updateColumnPreferences(pageKey, cols).catch((err) => {
         setError(detailMessage(err));
       });
     }, 300);

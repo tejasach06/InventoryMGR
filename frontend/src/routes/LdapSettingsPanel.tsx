@@ -2,7 +2,9 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, detailMessage, type LdapConfig } from '../api/client';
+import { settings as settingsApi } from '../api/settings';
+import { detailMessage } from '../api/core';
+import type { LdapConfig } from '../api/types';
 import {
   Alert,
   Skeleton,
@@ -35,7 +37,7 @@ const emptyForm: FormValues = {
 
 export function LdapPanel() {
   const queryClient = useQueryClient();
-  const configQuery = useQuery({ queryKey: ['settings', 'ldap'], queryFn: api.getLdapConfig });
+  const configQuery = useQuery({ queryKey: ['settings', 'ldap'], queryFn: settingsApi.getLdapConfig });
   const [form, setForm] = useState<FormValues>(emptyForm);
   const [bindPassword, setBindPassword] = useState('');
   const [testUsername, setTestUsername] = useState('');
@@ -51,7 +53,7 @@ export function LdapPanel() {
   }, [configQuery.data]);
 
   const save = useMutation({
-    mutationFn: () => api.updateLdapConfig({
+    mutationFn: () => settingsApi.updateLdapConfig({
       ...form,
       ...(passwordTouched.current ? { bind_password: bindPassword } : {}),
     }),
@@ -62,7 +64,7 @@ export function LdapPanel() {
     },
   });
   const test = useMutation({
-    mutationFn: () => api.testLdapConnection({
+    mutationFn: () => settingsApi.testLdapConnection({
       ...(testUsername ? { username: testUsername } : {}),
       ...(testPassword ? { password: testPassword } : {}),
     }),

@@ -2,7 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { api, detailMessage } from '../api/client';
+import { vms as vmsApi } from '../api/vms';
+import { dashboard as dashboardApi } from '../api/dashboard';
+import { detailMessage } from '../api/core';
 import { Alert, EmptyState, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 
@@ -35,14 +37,14 @@ function DownloadIcon() {
 }
 
 export function ReportsPage() {
-  const summaryQ = useQuery({ queryKey: ['reports', 'summary'], queryFn: api.getReportSummary });
+  const summaryQ = useQuery({ queryKey: ['reports', 'summary'], queryFn: dashboardApi.getReportSummary });
   const total = summaryQ.data?.total_vms ?? 0;
   const counts = summaryQ.data?.counts ?? {};
   return (
     <PageTransition>
       <PageHeader title="Reports" context="Exports" description="Download focused fleet views with server-verified counts." actions={
         <a
-          href={api.exportVmsUrl(new URLSearchParams('all=true'))}
+          href={vmsApi.exportVmsUrl(new URLSearchParams('all=true'))}
           download="vm-inventory.csv"
           className={secondaryButtonClass}
         >
@@ -73,7 +75,7 @@ export function ReportsPage() {
                   <div className="min-w-0"><h2 className="font-semibold text-[var(--color-text-primary)]">{report.label}</h2><p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{report.description}</p></div>
                   <div>{summaryQ.isLoading ? <Skeleton className="h-7 w-12" /> : <><span className={cn(monoClass, 'text-xl font-semibold text-[var(--color-text-primary)]')}>{value}</span><span className="ml-1 text-xs text-[var(--color-text-tertiary)]">{report.suffix}</span></>}</div>
                   <div>{report.coverage === false ? <span className="text-xs text-[var(--color-text-tertiary)]">Distinct count</span> : <ProgressBar value={pct} label={`${report.label}: ${value} of ${total} VMs`} colorVar={report.colorVar} />}</div>
-                  <a href={api.reportUrl(report.name)} download={`${report.name}.csv`} className={cn(secondaryButtonClass, 'whitespace-nowrap')}><DownloadIcon /> Download</a>
+                  <a href={dashboardApi.reportUrl(report.name)} download={`${report.name}.csv`} className={cn(secondaryButtonClass, 'whitespace-nowrap')}><DownloadIcon /> Download</a>
                 </section>
               );
             })}

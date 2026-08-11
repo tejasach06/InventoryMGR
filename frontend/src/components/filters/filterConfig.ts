@@ -1,4 +1,4 @@
-import { api } from '../../api/client';
+import { vms as vmsApi } from '../../api/vms';
 import type { Filters, FilterName } from '../../lib/inventoryFilters';
 
 export type AdvancedFilterName = Exclude<FilterName, 'q'>;
@@ -70,11 +70,11 @@ export const coreFilterTypes: Record<CoreFilterName, 'status' | 'criticality' | 
 export const dynamicFilterNames = ['owner', 'cluster', 'node', 'tag', 'application'] as const;
 
 export const dynamicFetchers: Record<DynamicFilterName, () => Promise<string[]>> = {
-  owner: api.listVmOwners,
-  cluster: api.listVmClusters,
-  node: api.listVmNodes,
-  tag: api.listVmTags,
-  application: api.listVmApplications,
+  owner: vmsApi.listVmOwners,
+  cluster: vmsApi.listVmClusters,
+  node: vmsApi.listVmNodes,
+  tag: vmsApi.listVmTags,
+  application: vmsApi.listVmApplications,
 };
 
 export const emptyFilterState: Filters = {

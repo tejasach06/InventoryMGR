@@ -4,7 +4,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { CurrentUserProvider } from '../components/AuthContext';
 import { AccentProvider } from '../components/AccentProvider';
 import { ThemeProvider } from '../components/ThemeProvider';
-import type { ImportBatch, ImportRow, User, Vm } from '../api/client';
+import type { ImportBatch, ImportRow, User, Vm } from '../api/types';
 
 export function createTestQueryClient(): QueryClient {
   return new QueryClient({

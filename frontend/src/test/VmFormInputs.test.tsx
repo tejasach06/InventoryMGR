@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
-import { api } from '../api/client';
+
 import { VmFormPage } from '../routes/VmFormPage';
 import { makeVm, renderWithProviders } from './utils';
+import { vms as vmsApi } from '../api/vms';
+import { settings as settingsApi } from '../api/settings';
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
@@ -14,7 +16,7 @@ vi.mock('next/navigation', () => ({
 beforeEach(() => {
   pushMock.mockReset();
   HTMLElement.prototype.scrollIntoView = vi.fn();
-  vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({
+  vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({
     cpu: ['8'],
     datacenter: ['dc-east-1', 'dc-east-2'],
     disk: [],
@@ -22,7 +24,7 @@ beforeEach(() => {
     os: ['Debian 12', 'Ubuntu 22.04'],
     os_by_family: { linux: ['Alpine Linux'], windows: ['Windows Server 2022'] },
   });
-  vi.spyOn(api, 'listVmOwners').mockResolvedValue(['alice', 'alistair']);
+  vi.spyOn(vmsApi, 'listVmOwners').mockResolvedValue(['alice', 'alistair']);
 });
 
 afterEach(() => {
@@ -99,7 +101,7 @@ describe('VmFormPage IP rows', () => {
   });
 
   it('creates a VM with multiple disks and IPs from the row editors', async () => {
-    const create = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-new', name: 'multi' }));
+    const create = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm({ id: 'vm-new', name: 'multi' }));
     renderWithProviders(<VmFormPage mode="create" />);
 
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'multi' } });
@@ -116,7 +118,7 @@ describe('VmFormPage IP rows', () => {
 
 describe('VmFormPage disk/network detail fields', () => {
   it('submits disk name/storage/type and network role in the createVm payload', async () => {
-    const create = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-new', name: 'multi' }));
+    const create = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm({ id: 'vm-new', name: 'multi' }));
     renderWithProviders(<VmFormPage mode="create" />);
 
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'multi' } });

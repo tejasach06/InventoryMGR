@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Vm } from '../api/client';
+import type { Vm } from '../api/types';
 import { Badge, cardClass, monoClass } from '../components/ui';
 import { formatMemory, formatDisks } from '../lib/units';
 import { cn } from '../lib/classNames';

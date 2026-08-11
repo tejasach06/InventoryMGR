@@ -1,9 +1,11 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VmFormPage } from '../routes/VmFormPage';
-import { api, ApiError } from '../api/client';
-import type { Vm } from '../api/client';
+import { vms as vmsApi } from '../api/vms';
+import { ApiError } from '../api/core';
+import type { Vm } from '../api/types';
 import { makeVm, renderWithProviders } from './utils';
+import { settings as settingsApi } from '../api/settings';
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
@@ -23,8 +25,8 @@ beforeEach(() => {
   pushMock.mockClear();
   // jsdom does not implement scrollIntoView, which the submit handler calls on the first invalid field.
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
-  vi.spyOn(api, 'getDropdownOptions').mockResolvedValue({ cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] } });
-  vi.spyOn(api, 'listVmOwners').mockResolvedValue([]);
+  vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({ cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] } });
+  vi.spyOn(vmsApi, 'listVmOwners').mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -45,7 +47,7 @@ describe('VmFormPage', () => {
   });
 
   it('shows validation errors and does not submit when required fields are blank', async () => {
-    const createSpy = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm());
+    const createSpy = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm());
     renderWithProviders(<VmFormPage mode="create" />);
     await screen.findByRole('heading', { name: 'New VM' });
 
@@ -58,7 +60,7 @@ describe('VmFormPage', () => {
 
   it('creates a VM and navigates on success, applying the GB to MB transform', async () => {
     const createSpy = vi
-      .spyOn(api, 'createVm')
+      .spyOn(vmsApi, 'createVm')
       .mockResolvedValue(makeVm({ id: 'vm-99', name: 'test-vm' }));
     renderWithProviders(<VmFormPage mode="create" />);
     await screen.findByRole('heading', { name: 'New VM' });
@@ -74,7 +76,7 @@ describe('VmFormPage', () => {
   });
 
   it('defaults an IP row to the private role and submits the chosen role', async () => {
-    const createSpy = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-55' }));
+    const createSpy = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm({ id: 'vm-55' }));
     renderWithProviders(<VmFormPage mode="create" />);
     await screen.findByRole('heading', { name: 'New VM' });
 
@@ -94,7 +96,7 @@ describe('VmFormPage', () => {
   });
 
   it('sends backup_enabled true when the backup checkbox is toggled on', async () => {
-    const createSpy = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-77' }));
+    const createSpy = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm({ id: 'vm-77' }));
     renderWithProviders(<VmFormPage mode="create" />);
     await screen.findByRole('heading', { name: 'New VM' });
 
@@ -144,7 +146,7 @@ describe('VmFormPage', () => {
   });
 
   it('submits backup_location when backup is enabled with a location', async () => {
-    const createSpy = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-88' }));
+    const createSpy = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm({ id: 'vm-88' }));
     renderWithProviders(<VmFormPage mode="create" />);
     await screen.findByRole('heading', { name: 'New VM' });
 
@@ -159,8 +161,8 @@ describe('VmFormPage', () => {
 
   it('pre-populates the form in edit mode and submits via updateVm', async () => {
     const vm = makeVm({ id: 'vm-1', name: 'web-01' });
-    vi.spyOn(api, 'getVm').mockResolvedValue(vm);
-    const updateSpy = vi.spyOn(api, 'updateVm').mockResolvedValue(vm);
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
+    const updateSpy = vi.spyOn(vmsApi, 'updateVm').mockResolvedValue(vm);
     renderWithProviders(<VmFormPage mode="edit" />);
 
     const nameInput = await screen.findByLabelText(/^Name/);
@@ -177,8 +179,8 @@ describe('VmFormPage', () => {
 
   it('pre-populates backup_location in edit mode when backup is enabled with a location', async () => {
     const vm = makeVm({ id: 'vm-2', name: 'db-01', backup_enabled: true, backup_location: 'NAS-02 /db-backups' });
-    vi.spyOn(api, 'getVm').mockResolvedValue(vm);
-    vi.spyOn(api, 'updateVm').mockResolvedValue(vm);
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
+    vi.spyOn(vmsApi, 'updateVm').mockResolvedValue(vm);
     renderWithProviders(<VmFormPage mode="edit" />);
 
     // Wait for form to load
@@ -191,8 +193,8 @@ describe('VmFormPage', () => {
 
   it('does not show backup_location in edit mode when backup is disabled', async () => {
     const vm = makeVm({ id: 'vm-3', name: 'app-01', backup_enabled: false, backup_location: null });
-    vi.spyOn(api, 'getVm').mockResolvedValue(vm);
-    vi.spyOn(api, 'updateVm').mockResolvedValue(vm);
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
+    vi.spyOn(vmsApi, 'updateVm').mockResolvedValue(vm);
     renderWithProviders(<VmFormPage mode="edit" />);
 
     await screen.findByRole('heading', { name: /Edit/ });
@@ -202,7 +204,7 @@ describe('VmFormPage', () => {
   });
 
   it('shows the loading skeleton while the VM query is pending in edit mode', async () => {
-    vi.spyOn(api, 'getVm').mockReturnValue(new Promise<Vm>(() => {}));
+    vi.spyOn(vmsApi, 'getVm').mockReturnValue(new Promise<Vm>(() => {}));
     renderWithProviders(<VmFormPage mode="edit" />);
 
     const skeleton = await screen.findByRole('status', { name: /loading/i });
@@ -211,7 +213,7 @@ describe('VmFormPage', () => {
   });
 
   it('shows an Alert when the create mutation is rejected', async () => {
-    vi.spyOn(api, 'createVm').mockRejectedValue(new ApiError(400, 'Name already exists'));
+    vi.spyOn(vmsApi, 'createVm').mockRejectedValue(new ApiError(400, 'Name already exists'));
     renderWithProviders(<VmFormPage mode="create" />);
     await screen.findByRole('heading', { name: 'New VM' });
 

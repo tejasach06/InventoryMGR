@@ -4,7 +4,10 @@ import { Dispatch, FormEvent, ReactNode, SetStateAction, useEffect, useMemo, use
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { api, detailMessage, NetworkRole, VmPayload } from '../api/client';
+import { vms as vmsApi } from '../api/vms';
+import { settings as settingsApi } from '../api/settings';
+import { detailMessage } from '../api/core';
+import type { NetworkRole, VmPayload } from '../api/types';
 import {
   Alert, FieldError, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass,
@@ -250,9 +253,9 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const initialSnapshot = useRef<string>(JSON.stringify({ values, disks, ips }));
   const isDirty = JSON.stringify({ values, disks, ips }) !== initialSnapshot.current;
 
-  const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => api.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
-  const optionsQuery = useQuery({ queryKey: ['settings', 'options'], queryFn: api.getDropdownOptions });
-  const ownersQuery = useQuery({ queryKey: ['vm-owners'], queryFn: api.listVmOwners });
+  const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => vmsApi.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
+  const optionsQuery = useQuery({ queryKey: ['settings', 'options'], queryFn: settingsApi.getDropdownOptions });
+  const ownersQuery = useQuery({ queryKey: ['vm-owners'], queryFn: vmsApi.listVmOwners });
 
   const options = optionsQuery.data ?? EMPTY_OPTIONS;
   const owners = ownersQuery.data ?? [];
@@ -288,7 +291,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   }, [isDirty]);
 
   const save = useMutation({
-    mutationFn: (payload: VmPayload) => (mode === 'create' ? api.createVm(payload) : api.updateVm(id ?? '', payload)),
+    mutationFn: (payload: VmPayload) => (mode === 'create' ? vmsApi.createVm(payload) : vmsApi.updateVm(id ?? '', payload)),
   });
 
   const title = useMemo(() => (mode === 'create' ? 'New VM' : `Edit ${vmQuery.data?.name ?? 'VM'}`), [mode, vmQuery.data]);

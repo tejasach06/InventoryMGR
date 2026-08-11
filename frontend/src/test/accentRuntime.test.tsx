@@ -4,10 +4,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api } from '../api/client';
+
 import { AccentProvider, useAccent, useAccentSync } from '../components/AccentProvider';
 import { ThemeProvider } from '../components/ThemeProvider';
 import { ACCENT_STORAGE_KEY, AccentId, accentVars } from '../lib/accentPresets';
+import { settings as settingsApi } from '../api/settings';
 
 afterEach(() => {
   cleanup();
@@ -61,7 +62,7 @@ describe('accent presets', () => {
 describe('AccentProvider', () => {
   it('applies every dark custom property from a stored accent', async () => {
     window.localStorage.setItem(ACCENT_STORAGE_KEY, 'blue');
-    vi.spyOn(api, 'getAccent').mockResolvedValue({ accent: 'blue' });
+    vi.spyOn(settingsApi, 'getAccent').mockResolvedValue({ accent: 'blue' });
 
     renderAccentProvider();
 
@@ -74,7 +75,7 @@ describe('AccentProvider', () => {
 
   it('replaces a valid local accent with the server preference', async () => {
     window.localStorage.setItem(ACCENT_STORAGE_KEY, 'blue');
-    vi.spyOn(api, 'getAccent').mockResolvedValue({ accent: 'violet' });
+    vi.spyOn(settingsApi, 'getAccent').mockResolvedValue({ accent: 'violet' });
 
     renderAccentProvider();
 

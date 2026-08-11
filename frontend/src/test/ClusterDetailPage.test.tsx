@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { api } from '../api/client';
-import type { PhysicalCluster } from '../api/client';
+import { clusters as clustersApi } from '../api/clusters';
+import type { PhysicalCluster } from '../api/types';
 import { ClusterDetailPage } from '../routes/ClusterDetailPage';
 import { makeUser, renderWithProviders } from './utils';
 
@@ -29,7 +29,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('ClusterDetailPage', () => {
   it('renders cluster header and node row', async () => {
-    vi.spyOn(api, 'getCluster').mockResolvedValue(makeCluster());
+    vi.spyOn(clustersApi, 'getCluster').mockResolvedValue(makeCluster());
     renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'viewer' }) });
     expect(await screen.findByText('pve-cluster-a')).toBeInTheDocument();
     expect(screen.getByText('node-01')).toBeInTheDocument();
@@ -37,20 +37,20 @@ describe('ClusterDetailPage', () => {
     expect(screen.getByText('64 / 128 GB')).toBeInTheDocument();
   });
 
-  it('adding a node calls api.addNode', async () => {
+  it('adding a node calls clustersApi.addNode', async () => {
     const cluster = makeCluster();
-    vi.spyOn(api, 'getCluster').mockResolvedValue(cluster);
-    vi.spyOn(api, 'addNode').mockResolvedValue(cluster.nodes[0]);
+    vi.spyOn(clustersApi, 'getCluster').mockResolvedValue(cluster);
+    vi.spyOn(clustersApi, 'addNode').mockResolvedValue(cluster.nodes[0]);
     renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'editor' }) });
     await screen.findByText('pve-cluster-a');
     fireEvent.click(screen.getByRole('button', { name: '+ Add node' }));
     fireEvent.change(screen.getByLabelText(/^node name$/i), { target: { value: 'node-02' } });
     fireEvent.click(screen.getByRole('button', { name: /^\+ add node$/i }));
-    await waitFor(() => expect(api.addNode).toHaveBeenCalledWith('c1', expect.objectContaining({ name: 'node-02' })));
+    await waitFor(() => expect(clustersApi.addNode).toHaveBeenCalledWith('c1', expect.objectContaining({ name: 'node-02' })));
   });
 
   it('hides add form and delete buttons for viewers', async () => {
-    vi.spyOn(api, 'getCluster').mockResolvedValue(makeCluster());
+    vi.spyOn(clustersApi, 'getCluster').mockResolvedValue(makeCluster());
     renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'viewer' }) });
     await screen.findByText('pve-cluster-a');
     expect(screen.queryByLabelText(/^node name$/i)).not.toBeInTheDocument();
@@ -58,40 +58,40 @@ describe('ClusterDetailPage', () => {
   });
 
   it('requires confirmation before deleting a node', async () => {
-    vi.spyOn(api, 'getCluster').mockResolvedValue(makeCluster());
-    vi.spyOn(api, 'deleteNode').mockResolvedValue(null);
-    vi.spyOn(api, 'deleteCluster').mockResolvedValue(null);
+    vi.spyOn(clustersApi, 'getCluster').mockResolvedValue(makeCluster());
+    vi.spyOn(clustersApi, 'deleteNode').mockResolvedValue(null);
+    vi.spyOn(clustersApi, 'deleteCluster').mockResolvedValue(null);
     renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'editor' }) });
     await screen.findByText('pve-cluster-a');
     fireEvent.click(screen.getByRole('button', { name: /remove node node-01/i }));
     expect(await screen.findByRole('heading', { name: 'Remove node' })).toBeInTheDocument();
-    expect(api.deleteNode).not.toHaveBeenCalled();
+    expect(clustersApi.deleteNode).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
-    await waitFor(() => expect(api.deleteNode).toHaveBeenCalledWith('c1', 'n1'));
+    await waitFor(() => expect(clustersApi.deleteNode).toHaveBeenCalledWith('c1', 'n1'));
     fireEvent.click(screen.getByRole('button', { name: /delete cluster/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
-    await waitFor(() => expect(api.deleteCluster).toHaveBeenCalledWith('c1'));
+    await waitFor(() => expect(clustersApi.deleteCluster).toHaveBeenCalledWith('c1'));
     await waitFor(() => expect(hoisted.pushMock).toHaveBeenCalledWith('/clusters'));
   });
 
-  it('edits the cluster and calls api.updateCluster (editor)', async () => {
-    vi.spyOn(api, 'getCluster').mockResolvedValue(makeCluster());
-    vi.spyOn(api, 'updateCluster').mockResolvedValue(makeCluster());
+  it('edits the cluster and calls clustersApi.updateCluster (editor)', async () => {
+    vi.spyOn(clustersApi, 'getCluster').mockResolvedValue(makeCluster());
+    vi.spyOn(clustersApi, 'updateCluster').mockResolvedValue(makeCluster());
     renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'editor' }) });
     await screen.findByText('pve-cluster-a');
     fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
     fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'pve-cluster-a2' } });
     fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
-    await waitFor(() => expect(api.updateCluster).toHaveBeenCalledWith('c1', expect.objectContaining({ name: 'pve-cluster-a2' })));
+    await waitFor(() => expect(clustersApi.updateCluster).toHaveBeenCalledWith('c1', expect.objectContaining({ name: 'pve-cluster-a2' })));
   });
 
   it('renders an empty-nodes message and an error state', async () => {
-    vi.spyOn(api, 'getCluster').mockRejectedValueOnce(new Error('boom'));
+    vi.spyOn(clustersApi, 'getCluster').mockRejectedValueOnce(new Error('boom'));
     const { unmount } = renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'viewer' }) });
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     unmount();
 
-    vi.spyOn(api, 'getCluster').mockResolvedValue({ ...makeCluster(), nodes: [] });
+    vi.spyOn(clustersApi, 'getCluster').mockResolvedValue({ ...makeCluster(), nodes: [] });
     renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'viewer' }) });
     expect(await screen.findByText(/no nodes yet/i)).toBeInTheDocument();
   });
