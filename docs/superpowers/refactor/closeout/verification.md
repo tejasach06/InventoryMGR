@@ -25,6 +25,9 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 | Backend invariant collection after remediation | 9a99723 | 0 | `devbox run -- bash -lc 'cd backend && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest --collect-only -q' > /tmp/inventorymgr-backend-collect.txt`; closeout check printed `backend invariant coverage collected`; collect-only reported 21 tests and included csrf, rbac, audit, health, csv, storage, and cluster coverage terms. |
 | Frontend lint + typecheck | 00da8e3 | 0 | `devbox run -- bash -lc 'cd frontend && bun run lint && bun run typecheck'` passed: ESLint completed and `tsc --noEmit` completed. |
 | Frontend Vitest coverage | 00da8e3 | 1 | `devbox run -- bash -lc 'cd frontend && bun run test -- --coverage'` ran 37 test files / 251 tests, all tests passed, but coverage gate failed: statements 80.03%, lines 82.62%, functions 74.77%, branches 74.10%; required global threshold is 80% for each metric. Closeout stopped without frontend test/source fixes. |
+| Frontend lint + typecheck after coverage remediation | d5e6d24 | 0 | `devbox run -- bash -lc 'cd frontend && bun run lint && bun run typecheck'` passed: ESLint completed and `tsc --noEmit` completed. |
+| Frontend Vitest coverage after remediation | d5e6d24 | 0 | `devbox run -- bash -lc 'cd frontend && bun run test -- --coverage'` passed: 39 test files / 268 tests; coverage statements 87.25%, branches 80.13%, functions 83.22%, lines 90.00%, satisfying the configured 80% global thresholds. |
+| Frontend Playwright after coverage remediation | d5e6d24 | 1 | `devbox run -- bash -lc 'cd frontend && bunx playwright test --workers=1'` ran 21 tests: 20 passed, 1 failed. Failure: `e2e/performance.spec.ts:96:1` (`records production route performance`) asserted `PERF_OUTPUT is required`; closeout stopped before production build and later gates, with no source/test fixes applied. |
 
 ## Migration Gate
 
