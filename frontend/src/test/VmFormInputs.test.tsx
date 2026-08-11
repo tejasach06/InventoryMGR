@@ -115,7 +115,7 @@ describe('VmFormPage IP rows', () => {
 });
 
 describe('VmFormPage disk/network detail fields', () => {
-  it('submits disk name/storage/type and network vlan/gateway in the createVm payload', async () => {
+  it('submits disk name/storage/type and network role in the createVm payload', async () => {
     const create = vi.spyOn(api, 'createVm').mockResolvedValue(makeVm({ id: 'vm-new', name: 'multi' }));
     renderWithProviders(<VmFormPage mode="create" />);
 
@@ -130,8 +130,6 @@ describe('VmFormPage disk/network detail fields', () => {
     fireEvent.change(screen.getByLabelText('Disk 1 type'), { target: { value: 'thin' } });
 
     fireEvent.change(screen.getByLabelText('IP address 1'), { target: { value: '10.0.0.5' } });
-    fireEvent.change(screen.getByLabelText('VLAN 1'), { target: { value: '100' } });
-    fireEvent.change(screen.getByLabelText('Gateway 1'), { target: { value: '10.0.0.1' } });
 
     fireEvent.submit(screen.getByLabelText(/^Name/).closest('form') as HTMLFormElement);
 
@@ -141,7 +139,7 @@ describe('VmFormPage disk/network detail fields', () => {
       disk_name: 'os-disk', size_gb: 40, storage_name: 'ssd-pool', storage_type: 'thin', sort_order: 0,
     }]);
     expect(payload.networks).toEqual([{
-      ip_address: '10.0.0.5', role: 'private', vlan: 100, gateway: '10.0.0.1', sort_order: 0,
+      ip_address: '10.0.0.5', role: 'private', sort_order: 0,
     }]);
   });
 });

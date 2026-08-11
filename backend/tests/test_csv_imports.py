@@ -92,9 +92,9 @@ def test_csv_commit_uses_persisted_rows_and_rolls_back_when_later_upsert_fails(
     csrf = login(client, "editor@example.local")
     csv_content = "\n".join(
         [
-            "name,platform,cluster,status,cpu_cores,memory_mb,criticality,lifecycle",
-            "New VMware,vmware,vc-cluster,running,2,4096,medium,active",
-            "Manual Proxmox,proxmox,pve-cluster-a,running,6,12288,critical,active",
+            "name,platform,cluster,status,cpu_cores,memory_mb,criticality",
+            "New VMware,vmware,vc-cluster,running,2,4096,medium",
+            "Manual Proxmox,proxmox,pve-cluster-a,running,6,12288,critical",
         ]
     )
     preview = upload_csv(client, csrf, csv_content)
@@ -867,8 +867,7 @@ def test_vm_type_column_is_imported(client, db_session: Session) -> None:
     vm = db_session.scalar(select(Vm).where(Vm.name == "tmp-01"))
     assert vm is not None
     assert vm.vm_type.value == "temporary"
-    # _apply_vm_type_lifecycle: temporary + a decommission date means retiring.
-    assert vm.lifecycle.value == "retiring"
+    assert vm.decommission_date is not None
 
 
 def test_applications_column_creates_children_and_is_idempotent(
@@ -899,12 +898,12 @@ def test_applications_column_creates_children_and_is_idempotent(
         ("nginx", "web-team"),
         ("postgres", None),
     ]
-def test_extended_disk_and_ip_cells_are_parsed(client, db_session: Session) -> None:
+def test_extended_disk_and_plain_ip_cells_are_parsed(client, db_session: Session) -> None:
     user = create_user(db_session, email="editor@example.com", role=UserRole.editor)
     csrf = login(client, user.email)
     csv_bytes = (
         b"name,platform,cluster,disks,private_ip\n"
-        b"deep-01,proxmox,pve-cluster-01,scsi0:120:ssd-pool:thin,10.0.0.5:42:10.0.0.1\n"
+        b"deep-01,proxmox,pve-cluster-01,scsi0:120:ssd-pool:thin,10.0.0.5\n"
     )
 
     preview = client.post(
@@ -926,7 +925,26 @@ def test_extended_disk_and_ip_cells_are_parsed(client, db_session: Session) -> N
         "scsi0", 120, "ssd-pool", "thin",
     )
     network = vm.networks[0]
-    assert (network.ip_address, network.vlan, network.gateway) == ("10.0.0.5", 42, "10.0.0.1")
+    assert network.ip_address == "10.0.0.5"
+
+
+def test_colon_ip_cell_is_rejected(client, db_session: Session) -> None:
+    user = create_user(db_session, email="editor@example.com", role=UserRole.editor)
+    csrf = login(client, user.email)
+    csv_bytes = (
+        b"name,platform,cluster,private_ip\n"
+        b"old-01,proxmox,pve-cluster-01,10.0.0.5:42:10.0.0.1\n"
+    )
+
+    preview = client.post(
+        "/api/imports/preview",
+        files={"file": ("vms.csv", csv_bytes, "text/csv")},
+        headers=auth_headers(csrf),
+    ).json()
+
+    assert preview["rows"][0]["errors"] == [
+        {"field": "private_ip", "message": "must be IP addresses separated by ;"}
+    ]
 
 
 def test_short_disk_and_ip_forms_still_parse(client, db_session: Session) -> None:
@@ -952,7 +970,7 @@ def test_short_disk_and_ip_forms_still_parse(client, db_session: Session) -> Non
     )
     assert vm is not None
     assert (vm.disks[0].disk_name, vm.disks[0].size_gb, vm.disks[0].storage_name) == ("scsi0", 80, None)
-    assert (vm.networks[0].ip_address, vm.networks[0].vlan) == ("10.0.0.9", None)
+    assert vm.networks[0].ip_address == "10.0.0.9"
 
 
 def test_repo_sample_csv_previews_and_commits(client, db_session: Session) -> None:

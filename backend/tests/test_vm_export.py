@@ -26,7 +26,7 @@ def test_export_carries_values_and_children(client: TestClient, db_session: Sess
     vm = create_vm_row(db_session, user, name="ex-01", cpu_cores=6, memory_mb=8192)
     db_session.add_all([
         VmDisk(vm_id=vm.id, disk_name="scsi0", size_gb=120, storage_name="ssd", storage_type="thin"),
-        VmNetwork(vm_id=vm.id, ip_address="10.0.0.5", role="private", vlan=42, gateway="10.0.0.1"),
+        VmNetwork(vm_id=vm.id, ip_address="10.0.0.5", role="private"),
         VmApplication(vm_id=vm.id, app_name="nginx", app_owner="web-team"),
     ])
     db_session.commit()
@@ -38,7 +38,7 @@ def test_export_carries_values_and_children(client: TestClient, db_session: Sess
     row = next(csv.DictReader(io.StringIO(response.text)))
     assert row["cpu_cores"] == "6"
     assert row["disks"] == "scsi0:120:ssd:thin"
-    assert row["private_ip"] == "10.0.0.5:42:10.0.0.1"
+    assert row["private_ip"] == "10.0.0.5"
     assert row["applications"] == "nginx:web-team"
     assert row["monitoring_enabled"] in {"true", "false"}
 def test_xlsx_export_has_a_header_row_for_every_column(

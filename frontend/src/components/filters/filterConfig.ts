@@ -13,7 +13,6 @@ export const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfi
   status: { kind: 'multiSelect', options: ['running', 'powered_off', 'decommissioned', 'unknown'] as const },
   platform: { kind: 'multiSelect', options: ['proxmox', 'vmware'] as const },
   criticality: { kind: 'multiSelect', options: ['critical', 'high', 'medium', 'low'] as const },
-  lifecycle: { kind: 'multiSelect', options: ['active', 'planned', 'retiring', 'retired'] as const },
   environment: { kind: 'multiSelect', options: ['production', 'staging', 'uat', 'testing', 'development', 'dr', 'sandbox'] as const },
   cluster: { kind: 'dynamicMultiSelect' },
   node: { kind: 'dynamicMultiSelect' },
@@ -34,7 +33,6 @@ export const advancedFilterLabels: Record<AdvancedFilterName, string> = {
   status: 'Status',
   platform: 'Platform',
   criticality: 'Criticality',
-  lifecycle: 'Lifecycle',
   environment: 'Environment',
   cluster: 'Cluster',
   node: 'Node',
@@ -56,7 +54,7 @@ export const advancedFilterLabels: Record<AdvancedFilterName, string> = {
 export const filterGroups: { label: string; filters: AdvancedFilterName[] }[] = [
   { label: 'Core', filters: ['status', 'platform', 'criticality'] },
   { label: 'Infrastructure', filters: ['cluster', 'node', 'ip_role'] },
-  { label: 'Lifecycle & State', filters: ['lifecycle', 'health', 'shutdown_stale', 'decommission_overdue', 'missing_ip'] },
+  { label: 'State', filters: ['health', 'shutdown_stale', 'decommission_overdue', 'missing_ip'] },
   { label: 'Ownership & Environment', filters: ['environment', 'owner', 'os_family', 'application', 'tag'] },
   { label: 'Features', filters: ['monitoring_enabled', 'pmp_enabled'] },
 ];
@@ -85,7 +83,6 @@ export const emptyFilterState: Filters = {
   status: [],
   criticality: [],
   cluster: [],
-  lifecycle: [],
   environment: [],
   monitoring_enabled: [],
   node: [],
@@ -101,17 +98,16 @@ export const emptyFilterState: Filters = {
   missing_ip: [],
 };
 
-const chipTypeOverrides: Partial<Record<AdvancedFilterName, 'environment' | 'platform' | 'os_family' | 'lifecycle' | 'criticality'>> = {
+const chipTypeOverrides: Partial<Record<AdvancedFilterName, 'environment' | 'platform' | 'os_family' | 'criticality'>> = {
   criticality: 'criticality',
   platform: 'platform',
   environment: 'environment',
   os_family: 'os_family',
-  lifecycle: 'lifecycle',
 };
 
 /** Semantic colour family a chip should use; anything unmapped falls back to status. */
 export function chipTypeFor(
   name: AdvancedFilterName,
-): 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle' {
+): 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' {
   return chipTypeOverrides[name] ?? 'status';
 }

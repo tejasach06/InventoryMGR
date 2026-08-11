@@ -14,7 +14,6 @@ from app.api.deps import AdminUser, Csrf, DbSession, EditorUser, ViewerUser
 from app.db.models import (
     Criticality,
     Environment,
-    Lifecycle,
     NetworkRole,
     OsFamily,
     Platform,
@@ -62,7 +61,6 @@ class VmFilterParams:
     environment_op: FilterOperator = FilterOperator.eq
     criticality: Annotated[list[Criticality] | None, Query()] = None
     criticality_op: FilterOperator = FilterOperator.eq
-    lifecycle: Annotated[list[Lifecycle] | None, Query()] = None
     monitoring_enabled: bool | None = None
     monitoring_enabled_op: FilterOperator = FilterOperator.eq
     node: Annotated[list[str] | None, Query()] = None
@@ -162,12 +160,10 @@ _EXPORT_SCALAR_COLS = [
     "status",
     "environment",
     "criticality",
-    "lifecycle",
     "vm_type",
     "cpu_cores",
     "memory_mb",
     "os_family",
-    "os_name",
     "os_distribution",
     "os_version",
     "owner",
@@ -213,7 +209,7 @@ def _export_row(vm: Vm) -> dict[str, object]:
     )
     for header, role in IP_ROLE_HEADERS.items():
         row[header] = ";".join(
-            _join_fields(n.ip_address, n.vlan, n.gateway) for n in vm.networks if n.role == role
+            n.ip_address for n in vm.networks if n.role == role
         )
     row["applications"] = ";".join(
         _join_fields(a.app_name, a.app_owner) for a in vm.applications

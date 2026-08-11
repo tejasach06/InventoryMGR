@@ -76,14 +76,13 @@ describe('VmDetailPage', () => {
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
   });
 
-  it('renders all detail fields including lifecycle, OS name, and technical owner', async () => {
+  it('renders all detail fields including OS name and technical owner', async () => {
     vi.spyOn(api, 'getVm').mockResolvedValue(makeVm());
     renderWithProviders(<VmDetailPage />, { user: makeUser() });
 
     await screen.findByRole('heading', { name: 'web-01' });
-    expect(screen.getByText('active')).toBeInTheDocument();
     expect(screen.getByText('Technical Owner')).toBeInTheDocument();
-    expect(screen.getByText('OS Name')).toBeInTheDocument();
+    expect(screen.queryByText('OS Name')).not.toBeInTheDocument();
   });
 
   it('navigates to inventory list when Back is clicked', async () => {

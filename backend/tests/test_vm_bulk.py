@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import AuditLog, Vm
+from app.db.models import AuditLog, UserRole, Vm, compute_health_score
 from tests.conftest import auth_headers, create_user, create_vm_row, login
 
 
@@ -129,3 +129,19 @@ def test_empty_patch_is_rejected(client: TestClient, db_session: Session) -> Non
     )
 
     assert response.status_code == 422
+
+
+def test_template_vm_health_score_is_zero(db_session: Session) -> None:
+    user = create_user(db_session, email="template-health@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        user,
+        name="template-health",
+        tags=["Template"],
+        description="complete",
+        owner="ops",
+        monitoring_enabled=True,
+        decommission_date="2026-12-31",
+    )
+
+    assert compute_health_score(vm) == 0

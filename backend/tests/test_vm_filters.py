@@ -224,3 +224,18 @@ def test_missing_ip_filter_and_tag_parity(client, db_session: Session) -> None:
     res_false = client.get("/api/vms", params={"missing_ip": "false"})
     assert res_false.status_code == 200
     assert {item["name"] for item in res_false.json()["items"]} == {"has-ip-vm"}
+
+
+def test_health_filters_exclude_template_tagged_vms(client, db_session: Session) -> None:
+    editor = create_user(db_session, email="health-filter@example.local", role=UserRole.editor)
+    real = create_vm_row(db_session, editor, name="real-incomplete", tags=[])
+    template = create_vm_row(db_session, editor, name="template-incomplete", tags=["Template"])
+    real.health_score = 10
+    template.health_score = 0
+    db_session.commit()
+    login(client, "health-filter@example.local")
+
+    response = client.get("/api/vms", params={"health": "below_50"})
+
+    assert response.status_code == 200, response.text
+    assert {item["name"] for item in response.json()["items"]} == {"real-incomplete"}

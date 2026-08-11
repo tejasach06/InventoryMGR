@@ -23,7 +23,7 @@ const REPORTS: ReportDef[] = [
   { name: 'applications', label: 'Application Inventory', description: 'Guests with at least one linked app', suffix: 'VMs' },
   { name: 'owner', label: 'Owner Report', description: 'Distinct business/technical owners', suffix: 'owners', coverage: false },
   { name: 'pmp_access', label: 'PMP Access Report', description: 'VMs accessible via PMP', suffix: 'VMs' },
-  { name: 'lifecycle', label: 'Lifecycle Report', description: 'Guests with a decommission date set', suffix: 'scheduled', colorVar: 'var(--color-lifecycle-retiring)' },
+  { name: 'decommission', label: 'Decommission Report', description: 'Guests with a decommission date set', suffix: 'scheduled', colorVar: 'var(--color-status-powered_off)' },
 ];
 
 function DownloadIcon() {

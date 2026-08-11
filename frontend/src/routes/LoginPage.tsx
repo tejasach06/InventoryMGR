@@ -36,7 +36,7 @@ function AuthShell({ children }: { children: ReactNode }) {
         </div>
         <div className="relative">
           <h2 className="font-display text-5xl font-semibold leading-[1.05] tracking-[-0.02em]">Every virtual machine,<br />accounted for.</h2>
-          <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-white/85">A single source of truth for your Proxmox and VMware fleet — inventory, lifecycle, ownership, and bulk CSV import in one console.</p>
+          <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-white/85">A single source of truth for your Proxmox and VMware fleet — inventory, ownership, health, and bulk CSV import in one console.</p>
           <ul className="mt-8 space-y-3 text-sm text-white/80">
             {['Unified Proxmox + VMware inventory', 'Role-based access for every team', 'Preview-then-commit CSV import'].map((f) => (
               <li key={f} className="flex items-center gap-2.5">

@@ -140,7 +140,6 @@ def vm_payload(**overrides: Any) -> dict[str, Any]:
         "environment": "production",
         "cpu_cores": 4,
         "memory_mb": 8192,
-        "os_name": "Debian 12",
         "os_family": "linux",
         "owner": "ops",
         "description": "manual inventory",
@@ -148,7 +147,6 @@ def vm_payload(**overrides: Any) -> dict[str, Any]:
         "ha_enabled": True,
         "monitoring_enabled": False,
         "criticality": "high",
-        "lifecycle": "active",
         "tags": ["web", "prod-like"],
         "last_verified_at": "2026-06-13",
     }

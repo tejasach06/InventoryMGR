@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import HTTPException, status
 from psycopg.errors import UniqueViolation
 from sqlalchemy import Select, String, and_, case, cast, exists, func, literal_column, or_, select
+from sqlalchemy.dialects.postgresql import JSONPATH
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -13,7 +14,6 @@ from app.db.models import (
     AuditLog,
     Criticality,
     Environment,
-    Lifecycle,
     NetworkRole,
     OsFamily,
     Platform,
@@ -23,7 +23,6 @@ from app.db.models import (
     VmDisk,
     VmNetwork,
     VmStatus,
-    VmType,
     compute_health_score,
     now_utc,
 )
@@ -38,10 +37,6 @@ def _raise_identity_conflict(exc: IntegrityError) -> None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=IDENTITY_ERROR) from exc
     raise exc
 
-
-def _apply_vm_type_lifecycle(vm: Vm) -> None:
-    if vm.vm_type == VmType.temporary and vm.decommission_date is not None:
-        vm.lifecycle = Lifecycle.retiring
 
 
 def _sync_disks(db: Session, vm: Vm, disks: list[DiskCreate]) -> None:
@@ -67,8 +62,6 @@ def _sync_networks(db: Session, vm: Vm, networks: list[NetworkCreate]) -> None:
                 vm_id=vm.id,
                 ip_address=network.ip_address,
                 role=network.role,
-                vlan=network.vlan,
-                gateway=network.gateway,
                 sort_order=network.sort_order if network.sort_order is not None else i,
             )
         )
@@ -77,7 +70,6 @@ def _sync_networks(db: Session, vm: Vm, networks: list[NetworkCreate]) -> None:
 def create_vm(db: Session, payload: VmCreate, user: User, *, commit: bool = True) -> Vm:
     values = payload.model_dump(exclude={"disks", "networks"})
     vm = Vm(**values, created_by_id=user.id, updated_by_id=user.id)
-    _apply_vm_type_lifecycle(vm)
     db.add(vm)
     try:
         if commit:
@@ -120,7 +112,6 @@ def update_vm(db: Session, vm: Vm, payload: VmUpdate, user: User, *, commit: boo
         if old_value != new_value:
             changes[key] = (old_value, new_value)
         setattr(vm, key, new_value)
-    _apply_vm_type_lifecycle(vm)
     vm.updated_by_id = user.id
     if changes:
         _write_audit(db, vm, user, changes)
@@ -212,8 +203,6 @@ def clone_vm(db: Session, vm: Vm, user: User) -> Vm:
                 vm_id=cloned.id,
                 ip_address=net.ip_address,
                 role=net.role,
-                vlan=net.vlan,
-                gateway=net.gateway,
                 sort_order=net.sort_order,
             )
         )
@@ -268,6 +257,16 @@ def _op_condition(column, value: str, operator: FilterOperator, *, case_insensit
 SHUTDOWN_STALE_DAYS = 90
 
 
+
+
+def template_tag_condition():
+    path = cast('$[*] ? (@ like_regex "^template$" flag "i")', JSONPATH)
+    return func.jsonb_path_exists(Vm.tags, path)
+
+
+def non_template_condition():
+    return ~template_tag_condition()
+
 def shutdown_since_expr():
     """Latest moment a VM entered powered_off, falling back to creation."""
     last_off_time = (
@@ -319,7 +318,6 @@ def apply_vm_filters(
     environment_op: FilterOperator = FilterOperator.eq,
     criticality: list[Criticality] | None = None,
     criticality_op: FilterOperator = FilterOperator.eq,
-    lifecycle: list[Lifecycle] | None = None,
     monitoring_enabled: bool | None = None,
     monitoring_enabled_op: FilterOperator = FilterOperator.eq,
     node: list[str] | None = None,
@@ -372,7 +370,6 @@ def apply_vm_filters(
                 func.lower(func.coalesce(Vm.fqdn, "")).like(pattern),
                 func.lower(func.coalesce(Vm.external_id, "")).like(pattern),
                 func.lower(func.coalesce(Vm.sr_id, "")).like(pattern),
-                func.lower(func.coalesce(Vm.os_name, "")).like(pattern),
                 func.lower(func.coalesce(Vm.os_distribution, "")).like(pattern),
                 func.lower(func.coalesce(Vm.os_version, "")).like(pattern),
                 # ponytail: imprecise JSONB cast, fine for search
@@ -394,7 +391,6 @@ def apply_vm_filters(
         (environment, Vm.environment, environment_op),
         (criticality, Vm.criticality, criticality_op),
         (os_family, Vm.os_family, os_family_op),
-        (lifecycle, Vm.lifecycle, FilterOperator.eq),
         (node, Vm.node, node_op),
         (cluster, Vm.cluster, FilterOperator.eq),
     )
@@ -441,11 +437,11 @@ def apply_vm_filters(
         app_match = or_(*app_matches)
         stmt = stmt.where(~app_match if application_op == FilterOperator.neq else app_match)
     if health == "below_50":
-        stmt = stmt.where(Vm.health_score < 50)
+        stmt = stmt.where(Vm.health_score < 50, non_template_condition())
     elif health == "below_75":
-        stmt = stmt.where(Vm.health_score < 75)
+        stmt = stmt.where(Vm.health_score < 75, non_template_condition())
     elif health == "complete":
-        stmt = stmt.where(Vm.health_score >= 100)
+        stmt = stmt.where(Vm.health_score >= 100, non_template_condition())
     if shutdown_stale is not None:
         status_cond, age_cond = shutdown_stale_condition()
         match = and_(status_cond, age_cond)
@@ -491,7 +487,6 @@ SORT_COLUMNS: dict[str, Any] = {
     "cluster": Vm.cluster,
     "platform": Vm.platform,
     "environment": Vm.environment,
-    "lifecycle": Vm.lifecycle,
     "cpu_cores": Vm.cpu_cores,
     "memory_mb": Vm.memory_mb,
     "owner": Vm.owner,

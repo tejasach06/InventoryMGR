@@ -4,7 +4,6 @@ export type UserRole = 'admin' | 'editor' | 'viewer';
 export type Platform = 'proxmox' | 'vmware';
 export type VmStatus = 'running' | 'powered_off' | 'decommissioned' | 'unknown';
 export type Criticality = 'low' | 'medium' | 'high' | 'critical';
-export type Lifecycle = 'planned' | 'active' | 'retiring' | 'retired';
 export type VmType = 'permanent' | 'temporary';
 export type Environment = 'production' | 'development' | 'testing' | 'uat' | 'dr' | 'staging' | 'sandbox';
 export type ImportAction = 'create' | 'update' | 'unchanged' | 'conflict' | 'invalid';
@@ -59,8 +58,6 @@ export interface Network {
   vm_id: string;
   ip_address: string;
   role: NetworkRole;
-  vlan: number | null;
-  gateway: string | null;
   sort_order: number;
 }
 
@@ -97,12 +94,10 @@ export interface Vm {
   status: VmStatus;
   environment: Environment;
   criticality: Criticality;
-  lifecycle: Lifecycle;
   vm_type: VmType;
   cpu_cores: number;
   memory_mb: number;
   os_family: OsFamily | null;
-  os_name: string | null;
   os_distribution: string | null;
   os_version: string | null;
   owner: string | null;

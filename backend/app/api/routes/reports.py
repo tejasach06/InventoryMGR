@@ -30,8 +30,8 @@ REPORTS: dict[str, dict] = {
         "label": "PMP Access Report",
         "filter": lambda q: q.where(Vm.pmp_enabled == True),
     },
-    "lifecycle": {
-        "label": "Lifecycle Report",
+    "decommission": {
+        "label": "Decommission Report",
         "filter": lambda q: q.order_by(Vm.decommission_date.asc()),
     },
 }

@@ -120,15 +120,6 @@
   --color-os_family-windows: #2563eb;
   --color-os_family-windows-bg: #dbeafe;
 
-  /* Lifecycle */
-  --color-lifecycle-active: #059669;
-  --color-lifecycle-active-bg: #d1fae5;
-  --color-lifecycle-planned: #2563eb;
-  --color-lifecycle-planned-bg: #dbeafe;
-  --color-lifecycle-retiring: #d97706;
-  --color-lifecycle-retiring-bg: #fef3c7;
-  --color-lifecycle-retired: #64748b;
-  --color-lifecycle-retired-bg: #f1f5f9;
 }
 
 /* Height of the sticky mobile app header (Layout.tsx aside); 0 once the sidebar
@@ -271,14 +262,6 @@ html.dark {
   --color-os_family-windows: #60a5fa;
   --color-os_family-windows-bg: #10233b;
 
-  --color-lifecycle-active: #34d399;
-  --color-lifecycle-active-bg: #03291e;
-  --color-lifecycle-planned: #60a5fa;
-  --color-lifecycle-planned-bg: #10233b;
-  --color-lifecycle-retiring: #fbbf24;
-  --color-lifecycle-retiring-bg: #3a1a05;
-  --color-lifecycle-retired: #94a3b8;
-  --color-lifecycle-retired-bg: #161e28;
 }
 
 * {

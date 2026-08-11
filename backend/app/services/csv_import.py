@@ -33,8 +33,6 @@ REQUIRED_HEADERS_ORDER = ("name", "platform", "cluster")
 REQUIRED_HEADERS = set(REQUIRED_HEADERS_ORDER)
 
 # disks/networks are child collections expressed through CHILD_HEADERS instead.
-# vm_type is importable and intentionally drives lifecycle gating through
-# services/vms.py::_apply_vm_type_lifecycle, exactly as the VM form does.
 EXCLUDED_FROM_CSV = {"disks", "networks"}
 # One column per child type. Disks pair inline as name:size; IPs take their
 # role from the column name. Both split on ";", matching tags.
@@ -61,9 +59,9 @@ ALL_HEADERS = REQUIRED_HEADERS | OPTIONAL_HEADERS
 TEMPLATE_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("identity", ("name", "external_id", "fqdn", "sr_id")),
     ("placement", ("platform", "datacenter", "cluster", "node")),
-    ("classification", ("status", "environment", "criticality", "lifecycle", "vm_type")),
+    ("classification", ("status", "environment", "criticality", "vm_type")),
     ("capacity", ("cpu_cores", "memory_mb", "disks", "storage_name", "storage_type")),
-    ("operating system", ("os_family", "os_name", "os_distribution", "os_version")),
+    ("operating system", ("os_family", "os_distribution", "os_version")),
     ("network", ("private_ip", "public_ip", "backup_ip")),
     ("ownership", ("owner", "business_owner", "technical_owner", "applications")),
     (
@@ -103,7 +101,6 @@ TEMPLATE_SAMPLE_ROWS: tuple[dict[str, str], ...] = (
         "status": "running",
         "environment": "production",
         "criticality": "high",
-        "lifecycle": "active",
         "vm_type": "permanent",
         "cpu_cores": "4",
         "memory_mb": "8192",
@@ -111,10 +108,9 @@ TEMPLATE_SAMPLE_ROWS: tuple[dict[str, str], ...] = (
         "storage_name": "SAMPLE-SAN-01",
         "storage_type": "ssd",
         "os_family": "linux",
-        "os_name": "Ubuntu Server",
         "os_distribution": "ubuntu",
         "os_version": "22.04",
-        "private_ip": "10.20.30.41:100:10.20.30.1",
+        "private_ip": "10.20.30.41",
         "public_ip": "",
         "backup_ip": "",
         "owner": "infra-team",
@@ -146,7 +142,6 @@ TEMPLATE_SAMPLE_ROWS: tuple[dict[str, str], ...] = (
         "status": "powered_off",
         "environment": "testing",
         "criticality": "low",
-        "lifecycle": "retiring",
         "vm_type": "temporary",
         "cpu_cores": "2",
         "memory_mb": "4096",
@@ -154,10 +149,9 @@ TEMPLATE_SAMPLE_ROWS: tuple[dict[str, str], ...] = (
         "storage_name": "",
         "storage_type": "",
         "os_family": "windows",
-        "os_name": "Windows Server",
         "os_distribution": "",
         "os_version": "2022",
-        "private_ip": "10.20.31.52:120:10.20.31.1",
+        "private_ip": "10.20.31.52",
         "public_ip": "",
         "backup_ip": "",
         "owner": "qa-team",
@@ -190,7 +184,6 @@ ENUM_VALUES = {
     "status": {"running", "powered_off", "decommissioned", "unknown"},
     "environment": {"production", "development", "testing", "uat", "dr", "staging", "sandbox"},
     "criticality": {"low", "medium", "high", "critical"},
-    "lifecycle": {"planned", "active", "retiring", "retired"},
     "os_family": {"linux", "windows"},
     "vm_type": {"permanent", "temporary"},
 }
@@ -200,7 +193,6 @@ DEFAULTS: dict[str, Any] = {
     "cpu_cores": 0,
     "memory_mb": 0,
     "criticality": "medium",
-    "lifecycle": "active",
     "monitoring_enabled": False,
     "ha_enabled": False,
     "backup_enabled": False,
@@ -315,35 +307,26 @@ def _parse_disks(
     return disks
 
 
-# ponytail: IPv6 addresses contain colons and are therefore out of scope for this cell format; the VM form remains the path for them.
 def _parse_ips(
     row: dict[str, str], field: str, errors: list[dict[str, str]] | None = None
-) -> list[tuple[str, int | None, str | None]]:
-    """Parse `address[:vlan[:gateway]];…` into (address, vlan, gateway) tuples."""
+) -> list[str]:
+    """Parse a semicolon-separated IP address cell."""
     raw = str(row.get(field) or "").strip()
     if not raw:
         return []
-    entries: list[tuple[str, int | None, str | None]] = []
+    entries: list[str] = []
     for part in raw.split(";"):
         cleaned = part.strip()
         if not cleaned:
             continue
-        fields = [segment.strip() for segment in cleaned.split(":")]
-        if len(fields) > 3 or not fields[0]:
+        if ":" in cleaned:
             if errors is not None:
-                errors.append(_error(field, "must be address[:vlan[:gateway]] separated by ;"))
+                errors.append(_error(field, "must be IP addresses separated by ;"))
             return []
-        vlan_raw = fields[1] if len(fields) > 1 else ""
-        if vlan_raw and not vlan_raw.isdigit():
-            if errors is not None:
-                errors.append(_error(field, "vlan must be a non-negative integer"))
-            return []
-        entries.append((
-            fields[0],
-            int(vlan_raw) if vlan_raw else None,
-            (fields[2] or None) if len(fields) > 2 else None,
-        ))
+        entries.append(cleaned)
     return entries
+
+
 def _parse_applications(
     row: dict[str, str], field: str = "applications", errors: list[dict[str, str]] | None = None
 ) -> list[tuple[str, str | None]]:
@@ -392,7 +375,6 @@ STRING_HEADERS = (
     "datacenter",
     "node",
     "sr_id",
-    "os_name",
     "os_distribution",
     "os_version",
     "owner",
@@ -401,7 +383,7 @@ STRING_HEADERS = (
     "security_remarks",
     "backup_location",
 )
-ENUM_HEADERS = ("status", "environment", "criticality", "lifecycle", "os_family", "vm_type")
+ENUM_HEADERS = ("status", "environment", "criticality", "os_family", "vm_type")
 INT_HEADERS = ("cpu_cores", "memory_mb")
 BOOL_HEADERS = ("monitoring_enabled", "ha_enabled", "backup_enabled", "pmp_enabled")
 DATE_HEADERS = (
@@ -666,7 +648,7 @@ def diff_against_vm(
         seen_ips = {n.ip_address for n in vm.networks}
         for header in IP_ROLE_HEADERS:
             added_ips = []
-            for ip_address, _vlan, _gateway in _parse_ips(clean, header):
+            for ip_address in _parse_ips(clean, header):
                 if ip_address in seen_ips:
                     continue
                 seen_ips.add(ip_address)
@@ -736,7 +718,7 @@ def _attach_children(db: Session, vm: Vm, raw: dict[str, Any]) -> None:
     existing_ips = {n.ip_address for n in vm.networks}
     ip_order = len(vm.networks)
     for header, role in IP_ROLE_HEADERS.items():
-        for ip_address, vlan, gateway in _parse_ips(clean, header):
+        for ip_address in _parse_ips(clean, header):
             if ip_address in existing_ips:
                 continue
             existing_ips.add(ip_address)
@@ -745,8 +727,6 @@ def _attach_children(db: Session, vm: Vm, raw: dict[str, Any]) -> None:
                     vm_id=vm.id,
                     ip_address=ip_address,
                     role=role,
-                    vlan=vlan,
-                    gateway=gateway,
                     sort_order=ip_order,
                 )
             )

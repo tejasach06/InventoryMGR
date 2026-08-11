@@ -85,6 +85,14 @@ def test_dashboard_alerts(client, db_session):
         status="decommissioned",
         decommission_date=today - timedelta(days=5),
     )
+    vm_template_overdue = create_vm_row(
+        db_session,
+        user=user,
+        name="template-overdue-vm",
+        status="running",
+        tags=["template"],
+        decommission_date=today - timedelta(days=7),
+    )
 
     # 3. Missing IP: no networks
     net1 = VmNetwork(id=uuid.uuid4(), vm_id=vm_stale.id, ip_address="10.0.0.1")
@@ -127,6 +135,7 @@ def test_dashboard_alerts(client, db_session):
     overdue_ids = [item["id"] for item in decommission_overdue]
     assert str(vm_overdue.id) in overdue_ids
     assert str(vm_decommed.id) not in overdue_ids
+    assert str(vm_template_overdue.id) not in overdue_ids
     overdue_item = next(i for i in decommission_overdue if i["id"] == str(vm_overdue.id))
     assert overdue_item["days"] == 5
 
@@ -134,7 +143,7 @@ def test_dashboard_alerts(client, db_session):
     missing_ip = data["missing_ip"]
     missing_ids = [item["id"] for item in missing_ip]
     assert str(vm_no_ip.id) in missing_ids
-    assert str(vm_no_ip_backup.id) not in missing_ids
+    assert str(vm_no_ip_backup.id) in missing_ids
     assert str(vm_stale.id) not in missing_ids
 
     # Verify aggregates
@@ -145,3 +154,6 @@ def test_dashboard_alerts(client, db_session):
     assert "by_environment" in data
     assert "by_criticality" in data
     assert "by_os_family" in data
+    assert data["total"] == 6
+    assert data["without_monitoring"] == 6
+    assert data["powered_off"] == 2

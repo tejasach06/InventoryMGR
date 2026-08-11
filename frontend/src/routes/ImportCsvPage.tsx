@@ -9,7 +9,7 @@ import { cn } from '../lib/classNames';
 const actions: ImportAction[] = ['create', 'update', 'unchanged', 'conflict', 'invalid'];
 const actionTone: Record<ImportAction, BadgeTone> = {
   create: { type: 'status', value: 'running' },
-  update: { type: 'lifecycle', value: 'planned' },
+  update: { type: 'status', value: 'unknown' },
   unchanged: { type: 'neutral' },
   conflict: { type: 'criticality', value: 'high' },
   invalid: { type: 'criticality', value: 'critical' },

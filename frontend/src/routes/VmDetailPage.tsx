@@ -59,7 +59,7 @@ function Field({
   label: string;
   value: string | number | boolean | null | undefined;
   mono?: boolean;
-  badgeType?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle';
+  badgeType?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family';
   copyable?: boolean;
 }) {
   const display = value === null || value === undefined || value === ''
@@ -217,9 +217,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
   const [deleteNetworkId, setDeleteNetworkId] = useState<string | null>(null);
   const addMut = useMutation({
     mutationFn: (v: Record<string, string>) => api.addNetwork(vm.id, {
-      ip_address: v.ip_address, role: (v.role as NetworkRole) || 'private',
-      vlan: v.vlan ? Number(v.vlan) : null,
-      gateway: v.gateway || null, sort_order: vm.networks.length,
+      ip_address: v.ip_address, role: (v.role as NetworkRole) || 'private', sort_order: vm.networks.length,
     }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vm', vm.id] }),
   });
@@ -252,8 +250,6 @@ function NetworksPanel({ vm }: { vm: Vm }) {
               <tr>
                 <th scope="col" className="px-4 py-3">IP Address</th>
                 <th scope="col" className="px-4 py-3">Role</th>
-                <th scope="col" className="px-4 py-3">VLAN</th>
-                <th scope="col" className="px-4 py-3">Gateway</th>
                 <th scope="col" className="px-4 py-3" />
               </tr>
             </thead>
@@ -267,8 +263,6 @@ function NetworksPanel({ vm }: { vm: Vm }) {
                     </div>
                   </td>
                   <td className={cn(tableCellClass, 'capitalize text-[var(--color-text-secondary)]')}>{n.role}</td>
-                  <td className={cn(tableCellClass, 'font-mono tabular-nums text-[var(--color-text-secondary)]')}>{n.vlan ?? '—'}</td>
-                  <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-secondary)]')}>{n.gateway ?? '—'}</td>
                   <td className={tableCellClass}>
                     <button
                       type="button"
@@ -290,8 +284,6 @@ function NetworksPanel({ vm }: { vm: Vm }) {
       <AddRowForm fields={[
         { name: 'ip_address', placeholder: 'IP address' },
         { name: 'role', placeholder: 'IP role', options: ['private', 'public', 'backup'] as const },
-        { name: 'vlan', placeholder: 'VLAN', type: 'number' },
-        { name: 'gateway', placeholder: 'Gateway' },
       ]} onSubmit={(v) => addMut.mutate(v)} pending={addMut.isPending} />
       {addMut.isError && <Alert>{detailMessage(addMut.error)}</Alert>}
     </div>
@@ -485,7 +477,6 @@ export function VmDetailPage() {
               <Badge value={vm.platform} type="platform" size="md" />
               <Badge value={vm.environment} type="environment" size="md" />
               <Badge value={vm.criticality} type="criticality" size="md" />
-              {vm.lifecycle && <Badge value={vm.lifecycle} type="lifecycle" size="md" />}
               {vm.os_family && <Badge value={vm.os_family} type="os_family" size="md" />}
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -576,7 +567,6 @@ export function VmDetailPage() {
                   <Field label="Business Owner" value={vm.business_owner} />
                   <Field label="Technical Owner" value={vm.technical_owner} />
                   <Field label="OS Family" value={vm.os_family ? vm.os_family.charAt(0).toUpperCase() + vm.os_family.slice(1) : null} badgeType="os_family" />
-                  <Field label="OS Name" value={vm.os_name} />
                   <Field label="Distribution / Version" value={`${vm.os_distribution ?? '—'} ${vm.os_version ?? ''}`} />
                 </dl>
               </SectionCard>

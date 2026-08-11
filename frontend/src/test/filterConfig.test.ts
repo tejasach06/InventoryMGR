@@ -58,7 +58,6 @@ describe('filterConfig', () => {
   it('maps filters to semantic chip colours', () => {
     expect(chipTypeFor('environment')).toBe('environment');
     expect(chipTypeFor('os_family')).toBe('os_family');
-    expect(chipTypeFor('lifecycle')).toBe('lifecycle');
     expect(chipTypeFor('health')).toBe('status');
     expect(chipTypeFor('owner')).toBe('status');
   });

@@ -21,16 +21,9 @@ def test_lists_within_window_and_overdue(client, db_session):
     assert names["soon"]["unread"] is True
 
 
-def test_excludes_retired_and_decommissioned(client, db_session):
+def test_excludes_decommissioned(client, db_session):
     user = create_user(db_session, email="v2@example.com", role=UserRole.viewer)
     today = date.today()
-    create_vm_row(
-        db_session,
-        user,
-        name="retired",
-        decommission_date=today + timedelta(days=1),
-        lifecycle="retired",
-    )
     create_vm_row(
         db_session,
         user,

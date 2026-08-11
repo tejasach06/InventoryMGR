@@ -45,20 +45,20 @@ export const tableCellClass = 'whitespace-nowrap px-4 py-3 text-[var(--color-tex
 export const monoClass = 'tech text-[0.8125rem] text-[var(--color-text-secondary)]';
 
 /* Semantic color helpers — use inline styles with CSS variables */
-export function semanticBg(type: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle', value: string) {
+export function semanticBg(type: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family', value: string) {
   return { backgroundColor: `var(--color-${type}-${value}-bg)` } as React.CSSProperties;
 }
-export function semanticFg(type: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle', value: string) {
+export function semanticFg(type: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family', value: string) {
   return { color: `var(--color-${type}-${value})` } as React.CSSProperties;
 }
-export function semanticBorder(type: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle', value: string) {
+export function semanticBorder(type: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family', value: string) {
   return { borderColor: `var(--color-${type}-${value})` } as React.CSSProperties;
 }
 
 
 
 /* Badge with explicit semantic color and a safe neutral fallback. */
-export type SemanticType = 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle';
+export type SemanticType = 'status' | 'criticality' | 'environment' | 'platform' | 'os_family';
 export type BadgeTone = { type: SemanticType; value: string } | { type: 'neutral' };
 
 const semanticValues: Record<SemanticType, ReadonlySet<string>> = {
@@ -67,7 +67,6 @@ const semanticValues: Record<SemanticType, ReadonlySet<string>> = {
   environment: new Set(['production', 'staging', 'uat', 'testing', 'development', 'dr', 'sandbox']),
   platform: new Set(['proxmox', 'vmware']),
   os_family: new Set(['linux', 'windows']),
-  lifecycle: new Set(['active', 'planned', 'retiring', 'retired']),
 };
 
 export function Badge({
@@ -516,7 +515,7 @@ export function ProgressBar({ value, label, colorVar = 'var(--color-text-seconda
 }
 
 /* Chip for filter bar */
-export function FilterChip({ label, value, onRemove, type = 'status' }: { label: string; value: string; onRemove: () => void; type?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' | 'lifecycle' }) {
+export function FilterChip({ label, value, onRemove, type = 'status' }: { label: string; value: string; onRemove: () => void; type?: 'status' | 'criticality' | 'environment' | 'platform' | 'os_family' }) {
   const normalized = value.toLowerCase().replace(/\s+/g, '_');
   return (
     <span
