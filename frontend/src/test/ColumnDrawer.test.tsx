@@ -69,4 +69,30 @@ describe('ColumnDrawer', () => {
     fireEvent.drop(rows[0], { dataTransfer });
     expect(props.onReorder).toHaveBeenCalledWith('fqdn', 'name');
   });
+
+  it('moves rows with arrow buttons and disables boundary moves', async () => {
+    const props = renderDrawer();
+    expect(screen.getByRole('button', { name: 'Move Name up' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move FQDN down' })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Move Cluster up' }));
+    expect(props.onReorder).toHaveBeenCalledWith('cluster', 'name');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Move Cluster down' }));
+    expect(props.onReorder).toHaveBeenCalledWith('cluster', 'fqdn');
+  });
+
+  it('uses raw keys for unknown column labels and does not reorder when dropped on itself', () => {
+    const props = renderDrawer({ columns: [{ key: 'custom_field', visible: true, order: 0 }] });
+    expect(screen.getByLabelText('custom_field')).toBeChecked();
+    expect(screen.getByText('1 of 1 columns shown. Drag or use arrow buttons to reorder.')).toBeInTheDocument();
+
+    const row = screen.getByRole('listitem');
+    const dataTransfer = { effectAllowed: '', dropEffect: '', setData: vi.fn(), getData: () => 'custom_field' };
+    fireEvent.dragStart(row, { dataTransfer });
+    fireEvent.dragOver(row, { dataTransfer });
+    fireEvent.drop(row, { dataTransfer });
+    expect(props.onReorder).not.toHaveBeenCalled();
+  });
+
 });

@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_COLUMNS, mergeWithDefaults } from '../hooks/useColumnPreferences';
+import { ApiError } from '../api/core';
+import { settings as settingsApi } from '../api/settings';
+import { DEFAULT_COLUMNS, mergeWithDefaults, useColumnPreferences } from '../hooks/useColumnPreferences';
 
 describe('mergeWithDefaults', () => {
   it('appends newly added columns as hidden after saved ones', () => {
@@ -47,5 +50,68 @@ describe('mergeWithDefaults', () => {
     });
     // Nothing the user could not see before becomes visible.
     expect(merged.filter((c) => c.visible).map((c) => c.key)).toEqual(['name', 'private_ip']);
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('useColumnPreferences', () => {
+  it('loads saved columns, merges defaults, and exposes visible columns sorted by order', async () => {
+    vi.spyOn(settingsApi, 'getColumnPreferences').mockResolvedValue({
+      columns: [
+        { key: 'status', visible: true, order: 2 },
+        { key: 'name', visible: true, order: 1 },
+      ],
+    });
+
+    const { result } = renderHook(() => useColumnPreferences('inventory'));
+
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.columns.map((c) => c.key)).toContain('fqdn');
+    expect(result.current.visibleColumns.map((c) => c.key)).toEqual(['name', 'status']);
+  });
+
+  it('reports load failures using the API detail message', async () => {
+    vi.spyOn(settingsApi, 'getColumnPreferences').mockRejectedValue(new ApiError(500, 'Prefs unavailable'));
+
+    const { result } = renderHook(() => useColumnPreferences('inventory'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe('Prefs unavailable');
+  });
+
+  it('toggles a column and reports debounced save failures', async () => {
+    vi.spyOn(settingsApi, 'getColumnPreferences').mockResolvedValue({ columns: DEFAULT_COLUMNS });
+    vi.spyOn(settingsApi, 'updateColumnPreferences').mockRejectedValue(new ApiError(400, 'Save failed'));
+    const { result } = renderHook(() => useColumnPreferences('inventory'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.toggleColumn('fqdn'));
+    expect(result.current.columns.find((c) => c.key === 'fqdn')?.visible).toBe(true);
+
+    await waitFor(() => expect(result.current.error).toBe('Save failed'));
+    expect(settingsApi.updateColumnPreferences).toHaveBeenCalledWith('inventory', expect.arrayContaining([expect.objectContaining({ key: 'fqdn', visible: true })]));
+  });
+
+  it('reorders columns, ignores invalid moves, and resets to defaults', async () => {
+    vi.spyOn(settingsApi, 'getColumnPreferences').mockResolvedValue({ columns: DEFAULT_COLUMNS });
+    const saveSpy = vi.spyOn(settingsApi, 'updateColumnPreferences').mockResolvedValue({ columns: DEFAULT_COLUMNS });
+    const { result } = renderHook(() => useColumnPreferences('inventory'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.reorderColumns('missing', 'name'));
+    act(() => result.current.reorderColumns('name', 'name'));
+    expect(saveSpy).not.toHaveBeenCalled();
+
+    act(() => result.current.reorderColumns('status', 'name'));
+    expect(result.current.columns[0].key).toBe('status');
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+
+    act(() => result.current.resetToDefault());
+    expect(result.current.columns).toEqual(DEFAULT_COLUMNS);
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(2));
   });
 });
