@@ -1,4 +1,5 @@
 import { PAGE_SIZES } from '../components/PaginationFooter';
+export { PAGE_SIZES };
 
 export const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
 export const advancedFilterNames = [
