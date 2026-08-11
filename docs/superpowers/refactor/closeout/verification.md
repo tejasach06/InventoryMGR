@@ -47,6 +47,9 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 
 | Metric | Accepted baseline | Closeout result | Change | Decision |
 |---|---:|---:|---:|---|
+| Backend endpoint benchmark command | 30 samples each for `dashboard`, `reports_summary`, `vm_list`; query-count/timing sample schema must match baseline | Exit 0 at `c617510`; `devbox run -- bash -lc 'cd backend && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" PERF_OUTPUT=../docs/superpowers/refactor/closeout/raw/backend-performance.json uv run pytest -q tests/performance/test_endpoint_performance.py'` passed 1 test with 4 warnings | Sample command completed | PASS evidence collected locally; raw output not committed |
+| Frontend bundle gzip bytes | 355436 | 355483 at `c617510` from clean `bun run build` and deterministic gzip chunk summary | +47 bytes (+0.013%) | BLOCKER: deterministic bundle-byte increase violates no-worse-than-baseline performance gate |
+| Frontend production route benchmark command | 15 samples each for `/dashboard`, `/reports`, `/inventory` | Exit 1 at `c617510`; `PERF_OUTPUT=../docs/superpowers/refactor/closeout/raw/frontend-performance.json BASE_URL=http://127.0.0.1:3000 bunx playwright test e2e/performance.spec.ts --project=chromium --workers=1` failed before samples | No normalized candidate produced | BLOCKER: login attempts returned Internal Server Error; `/tmp/inventorymgr-perf-api.log` shows `psycopg.errors.UndefinedTable: relation "users" does not exist` |
 
 ## Documentation Consistency
 
