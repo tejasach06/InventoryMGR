@@ -23,6 +23,8 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 | Backend invariant collection | e77ff54 | 1 | `devbox run -- bash -lc 'cd backend && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest --collect-only -q' > /tmp/inventorymgr-backend-collect.txt` collected backend tests, but the required closeout coverage check failed: `backend invariant coverage not collected: rbac, storage, cluster`. Closeout stopped at this historical failed coverage check without adding tests during closeout. |
 | Backend Ruff + Pytest final closeout rerun | 9a99723 | 0 | Parent verified `devbox run -- bash -lc 'cd backend && uv run ruff check app tests && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest'`: Ruff passed; Pytest collected 21 items with 20 passed and 1 skipped. |
 | Backend invariant collection after remediation | 9a99723 | 0 | `devbox run -- bash -lc 'cd backend && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest --collect-only -q' > /tmp/inventorymgr-backend-collect.txt`; closeout check printed `backend invariant coverage collected`; collect-only reported 21 tests and included csrf, rbac, audit, health, csv, storage, and cluster coverage terms. |
+| Frontend lint + typecheck | 00da8e3 | 0 | `devbox run -- bash -lc 'cd frontend && bun run lint && bun run typecheck'` passed: ESLint completed and `tsc --noEmit` completed. |
+| Frontend Vitest coverage | 00da8e3 | 1 | `devbox run -- bash -lc 'cd frontend && bun run test -- --coverage'` ran 37 test files / 251 tests, all tests passed, but coverage gate failed: statements 80.03%, lines 82.62%, functions 74.77%, branches 74.10%; required global threshold is 80% for each metric. Closeout stopped without frontend test/source fixes. |
 
 ## Migration Gate
 
