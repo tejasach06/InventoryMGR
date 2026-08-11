@@ -6,7 +6,7 @@ import { Drawer, labelClass, secondaryButtonClass } from '../ui';
 import { FuzzyMultiSelect } from '../FuzzyMultiSelect';
 import { SegmentedControl } from '../SegmentedControl';
 import { cn } from '../../lib/classNames';
-import type { Filters } from '../../routes/InventoryPage';
+import type { Filters } from '../../lib/inventoryFilters';
 import {
   advancedFilterConfig,
   advancedFilterLabels,

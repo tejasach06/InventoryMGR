@@ -17,7 +17,6 @@ const dockerMode = !!process.env.BASE_URL;
 
 export default defineConfig({
   testDir: './e2e',
-  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

@@ -85,6 +85,8 @@ function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
 function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clusters: string[]; canEdit: boolean }) {
   const [showAddLun, setShowAddLun] = useState(false);
   const [showAddShare, setShowAddShare] = useState(false);
+  const [confirmLunId, setConfirmLunId] = useState<string | null>(null);
+  const [confirmShareId, setConfirmShareId] = useState<string | null>(null);
   const qc = useQueryClient();
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['array', volume.array_id] });
@@ -99,7 +101,11 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
     }),
     onSuccess: invalidate,
   });
-  const delLun = useMutation({ mutationFn: (id: string) => storageApi.deleteLun(volume.id, id), onSuccess: invalidate });
+  const delLun = useMutation({
+    mutationFn: (id: string) => storageApi.deleteLun(volume.id, id),
+    onSuccess: invalidate,
+    onSettled: () => setConfirmLunId(null),
+  });
   const addShare = useMutation({
     mutationFn: (v: Record<string, string>) => storageApi.addShare(volume.id, {
       export_path: v.export_path, used_gb: v.used_gb ? Number(v.used_gb) : null,
@@ -107,7 +113,11 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
     }),
     onSuccess: invalidate,
   });
-  const delShare = useMutation({ mutationFn: (id: string) => storageApi.deleteShare(volume.id, id), onSuccess: invalidate });
+  const delShare = useMutation({
+    mutationFn: (id: string) => storageApi.deleteShare(volume.id, id),
+    onSuccess: invalidate,
+    onSettled: () => setConfirmShareId(null),
+  });
   const [confirmDelVolume, setConfirmDelVolume] = useState(false);
   const delVolume = useMutation({
     mutationFn: () => storageApi.deleteVolume(volume.array_id, volume.id),
@@ -129,6 +139,26 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
         pending={delVolume.isPending}
         onConfirm={() => delVolume.mutate()}
         onCancel={() => setConfirmDelVolume(false)} />
+      <ConfirmDialog
+        open={confirmLunId !== null}
+        title="Remove LUN"
+        body="This removes the record from the inventory. Audit history is retained."
+        confirmLabel="Remove"
+        tone="danger"
+        pending={delLun.isPending}
+        onConfirm={() => confirmLunId && delLun.mutate(confirmLunId)}
+        onCancel={() => setConfirmLunId(null)}
+      />
+      <ConfirmDialog
+        open={confirmShareId !== null}
+        title="Remove share"
+        body="This removes the record from the inventory. Audit history is retained."
+        confirmLabel="Remove"
+        tone="danger"
+        pending={delShare.isPending}
+        onConfirm={() => confirmShareId && delShare.mutate(confirmShareId)}
+        onCancel={() => setConfirmShareId(null)}
+      />
       <div className="mt-3">
         <UsageBar pct={volume.used_pct} over={volume.over_threshold} />
         <p className={cn(monoClass, 'mt-1 text-xs tabular-nums text-[var(--color-text-tertiary)]')}>{volume.used_gb} / {volume.capacity_gb} GB</p>
@@ -143,6 +173,7 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
             </button>
           )}
         </div>
+        {delLun.isError && <Alert>{detailMessage(delLun.error)}</Alert>}
         {volume.luns.length === 0 ? <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">No LUNs.</p> : (
           <div className="mt-1 overflow-x-auto rounded-lg border border-[var(--color-border)]">
             <table className={tableClass}>
@@ -159,7 +190,7 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
                     <td className={tableCellClass}>{l.cluster ?? '—'}</td>
                     <td className={cn(tableCellClass, monoClass)}>{l.target_iqn ?? '—'}</td>
                     <td className={tableCellClass}>{l.status ?? '—'}</td>
-                    <td className={tableCellClass}>{canEdit && <RemoveButton onClick={() => delLun.mutate(l.id)} label={`Remove LUN ${l.name}`} />}</td>
+                    <td className={tableCellClass}>{canEdit && <RemoveButton onClick={() => setConfirmLunId(l.id)} label={`Remove LUN ${l.name}`} disabled={delLun.isPending && confirmLunId === l.id} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -187,6 +218,7 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
             </button>
           )}
         </div>
+        {delShare.isError && <Alert>{detailMessage(delShare.error)}</Alert>}
         {volume.shares.length === 0 ? <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">No shares.</p> : (
           <div className="mt-1 overflow-x-auto rounded-lg border border-[var(--color-border)]">
             <table className={tableClass}>
@@ -201,7 +233,7 @@ function VolumePanel({ volume, clusters, canEdit }: { volume: StorageVolume; clu
                     <td className={cn(tableCellClass, monoClass)}>{s.export_path}</td>
                     <td className={cn(tableCellClass, monoClass, 'tabular-nums')}>{s.used_gb ?? '—'}</td>
                     <td className={tableCellClass}>{s.allowed_clients ?? '—'}</td>
-                    <td className={tableCellClass}>{canEdit && <RemoveButton onClick={() => delShare.mutate(s.id)} label={`Remove share ${s.export_path}`} />}</td>
+                    <td className={tableCellClass}>{canEdit && <RemoveButton onClick={() => setConfirmShareId(s.id)} label={`Remove share ${s.export_path}`} disabled={delShare.isPending && confirmShareId === s.id} />}</td>
                   </tr>
                 ))}
               </tbody>

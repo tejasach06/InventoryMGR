@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { AppNav, buildNavItems, canSeeUsers } from '../components/AppNav';
 import type { ImportBatch } from '../api/types';
 import { summarizePreview } from '../routes/ImportCsvPage';
-import { ThemeProvider, ThemeSelect, THEME_STORAGE_KEY, resolveThemePreference } from '../components/ThemeProvider';
+import { ThemeProvider, ThemeSegmented, ThemeSelect, THEME_STORAGE_KEY, resolveThemePreference } from '../components/ThemeProvider';
 
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(() => '/users'),
@@ -123,33 +123,38 @@ describe('theme controls', () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, 'dark');
     mockMatchMedia(false);
 
-    render(createElement(ThemeProvider, null, createElement(ThemeSelect)));
+    render(createElement(ThemeProvider, null, createElement(ThemeSegmented)));
 
     await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
     expect(document.documentElement.style.colorScheme).toBe('dark');
-    expect(screen.getByLabelText('Theme')).toHaveValue('dark');
+    // ThemeSegmented is a radiogroup with buttons, check the active button
+    const darkButton = screen.getByLabelText('Dark theme');
+    expect(darkButton).toHaveAttribute('aria-checked', 'true');
   });
 
   it('stores explicit light theme and persists an explicit system theme', async () => {
     mockMatchMedia(true);
-    render(createElement(ThemeProvider, null, createElement(ThemeSelect)));
+    render(createElement(ThemeProvider, null, createElement(ThemeSegmented)));
 
     await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
-    const select = screen.getByLabelText('Theme') as HTMLSelectElement;
-
-    fireEvent.change(select, { target: { value: 'light' } });
+    // Click the Light theme button
+    const lightButton = screen.getByLabelText('Light theme');
+    fireEvent.click(lightButton);
 
     await waitFor(() => expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('light'));
     await waitFor(() => expect(document.documentElement).not.toHaveClass('dark'));
     expect(document.documentElement.style.colorScheme).toBe('light');
 
-    fireEvent.change(select, { target: { value: 'system' } });
+    // Click the System theme button
+    const systemButton = screen.getByLabelText('System theme');
+    fireEvent.click(systemButton);
 
     // Dark is the product default, so an explicit 'system' choice is persisted (not
     // removed) to remain distinguishable from the default and keep following the OS.
     await waitFor(() => expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('system'));
     await waitFor(() => expect(document.documentElement).toHaveClass('dark'));
     expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(systemButton).toHaveAttribute('aria-checked', 'true');
   });
 
   it('forces dark on the login route despite a stored light preference', async () => {

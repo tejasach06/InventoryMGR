@@ -1,7 +1,7 @@
 'use client';
 
 import { FilterChip } from '../ui';
-import type { Filters, FilterName } from '../../routes/InventoryPage';
+import type { Filters, FilterName } from '../../lib/inventoryFilters';
 import { advancedFilterConfig, advancedFilterLabels, type AdvancedFilterName } from './filterConfig';
 
 export function ActiveFilterChips({

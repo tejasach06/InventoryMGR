@@ -57,13 +57,16 @@ describe('ClusterDetailPage', () => {
     expect(screen.queryByRole('button', { name: /remove node/i })).not.toBeInTheDocument();
   });
 
-  it('deletes a node and the cluster (editor)', async () => {
+  it('requires confirmation before deleting a node', async () => {
     vi.spyOn(clustersApi, 'getCluster').mockResolvedValue(makeCluster());
     vi.spyOn(clustersApi, 'deleteNode').mockResolvedValue(null);
     vi.spyOn(clustersApi, 'deleteCluster').mockResolvedValue(null);
     renderWithProviders(<ClusterDetailPage />, { user: makeUser({ role: 'editor' }) });
     await screen.findByText('pve-cluster-a');
     fireEvent.click(screen.getByRole('button', { name: /remove node node-01/i }));
+    expect(await screen.findByRole('heading', { name: 'Remove node' })).toBeInTheDocument();
+    expect(clustersApi.deleteNode).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
     await waitFor(() => expect(clustersApi.deleteNode).toHaveBeenCalledWith('c1', 'n1'));
     fireEvent.click(screen.getByRole('button', { name: /delete cluster/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));

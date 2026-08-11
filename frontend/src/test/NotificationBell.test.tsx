@@ -30,7 +30,7 @@ describe('NotificationBell', () => {
     expect(screen.queryByTestId('notif-badge')).toBeNull();
   });
 
-  it('opens panel, lists VMs, marks overdue red, and acks on open', async () => {
+  it('marks every alert read only after explicit confirmation', async () => {
     renderWithProviders(<NotificationBell />);
     expect(await screen.findByTestId('notif-badge')).toHaveTextContent('1');
     fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
@@ -50,6 +50,12 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(screen.queryByText('web-01')).toBeNull());
     expect(screen.getByText('db-02')).toBeInTheDocument();
     expect(vmsApi.ackDecommissions).toHaveBeenCalledWith(['1']);
+  });
+
+  it('left-aligns its panel when used in sidebar chrome', async () => {
+    renderWithProviders(<NotificationBell />);
+    fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
+    expect(await screen.findByRole('menu')).toHaveClass('left-0');
   });
 
   it('closes panel on outside click and Escape key', async () => {

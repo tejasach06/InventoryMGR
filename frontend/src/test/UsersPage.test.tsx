@@ -141,7 +141,9 @@ describe('UsersPanel update flow', () => {
     expect(row).not.toBeNull();
     const scoped = within(row as HTMLElement);
     fireEvent.click(scoped.getByRole('checkbox'));
-    fireEvent.click(scoped.getByRole('button', { name: 'Save' }));
+    fireEvent.click(scoped.getByRole('button', { name: 'Review access change' }));
+    expect(await screen.findByRole('heading', { name: 'Review access change' })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
       expect(updateSpy).toHaveBeenCalledWith('u1', { role: 'editor', is_active: false }),
@@ -165,7 +167,9 @@ describe('UsersPanel update flow', () => {
     expect(cardRoot).not.toBeNull();
     const scoped = within(cardRoot as HTMLElement);
     fireEvent.change(scoped.getByLabelText('Role'), { target: { value: 'admin' } });
-    fireEvent.click(scoped.getByRole('button', { name: 'Save' }));
+    fireEvent.click(scoped.getByRole('button', { name: 'Review access change' }));
+    expect(await screen.findByRole('heading', { name: 'Review access change' })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
       expect(updateSpy).toHaveBeenCalledWith('u1', { role: 'admin', is_active: true }),
