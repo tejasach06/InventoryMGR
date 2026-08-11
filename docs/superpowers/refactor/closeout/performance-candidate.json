@@ -1,0 +1,97 @@
+{
+  "backend": {
+    "endpoints": {
+      "dashboard": {
+        "duration_cv": 0.06072806113258153,
+        "median_duration_ms": 12.36131,
+        "median_queries": 10.0,
+        "timing_stable": false
+      },
+      "reports_summary": {
+        "duration_cv": 0.05273068600066755,
+        "median_duration_ms": 6.026878,
+        "median_queries": 10.0,
+        "timing_stable": false
+      },
+      "vm_list": {
+        "duration_cv": 0.051695014814100874,
+        "median_duration_ms": 9.980979999999999,
+        "median_queries": 6.0,
+        "timing_stable": false
+      }
+    },
+    "metadata": {
+      "backend_samples": 30,
+      "backend_warmups": 5,
+      "git_commit": "1ce06ce0ee0c24855010c6bf6480ab06fe90642c",
+      "vm_count": 200
+    }
+  },
+  "frontend": {
+    "bundle_gzip_bytes": 355483,
+    "chunks": {
+      "static/chunks/05sw5j20iis5d.js": 4183,
+      "static/chunks/06p-fe2prblwq.js": 5445,
+      "static/chunks/08ngk7jd9r8te.js": 1455,
+      "static/chunks/08otzgclqll8w.js": 7259,
+      "static/chunks/0bo5jcwirlqkt.js": 8682,
+      "static/chunks/0cz1d0mv5g_q7.js": 39373,
+      "static/chunks/0hdu95rc69daj.js": 7964,
+      "static/chunks/0omryj17_3iqs.js": 2336,
+      "static/chunks/1efdg_1ii7480.js": 3947,
+      "static/chunks/1f_n3vhsvw-mr.js": 38544,
+      "static/chunks/1lgx7orqxi4ac.js": 9198,
+      "static/chunks/1wa-onnz0t_kq.js": 9095,
+      "static/chunks/2-mwupprnoo64.js": 300,
+      "static/chunks/27junk_50k-sg.js": 3356,
+      "static/chunks/2ajl5nqtzrvi2.js": 12826,
+      "static/chunks/2hqpb4c3xa-c0.js": 9349,
+      "static/chunks/2i5kv_-sn7vuu.js": 1733,
+      "static/chunks/2jb_djiz-uoqb.js": 13144,
+      "static/chunks/33erbmmez29--.js": 4459,
+      "static/chunks/37nkffpio035t.js": 1857,
+      "static/chunks/3jmpfzapa88q0.js": 7706,
+      "static/chunks/3so_4qca-vfe7.js": 5520,
+      "static/chunks/3u8c3l_pgidh2.js": 13036,
+      "static/chunks/3uwl6gr0lm3rc.js": 70835,
+      "static/chunks/3zywzoi0fzi43.js": 69725,
+      "static/chunks/turbopack-3-__4hw1-oes6.js": 4156
+    },
+    "metadata": {
+      "base_url": "http://127.0.0.1:3000",
+      "frontend_samples": 15,
+      "frontend_warmups": 3
+    },
+    "routes": {
+      "/dashboard": {
+        "duration_cv": 0.047349315226999145,
+        "median_duration_ms": 31.600000001490116,
+        "median_transfer_bytes": 869996.0,
+        "timing_stable": true
+      },
+      "/inventory": {
+        "duration_cv": 0.06501359143128553,
+        "median_duration_ms": 32.69999999925494,
+        "median_transfer_bytes": 1176584.0,
+        "timing_stable": false
+      },
+      "/reports": {
+        "duration_cv": 0.13858997596746442,
+        "median_duration_ms": 30.099999997764826,
+        "median_transfer_bytes": 869792.0,
+        "timing_stable": false
+      }
+    }
+  },
+  "metadata": {
+    "approved_bundle_byte_tradeoff": "Next.js 16.2.9 -> 16.2.11 security remediation required for just audit; deterministic gzip bundle increased by 47 bytes (+0.013%) with no source-code behavior change.",
+    "approved_transfer_byte_tradeoff": "Next.js 16.2.9 -> 16.2.11 security remediation required for just audit; measured production route transfer bytes increased by 138 bytes with no source-code behavior change.",
+    "backend_raw_commit": "1ce06ce0ee0c24855010c6bf6480ab06fe90642c",
+    "backend_samples": 30,
+    "backend_warmups": 5,
+    "frontend_samples": 15,
+    "frontend_warmups": 3,
+    "source_commit": "1ce06ce0ee0c24855010c6bf6480ab06fe90642c",
+    "vm_count": 200
+  }
+}
