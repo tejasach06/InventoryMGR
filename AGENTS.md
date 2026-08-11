@@ -60,7 +60,7 @@ Always run commands inside `devbox shell`. Use `just` recipes for primary tasks:
 ### Frontend
 - **Single HTTP Funnel**: Components MUST call methods on `api` from `src/api/client.ts`. Never use bare `fetch()`. Handle errors via `detailMessage(err)` and render using `Alert`.
 - **The Instrument Panel Design System**:
-  - **The Signal Rule**: Saturated colors are strictly reserved for semantic data categories (`status`, `criticality`, `environment`, `platform`, `os_family`, `lifecycle`). Chrome surfaces stay neutral.
+  - **The Signal Rule**: Saturated colors are strictly reserved for semantic data categories (`status`, `criticality`, `environment`, `platform`, `os_family`, `vm_type`). Chrome surfaces stay neutral.
   - **The Flat-By-Default Rule**: Resting components use hairline borders (`border-[var(--color-border)]`) and ambient shadows (`shadow-raised`). Overlay shadows (`shadow-overlay`) are reserved for transient drawers/dialogs.
   - **The Tabular Rule**: Scannable technical values (IPs, UUIDs, memory/CPU sizes, counts) MUST use the mono stack (`monoClass`) + `tabular-nums`.
   - **UI Class Constants**: Reuse pre-styled Tailwind class constants exported from `src/components/ui.tsx` (`primaryButtonClass`, `secondaryButtonClass`, `dangerButtonClass`, `inputClass`, `selectClass`, `textareaClass`, `authInputClass`, `cardClass`, `tableWrapClass`, `filterBarClass`, `statTileClass`, `labelClass`, `helpTextClass`, `sectionTitleClass`, `eyebrowClass`, `tableClass`, `tableHeadClass`, `tableBodyClass`, `tableRowClass`, `tableCellClass`, `monoClass`).

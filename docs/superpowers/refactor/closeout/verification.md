@@ -60,6 +60,14 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 
 | Contract | Authoritative files | Result |
 |---|---|---|
+| Architecture overview | `backend/app/main.py`, `backend/app/api/routes/*`, `backend/app/services/*`, `frontend/src/routes/*`, `frontend/src/api/client.ts`, `README.md`, `AGENTS.md`, `PRODUCT.md` | PASS: docs describe the FastAPI/SQLAlchemy backend, service-layer ownership, Next.js route shells/client routes, and central API client. |
+| Security invariants | `backend/app/api/deps.py`, `backend/app/api/routes/auth.py`, `frontend/src/api/client.ts`, `README.md`, `docs/RUNBOOK.md`, `AGENTS.md` | PASS: session cookie `inventorymgr_session`, CSRF cookie/header `inventorymgr_csrf` / `X-CSRF-Token`, stateless double-submit verification, and RBAC order `viewer < editor < admin` are documented without contradiction. |
+| Data invariants | `backend/app/db/models.py`, `backend/app/services/vm_mutations.py`, `backend/app/services/vms.py`, `AGENTS.md`, `README.md` | PASS: docs preserve the denormalized `Vm.health_score` recompute invariant for VM/child mutations and audit-log old/new-value invariant for VM field mutations. |
+| CSV import/export contract | `backend/app/services/csv_import_parsing.py`, `backend/app/api/routes/vms.py`, `backend/tests/test_csv_imports.py`, `backend/tests/test_vm_export.py`, `README.md`, `AGENTS.md` | PASS: README drift was corrected to the implemented round-trip schemas: disks `name:size[:storage_name[:storage_type]]`, role-scoped IP columns as semicolon-separated addresses, and applications `name[:owner]`; blank child cells remain additive/no-clear. |
+| Frontend state/API patterns | `frontend/src/api/client.ts`, `frontend/src/routes/InventoryPage.tsx`, `frontend/src/components/ui.tsx`, `AGENTS.md`, `DESIGN.md` | PASS: docs require central typed API usage, URL `searchParams` list state, shared UI class constants, and semantic-only saturated color categories. |
+| Development commands | `justfile`, `README.md`, `AGENTS.md`, `docs/RUNBOOK.md` | PASS: documented recipes include `just verify`, `just audit`, `just api-test`, `just web-test`, and `just e2e`; validation script confirmed required files and recipes exist. |
+| Migrations and operations | `justfile`, `backend/app/db/alembic`, `deploy.sh`, `docker-compose*.yml`, `docs/RUNBOOK.md`, `AGENTS.md` | PASS: migration command remains `cd backend && uv run alembic upgrade head`; RUNBOOK deployment, health-check, recovery, and rollback paths match current repository files. |
+| Design contract file | `AGENTS.md`, `PRODUCT.md`, `frontend/src/components/ui.tsx`, `DESIGN.md` | PASS: missing top-level design contract was restored as `DESIGN.md`; it records the current instrument-panel implementation contract without changing source behavior. |
 
 ## Graphify
 
