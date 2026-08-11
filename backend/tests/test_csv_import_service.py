@@ -5,6 +5,7 @@ from app.db.models import AuditLog, ImportAction, UserRole, Vm
 from app.services.csv_import import (
     commit_batch,
     create_preview_batch,
+    identity_key,
     normalize_csv_row,
     parse_csv_bytes,
 )
@@ -59,6 +60,67 @@ def test_normalize_rejects_invalid_values_with_exact_errors() -> None:
         {"field": "platform", "message": "must be one of proxmox, pve, vmware, vsphere, vcenter"},
         {"field": "private_ip", "message": "must be IP addresses separated by ;"},
     ]
+
+
+def test_identity_key_uses_cluster_not_node_or_datacenter() -> None:
+    assert identity_key(
+        {
+            "platform": "proxmox",
+            "external_id": "101",
+            "name": "Existing App",
+            "cluster": "PVE-Cluster-A",
+            "node": "pve-01",
+            "datacenter": "dc-a",
+        }
+    ) == identity_key(
+        {
+            "platform": "proxmox",
+            "external_id": "101",
+            "name": "existing app",
+            "cluster": "pve-cluster-a",
+            "node": "pve-99",
+            "datacenter": "dc-z",
+        }
+    )
+    assert identity_key(
+        {
+            "platform": "proxmox",
+            "external_id": "101",
+            "name": "Existing App",
+            "cluster": "pve-cluster-a",
+        }
+    ) != identity_key(
+        {
+            "platform": "proxmox",
+            "external_id": "202",
+            "name": "Existing App",
+            "cluster": "pve-cluster-a",
+        }
+    )
+    assert identity_key(
+        {
+            "platform": "vmware",
+            "external_id": "vm-101",
+            "name": "Existing App",
+            "cluster": "VC-Cluster-A",
+            "node": "esx-01",
+            "datacenter": "dc-a",
+        }
+    ) == identity_key(
+        {
+            "platform": "vmware",
+            "external_id": "vm-202",
+            "name": "existing app",
+            "cluster": "vc-cluster-a",
+            "node": "esx-99",
+            "datacenter": "dc-z",
+        }
+    )
+    assert identity_key(
+        {"platform": "vmware", "name": "Existing App", "cluster": "vc-cluster-a"}
+    ) != identity_key(
+        {"platform": "vmware", "name": "Existing App", "cluster": "vc-cluster-b"}
+    )
 
 
 def test_preview_and_commit_preserve_matching_additive_children_audit_and_health(
@@ -137,3 +199,145 @@ def test_preview_and_commit_preserve_matching_additive_children_audit_and_health
         ("monitoring_enabled", "False", "True"),
         ("owner", "old-owner", "new-owner"),
     ]
+
+
+def test_preview_matches_proxmox_by_vmid_name_cluster_ignoring_node_and_datacenter(
+    db_session: Session,
+) -> None:
+    editor = create_user(db_session, email="csv-proxmox-match@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="Migrated App",
+        platform="proxmox",
+        external_id="101",
+        cluster="pve-cluster-a",
+        datacenter="dc-a",
+        node="pve-01",
+        owner="old-owner",
+    )
+    content = (
+        b"name,platform,cluster,external_id,datacenter,node,owner\n"
+        b"Migrated App,pve,pve-cluster-a,101,dc-z,pve-99,new-owner\n"
+    )
+
+    batch = create_preview_batch(db_session, filename="inventory.csv", content=content, user=editor)
+
+    assert batch.summary["update"] == 1
+    assert batch.summary["create"] == 0
+    assert batch.rows[0].action == ImportAction.update
+    assert batch.rows[0].target_vm_id == vm.id
+    assert batch.rows[0].changes == {
+        "datacenter": ["dc-a", "dc-z"],
+        "node": ["pve-01", "pve-99"],
+        "owner": ["old-owner", "new-owner"],
+    }
+
+
+def test_preview_does_not_match_proxmox_when_vmid_differs(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-proxmox-vmid@example.com", role=UserRole.editor)
+    create_vm_row(
+        db_session,
+        editor,
+        name="Migrated App",
+        platform="proxmox",
+        external_id="101",
+        cluster="pve-cluster-a",
+    )
+    content = (
+        b"name,platform,cluster,external_id,datacenter,node\n"
+        b"Migrated App,pve,pve-cluster-a,202,dc-a,pve-01\n"
+    )
+
+    batch = create_preview_batch(db_session, filename="inventory.csv", content=content, user=editor)
+
+    assert batch.summary["create"] == 1
+    assert batch.rows[0].action == ImportAction.create
+    assert batch.rows[0].target_vm_id is None
+
+
+def test_preview_matches_vmware_by_name_cluster_ignoring_vmid_node_and_datacenter(
+    db_session: Session,
+) -> None:
+    editor = create_user(db_session, email="csv-vmware-match@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="Moved Guest",
+        platform="vmware",
+        external_id="vm-101",
+        cluster="vc-cluster-a",
+        datacenter="dc-a",
+        node="esx-01",
+        owner="old-owner",
+    )
+    content = (
+        b"name,platform,cluster,external_id,datacenter,node,owner\n"
+        b"Moved Guest,vmware,vc-cluster-a,vm-202,dc-z,esx-99,new-owner\n"
+    )
+
+    batch = create_preview_batch(db_session, filename="inventory.csv", content=content, user=editor)
+
+    assert batch.summary["update"] == 1
+    assert batch.summary["create"] == 0
+    assert batch.rows[0].action == ImportAction.update
+    assert batch.rows[0].target_vm_id == vm.id
+    assert batch.rows[0].changes == {
+        "datacenter": ["dc-a", "dc-z"],
+        "external_id": ["vm-101", "vm-202"],
+        "node": ["esx-01", "esx-99"],
+        "owner": ["old-owner", "new-owner"],
+    }
+
+
+def test_preview_does_not_match_vmware_when_cluster_differs(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-vmware-cluster@example.com", role=UserRole.editor)
+    create_vm_row(
+        db_session,
+        editor,
+        name="Moved Guest",
+        platform="vmware",
+        external_id="vm-101",
+        cluster="vc-cluster-a",
+    )
+    content = (
+        b"name,platform,cluster,external_id,datacenter,node\n"
+        b"Moved Guest,vmware,vc-cluster-b,vm-101,dc-a,esx-01\n"
+    )
+
+    batch = create_preview_batch(db_session, filename="inventory.csv", content=content, user=editor)
+
+    assert batch.summary["create"] == 1
+    assert batch.rows[0].action == ImportAction.create
+    assert batch.rows[0].target_vm_id is None
+
+
+def test_preview_flags_intrafile_duplicates_with_platform_identity_rules(
+    db_session: Session,
+) -> None:
+    editor = create_user(db_session, email="csv-duplicate@example.com", role=UserRole.editor)
+    content = (
+        b"name,platform,cluster,external_id,datacenter,node\n"
+        b"Duplicate App,pve,pve-cluster-a,101,dc-a,pve-01\n"
+        b"duplicate app,pve,PVE-Cluster-A,101,dc-z,pve-99\n"
+        b"Duplicate Guest,vmware,vc-cluster-a,vm-101,dc-a,esx-01\n"
+        b"duplicate guest,vmware,VC-Cluster-A,vm-202,dc-z,esx-99\n"
+    )
+
+    batch = create_preview_batch(db_session, filename="inventory.csv", content=content, user=editor)
+
+    assert batch.summary == {
+        "create": 2,
+        "update": 0,
+        "unchanged": 0,
+        "conflict": 2,
+        "invalid": 0,
+    }
+    assert [row.action for row in batch.rows] == [
+        ImportAction.create,
+        ImportAction.conflict,
+        ImportAction.create,
+        ImportAction.conflict,
+    ]
+    assert batch.rows[1].errors == [{"field": "identity", "message": "duplicate CSV identity"}]
+    assert batch.rows[3].errors == [{"field": "identity", "message": "duplicate CSV identity"}]

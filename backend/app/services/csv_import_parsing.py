@@ -453,11 +453,10 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
 def identity_key(normalized: dict[str, Any]) -> tuple[str, ...]:
     platform = normalized["platform"]
     name = normalized["name"].lower()
-    node = (normalized.get("node") or "").lower()
-    datacenter = (normalized.get("datacenter") or "").lower()
+    cluster = normalized["cluster"].lower()
     if platform == "proxmox":
-        return ("proxmox", normalized.get("external_id"), name, node, datacenter)
-    return ("vmware", name, node, datacenter)
+        return ("proxmox", normalized.get("external_id"), name, cluster)
+    return ("vmware", name, cluster)
 
 
 def parse_csv_bytes(content: bytes) -> tuple[list[dict[str, Any]], list[str]]:

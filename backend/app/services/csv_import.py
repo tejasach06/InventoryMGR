@@ -92,15 +92,11 @@ __all__ = [
 def find_matching_vm(db: Session, normalized: dict[str, Any]) -> Vm | None:
     platform = Platform(normalized["platform"])
     name = normalized["name"].lower()
-    node = normalized.get("node")
-    datacenter = normalized.get("datacenter")
+    cluster = normalized["cluster"].lower()
     conditions = [
         Vm.platform == platform,
         func.lower(Vm.name) == name,
-        Vm.node.is_(None) if node is None else func.lower(Vm.node) == node.lower(),
-        Vm.datacenter.is_(None)
-        if datacenter is None
-        else func.lower(Vm.datacenter) == datacenter.lower(),
+        func.lower(Vm.cluster) == cluster,
     ]
     if platform == Platform.proxmox:
         external_id = normalized.get("external_id")
