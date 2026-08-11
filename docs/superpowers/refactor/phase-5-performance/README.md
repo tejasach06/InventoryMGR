@@ -74,3 +74,17 @@ Timing CV exceeded 5% for dashboard, reports_summary, `/dashboard`, and `/report
 
 
 This committed baseline supersedes the invalid Phase 1 backend duration attempt. Frontend coverage remains a known quality-gate blocker and was not reclassified as performance evidence.
+
+
+## Candidate Selection
+
+| Candidate ID | Baseline cost | Mechanism evidence | Deterministic target | Decision |
+|---|---:|---|---:|---|
+| PERF-dashboard-sql | 10 median queries; 11.491 ms median duration; CV 0.0762 | `raw/backend-candidate-paths.txt` did not identify a bounded dashboard SQL rewrite path; timing is unstable above 5% CV. | none demonstrated | rejected |
+| PERF-reports-summary-sql | 10 median queries; 5.605 ms median duration; CV 1.1633 | `raw/backend-candidate-paths.txt` did not identify a bounded reports-summary SQL rewrite path; timing is unstable above 5% CV. | none demonstrated | rejected |
+| PERF-vm-list-sql | 6 median queries; 9.983 ms median duration; CV 0.0490 | Graphify maps `list_inventory()` → `list_vms()` → `apply_vm_filters()`, but measured query count is stable and no deterministic lower query target was demonstrated. | none demonstrated | rejected |
+| PERF-frontend-dashboard | 869858 median transfer bytes; 30.600 ms median duration; CV 0.0535 | `raw/frontend-candidate-paths.txt` maps dashboard route imports but does not show a removable bundle/import boundary; timing is unstable above 5% CV. | none demonstrated | rejected |
+| PERF-frontend-reports | 869654 median transfer bytes; 30.300 ms median duration; CV 0.0928 | `raw/frontend-candidate-paths.txt` maps reports route imports but does not show a removable bundle/import boundary; timing is unstable above 5% CV. | none demonstrated | rejected |
+| PERF-frontend-inventory | 1176446 median transfer bytes; 32.700 ms median duration; CV 0.0396 | Graphify maps inventory route/component imports, but bundle and transfer bytes are repeatable with no proven removable chunk or route-split target. | none demonstrated | rejected |
+
+No candidate qualifies for PERF-001. Phase 5 therefore stops without a production-code optimization commit or a candidate-specific implementation plan.
