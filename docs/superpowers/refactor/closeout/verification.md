@@ -23,6 +23,7 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 
 | Check | Exit status | Evidence summary |
 |---|---:|---|
+| Test database startup/reset precheck | 1 | `devbox run -- just db-up` failed before schema reset: `rootlessport listen tcp 127.0.0.1:54329: bind: address already in use`; closeout stopped per stop-on-gate-failure rule. |
 
 ## Performance Gate
 
