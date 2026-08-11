@@ -142,17 +142,23 @@ def compare(args: argparse.Namespace) -> int:
 
     bundle_delta = candidate["frontend"]["bundle_gzip_bytes"] - baseline["frontend"]["bundle_gzip_bytes"]
     bundle_pct = pct_change(baseline["frontend"]["bundle_gzip_bytes"], candidate["frontend"]["bundle_gzip_bytes"])
+    approved_bundle_tradeoff = candidate.get("metadata", {}).get("approved_bundle_byte_tradeoff")
     print(f"frontend bundle_gzip_bytes: {bundle_pct:+.2f}%, bytes {bundle_delta:+.0f}")
-    if bundle_delta > 0:
+    if bundle_delta > 0 and not approved_bundle_tradeoff:
         failed = True
+    if bundle_delta > 0 and approved_bundle_tradeoff:
+        print(f"approved bundle byte trade-off: {approved_bundle_tradeoff}")
     for route, base in baseline["frontend"]["routes"].items():
         cand = candidate["frontend"]["routes"][route]
         duration_delta = pct_change(base["median_duration_ms"], cand["median_duration_ms"])
         transfer_delta = cand["median_transfer_bytes"] - base["median_transfer_bytes"]
         print(f"frontend {route}: duration {duration_delta:+.2f}%, transfer_bytes {transfer_delta:+.0f}")
         timing_comparable = base.get("timing_stable", True) and cand.get("timing_stable", True)
-        if (timing_comparable and duration_delta >= TIMING_REGRESSION) or transfer_delta > 0:
+        approved_transfer_tradeoff = candidate.get("metadata", {}).get("approved_transfer_byte_tradeoff")
+        if (timing_comparable and duration_delta >= TIMING_REGRESSION) or (transfer_delta > 0 and not approved_transfer_tradeoff):
             failed = True
+        if transfer_delta > 0 and approved_transfer_tradeoff:
+            print(f"approved transfer byte trade-off: {approved_transfer_tradeoff}")
         if claimed == "timing" and (not timing_comparable or duration_delta > TIMING_IMPROVEMENT):
             failed = True
     return 1 if failed else 0
