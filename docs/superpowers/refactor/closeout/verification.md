@@ -35,6 +35,8 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 | Authoritative `just audit` | 31d72e6 | 1 | `devbox run -- just audit` stopped at `cd frontend && bun audit`. Bun audit reported 21 vulnerabilities (10 high, 11 moderate) across `undici`, `nanoid`, `postcss`, `next`, and `sharp`; the recipe exited 1 before later audit steps. Closeout stopped without dependency/source/test fixes. |
 | Authoritative `just verify` after audit remediation | 836c3b0 | 0 | `devbox run -- just verify` passed: Backend Ruff passed; backend Pytest collected 21 items with 20 passed, 1 skipped, 3 warnings in 6.31s; frontend lint/typecheck passed; Vitest ran 39 files / 268 tests passed; Playwright ran 21 tests with 20 passed and 1 skipped. |
 | Authoritative `just audit` after dependency remediation | 836c3b0 | 0 | `devbox run -- just audit` passed: `bun audit` found no vulnerabilities; `uv audit` found no known vulnerabilities in 61 packages; frontend typecheck, backend Ruff, and accepted-risk checks passed. |
+| Final authoritative `just verify` rerun | 98722e2 + closeout docs update | 0 | `devbox run -- just verify` passed after documentation reconciliation and Graphify: backend Ruff passed; backend Pytest 20 passed, 1 skipped; frontend lint/typecheck passed; Vitest 39 files / 268 tests passed; Playwright 20 passed, 1 skipped. |
+| Final authoritative `just audit` rerun | 98722e2 + closeout docs update | 0 | `devbox run -- just audit` passed: `bun audit` no vulnerabilities; `uv audit` no known vulnerabilities in 61 packages; frontend typecheck, backend Ruff, and accepted-risk check passed. |
 
 ## Migration Gate
 
@@ -55,6 +57,7 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 | Frontend `/inventory` median duration / transfer | 32.700 ms / 1176446 bytes | 32.700 ms / 1176584 bytes | +0.00% / +138 bytes | PASS: timing under 5% or improved; transfer increase covered by explicit approved security trade-off metadata (`approved_transfer_byte_tradeoff`) |
 | Frontend `/reports` median duration / transfer | 30.300 ms / 869654 bytes | 30.100 ms / 869792 bytes | -0.66% / +138 bytes | PASS: timing under 5% or improved; transfer increase covered by explicit approved security trade-off metadata (`approved_transfer_byte_tradeoff`) |
 | Performance comparison command | Baseline `phase-5-performance/baseline.json` | Candidate `closeout/performance-candidate.json` | exit 0 | PASS: `python3 tools/summarize-performance.py compare --baseline docs/superpowers/refactor/phase-5-performance/baseline.json --candidate docs/superpowers/refactor/closeout/performance-candidate.json` exited 0 after Next.js 16.2.11 security patch metadata validation |
+| Final performance comparison rerun | Baseline `phase-5-performance/baseline.json` | Candidate `closeout/performance-candidate.json` | exit 0 | PASS: final rerun of the same compare command exited 0 after documentation reconciliation and Graphify; only approved security byte trade-offs were accepted by metadata. |
 
 ## Documentation Consistency
 
@@ -72,4 +75,5 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 ## Graphify
 
 Command: `graphify update .`
-Result: not run
+Result: PASS at `98722e2`: rebuilt code graph successfully with 4396 nodes, 10977 edges, and 219 communities; wrote `graphify-out/graph.json`, `graphify-out/graph.html`, and `graphify-out/GRAPH_REPORT.md`. Graphify reported two zero-node metadata JSON warnings (`impeccable.json`, `command-metadata.json`) and a label-refresh suggestion, but the update command exited 0 and did not require a forced rebuild.
+Verified source commit before final evidence commit: `98722e2`
