@@ -19,6 +19,8 @@ Design source: `docs/superpowers/specs/2026-08-11-evidence-gated-codebase-refact
 | Gate | Commit | Exit status | Evidence summary |
 |---|---|---:|---|
 | Backend Ruff + Pytest | a411335 | 1 | `devbox run -- bash -lc 'cd backend && uv run ruff check app tests && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest'` stopped at Ruff before Pytest. Ruff reported `I001 Import block is un-sorted or un-formatted` in `backend/tests/performance/test_endpoint_performance.py:1`; Pytest was not run because the hard gate used `&&`. BLOCKED: closeout stopped without source/test fixes. |
+| Backend Ruff + Pytest after remediation | e77ff54 | 0 | `devbox run -- bash -lc 'cd backend && uv run ruff check app tests && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest'` passed: Ruff `All checks passed!`; Pytest collected 18 items with 17 passed, 1 skipped, 3 warnings in 5.18s. |
+| Backend invariant collection | e77ff54 | 1 | `devbox run -- bash -lc 'cd backend && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest --collect-only -q' > /tmp/inventorymgr-backend-collect.txt` collected backend tests, but the required closeout coverage check failed: `backend invariant coverage not collected: rbac, storage, cluster`. BLOCKED: closeout stopped without adding tests during closeout. |
 
 ## Migration Gate
 
