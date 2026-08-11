@@ -43,3 +43,17 @@ Baseline quality-gate evidence captured for Task 2. No production code was chang
 The highest-risk suspected findings are backend VM service boundaries, CSV import boundaries, and InventoryPage route boundaries. No production-code change is authorized by Phase 1 alone.
 
 TypeScript typecheck and Ruff unused-code diagnostics produced no unused application-code findings. The only dead-code-related ledger entry remains ambiguous because graphify surfaced large repository tooling scripts without proving absence of tracked imports, calls, script entries, deployment references, or documented operational use.
+
+## Performance Baseline
+
+| Area | Command | Status | Evidence |
+|---|---|---:|---|
+| Frontend bundle | `cd frontend && bun run build` | PASS (status 0) | `raw/frontend-build.txt` |
+| Frontend coverage | `cd frontend && bun run test -- --coverage` | FAIL (status 1; coverage thresholds unmet) | `raw/frontend-coverage.txt` |
+| Backend endpoint durations | `cd backend && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest tests/test_dashboard.py tests/test_reports.py tests/test_vm_filters.py -q --durations=20` | FAIL (status 4; named tests missing) | `raw/backend-durations.txt` |
+
+Frontend coverage ran 243 tests successfully, then failed the configured global coverage thresholds: lines 79.51%, functions 71.74%, statements 76.74%, and branches 69.66%.
+Backend endpoint timing could not produce durations because all named endpoint baseline files are absent from the tracked test suite: `tests/test_dashboard.py`, `tests/test_reports.py`, and `tests/test_vm_filters.py`. No existing subset of those named files was available to rerun.
+
+Later performance phases must compare against these commands or document a stricter replacement baseline before optimizing.
+
