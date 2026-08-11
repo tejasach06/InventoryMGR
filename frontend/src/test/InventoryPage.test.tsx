@@ -280,4 +280,94 @@ describe('InventoryPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Bulk Edit' }));
     expect(vmsApi.bulkUpdateVms).toHaveBeenCalledTimes(1);
   });
+
+
+  it('preserves repeated filters while converting page and size to API limit and offset', async () => {
+    hoisted.searchParams = new URLSearchParams(
+      'q=database&status=running&status=powered_off&page=2&size=25&sort=name&dir=desc',
+    );
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList({ total: 100, limit: 25, offset: 25 }));
+
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
+
+    await screen.findAllByText('web-01');
+    const params = vi.mocked(vmsApi.listVms).mock.calls.at(-1)![0];
+    expect(params.get('q')).toBe('database');
+    expect(params.getAll('status')).toEqual(['running', 'powered_off']);
+    expect(params.get('sort')).toBe('name');
+    expect(params.get('dir')).toBe('desc');
+    expect(params.get('limit')).toBe('25');
+    expect(params.get('offset')).toBe('25');
+    expect(params.has('page')).toBe(false);
+    expect(params.has('size')).toBe(false);
+  });
+
+  it('cycles a sortable header from ascending to descending to unsorted URLs', async () => {
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
+    const nameHeader = await screen.findByRole('button', { name: /Name/ });
+
+    await userEvent.click(nameHeader);
+    expect(hoisted.pushMock).toHaveBeenLastCalledWith('/inventory?sort=name&dir=asc');
+    await userEvent.click(screen.getByRole('button', { name: /Name/ }));
+    expect(hoisted.pushMock).toHaveBeenLastCalledWith('/inventory?sort=name&dir=desc');
+    await userEvent.click(screen.getByRole('button', { name: /Name/ }));
+    expect(hoisted.pushMock).toHaveBeenLastCalledWith('/inventory');
+  });
+
+  it('sends a scalar search and repeated facet arrays when bulk editing all matches', async () => {
+    hoisted.searchParams = new URLSearchParams(
+      'q=database&status=running&status=powered_off&environment=production',
+    );
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(
+      makeVmList({ items: [makeVm({ id: 'vm-01-id', name: 'vm-01' })], total: 50 }),
+    );
+    vi.spyOn(vmsApi, 'bulkUpdateVms').mockResolvedValue({ updated: 50, failed: [] });
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
+
+    await userEvent.click(await screen.findByLabelText('Select all'));
+    await userEvent.click(screen.getByRole('button', { name: /Select all .* matching filters/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    await userEvent.selectOptions(screen.getByLabelText('Criticality'), 'high');
+    await userEvent.click(screen.getByRole('button', { name: /^Apply to all/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Bulk Edit' }));
+
+    expect(vi.mocked(vmsApi.bulkUpdateVms)).toHaveBeenCalledWith({
+      filters: {
+        q: 'database',
+        status: ['running', 'powered_off'],
+        environment: ['production'],
+      },
+      patch: { criticality: 'high' },
+    });
+  });
+
+  it('keeps table selection and sorting controls accessibly named and scoped', async () => {
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
+
+    const nameButton = await screen.findByRole('button', { name: /Name/ });
+    const nameHeader = nameButton.closest('th');
+    expect(nameHeader).toHaveAttribute('scope', 'col');
+    expect(nameHeader).toHaveAttribute('aria-sort', 'none');
+    expect(screen.getByRole('checkbox', { name: 'Select all' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Select web-01' })).toBeInTheDocument();
+  });
+
+  it('commits an inline status edit with Enter and sends the existing PATCH shape', async () => {
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
+    vi.spyOn(vmsApi, 'updateVm').mockResolvedValue(makeVm({ status: 'powered_off' }));
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
+
+    const user = userEvent.setup();
+    const statusCell = await screen.findByTestId('cell-status');
+    await user.click(statusCell);
+    const editor = screen.getByRole('combobox');
+    await user.selectOptions(editor, 'powered_off');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(vmsApi.updateVm).toHaveBeenCalledWith('vm-1', { status: 'powered_off' });
+    });
+  });
 });
