@@ -90,7 +90,7 @@ FRONTEND_PORT=3100 just up
 ## Alerts
 
 Alert triggers, thresholds, and tag-based suppression are documented in
-[wiki/ALERTS.md](wiki/ALERTS.md).
+[ALERTS.md](ALERTS.md).
 
 ## Common Issues
 
