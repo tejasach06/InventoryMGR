@@ -13,6 +13,37 @@ env:
 	@sed "s|^JWT_SECRET=.*|JWT_SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))')|" .env.example > .env
 	@echo "wrote .env with a generated JWT_SECRET"
 
+build-prod:
+	podman build -t localhost/inventorymgr-backend:latest ./backend
+	podman build -t localhost/inventorymgr-frontend:latest --build-arg "INVENTORYMGR_API_URL=${INVENTORYMGR_API_URL:-http://inventorymgr-backend:8000}" ./frontend
+
+quadlet-secrets:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	secret_exists() { podman secret exists "$1" >/dev/null 2>&1; }
+	if secret_exists inventorymgr-jwt-secret; then
+		echo "inventorymgr-jwt-secret exists — leaving it alone"
+	else
+		python3 -c 'import secrets; print(secrets.token_hex(32))' | podman secret create inventorymgr-jwt-secret - >/dev/null
+		echo "created inventorymgr-jwt-secret"
+	fi
+	pg_exists=0
+	dburl_exists=0
+	secret_exists inventorymgr-postgres-password && pg_exists=1 || true
+	secret_exists inventorymgr-database-url && dburl_exists=1 || true
+	if [ "$pg_exists" -eq 1 ] && [ "$dburl_exists" -eq 1 ]; then
+		echo "database secrets exist — leaving them alone"
+	elif [ "$pg_exists" -eq 0 ] && [ "$dburl_exists" -eq 0 ]; then
+		postgres_password="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+		printf '%s' "$postgres_password" | podman secret create inventorymgr-postgres-password - >/dev/null
+		printf 'postgresql+psycopg://inventorymgr:%s@inventorymgr-db:5432/inventorymgr' "$postgres_password" | podman secret create inventorymgr-database-url - >/dev/null
+		echo "created inventorymgr-postgres-password and inventorymgr-database-url"
+	else
+		echo "error: inventorymgr-postgres-password and inventorymgr-database-url must be created together" >&2
+		echo "delete the stale InventoryMGR database secret and rerun: podman secret rm inventorymgr-postgres-password inventorymgr-database-url" >&2
+		exit 1
+	fi
+
 up: env
 	podman compose up -d --build
 	@echo "frontend: http://127.0.0.1:${FRONTEND_PORT:-3000}  api: http://127.0.0.1:${BACKEND_PORT:-8000}/api/health"

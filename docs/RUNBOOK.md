@@ -79,6 +79,100 @@ FRONTEND_PORT=3100 just up
 | `db` | `${POSTGRES_PORT:-5432}` | PostgreSQL 16 |
 | `backend` | `${BACKEND_PORT:-8000}` | FastAPI |
 | `frontend` | `${FRONTEND_PORT:-3000}` | Next.js |
+
+## Deployment: Podman Quadlet (systemd, rootless)
+
+Use Quadlet on production hosts when systemd should own rootless Podman
+containers directly. This is separate from the compose-based `just up` path.
+
+### Build production images
+
+```bash
+# Frontend rewrites /api/* to the backend container on the Quadlet network.
+just build-prod
+
+# Optional: bake a different backend URL into Next.js rewrites.
+INVENTORYMGR_API_URL=http://inventorymgr-backend:8000 just build-prod
+```
+
+### Create production secrets
+
+```bash
+just quadlet-secrets
+```
+
+The target is idempotent and creates these Podman secrets if absent:
+
+- `inventorymgr-jwt-secret` → `JWT_SECRET`
+- `inventorymgr-postgres-password` → PostgreSQL `POSTGRES_PASSWORD`
+- `inventorymgr-database-url` → backend `DATABASE_URL`
+
+Keep the PostgreSQL password and database URL secrets in sync. If only one of
+the database secrets exists, delete both and rerun `just quadlet-secrets`.
+
+### Install Quadlet units
+
+```bash
+mkdir -p ~/.config/containers/systemd
+cp quadlet/* ~/.config/containers/systemd/
+systemctl --user daemon-reload
+```
+
+The committed units create a shared `inventorymgr` network, an
+`inventorymgr-pgdata` volume, and these services:
+
+| Service | Host binding | Description |
+|---------|--------------|-------------|
+| `inventorymgr-db.service` | none | PostgreSQL 16 |
+| `inventorymgr-backend.service` | `127.0.0.1:8000` | FastAPI API |
+| `inventorymgr-frontend.service` | `127.0.0.1:3000` | Next.js frontend |
+
+### Activate at boot
+
+```bash
+loginctl enable-linger "$USER"
+systemctl --user enable --now inventorymgr-db.service
+systemctl --user enable --now inventorymgr-backend.service
+systemctl --user enable --now inventorymgr-frontend.service
+```
+
+Quadlet supports `After=`/`Requires=` ordering, not compose-style
+`condition: service_healthy`. The backend image runs Alembic migrations on
+startup and the app uses its existing startup behavior if PostgreSQL is still
+initializing.
+
+### Status and logs
+
+```bash
+systemctl --user status inventorymgr-db.service inventorymgr-backend.service inventorymgr-frontend.service
+journalctl --user -u inventorymgr-backend.service -f
+journalctl --user -u inventorymgr-frontend.service -f
+```
+
+Health checks:
+
+```bash
+curl http://127.0.0.1:8000/api/health
+curl -I http://127.0.0.1:3000/
+```
+
+### Rollback Quadlet deployment
+
+Build or retag the previous images, then restart the services:
+
+```bash
+systemctl --user stop inventorymgr-frontend.service inventorymgr-backend.service
+podman tag localhost/inventorymgr-backend:<previous> localhost/inventorymgr-backend:latest
+podman tag localhost/inventorymgr-frontend:<previous> localhost/inventorymgr-frontend:latest
+systemctl --user start inventorymgr-backend.service inventorymgr-frontend.service
+```
+
+Stop the whole stack if needed:
+
+```bash
+systemctl --user stop inventorymgr-frontend.service inventorymgr-backend.service inventorymgr-db.service
+```
+
 ## Health Checks
 
 | Check | Command | Expected |

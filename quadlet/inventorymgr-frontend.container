@@ -1,0 +1,21 @@
+[Unit]
+Description=InventoryMGR Next.js frontend
+After=inventorymgr-backend.service
+Requires=inventorymgr-backend.service
+
+[Container]
+ContainerName=inventorymgr-frontend
+Image=localhost/inventorymgr-frontend:latest
+Network=inventorymgr.network
+PublishPort=127.0.0.1:3000:3000
+HealthCmd=curl -f http://localhost:3000/
+HealthInterval=30s
+HealthTimeout=5s
+HealthRetries=3
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

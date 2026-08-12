@@ -1,0 +1,24 @@
+[Unit]
+Description=InventoryMGR FastAPI backend
+After=inventorymgr-db.service
+Requires=inventorymgr-db.service
+
+[Container]
+ContainerName=inventorymgr-backend
+Image=localhost/inventorymgr-backend:latest
+Network=inventorymgr.network
+PublishPort=127.0.0.1:8000:8000
+Environment=APP_ENV=production
+Secret=inventorymgr-jwt-secret,type=env,target=JWT_SECRET
+Secret=inventorymgr-database-url,type=env,target=DATABASE_URL
+HealthCmd=curl -f http://localhost:8000/api/health
+HealthInterval=30s
+HealthTimeout=5s
+HealthRetries=3
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

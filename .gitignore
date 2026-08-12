@@ -81,6 +81,7 @@ docs/*
 !docs/RUNBOOK.md
 !docs/API.md
 !docs/ALERTS.md
+!docs/PODMAN_QUADLET.md
 DESIGN.md
 PRODUCT.md
 AGENTS.md

@@ -1,0 +1,5 @@
+[Unit]
+Description=InventoryMGR PostgreSQL data volume
+
+[Volume]
+VolumeName=inventorymgr-pgdata
