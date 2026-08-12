@@ -1,6 +1,6 @@
 # Podman Quadlet Deployment (Design Spec)
 
-Status: approved, not yet implemented.
+Status: implemented.
 Date: 2026-08-12
 
 ## Context
@@ -48,8 +48,9 @@ just quadlet-secrets
 ```
 → `podman secret create inventorymgr-jwt-secret -` (reads from generated value, same generator as `just env`)
 → `podman secret create inventorymgr-postgres-password -`
+→ `podman secret create inventorymgr-database-url -` (derived from the same generated password because the backend requires one complete `DATABASE_URL` value)
 
-Idempotent: skip creation if the secret already exists.
+Idempotent: skip creation if the secrets already exist.
 
 ### 3. Quadlet units
 
@@ -68,13 +69,15 @@ New `quadlet/` directory, files copied to
   - `Image=localhost/inventorymgr-backend:latest`
   - `Environment=APP_ENV=production`
   - `Secret=inventorymgr-jwt-secret,type=env,target=JWT_SECRET`
-  - `Secret=inventorymgr-postgres-password,type=env,target=POSTGRES_PASSWORD`
+  - `Secret=inventorymgr-database-url,type=env,target=DATABASE_URL`
   - `Network=inventorymgr.network`
+  - `PublishPort=127.0.0.1:8000:8000`
   - `After=inventorymgr-db.service` / `Requires=inventorymgr-db.service`
   - `HealthCmd=curl -f http://localhost:8000/api/health` (mirrors Dockerfile HEALTHCHECK)
 - `inventorymgr-frontend.container`
   - `Image=localhost/inventorymgr-frontend:latest`
   - `Network=inventorymgr.network`
+  - `PublishPort=127.0.0.1:3000:3000`
   - `After=inventorymgr-backend.service` / `Requires=inventorymgr-backend.service`
   - `HealthCmd=curl -f http://localhost:3000/`
 

@@ -1,0 +1,5 @@
+[Unit]
+Description=InventoryMGR rootless Podman network
+
+[Network]
+NetworkName=inventorymgr

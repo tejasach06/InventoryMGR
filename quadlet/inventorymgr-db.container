@@ -1,0 +1,22 @@
+[Unit]
+Description=InventoryMGR PostgreSQL database
+
+[Container]
+ContainerName=inventorymgr-db
+Image=docker.io/library/postgres:16-alpine
+Network=inventorymgr.network
+Volume=inventorymgr-pgdata.volume:/var/lib/postgresql/data
+Environment=POSTGRES_USER=inventorymgr
+Environment=POSTGRES_DB=inventorymgr
+Secret=inventorymgr-postgres-password,type=env,target=POSTGRES_PASSWORD
+HealthCmd=pg_isready -U inventorymgr
+HealthInterval=5s
+HealthTimeout=5s
+HealthRetries=5
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
