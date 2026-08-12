@@ -77,8 +77,10 @@ entities.json
 backend/tests/
 frontend/src/test/
 frontend/e2e/
-docs/
+docs/*
 !docs/RUNBOOK.md
+!docs/API.md
+!docs/ALERTS.md
 DESIGN.md
 PRODUCT.md
 AGENTS.md
