@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Builder stage ----
-FROM oven/bun:latest AS builder
+FROM oven/bun:1.3.14 AS builder
 ARG INVENTORYMGR_API_URL=http://backend:8000
 ENV INVENTORYMGR_API_URL=${INVENTORYMGR_API_URL}
 
@@ -19,7 +19,7 @@ COPY . ./
 RUN bun run build
 
 # ---- Runtime stage ----
-FROM oven/bun:latest
+FROM oven/bun:1.3.14
 
 WORKDIR /app
 

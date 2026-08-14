@@ -1,6 +1,6 @@
 services:
   db-test:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: inventorymgr
       POSTGRES_DB: inventorymgr_test
