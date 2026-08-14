@@ -76,9 +76,10 @@ FRONTEND_PORT=3100 just up
 
 | Service | Port | Description |
 |---------|------|-------------|
-| `db` | `${POSTGRES_PORT:-5432}` | PostgreSQL 16 |
+| `db` | `${POSTGRES_PORT:-5432}` | PostgreSQL 17 |
 | `backend` | `${BACKEND_PORT:-8000}` | FastAPI |
 | `frontend` | `${FRONTEND_PORT:-3000}` | Next.js |
+
 ## Health Checks
 
 | Check | Command | Expected |
@@ -86,6 +87,31 @@ FRONTEND_PORT=3100 just up
 | Backend alive | `curl http://localhost:8000/api/health` | `{"status":"ok"}` |
 | Frontend alive | `curl http://localhost:3000/` | HTTP 200 |
 | PostgreSQL | `pg_isready -h 127.0.0.1 -p 54329 -U inventorymgr` | `accepting connections` |
+
+### PostgreSQL major-version upgrade (16 → 17)
+
+PostgreSQL data files are not compatible across major versions. If
+`inventorymgr-db` is still running Postgres 16 on a host where the Quadlet
+units / `docker-compose.yml` now pin `postgres:17-alpine`, do **not** just
+restart the service — that leaves the container unable to read the old data
+directory. Use the migration script instead:
+
+```bash
+tools/migrate-postgres-16-to-17.sh
+```
+
+It dumps the running 16 instance (`pg_dumpall`), stands up a scratch PG17
+volume, restores into it, sanity-checks a row count, then cuts the
+`inventorymgr-pgdata` volume over — preserving the original PG16 data as
+`inventorymgr-pgdata-pg16-backup` (not deleted; remove manually once you've
+confirmed the app is healthy on PG17). Run it on the production host as the
+user owning the Quadlet units. See the script header for full details and
+prerequisites.
+
+The PM2 deployment path uses whatever PostgreSQL the host package manager
+installed — it is not managed by this repo's container images, so a 16→17
+upgrade there follows your OS's normal `pg_upgrade`/`pg_dumpall` procedure,
+not this script.
 
 ## Alerts
 
