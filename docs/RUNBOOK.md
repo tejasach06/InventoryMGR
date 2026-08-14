@@ -172,7 +172,6 @@ Stop the whole stack if needed:
 ```bash
 systemctl --user stop inventorymgr-frontend.service inventorymgr-backend.service inventorymgr-db.service
 ```
-
 ## Health Checks
 
 | Check | Command | Expected |
