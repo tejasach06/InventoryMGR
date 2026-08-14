@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { VmFormPage } from '../routes/VmFormPage';
 import { makeVm, renderWithProviders } from './utils';
@@ -41,6 +41,20 @@ describe('VmFormPage combo/owner autocomplete', () => {
     fireEvent.click(suggestion);
 
     expect(screen.getByLabelText('Datacenter')).toHaveValue('dc-east-2');
+  });
+
+  it('anchors datacenter suggestions to a relative wrapper and closes them on blur', async () => {
+    renderWithProviders(<VmFormPage mode="create" />);
+
+    const datacenter = screen.getByLabelText('Datacenter');
+    expect(datacenter.parentElement).toHaveClass('relative');
+
+    fireEvent.focus(datacenter);
+    fireEvent.change(datacenter, { target: { value: 'dc-east' } });
+    expect(await screen.findByRole('button', { name: 'dc-east-1' })).toBeInTheDocument();
+
+    fireEvent.blur(datacenter);
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'dc-east-1' })).not.toBeInTheDocument());
   });
 
   it('suggests known owners and applies the chosen one', async () => {

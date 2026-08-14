@@ -67,6 +67,34 @@ describe('FuzzyMultiSelect', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Linux' })).not.toBeInTheDocument());
   });
 
+
+
+  it('repositions the open menu when the window scrolls', async () => {
+    let shift = 0;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({
+      top: 10 + shift,
+      bottom: 40 + shift,
+      left: 20,
+      right: 220,
+      width: 200,
+      height: 30,
+      x: 20,
+      y: 10 + shift,
+      toJSON: () => ({}),
+    } as DOMRect));
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(100);
+
+    render(<FuzzyMultiSelect value={[]} options={['linux']} onChange={vi.fn()} placeholder="Tags" />);
+    fireEvent.focus(screen.getByPlaceholderText('Tags'));
+
+    const option = await screen.findByRole('button', { name: 'linux' });
+    expect(option.parentElement).toHaveStyle({ top: '44px' });
+
+    shift = 50;
+    fireEvent.scroll(window);
+    await waitFor(() => expect(option.parentElement).toHaveStyle({ top: '94px' }));
+  });
+
   it('positions the menu above the input when there is not enough space below', async () => {
     const originalHeight = window.innerHeight;
     Object.defineProperty(window, 'innerHeight', { value: 300, configurable: true });

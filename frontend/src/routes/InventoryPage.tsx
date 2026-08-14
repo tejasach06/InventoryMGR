@@ -36,6 +36,7 @@ import {
   viewFromParams,
 } from '../lib/inventoryFilters';
 import type { Filters, ViewState } from '../lib/inventoryFilters';
+import { cn } from '../lib/classNames';
 
 export {
   PAGE_SIZES,
@@ -62,12 +63,14 @@ export function InventoryPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [cellError, setCellError] = useState<string | undefined>();
   const [bulkError, setBulkError] = useState<string | undefined>();
   const [bulkSuccess, setBulkSuccess] = useState<string | undefined>();
   const [bulkFailureDetails, setBulkFailureDetails] = useState<BulkResult | null>(null);
   const [pendingPatch, setPendingPatch] = useState<BulkPatch | null>(null);
   const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
   const queryClient = useQueryClient();
+  const exportRef = useRef<HTMLDetailsElement>(null);
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
 
   const updateVmCellMutation = useMutation({
@@ -79,13 +82,37 @@ export function InventoryPage() {
   });
 
   const handleUpdateCell = async (vmId: string, field: string, value: string) => {
-    await updateVmCellMutation.mutateAsync({ vmId, patch: { [field]: value } });
+    try {
+      setCellError(undefined);
+      await updateVmCellMutation.mutateAsync({ vmId, patch: { [field]: value } });
+    } catch (err) {
+      setCellError(detailMessage(err));
+      throw err;
+    }
   };
 
   useEffect(() => {
     setFilters(filtersFromParams(searchParams));
     setView(viewFromParams(searchParams));
   }, [searchParams]);
+
+  useEffect(() => {
+    function closeExport() {
+      if (exportRef.current) exportRef.current.open = false;
+    }
+    function handleMouseDown(e: MouseEvent) {
+      if (!exportRef.current?.contains(e.target as Node)) closeExport();
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') closeExport();
+    }
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   function pushView(next: ViewState) {
     setView(next);
@@ -151,7 +178,7 @@ export function InventoryPage() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       const params = paramsFromFilters(filters, { ...viewFromParams(searchParams), page: 1 });
-      router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
+      router.replace(params.toString() ? `${pathname}?${params.toString()}` : pathname);
     }, 400);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -162,14 +189,14 @@ export function InventoryPage() {
     event.preventDefault();
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const params = paramsFromFilters(filters, { ...viewFromParams(searchParams), page: 1 });
-    router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
+    router.replace(params.toString() ? `${pathname}?${params.toString()}` : pathname);
   }
 
   function clearFilters() {
     setFilters(emptyFilters());
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const params = paramsFromFilters(emptyFilters(), { ...viewFromParams(searchParams), page: 1 });
-    router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
+    router.replace(params.toString() ? `${pathname}?${params.toString()}` : pathname);
   }
 
   const items = vms.data?.items ?? [];
@@ -241,14 +268,14 @@ export function InventoryPage() {
 
   return (
     <PageTransition>
-      <section>
+      <section className={cn((selectedIds.size > 0 || selectAllMatching) && 'pb-28')}>
         <PageHeader
           title="Inventory"
           context="Virtual machines"
           description="Search, compare, and update the documented fleet."
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <details className="relative">
+              <details ref={exportRef} className="relative">
                 <summary className={`${secondaryButtonClass} cursor-pointer list-none`}>Export</summary>
                 <div className="absolute right-0 z-20 mt-2 grid min-w-44 gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-overlay)]">
                   <a href={vmsApi.exportVmsUrl(queryParams, 'csv')} download="vm-inventory.csv" className="rounded-md px-3 py-2 text-sm hover:bg-[var(--color-surface-tertiary)]">CSV</a>
@@ -270,6 +297,7 @@ export function InventoryPage() {
         />
 
         {vms.isError ? <Alert>{detailMessage(vms.error)}</Alert> : null}
+        {cellError ? <Alert tone="error">{cellError}</Alert> : null}
         {bulkSuccess ? <Alert tone="success">{bulkSuccess}</Alert> : null}
         {bulkError && !bulkFailureDetails ? <Alert tone="error">{bulkError}</Alert> : null}
         {bulkFailureDetails && bulkFailureDetails.failed.length > 0 && (

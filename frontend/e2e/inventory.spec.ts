@@ -116,7 +116,15 @@ test('bulk edits the selected rows', async ({ page }) => {
   await loginAsAdmin(page);
   await page.goto('/inventory');
 
+  await page.getByLabel('Rows per page').selectOption('25');
   await page.getByLabel('Select all').check();
+  await expect(page.getByRole('toolbar', { name: 'Bulk actions' })).toBeVisible();
+  await page.getByRole('button', { name: 'Next page' }).click({ trial: true });
+
+  const tableWrap = page.locator('table').locator('xpath=..');
+  await tableWrap.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  await expect(page.getByRole('columnheader', { name: /Name/ })).toBeVisible();
+
   await page.getByRole('button', { name: 'Edit' }).click();
   await page.getByLabel('Criticality').selectOption('high');
   await page.getByRole('button', { name: /^Apply to/ }).click();

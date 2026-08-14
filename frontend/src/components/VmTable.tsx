@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { Vm } from '../api/types';
 import {
   Badge,
+  Spinner,
   inputClass,
   monoClass,
   selectClass,
@@ -59,17 +60,20 @@ export function VmTable({
   useEffect(() => setMounted(true), []);
   const [editingCell, setEditingCell] = useState<{ vmId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [editWidth, setEditWidth] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const startEdit = (vmId: string, field: string, initialVal: string) => {
+  const startEdit = (vmId: string, field: string, initialVal: string, width: number) => {
     if (!canEdit) return;
     setEditingCell({ vmId, field });
     setEditValue(initialVal ?? '');
+    setEditWidth(width);
   };
 
   const cancelEdit = () => {
     setEditingCell(null);
     setEditValue('');
+    setEditWidth(null);
   };
 
   const commitEdit = async () => {
@@ -82,6 +86,7 @@ export function VmTable({
     } finally {
       setIsSaving(false);
       setEditingCell(null);
+      setEditWidth(null);
     }
   };
   const selectAllRef = useRef<HTMLInputElement>(null);
@@ -91,7 +96,7 @@ export function VmTable({
 
 
   return (
-    <div className={tableWrapClass}>
+    <div className={cn(tableWrapClass, 'max-h-[calc(100vh-18rem)] overflow-y-auto')}>
       <table className={tableClass} style={{ '--row-height': 'var(--row-height-comfortable)' } as React.CSSProperties}>
         <thead className={tableHeadClass}>
           <tr>
@@ -161,10 +166,11 @@ export function VmTable({
                         isEditable && !isEditing && 'group/cell cursor-pointer hover:bg-[var(--color-accent)]/10 transition-colors'
                       )}
                       title={isEditable && !isEditing ? 'Click to edit inline' : undefined}
-                      onClick={() => {
+                      style={isEditing ? { width: editWidth ?? undefined } : undefined}
+                      onClick={(e) => {
                         if (isEditable && !isEditing) {
                           const currentVal = (vm as any)[col.key] ?? '';
-                          startEdit(vm.id, col.key, currentVal);
+                          startEdit(vm.id, col.key, currentVal, (e.currentTarget as HTMLTableCellElement).offsetWidth);
                         }
                       }}
                     >
@@ -173,7 +179,7 @@ export function VmTable({
                           {col.key === 'status' && (
                             <select
                               autoFocus
-                              className={selectClass}
+                              className={cn(selectClass, 'px-2 py-1')}
                               value={editValue}
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
@@ -188,7 +194,7 @@ export function VmTable({
                           {col.key === 'environment' && (
                             <select
                               autoFocus
-                              className={selectClass}
+                              className={cn(selectClass, 'px-2 py-1')}
                               value={editValue}
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
@@ -203,7 +209,7 @@ export function VmTable({
                           {col.key === 'criticality' && (
                             <select
                               autoFocus
-                              className={selectClass}
+                              className={cn(selectClass, 'px-2 py-1')}
                               value={editValue}
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
@@ -219,7 +225,7 @@ export function VmTable({
                             <input
                               autoFocus
                               type="text"
-                              className={inputClass}
+                              className={cn(inputClass, 'px-2 py-1')}
                               value={editValue}
                               disabled={isSaving}
                               onChange={(e) => setEditValue(e.target.value)}
@@ -227,6 +233,7 @@ export function VmTable({
                               onBlur={commitEdit}
                             />
                           )}
+                          {isSaving ? <Spinner /> : null}
                         </div>
                       ) : (
                         <>
@@ -253,7 +260,7 @@ export function VmTable({
                           {col.key === 'private_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'private')?.ip_address ?? '—'}</span>}
                           {col.key === 'public_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'public')?.ip_address ?? '—'}</span>}
                           {col.key === 'backup_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'backup')?.ip_address ?? '—'}</span>}
-                          {col.key === 'tags' && vm.tags?.length && (
+                          {col.key === 'tags' && Boolean(vm.tags?.length) && (
                             <span className="inline-flex items-center gap-1 flex-wrap">
                               {vm.tags.slice(0, 3).map((t) => (
                                 <span key={t} className="inline-flex items-center rounded bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 text-xs text-[var(--color-text-tertiary)]">{t}</span>

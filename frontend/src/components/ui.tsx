@@ -156,7 +156,7 @@ export function Alert({ children, tone = 'error' }: { children: ReactNode; tone?
 export function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} className="mt-1.5 text-sm" style={{ color: 'var(--color-criticality-critical)' } as React.CSSProperties}>
+    <p id={id} className="mt-1.5 text-sm text-[var(--color-criticality-critical)]">
       {message}
     </p>
   );
