@@ -35,7 +35,7 @@ function TextInput({ name, label, values, errors, onChange, required = false, ty
   const value = values[name];
   const isNumericOrDate = type === 'number' || type === 'date';
   return (
-    <div className="relative">
+    <div>
       <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
       <input className={cn(inputClass, isNumericOrDate && 'tech tabular-nums')} id={String(name)} name={String(name)} type={type}
         value={typeof value === 'boolean' ? '' : value}
@@ -70,8 +70,10 @@ function ComboInput({ name, label, values, errors, onChange, options, required =
   const query = raw.trim().toLowerCase();
   const matches = query.length > 0 ? options.filter((o) => o.toLowerCase().includes(query) && o.toLowerCase() !== query).slice(0, 8) : [];
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [open, setOpen] = useState(false);
   const activeId = activeIndex >= 0 && activeIndex < matches.length ? `${String(name)}-option-${activeIndex}` : undefined;
   const isNumericOrDate = type === 'number' || type === 'date';
+  const listOpen = open && matches.length > 0;
 
   function selectMatch(m: string) {
     onChange(name, m);
@@ -83,18 +85,20 @@ function ComboInput({ name, label, values, errors, onChange, options, required =
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex((i) => (i + 1) % matches.length); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex((i) => (i <= 0 ? matches.length - 1 : i - 1)); }
     else if (e.key === 'Enter' && activeIndex >= 0) { e.preventDefault(); selectMatch(matches[activeIndex]); }
-    else if (e.key === 'Escape') { setActiveIndex(-1); }
+    else if (e.key === 'Escape') { setActiveIndex(-1); setOpen(false); }
   }
 
   return (
-    <div>
+    <div className="relative">
       <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
       <input className={cn(inputClass, isNumericOrDate && 'tabular-nums')} id={String(name)} name={String(name)} type={type} autoComplete="off" value={raw}
-        role="combobox" aria-expanded={matches.length > 0} aria-controls={listId} aria-activedescendant={activeId} aria-autocomplete="list"
-        onChange={(e) => { onChange(name, e.target.value); setActiveIndex(-1); }}
+        role="combobox" aria-expanded={listOpen} aria-controls={listId} aria-activedescendant={activeId} aria-autocomplete="list"
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onChange={(e) => { onChange(name, e.target.value); setActiveIndex(-1); setOpen(true); }}
         onKeyDown={onKeyDown}
         aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])} />
-      {matches.length > 0 && (
+      {listOpen && (
         <ul id={listId} role="listbox" className="absolute left-0 top-full z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-overlay)]">
           {matches.map((m, i) => (
             <li key={m} id={`${String(name)}-option-${i}`} role="option" aria-selected={i === activeIndex}>
@@ -137,50 +141,57 @@ function parseDiskPaste(text: string): DiskRow[] | null {
 
 function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<SetStateAction<DiskRow[]>> }) {
   const update = (i: number, patch: Partial<DiskRow>) => setDisks((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const gridClass = 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_6rem_5rem_minmax(0,1fr)_minmax(0,1fr)_2.5rem] lg:items-end';
   return (
     <div className="mt-4 border-t border-[var(--color-border)] pt-4">
       <p className={labelClass}>Disks</p>
       <p className={helpTextClass}>Paste a semicolon-separated list (e.g. os:100;data:500) into the first disk name field to add several at once.</p>
-      <div className="overflow-x-auto">
-        <div className="mt-3 space-y-3">
-          {disks.map((d, i) => (
-            <div key={d.rowId} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end">
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>Disk {i + 1} name</span>
-                <input aria-label={`Disk ${i + 1} name`} className={inputClass} type="text" placeholder="Disk name" value={d.name} onChange={(e) => update(i, { name: e.target.value })}
-                  onPaste={i === 0 ? (e) => {
-                    const parsed = parseDiskPaste(e.clipboardData.getData('text'));
-                    const isPristine = disks.length === 1 && !disks[0].name && !disks[0].size && !disks[0].storage && !disks[0].type;
-                    if (parsed && isPristine) { e.preventDefault(); setDisks(parsed); }
-                  } : undefined} />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>Size</span>
-                <input aria-label={`Disk ${i + 1} size`} className={cn(inputClass, 'tabular-nums')} type="number" min="0" placeholder="Size" value={d.size} onChange={(e) => update(i, { size: e.target.value })} />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>Unit</span>
-                <select aria-label={`Disk ${i + 1} unit`} className={selectClass} value={d.unit} onChange={(e) => update(i, { unit: e.target.value as 'GB' | 'TB' })}>
-                  <option value="GB">GB</option>
-                  <option value="TB">TB</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>Storage</span>
-                <input aria-label={`Disk ${i + 1} storage`} className={inputClass} type="text" placeholder="Storage" value={d.storage} onChange={(e) => update(i, { storage: e.target.value })} />
-              </label>
-              <div className="flex flex-col gap-1">
-                <span className={labelClass}>Type</span>
-                <div className="flex gap-2 items-end">
-                  <input aria-label={`Disk ${i + 1} type`} className={inputClass} type="text" placeholder="Type" value={d.type} onChange={(e) => update(i, { type: e.target.value })} />
-                  {disks.length > 1 && (
-                    <RemoveButton onClick={() => setDisks((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove disk ${i + 1}`} />
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+      <div className="mt-3 space-y-3">
+        <div className={cn(gridClass, 'hidden lg:grid')}>
+          <span className={labelClass}>Name</span>
+          <span className={labelClass}>Size</span>
+          <span className={labelClass}>Unit</span>
+          <span className={labelClass}>Storage</span>
+          <span className={labelClass}>Type</span>
+          <span aria-hidden="true" />
         </div>
+        {disks.map((d, i) => (
+          <div key={d.rowId} className={gridClass}>
+            <label className="flex flex-col gap-1">
+              <span className={cn(labelClass, 'lg:hidden')}>Disk {i + 1} name</span>
+              <input aria-label={`Disk ${i + 1} name`} className={inputClass} type="text" placeholder="Disk name" value={d.name} onChange={(e) => update(i, { name: e.target.value })}
+                onPaste={i === 0 ? (e) => {
+                  const parsed = parseDiskPaste(e.clipboardData.getData('text'));
+                  const isPristine = disks.length === 1 && !disks[0].name && !disks[0].size && !disks[0].storage && !disks[0].type;
+                  if (parsed && isPristine) { e.preventDefault(); setDisks(parsed); }
+                } : undefined} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={cn(labelClass, 'lg:hidden')}>Size</span>
+              <input aria-label={`Disk ${i + 1} size`} className={cn(inputClass, 'tabular-nums')} type="number" min="0" placeholder="Size" value={d.size} onChange={(e) => update(i, { size: e.target.value })} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={cn(labelClass, 'lg:hidden')}>Unit</span>
+              <select aria-label={`Disk ${i + 1} unit`} className={selectClass} value={d.unit} onChange={(e) => update(i, { unit: e.target.value as 'GB' | 'TB' })}>
+                <option value="GB">GB</option>
+                <option value="TB">TB</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={cn(labelClass, 'lg:hidden')}>Storage</span>
+              <input aria-label={`Disk ${i + 1} storage`} className={inputClass} type="text" placeholder="Storage" value={d.storage} onChange={(e) => update(i, { storage: e.target.value })} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={cn(labelClass, 'lg:hidden')}>Type</span>
+              <input aria-label={`Disk ${i + 1} type`} className={inputClass} type="text" placeholder="Type" value={d.type} onChange={(e) => update(i, { type: e.target.value })} />
+            </label>
+            {disks.length > 1 ? (
+              <RemoveButton onClick={() => setDisks((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove disk ${i + 1}`} />
+            ) : (
+              <div aria-hidden="true" />
+            )}
+          </div>
+        ))}
       </div>
       <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setDisks((rows) => [...rows, { rowId: crypto.randomUUID(), name: '', size: '', unit: 'GB', storage: '', type: '' }])}>
         + Add another disk
@@ -198,39 +209,43 @@ function parseIpPaste(text: string): IpRow[] | null {
 }
 function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction<IpRow[]>> }) {
   const update = (i: number, patch: Partial<IpRow>) => setIps((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const gridClass = 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_12rem_2.5rem] lg:items-end';
   return (
     <div>
       <p className={labelClass}>IP addresses</p>
       <p className={helpTextClass}>Paste a semicolon- or comma-separated list into the first address field to add several at once.</p>
-      <div className="overflow-x-auto">
-        <div className="mt-3 space-y-3">
-          {ips.map((r, i) => (
-            <div key={r.rowId} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-end">
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>IP Address {i + 1}</span>
-                <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })}
-                  onPaste={i === 0 ? (e) => {
-                    const parsed = parseIpPaste(e.clipboardData.getData('text'));
-                    const isPristine = ips.length === 1 && !ips[0].ip;
-                    if (parsed && isPristine) { e.preventDefault(); setIps(parsed); }
-                  } : undefined} />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>Role</span>
-                <select aria-label={`IP role ${i + 1}`} className={selectClass} value={r.role} onChange={(e) => update(i, { role: e.target.value as NetworkRole })}>
-                  <option value="private">Private</option>
-                  <option value="public">Public</option>
-                  <option value="backup">Backup</option>
-                </select>
-              </label>
-              <div className="flex items-end">
-                {ips.length > 1 && (
-                  <RemoveButton onClick={() => setIps((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove IP address ${i + 1}`} />
-                )}
-              </div>
-            </div>
-          ))}
+      <div className="mt-3 space-y-3">
+        <div className={cn(gridClass, 'hidden lg:grid')}>
+          <span className={labelClass}>Address</span>
+          <span className={labelClass}>Role</span>
+          <span aria-hidden="true" />
         </div>
+        {ips.map((r, i) => (
+          <div key={r.rowId} className={gridClass}>
+            <label className="flex flex-col gap-1">
+              <span className={cn(labelClass, 'lg:hidden')}>IP Address {i + 1}</span>
+              <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })}
+                onPaste={i === 0 ? (e) => {
+                  const parsed = parseIpPaste(e.clipboardData.getData('text'));
+                  const isPristine = ips.length === 1 && !ips[0].ip;
+                  if (parsed && isPristine) { e.preventDefault(); setIps(parsed); }
+                } : undefined} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={cn(labelClass, 'lg:hidden')}>Role</span>
+              <select aria-label={`IP role ${i + 1}`} className={selectClass} value={r.role} onChange={(e) => update(i, { role: e.target.value as NetworkRole })}>
+                <option value="private">Private</option>
+                <option value="public">Public</option>
+                <option value="backup">Backup</option>
+              </select>
+            </label>
+            {ips.length > 1 ? (
+              <RemoveButton onClick={() => setIps((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove IP address ${i + 1}`} />
+            ) : (
+              <div aria-hidden="true" />
+            )}
+          </div>
+        ))}
       </div>
       <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setIps((rows) => [...rows, { rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole }])}>
         + Add IP address
@@ -251,7 +266,7 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const [disks, setDisks] = useState<DiskRow[]>(() => [{ rowId: crypto.randomUUID(), name: '', size: '', unit: 'GB', storage: '', type: '' }]);
   const [ips, setIps] = useState<IpRow[]>(() => [{ rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole }]);
   const initialSnapshot = useRef<string>(JSON.stringify({ values, disks, ips }));
-  const isDirty = JSON.stringify({ values, disks, ips }) !== initialSnapshot.current;
+  const isDirty = useMemo(() => JSON.stringify({ values, disks, ips }) !== initialSnapshot.current, [values, disks, ips]);
 
   const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => vmsApi.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
   const optionsQuery = useQuery({ queryKey: ['settings', 'options'], queryFn: settingsApi.getDropdownOptions });
@@ -314,7 +329,11 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
       const fieldErrors = collectErrors(parsed.error);
       setErrors(fieldErrors);
       const firstKey = Object.keys(fieldErrors)[0];
-      if (firstKey) { document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById(firstKey)?.focus(); }
+      if (firstKey) {
+        const el = document.getElementById(firstKey);
+        el?.focus({ preventScroll: true });
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
     setErrors({});

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { inputClass } from './ui';
 
@@ -38,8 +38,8 @@ export function FuzzyMultiSelect({
     setMounted(true);
   }, []);
 
-  useLayoutEffect(() => {
-    if (!open || !containerRef.current) return;
+  const updatePosition = useCallback(() => {
+    if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const panelHeight = panelRef.current?.offsetHeight ?? 240; // matches max-h-60
     const spaceBelow = window.innerHeight - rect.bottom;
@@ -49,7 +49,22 @@ export function FuzzyMultiSelect({
       left: rect.left,
       width: rect.width,
     });
-  }, [open, query, value]);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+  }, [open, query, updatePosition, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [open, updatePosition]);
 
   useEffect(() => {
     if (!open) return;

@@ -12,11 +12,15 @@ const hoisted = vi.hoisted(() => ({
     const query = url.includes('?') ? url.split('?')[1] : '';
     hoisted.searchParams = new URLSearchParams(query);
   }),
+  replaceMock: vi.fn((url: string) => {
+    const query = url.includes('?') ? url.split('?')[1] : '';
+    hoisted.searchParams = new URLSearchParams(query);
+  }),
   searchParams: new URLSearchParams(),
 }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: hoisted.pushMock }),
+  useRouter: () => ({ push: hoisted.pushMock, replace: hoisted.replaceMock }),
   usePathname: () => '/inventory',
   useSearchParams: () => hoisted.searchParams,
 }));
@@ -28,6 +32,7 @@ function makeVmList(overrides: Partial<VmList> = {}): VmList {
 beforeEach(() => {
   hoisted.searchParams = new URLSearchParams();
   hoisted.pushMock.mockClear();
+  hoisted.replaceMock.mockClear();
 });
 
 afterEach(() => {
@@ -161,6 +166,17 @@ describe('InventoryPage', () => {
     await user.click(screen.getByRole('button', { name: 'Clear search' }));
     await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Search VMs' })).toHaveValue(''));
   });
+  it('uses router.replace instead of push for search filter changes', async () => {
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
+
+    await screen.findAllByText('web-01');
+    await userEvent.setup().type(screen.getByRole('searchbox', { name: 'Search VMs' }), 'web');
+
+    await waitFor(() => expect(hoisted.replaceMock).toHaveBeenLastCalledWith('/inventory?q=web'));
+    expect(hoisted.pushMock).not.toHaveBeenCalled();
+  });
+
   it('seeds the search field from the URL and clears it back to empty', async () => {
     hoisted.searchParams = new URLSearchParams('q=web');
     vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
@@ -352,6 +368,20 @@ describe('InventoryPage', () => {
     expect(nameHeader).toHaveAttribute('aria-sort', 'none');
     expect(screen.getByRole('checkbox', { name: 'Select all' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Select web-01' })).toBeInTheDocument();
+  });
+
+  it('renders an alert with API detail when an inline cell edit fails', async () => {
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
+    vi.spyOn(vmsApi, 'updateVm').mockRejectedValue(new ApiError(400, 'Status update rejected'));
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('cell-status'));
+    const editor = screen.getByRole('combobox');
+    await user.selectOptions(editor, 'powered_off');
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Status update rejected');
   });
 
   it('commits an inline status edit with Enter and sends the existing PATCH shape', async () => {

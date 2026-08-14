@@ -77,6 +77,20 @@ it('renders fallbacks for missing optional values and blocks inline edit for rea
   expect(update).not.toHaveBeenCalled();
   expect(screen.getByText('unknown')).toBeInTheDocument();
   expect(screen.getByText('—')).toBeInTheDocument();
+  expect(screen.getByTestId('cell-tags')).toHaveTextContent('');
+});
+
+it('keeps inline status editor compact at the clicked cell width', () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(123);
+  const vm = makeVm({ status: 'running' });
+  renderWithProviders(<VmTable vms={[vm]} columns={[{ key: 'status' }]} selectedIds={new Set()} onToggle={() => {}} onToggleAll={() => {}} sortKey={null} sortDir="asc" onSort={() => {}} canEdit onUpdateCell={vi.fn()} />);
+
+  const cell = screen.getByTestId('cell-status');
+  fireEvent.click(cell);
+  const select = screen.getByDisplayValue('running');
+
+  expect(cell).toHaveStyle({ width: '123px' });
+  expect(select).toHaveClass('py-1');
 });
 
 it('supports owner inline edit cancellation and swallowed update failures', async () => {
