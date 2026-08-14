@@ -84,3 +84,30 @@ def patch_user(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: uuid.UUID, db: DbSession, current_user: AdminUser, __: Csrf
+) -> None:
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="You cannot delete your own account"
+        )
+    if _is_last_active_admin(db, user):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Cannot remove the last active admin"
+        )
+    db.delete(user)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User has linked records (audit log, imports). Deactivate the account instead.",
+        ) from exc
+

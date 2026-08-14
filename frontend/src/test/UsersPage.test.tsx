@@ -176,3 +176,61 @@ describe('UsersPanel update flow', () => {
     );
   });
 });
+
+
+describe('UsersPanel delete flow', () => {
+  it('opens a confirmation dialog and deletes a non-self user from the desktop row', async () => {
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([
+      makeUser({ id: 'u1', email: 'delete-me@example.com', role: 'viewer' }),
+    ]);
+    const deleteSpy = vi.spyOn(authApi, 'deleteUser').mockResolvedValue(null);
+
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
+
+    const rowHeader = await screen.findByRole('rowheader', { name: 'delete-me@example.com' });
+    const row = rowHeader.closest('tr');
+    expect(row).not.toBeNull();
+    fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByRole('heading', { name: 'Delete user' })).toBeInTheDocument();
+    expect(screen.getByText('Permanently delete delete-me@example.com? This cannot be undone.')).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('u1'));
+  });
+
+  it('renders delete rejection details from the desktop row', async () => {
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([
+      makeUser({ id: 'u1', email: 'linked@example.com', role: 'viewer' }),
+    ]);
+    vi.spyOn(authApi, 'deleteUser').mockRejectedValue(new ApiError(409, 'Deactivate the account instead.'));
+
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
+
+    const rowHeader = await screen.findByRole('rowheader', { name: 'linked@example.com' });
+    const row = rowHeader.closest('tr');
+    expect(row).not.toBeNull();
+    fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'Delete' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Deactivate the account instead.');
+  });
+
+  it('deletes from the mobile card edit panel', async () => {
+    vi.spyOn(authApi, 'listUsers').mockResolvedValue([
+      makeUser({ id: 'u1', email: 'card-delete@example.com', role: 'viewer' }),
+    ]);
+    const deleteSpy = vi.spyOn(authApi, 'deleteUser').mockResolvedValue(null);
+
+    renderWithProviders(<UsersPanel />, { user: makeUser() });
+
+    const editButton = await screen.findByRole('button', { name: 'Edit' });
+    fireEvent.click(editButton);
+    const cardRoot = editButton.closest('div')?.parentElement;
+    expect(cardRoot).not.toBeNull();
+    fireEvent.click(within(cardRoot as HTMLElement).getByRole('button', { name: 'Delete' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('u1'));
+  });
+});

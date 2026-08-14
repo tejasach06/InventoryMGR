@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { auth as authApi } from '../api/auth';
 import { detailMessage } from '../api/core';
 import type { User, UserRole } from '../api/types';
-import { Alert, Badge, ConfirmDialog, EmptyState, FieldError, PageHeader, PageTransition, Spinner, TableSkeleton, cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass, tableBodyClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
+import { Alert, Badge, ConfirmDialog, EmptyState, FieldError, PageHeader, PageTransition, Spinner, TableSkeleton, cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, dangerButtonClass, selectClass, tableBodyClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
 import { useCurrentUser } from '../components/AuthContext';
 import { cn } from '../lib/classNames';
 
@@ -50,6 +50,13 @@ function buildUpdateUserMutation(
   };
 }
 
+function buildDeleteUserMutation(userId: string, queryClient: ReturnType<typeof useQueryClient>) {
+  return {
+    mutationFn: () => authApi.deleteUser(userId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  };
+}
+
 function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -57,10 +64,12 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
   const [isActive, setIsActive] = useState(user.is_active);
   const [password, setPassword] = useState('');
   const [reviewing, setReviewing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [success, setSuccess] = useState<string>();
   const update = useMutation(
     buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient, () => { setEditing(false); setSuccess(`Updated access for ${user.email}.`); }),
   );
+  const remove = useMutation(buildDeleteUserMutation(user.id, queryClient));
 
   return (
     <div className={cardClass}>
@@ -92,9 +101,16 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
             <label className={labelClass} htmlFor={`card-pw-${user.id}`}>New password</label>
             <input className={inputClass} id={`card-pw-${user.id}`} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Leave unchanged" />
           </div>
-          <button type="button" className={primaryButtonClass} onClick={() => (role !== user.role || isActive !== user.is_active) ? setReviewing(true) : update.mutate()} disabled={update.isPending}>
-            {update.isPending ? <><Spinner /> Saving…</> : role !== user.role || isActive !== user.is_active ? 'Review access change' : 'Save'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className={primaryButtonClass} onClick={() => (role !== user.role || isActive !== user.is_active) ? setReviewing(true) : update.mutate()} disabled={update.isPending}>
+              {update.isPending ? <><Spinner /> Saving…</> : role !== user.role || isActive !== user.is_active ? 'Review access change' : 'Save'}
+            </button>
+            <button type="button" className={dangerButtonClass} onClick={() => setConfirmingDelete(true)}
+              disabled={isSelf || remove.isPending}
+              title={isSelf ? "You can't delete your own account." : undefined}>
+              {remove.isPending ? <><Spinner /> Deleting…</> : 'Delete'}
+            </button>
+          </div>
           <ConfirmDialog
             open={reviewing}
             title="Review access change"
@@ -105,8 +121,19 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
             onConfirm={() => { setReviewing(false); update.mutate(); }}
             onCancel={() => setReviewing(false)}
           />
+          <ConfirmDialog
+            open={confirmingDelete}
+            title="Delete user"
+            body={`Permanently delete ${user.email}? This cannot be undone.`}
+            confirmLabel="Delete"
+            tone="danger"
+            pending={remove.isPending}
+            onConfirm={() => { setConfirmingDelete(false); remove.mutate(); }}
+            onCancel={() => setConfirmingDelete(false)}
+          />
           {success ? <Alert tone="success">{success}</Alert> : null}
           {update.isError ? <Alert>{detailMessage(update.error)}</Alert> : null}
+          {remove.isError ? <Alert>{detailMessage(remove.error)}</Alert> : null}
         </div>
       ) : null}
     </div>
@@ -119,8 +146,10 @@ function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
   const [isActive, setIsActive] = useState(user.is_active);
   const [password, setPassword] = useState('');
   const [reviewing, setReviewing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [success, setSuccess] = useState<string>();
   const update = useMutation(buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient, () => setSuccess(`Updated access for ${user.email}.`)));
+  const remove = useMutation(buildDeleteUserMutation(user.id, queryClient));
 
   return (
     <>
@@ -144,9 +173,16 @@ function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
           <input className={inputClass} id={`password-${user.id}`} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Leave unchanged" />
         </td>
         <td className="whitespace-nowrap px-4 py-3">
-          <button type="button" className={secondaryButtonClass} onClick={() => (role !== user.role || isActive !== user.is_active) ? setReviewing(true) : update.mutate()} disabled={update.isPending}>
-            {update.isPending ? <><Spinner /> Saving…</> : role !== user.role || isActive !== user.is_active ? 'Review access change' : 'Save'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" className={secondaryButtonClass} onClick={() => (role !== user.role || isActive !== user.is_active) ? setReviewing(true) : update.mutate()} disabled={update.isPending}>
+              {update.isPending ? <><Spinner /> Saving…</> : role !== user.role || isActive !== user.is_active ? 'Review access change' : 'Save'}
+            </button>
+            <button type="button" className={dangerButtonClass} onClick={() => setConfirmingDelete(true)}
+              disabled={isSelf || remove.isPending}
+              title={isSelf ? "You can't delete your own account." : undefined}>
+              {remove.isPending ? <><Spinner /> Deleting…</> : 'Delete'}
+            </button>
+          </div>
         </td>
       </tr>
       <ConfirmDialog
@@ -159,10 +195,21 @@ function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
         onConfirm={() => { setReviewing(false); update.mutate(); }}
         onCancel={() => setReviewing(false)}
       />
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete user"
+        body={`Permanently delete ${user.email}? This cannot be undone.`}
+        confirmLabel="Delete"
+        tone="danger"
+        pending={remove.isPending}
+        onConfirm={() => { setConfirmingDelete(false); remove.mutate(); }}
+        onCancel={() => setConfirmingDelete(false)}
+      />
       {success ? <tr><td colSpan={5} className="px-4 py-2"><Alert tone="success">{success}</Alert></td></tr> : null}
       {update.isError ? (
         <tr><td colSpan={5} className="px-4 py-2"><Alert>{detailMessage(update.error)}</Alert></td></tr>
       ) : null}
+      {remove.isError ? <tr><td colSpan={5} className="px-4 py-2"><Alert>{detailMessage(remove.error)}</Alert></td></tr> : null}
     </>
   );
 }
