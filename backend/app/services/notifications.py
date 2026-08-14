@@ -28,16 +28,20 @@ def list_due(db: Session, user_id: uuid.UUID) -> list[DueVmRead]:
         a.vm_id: a.acked_date
         for a in db.scalars(select(DecommissionAck).where(DecommissionAck.user_id == user_id)).all()
     }
-    return [
-        DueVmRead(
-            vm_id=vm.id,
-            name=vm.name,
-            decommission_date=vm.decommission_date,
-            days_remaining=(vm.decommission_date - today).days,
-            unread=acks.get(vm.id) != vm.decommission_date,
+    result: list[DueVmRead] = []
+    for vm in vms:
+        if vm.decommission_date is None:
+            continue
+        result.append(
+            DueVmRead(
+                vm_id=vm.id,
+                name=vm.name,
+                decommission_date=vm.decommission_date,
+                days_remaining=(vm.decommission_date - today).days,
+                unread=acks.get(vm.id) != vm.decommission_date,
+            )
         )
-        for vm in vms
-    ]
+    return result
 
 
 def ack(db: Session, user_id: uuid.UUID, vm_ids: list[uuid.UUID] | None) -> None:
@@ -50,6 +54,8 @@ def ack(db: Session, user_id: uuid.UUID, vm_ids: list[uuid.UUID] | None) -> None
         for a in db.scalars(select(DecommissionAck).where(DecommissionAck.user_id == user_id)).all()
     }
     for vm_id, dec_date in selected.items():
+        if dec_date is None:
+            continue
         if vm_id in existing:
             existing[vm_id].acked_date = dec_date
         else:

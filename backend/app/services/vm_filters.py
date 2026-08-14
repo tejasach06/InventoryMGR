@@ -26,7 +26,7 @@ class FilterOperator(StrEnum):
     neq = "neq"
 
 
-def _op_condition_list(column, values: list, operator: FilterOperator):
+def _op_condition_list(column: Any, values: list, operator: FilterOperator):
     # ponytail: 'contains' has no meaning for an IN-list of exact enum values, so it
     # collapses to 'eq' (IN) rather than raising. Only 'neq' gets distinct handling.
     if operator == FilterOperator.neq:
@@ -34,7 +34,7 @@ def _op_condition_list(column, values: list, operator: FilterOperator):
     return column.in_(values)
 
 
-def _op_condition(column, value: str, operator: FilterOperator, *, case_insensitive: bool = False):
+def _op_condition(column: Any, value: Any, operator: FilterOperator, *, case_insensitive: bool = False):
     if case_insensitive:
         target = func.lower(func.coalesce(column, ""))
         needle = value.strip().lower()
@@ -183,7 +183,7 @@ def apply_vm_filters(
                 _op_condition(column, value, operator, case_insensitive=case_insensitive)
             )
 
-    LIST_FILTER_SPECS = (
+    LIST_FILTER_SPECS: tuple[tuple[Any, Any, FilterOperator], ...] = (
         (platform, Vm.platform, platform_op),
         (status_value, Vm.status, status_op),
         (environment, Vm.environment, environment_op),

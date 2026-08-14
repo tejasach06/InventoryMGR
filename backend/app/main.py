@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,7 +60,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="InventoryMGR API", lifespan=lifespan)
     app.state.limiter = auth_limiter
-    app.add_exception_handler(429, _rate_limit_exceeded_handler)
+    app.add_exception_handler(429, cast(Any, _rate_limit_exceeded_handler))
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(
