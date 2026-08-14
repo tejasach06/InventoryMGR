@@ -66,18 +66,14 @@ def _set_auth_cookies(response: Response, *, token: str, csrf: str) -> None:
 
 def _set_refresh_cookie(response: Response, *, refresh_token: str, persist: bool = False) -> None:
     settings = get_settings()
-    kwargs = {
-        "httponly": True,
-        "secure": settings.secure_cookies,
-        "samesite": "strict",
-        "path": "/api/auth/refresh",
-    }
-    if persist:
-        kwargs["max_age"] = REFRESH_TTL_SECONDS
     response.set_cookie(
         REFRESH_COOKIE_NAME,
         refresh_token,
-        **kwargs,
+        max_age=REFRESH_TTL_SECONDS if persist else None,
+        httponly=True,
+        secure=settings.secure_cookies,
+        samesite="strict",
+        path="/api/auth/refresh",
     )
 
 

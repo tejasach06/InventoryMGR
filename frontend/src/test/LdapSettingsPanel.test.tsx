@@ -31,6 +31,8 @@ describe('LdapPanel', () => {
     renderWithProviders(<LdapPanel />);
 
     expect(await screen.findByDisplayValue('ldap://ldap.example.com')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText('Bind DN')).toHaveValue(config.bind_dn));
+    await waitFor(() => expect(screen.getByLabelText('User base DN')).toHaveValue(config.user_base_dn));
     fireEvent.click(screen.getByRole('button', { name: 'Save LDAP settings' }));
     await waitFor(() => expect(save).toHaveBeenCalled());
     const { bind_password_set: _ignored, ...expected } = config;

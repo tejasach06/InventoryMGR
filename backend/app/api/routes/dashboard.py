@@ -90,15 +90,17 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
         .order_by(Vm.decommission_date.asc())
         .limit(ALERT_LIST_LIMIT)
     ).all()
-    decommission_overdue = [
-        DashboardAlertVm(
-            id=vm.id,
-            name=vm.name,
-            environment=vm.environment,
-            days=(today - vm.decommission_date).days,
-        )
-        for vm in overdue_vms
-    ]
+    decommission_overdue = []
+    for vm in overdue_vms:
+        if vm.decommission_date is not None:
+            decommission_overdue.append(
+                DashboardAlertVm(
+                    id=vm.id,
+                    name=vm.name,
+                    environment=vm.environment,
+                    days=(today - vm.decommission_date).days,
+                )
+            )
 
     # List 3: Missing IP address
     no_ip_vms = db.scalars(

@@ -450,7 +450,7 @@ def normalize_csv_row(row: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
     return normalized, []
 
 
-def identity_key(normalized: dict[str, Any]) -> tuple[str, ...]:
+def identity_key(normalized: dict[str, Any]) -> tuple[Any, ...]:
     platform = normalized["platform"]
     name = normalized["name"].lower()
     cluster = normalized["cluster"].lower()

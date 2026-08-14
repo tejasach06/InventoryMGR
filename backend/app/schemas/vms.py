@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Any
 
@@ -74,8 +75,8 @@ class VmBase(BaseModel):
     security_remarks: str | None = None
     decommission_date: date | None = None
     last_verified_at: date | None = None
-    disks: list["DiskCreate"] = []
-    networks: list["NetworkCreate"] = []
+    disks: Sequence["DiskCreate"] = []
+    networks: Sequence["NetworkCreate"] = []
 
     @field_validator(
         "platform",

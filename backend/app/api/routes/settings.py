@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import AdminUser, Csrf, DbSession, ViewerUser
-from app.db.models import DropdownCategory, DropdownOption, OsFamily
+from app.db.models import DropdownCategory, DropdownOption, OsFamily, UserRole
 from app.schemas.ldap import LdapConfigRead, LdapConfigUpdate, LdapTestRequest, LdapTestResult
 from app.schemas.settings import (
     AppSettingsRead,
@@ -145,7 +145,7 @@ def _ldap_read(config) -> LdapConfigRead:
             admin_group_dn=None,
             editor_group_dn=None,
             viewer_group_dn=None,
-            default_role="viewer",
+            default_role=UserRole.viewer,
         )
     return LdapConfigRead(
         enabled=config.enabled,

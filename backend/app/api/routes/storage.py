@@ -1,5 +1,5 @@
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -61,15 +61,16 @@ def delete_array(array_id: uuid.UUID, db: DbSession, _: EditorUser, __: Csrf) ->
     storage.delete_array(db, array)
 
 
-def make_storage_subrouter(
+
+def make_storage_subrouter[ReadSchema: BaseModel, CreateSchema: BaseModel, UpdateSchema: BaseModel](
     *,
     child_segment: str,
-    model: type,
+    model: Any,
     fk_attr: str,
-    parent_model: type,
-    create_schema: type[BaseModel],
-    update_schema: type[BaseModel],
-    read_schema: type[BaseModel],
+    parent_model: Any,
+    create_schema: type[CreateSchema],
+    update_schema: type[UpdateSchema],
+    read_schema: type[ReadSchema],
     order_col: Any,
     not_found_detail: str,
     parent_not_found_detail: str,
@@ -83,7 +84,7 @@ def make_storage_subrouter(
                 status_code=status.HTTP_404_NOT_FOUND, detail=parent_not_found_detail
             )
 
-    @router.get(f"/{{parent_id}}/{child_segment}", response_model=list[read_schema])
+    @router.get(f"/{{parent_id}}/{child_segment}", response_model=list[read_schema])  # type: ignore[valid-type]
     def list_items(parent_id: uuid.UUID, db: DbSession, _: ViewerUser) -> list:
         _require_parent(db, parent_id)
         return list(
@@ -98,10 +99,11 @@ def make_storage_subrouter(
         status_code=status.HTTP_201_CREATED,
     )
     def add_item(
-        parent_id: uuid.UUID, payload: create_schema, db: DbSession, _: EditorUser, __: Csrf
-    ):  # type: ignore[valid-type]
+        parent_id: uuid.UUID, payload: create_schema,  # type: ignore[valid-type]
+        db: DbSession, _: EditorUser, __: Csrf
+    ):
         _require_parent(db, parent_id)
-        item = model(**{fk_attr: parent_id}, **payload.model_dump())
+        item = model(**{fk_attr: parent_id}, **cast(BaseModel, payload).model_dump())
         db.add(item)
         db.commit()
         db.refresh(item)
@@ -111,17 +113,17 @@ def make_storage_subrouter(
     def update_item(
         parent_id: uuid.UUID,
         item_id: uuid.UUID,
-        payload: update_schema,
+        payload: update_schema,  # type: ignore[valid-type]
         db: DbSession,
         _: EditorUser,
-        __: Csrf,  # type: ignore[valid-type]
+        __: Csrf,
     ):
         item = db.scalar(
             select(model).where(model.id == item_id, getattr(model, fk_attr) == parent_id)
         )
         if item is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=not_found_detail)
-        for key, value in payload.model_dump(exclude_unset=True).items():
+        for key, value in cast(BaseModel, payload).model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.commit()
         db.refresh(item)

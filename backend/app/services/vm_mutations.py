@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Sequence
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -29,7 +30,7 @@ def _raise_identity_conflict(exc: IntegrityError) -> None:
 
 
 
-def _sync_disks(db: Session, vm: Vm, disks: list[DiskCreate]) -> None:
+def _sync_disks(db: Session, vm: Vm, disks: Sequence[DiskCreate]) -> None:
     db.query(VmDisk).filter(VmDisk.vm_id == vm.id).delete()
     for i, disk in enumerate(disks):
         db.add(
@@ -44,7 +45,7 @@ def _sync_disks(db: Session, vm: Vm, disks: list[DiskCreate]) -> None:
         )
 
 
-def _sync_networks(db: Session, vm: Vm, networks: list[NetworkCreate]) -> None:
+def _sync_networks(db: Session, vm: Vm, networks: Sequence[NetworkCreate]) -> None:
     db.query(VmNetwork).filter(VmNetwork.vm_id == vm.id).delete()
     for i, network in enumerate(networks):
         db.add(

@@ -1,3 +1,4 @@
+# Dependency-upgrade verification runs inside Devbox: `devbox run -- just verify`.
 set dotenv-load := true
 
 setup:
