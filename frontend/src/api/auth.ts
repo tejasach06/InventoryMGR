@@ -15,4 +15,5 @@ export const auth = {
     apiRequest<User>('/users', { method: 'POST', body: JSON.stringify(payload) }),
   updateUser: (id: string, payload: Partial<{ password: string; role: UserRole; is_active: boolean }>) =>
     apiRequest<User>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteUser: (id: string) => apiRequest<null>(`/users/${id}`, { method: 'DELETE' }),
 };
