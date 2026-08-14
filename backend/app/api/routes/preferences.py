@@ -1,4 +1,4 @@
-from typing import Any, get_args
+from typing import Any, cast, get_args
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -7,6 +7,7 @@ from app.schemas.preferences import (
     DEFAULT_ACCENT,
     AccentId,
     AccentPreference,
+    ColumnPreference,
     ColumnPreferencesRead,
 )
 
@@ -18,7 +19,7 @@ def get_accent(user: CurrentUser) -> AccentPreference:
     value = (user.preferences or {}).get("accent_color")
     if value not in get_args(AccentId):
         return AccentPreference(accent=DEFAULT_ACCENT)
-    return AccentPreference(accent=value)
+    return AccentPreference(accent=cast(AccentId, value))
 
 
 @router.put("/accent", response_model=AccentPreference)
@@ -74,7 +75,7 @@ def get_columns(page_key: str, user: CurrentUser) -> ColumnPreferencesRead:
     prefs = user.preferences or {}
     columns = prefs.get(f"columns_{page_key}")
     if not columns:
-        return ColumnPreferencesRead(columns=DEFAULT_COLUMNS)
+        return ColumnPreferencesRead(columns=[ColumnPreference.model_validate(c) for c in DEFAULT_COLUMNS])
     # Rewrite and dedupe together: a layout holding both ip_address and
     # private_ip would otherwise yield the key twice, and every later save
     # would fail the duplicate check with no way for the UI to recover.
@@ -94,7 +95,7 @@ def get_columns(page_key: str, user: CurrentUser) -> ColumnPreferencesRead:
         if default["key"] not in saved_keys:
             columns.append({"key": default["key"], "visible": False, "order": next_order})
             next_order += 1
-    return ColumnPreferencesRead(columns=columns)
+    return ColumnPreferencesRead(columns=[ColumnPreference.model_validate(c) for c in columns])
 
 
 @router.put(

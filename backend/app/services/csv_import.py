@@ -334,12 +334,12 @@ def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
         return "create", vm
     if row.target_vm_id is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
-    vm = db.get(Vm, row.target_vm_id)
-    if vm is None or find_matching_vm(db, row.normalized) != vm:
+    existing_vm: Vm | None = db.get(Vm, row.target_vm_id)
+    if existing_vm is None or find_matching_vm(db, row.normalized) != existing_vm:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
-    update_vm(db, vm, VmUpdate.model_validate(normalized), user, commit=False)
-    _attach_children(db, vm, row.raw)
-    return "update", vm
+    update_vm(db, existing_vm, VmUpdate.model_validate(normalized), user, commit=False)
+    _attach_children(db, existing_vm, row.raw)
+    return "update", existing_vm
 
 
 def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, int]:
