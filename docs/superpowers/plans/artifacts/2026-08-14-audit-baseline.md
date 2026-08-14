@@ -177,3 +177,9 @@ Targets use latest stable where available. Runtime policy is n-1 of latest stabl
 ## Cross-check conclusion
 
 No incremental findings beyond `just audit`; `osv-scanner` was unavailable and is not added to CI.
+
+## Verification environment note
+
+The repository pins `just` in Devbox; it is not installed on the host PATH. The required gate therefore runs as `devbox run -- just verify` (equivalent to entering `devbox shell` first). A host-level `/bin/sh -c 'just verify'` exits 127 before any project recipe executes.
+
+Gate evidence (2026-08-14): `devbox run -- just verify` completed successfully: backend 32 passed/1 skipped, frontend 276 passed, Playwright 20 passed/1 skipped.
