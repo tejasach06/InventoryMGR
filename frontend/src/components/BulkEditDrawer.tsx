@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Alert, Drawer, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass } from './ui';
-
+import { ComboInput } from './ComboInput';
+import { TagInput } from './TagInput';
 export type BulkPatch = Record<string, string | boolean | string[]>;
 
 const UNCHANGED = '';
@@ -31,9 +32,6 @@ const FLAG_FIELDS = [
   { key: 'ha_enabled', label: 'HA' },
 ] as const;
 
-function splitTags(value: string): string[] {
-  return value.split(',').map((tag) => tag.trim()).filter(Boolean);
-}
 
 export function BulkEditDrawer({
   open,
@@ -42,6 +40,8 @@ export function BulkEditDrawer({
   onSubmit,
   pending,
   error,
+  suggestions,
+  tagOptions,
 }: {
   open: boolean;
   onClose: () => void;
@@ -49,11 +49,13 @@ export function BulkEditDrawer({
   onSubmit: (patch: BulkPatch) => void;
   pending: boolean;
   error?: string;
+  suggestions: Record<string, string[]>;
+  tagOptions: string[];
 }) {
   const [activeTab, setActiveTab] = useState<'state' | 'infra' | 'ops' | 'tags'>('state');
   const [values, setValues] = useState<Record<string, string>>({});
-  const [tagsAdd, setTagsAdd] = useState('');
-  const [tagsRemove, setTagsRemove] = useState('');
+  const [tagsAdd, setTagsAdd] = useState<string[]>([]);
+  const [tagsRemove, setTagsRemove] = useState<string[]>([]);
 
   function set(key: string, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -65,8 +67,8 @@ export function BulkEditDrawer({
     const flag = FLAG_FIELDS.find((field) => field.key === key);
     patch[key] = flag ? value === 'true' : value;
   }
-  if (splitTags(tagsAdd).length > 0) patch.tags_add = splitTags(tagsAdd);
-  if (splitTags(tagsRemove).length > 0) patch.tags_remove = splitTags(tagsRemove);
+  if (tagsAdd.length > 0) patch.tags_add = tagsAdd;
+  if (tagsRemove.length > 0) patch.tags_remove = tagsRemove;
   const stagedKeys = Object.keys(patch);
   const hasChanges = stagedKeys.length > 0;
 
@@ -74,7 +76,7 @@ export function BulkEditDrawer({
   const stateStaged = SELECT_FIELDS.some((f) => values[f.key] && values[f.key] !== UNCHANGED);
   const infraStaged = TEXT_FIELDS.some((f) => values[f.key] && values[f.key] !== UNCHANGED);
   const opsStaged = FLAG_FIELDS.some((f) => values[f.key] && values[f.key] !== UNCHANGED) || (values.last_verified_at && values.last_verified_at !== UNCHANGED);
-  const tagsStaged = Boolean(splitTags(tagsAdd).length > 0 || splitTags(tagsRemove).length > 0);
+  const tagsStaged = tagsAdd.length > 0 || tagsRemove.length > 0;
 
   return (
     <Drawer
@@ -178,16 +180,14 @@ export function BulkEditDrawer({
             </legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
               {TEXT_FIELDS.map((field) => (
-                <label key={field.key} className="block">
-                  <span className={labelClass}>{field.label}</span>
-                  <input
-                    className={inputClass}
-                    aria-label={field.label}
-                    maxLength={255}
-                    value={values[field.key] ?? ''}
-                    onChange={(event) => set(field.key, event.target.value)}
-                  />
-                </label>
+                <ComboInput
+                  key={field.key}
+                  id={`bulk-${field.key}`}
+                  label={field.label}
+                  value={values[field.key] ?? ''}
+                  options={suggestions[field.key] ?? []}
+                  onChange={(next) => set(field.key, next)}
+                />
               ))}
             </div>
           </fieldset>
@@ -236,14 +236,14 @@ export function BulkEditDrawer({
               Tag Management
             </legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className={labelClass}>Add tags</span>
-                <input className={inputClass} aria-label="Add tags" maxLength={500} placeholder="comma separated" value={tagsAdd} onChange={(event) => setTagsAdd(event.target.value)} />
-              </label>
-              <label className="block">
-                <span className={labelClass}>Remove tags</span>
-                <input className={inputClass} aria-label="Remove tags" maxLength={500} placeholder="comma separated" value={tagsRemove} onChange={(event) => setTagsRemove(event.target.value)} />
-              </label>
+              <div>
+                <label className={labelClass} htmlFor="bulk-tags-add">Add tags</label>
+                <TagInput id="bulk-tags-add" value={tagsAdd} options={tagOptions} onChange={setTagsAdd} />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="bulk-tags-remove">Remove tags</label>
+                <TagInput id="bulk-tags-remove" value={tagsRemove} options={tagOptions} onChange={setTagsRemove} />
+              </div>
             </div>
           </fieldset>
         </div>

@@ -29,6 +29,7 @@ export const vms = {
   listVmNodes: () => apiRequest<string[]>('/vms/nodes'),
   listVmApplications: () => apiRequest<string[]>('/vms/applications'),
   listVmTags: () => apiRequest<string[]>('/vms/tags'),
+  listVmSuggestions: () => apiRequest<Record<string, string[]>>('/vms/suggestions'),
 
   listDisks: (vmId: string) => apiRequest<Disk[]>(`/vms/${vmId}/disks`),
   addDisk: (vmId: string, payload: Omit<Disk, 'id' | 'vm_id'>) =>

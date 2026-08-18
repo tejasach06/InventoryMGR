@@ -21,6 +21,9 @@ import { SORTABLE_COLUMNS, humanize } from '../lib/inventoryFilters';
 import { formatMemory } from '../lib/units';
 import { cn } from '../lib/classNames';
 
+export type EditableField = 'status' | 'environment' | 'criticality' | 'owner';
+const EDITABLE_FIELDS: readonly EditableField[] = ['status', 'environment', 'criticality', 'owner'];
+
 function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
   return (
     <svg className={cn('h-3 w-3 transition-opacity', direction ? 'opacity-100 text-[var(--color-accent)]' : 'opacity-30')} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
@@ -54,16 +57,14 @@ export function VmTable({
   sortDir: 'asc' | 'desc';
   onSort: (key: string) => void;
   canEdit?: boolean;
-  onUpdateCell?: (vmId: string, field: string, value: string) => Promise<void>;
+  onUpdateCell?: (vmId: string, field: EditableField, value: string) => Promise<void>;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
   const [editingCell, setEditingCell] = useState<{ vmId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [editWidth, setEditWidth] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const startEdit = (vmId: string, field: string, initialVal: string, width: number) => {
+  const startEdit = (vmId: string, field: EditableField, initialVal: string, width: number) => {
     if (!canEdit) return;
     setEditingCell({ vmId, field });
     setEditValue(initialVal ?? '');
@@ -80,7 +81,7 @@ export function VmTable({
     if (!editingCell || !onUpdateCell) return;
     try {
       setIsSaving(true);
-      await onUpdateCell(editingCell.vmId, editingCell.field, editValue);
+      await onUpdateCell(editingCell.vmId, editingCell.field as EditableField, editValue);
     } catch {
       // handled by parent toast/alert
     } finally {
@@ -134,7 +135,7 @@ export function VmTable({
           </tr>
         </thead>
         <tbody className={tableBodyClass}>
-          {vms.map((vm, index) => {
+          {vms.map((vm) => {
             const isSelected = selectedIds.has(vm.id);
 
             return (
@@ -154,8 +155,7 @@ export function VmTable({
                 </td>
                 {columns.map((col) => {
                   const isEditing = editingCell?.vmId === vm.id && editingCell?.field === col.key;
-                  const isEditable = canEdit && ['status', 'environment', 'criticality', 'owner'].includes(col.key);
-
+                  const isEditable = canEdit && EDITABLE_FIELDS.includes(col.key as EditableField);
                   return (
                     <td
                       key={col.key}
@@ -169,8 +169,8 @@ export function VmTable({
                       style={isEditing ? { width: editWidth ?? undefined } : undefined}
                       onClick={(e) => {
                         if (isEditable && !isEditing) {
-                          const currentVal = (vm as any)[col.key] ?? '';
-                          startEdit(vm.id, col.key, currentVal, (e.currentTarget as HTMLTableCellElement).offsetWidth);
+                          const currentVal = String(vm[col.key as EditableField] ?? '');
+                          startEdit(vm.id, col.key as EditableField, currentVal, (e.currentTarget as HTMLTableCellElement).offsetWidth);
                         }
                       }}
                     >

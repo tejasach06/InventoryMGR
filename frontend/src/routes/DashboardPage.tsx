@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { ReactNode, useMemo } from 'react';
+import { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { dashboard as dashboardApi } from '../api/dashboard';
 import { storage as storageApi } from '../api/storage';
 import { detailMessage } from '../api/core';
 import type { DashboardAlertVm } from '../api/types';
-import { Alert, Badge, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, primaryButtonClass, secondaryButtonClass, statTileClass } from '../components/ui';
+import { PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, primaryButtonClass, secondaryButtonClass, statTileClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 
 function fmtInt(n: number): string {

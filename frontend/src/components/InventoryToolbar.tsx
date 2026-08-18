@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/classNames';
-import { eyebrowClass, filterBarClass, inputClass, secondaryButtonClass } from './ui';
+import { filterBarClass, inputClass, secondaryButtonClass } from './ui';
 import { ColumnDrawer } from './ColumnDrawer';
 import { ActiveFilterChips } from './filters/ActiveFilterChips';
 import { FilterDrawer } from './filters/FilterDrawer';

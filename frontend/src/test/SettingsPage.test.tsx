@@ -60,13 +60,10 @@ describe('SettingsPage', () => {
   });
 
   it('keeps a newer accent when an earlier save fails', async () => {
-    let resolveFirst: (value: { accent: 'violet' }) => void = () => {};
     let rejectFirst: (reason: Error) => void = () => {};
-    const firstSave = new Promise<{ accent: 'violet' }>((resolve, reject) => {
-      resolveFirst = resolve;
+    const firstSave = new Promise<{ accent: 'violet' }>((_, reject) => {
       rejectFirst = reject;
     });
-    const firstSavePromise = firstSave; // Alias for clarity if needed
     const setAccent = vi.spyOn(settingsApi, 'setAccent')
       .mockImplementationOnce(() => firstSave)
       .mockResolvedValueOnce({ accent: 'blue' });

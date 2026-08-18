@@ -78,10 +78,10 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
     app.include_router(users.router, prefix="/api/users", tags=["users"])
     app.include_router(vms.router, prefix="/api/vms", tags=["vms"])
-    app.include_router(vms_disks_router, prefix="/api/vms/{vm_id}/disks", tags=["vms"])
-    app.include_router(vms_networks_router, prefix="/api/vms/{vm_id}/networks", tags=["vms"])
+    app.include_router(vms_disks_router, prefix="/api/vms/{parent_id}/disks", tags=["vms"])
+    app.include_router(vms_networks_router, prefix="/api/vms/{parent_id}/networks", tags=["vms"])
     app.include_router(
-        vms_applications_router, prefix="/api/vms/{vm_id}/applications", tags=["vms"]
+        vms_applications_router, prefix="/api/vms/{parent_id}/applications", tags=["vms"]
     )
     app.include_router(audit_router, prefix="/api/vms/{vm_id}/audit", tags=["audit"])
     app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
@@ -89,11 +89,11 @@ def create_app() -> FastAPI:
     app.include_router(imports.router, prefix="/api/imports", tags=["imports"])
     app.include_router(settings_router, prefix="/api/settings", tags=["settings"])
     app.include_router(storage_router, prefix="/api/storage", tags=["storage"])
-    app.include_router(volumes_router, prefix="/api/storage/arrays", tags=["storage"])
-    app.include_router(luns_router, prefix="/api/storage/volumes", tags=["storage"])
-    app.include_router(shares_router, prefix="/api/storage/volumes", tags=["storage"])
+    app.include_router(volumes_router, prefix="/api/storage/arrays/{parent_id}/volumes", tags=["storage"])
+    app.include_router(luns_router, prefix="/api/storage/volumes/{parent_id}/luns", tags=["storage"])
+    app.include_router(shares_router, prefix="/api/storage/volumes/{parent_id}/shares", tags=["storage"])
     app.include_router(clusters_router, prefix="/api/clusters", tags=["clusters"])
-    app.include_router(cluster_nodes_router, prefix="/api/clusters", tags=["clusters"])
+    app.include_router(cluster_nodes_router, prefix="/api/clusters/{parent_id}/nodes", tags=["clusters"])
     app.include_router(preferences_router, prefix="/api/user", tags=["user"])
     app.include_router(notifications_router, prefix="/api/notifications", tags=["notifications"])
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { fuzzyFilter } from '../lib/fuzzy';
 import { inputClass } from './ui';
 
 interface FuzzyMultiSelectProps {
@@ -12,11 +13,6 @@ interface FuzzyMultiSelectProps {
   labels?: Record<string, string>;
 }
 
-function fuzzyMatch(options: string[], query: string): string[] {
-  if (!query) return options;
-  const q = query.toLowerCase();
-  return options.filter((opt) => opt.toLowerCase().includes(q));
-}
 
 export function FuzzyMultiSelect({
   value,
@@ -82,7 +78,7 @@ export function FuzzyMultiSelect({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  const filtered = fuzzyMatch(options, query);
+  const filtered = fuzzyFilter(options, query, options.length);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (!open) {
@@ -215,7 +211,7 @@ export function FuzzyMultiSelect({
           aria-expanded={open}
         />
       </div>
-      {mounted && open ? (createPortal(panel, document.body) as any) : null}
+      {mounted && open ? createPortal(panel, document.body) : null}
     </div>
   );
 }

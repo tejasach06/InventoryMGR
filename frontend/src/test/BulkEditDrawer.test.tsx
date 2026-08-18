@@ -5,9 +5,17 @@ import { BulkEditDrawer } from '../components/BulkEditDrawer';
 
 afterEach(cleanup);
 
-function open(onSubmit = vi.fn()) {
+function open(onSubmit = vi.fn(), suggestions: Record<string, string[]> = {}, tagOptions: string[] = []) {
   render(
-    <BulkEditDrawer open onClose={vi.fn()} targetLabel="12 VMs" onSubmit={onSubmit} pending={false} />,
+    <BulkEditDrawer
+      open
+      onClose={vi.fn()}
+      targetLabel="12 VMs"
+      onSubmit={onSubmit}
+      pending={false}
+      suggestions={suggestions}
+      tagOptions={tagOptions}
+    />,
   );
   return onSubmit;
 }
@@ -30,8 +38,11 @@ describe('BulkEditDrawer', () => {
   it('sends tag additions and removals separately', async () => {
     const onSubmit = open();
 
-    await userEvent.type(screen.getByLabelText('Add tags'), 'prod, eu-west');
-    await userEvent.type(screen.getByLabelText('Remove tags'), 'legacy');
+    await userEvent.click(screen.getByRole('tab', { name: 'Tags' }));
+    const addInput = screen.getByLabelText('Add tags');
+    await userEvent.type(addInput, 'prod,eu-west{enter}');
+    const removeInput = screen.getByLabelText('Remove tags');
+    await userEvent.type(removeInput, 'legacy{enter}');
     await userEvent.click(screen.getByRole('button', { name: 'Apply to 12 VMs' }));
 
     expect(onSubmit).toHaveBeenCalledWith({

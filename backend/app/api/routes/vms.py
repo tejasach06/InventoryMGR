@@ -145,6 +145,29 @@ def list_tags(db: DbSession, _: ViewerUser) -> list[str]:
     rows = db.scalars(select(tag).distinct().order_by(tag)).all()
     return [t for t in rows if t]
 
+_SUGGESTION_COLUMNS = {
+    "datacenter": Vm.datacenter,
+    "os_distribution": Vm.os_distribution,
+    "os_version": Vm.os_version,
+    "business_owner": Vm.business_owner,
+    "technical_owner": Vm.technical_owner,
+    "backup_location": Vm.backup_location,
+}
+
+
+@router.get("/suggestions", response_model=dict[str, list[str]])
+def list_suggestions(db: DbSession, _: ViewerUser) -> dict[str, list[str]]:
+    return {
+        key: [
+            v
+            for v in db.scalars(
+                select(col).where(col.is_not(None)).distinct().order_by(col.asc())
+            ).all()
+            if v
+        ]
+        for key, col in _SUGGESTION_COLUMNS.items()
+    }
+
 
 # Ordered for a human reading the sheet left-to-right: identity, placement,
 # classification, capacity, OS, ownership, operations, dates, derived.
