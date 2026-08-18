@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { vms as vmsApi } from '../api/vms';
 import { dashboard as dashboardApi } from '../api/dashboard';
 import { detailMessage } from '../api/core';
-import { Alert, EmptyState, PageHeader, PageTransition, ProgressBar, Skeleton, cardClass, monoClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
+import { Alert, EmptyState, PageHeader, PageTransition, ProgressBar, Skeleton, monoClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 
 interface ReportDef {
@@ -25,7 +25,7 @@ const REPORTS: ReportDef[] = [
   { name: 'applications', label: 'Application Inventory', description: 'Guests with at least one linked app', suffix: 'VMs' },
   { name: 'owner', label: 'Owner Report', description: 'Distinct business/technical owners', suffix: 'owners', coverage: false },
   { name: 'pmp_access', label: 'PMP Access Report', description: 'VMs accessible via PMP', suffix: 'VMs' },
-  { name: 'decommission', label: 'Decommission Report', description: 'Guests with a decommission date set', suffix: 'scheduled', colorVar: 'var(--color-status-powered_off)' },
+  { name: 'decommission', label: 'Decommission Report', description: 'Pending retirements with a decommission date', suffix: 'scheduled', colorVar: 'var(--color-status-powered_off)' },
 ];
 
 function DownloadIcon() {

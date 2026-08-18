@@ -1,4 +1,3 @@
-import { AccentId } from '../lib/accentPresets';
 
 export type UserRole = 'admin' | 'editor' | 'viewer';
 export type Platform = 'proxmox' | 'vmware';

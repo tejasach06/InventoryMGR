@@ -8,7 +8,7 @@ import {
   emptyFilterState,
   filterGroups,
 } from '../components/filters/filterConfig';
-import { filterNames, coreFilterNames, advancedFilterNames } from '../lib/inventoryFilters';
+import { filterNames, advancedFilterNames } from '../lib/inventoryFilters';
 
 describe('filterConfig', () => {
   it('has a label and a config entry for every non-search filter', () => {

@@ -106,7 +106,7 @@ export interface VmFormValues {
 
 export type VmFormErrors = Partial<Record<keyof VmFormValues, string>>;
 
-function splitList(value: string): string[] {
+export function splitList(value: string): string[] {
   return value.split(';').map((s) => s.trim()).filter((s) => s.length > 0);
 }
 

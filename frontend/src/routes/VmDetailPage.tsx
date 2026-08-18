@@ -8,7 +8,7 @@ import { vms as vmsApi } from '../api/vms';
 import { detailMessage } from '../api/core';
 import type { NetworkRole, Vm } from '../api/types';
 import {
-  Alert, Badge, ConfirmDialog, EmptyState, InlineEmptyState, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
+  Alert, Badge, ConfirmDialog, InlineEmptyState, PageHeader, PageTransition, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, dangerButtonClass, inputClass, labelClass, monoClass, secondaryButtonClass, selectClass,
   tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass,
 } from '../components/ui';

@@ -1,16 +1,16 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { vms as vmsApi } from '../api/vms';
 import { detailMessage } from '../api/core';
-import type { Vm, BulkResult } from '../api/types';
+import type { BulkResult, VmPayload } from '../api/types';
 import { BulkEditDrawer, BulkPatch } from '../components/BulkEditDrawer';
 import { useCurrentUser } from '../components/AuthContext';
 import { VmCard } from '../components/VmCard';
-import { VmTable } from '../components/VmTable';
+import { EditableField, VmTable } from '../components/VmTable';
 import {
   Alert,
   ConfirmDialog,
@@ -25,7 +25,6 @@ import { useColumnPreferences } from '../hooks/useColumnPreferences';
 import { InventoryToolbar } from '../components/InventoryToolbar';
 import { PaginationFooter } from '../components/PaginationFooter';
 import {
-  DEFAULT_PAGE_SIZE,
   PAGE_SIZE_STORAGE_KEY,
   emptyFilters,
   filterNames,
@@ -74,17 +73,18 @@ export function InventoryPage() {
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
 
   const updateVmCellMutation = useMutation({
-    mutationFn: ({ vmId, patch }: { vmId: string; patch: Record<string, unknown> }) =>
-      vmsApi.updateVm(vmId, patch as any),
+    mutationFn: ({ vmId, patch }: { vmId: string; patch: Partial<VmPayload> }) =>
+      vmsApi.updateVm(vmId, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vms'] });
     },
   });
 
-  const handleUpdateCell = async (vmId: string, field: string, value: string) => {
+  const handleUpdateCell = async (vmId: string, field: EditableField, value: string) => {
     try {
       setCellError(undefined);
-      await updateVmCellMutation.mutateAsync({ vmId, patch: { [field]: value } });
+      const patch = { [field]: value } as Partial<VmPayload>;
+      await updateVmCellMutation.mutateAsync({ vmId, patch });
     } catch (err) {
       setCellError(detailMessage(err));
       throw err;
@@ -165,6 +165,18 @@ export function InventoryPage() {
     window.location.href = vmsApi.exportSelectedUrl([...selectedIds], format);
   }
   const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => vmsApi.listVms(queryParams) });
+  const suggestionsQuery = useQuery({ queryKey: ['vm-suggestions'], queryFn: vmsApi.listVmSuggestions });
+  const clustersQuery = useQuery({ queryKey: ['vm-clusters'], queryFn: vmsApi.listVmClusters });
+  const nodesQuery = useQuery({ queryKey: ['vm-nodes'], queryFn: vmsApi.listVmNodes });
+  const ownersQuery = useQuery({ queryKey: ['vm-owners'], queryFn: vmsApi.listVmOwners });
+  const tagsQuery = useQuery({ queryKey: ['vm-tags'], queryFn: vmsApi.listVmTags });
+
+  const bulkSuggestions = useMemo(() => ({
+    ...(suggestionsQuery.data ?? {}),
+    cluster: clustersQuery.data ?? [],
+    node: nodesQuery.data ?? [],
+    owner: ownersQuery.data ?? [],
+  }), [suggestionsQuery.data, clustersQuery.data, nodesQuery.data, ownersQuery.data]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentFilters = useMemo(() => filtersFromParams(searchParams), [searchParams]);
@@ -184,13 +196,6 @@ export function InventoryPage() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [filters, hasFilterChanges, pathname, router, searchParams]);
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    const params = paramsFromFilters(filters, { ...viewFromParams(searchParams), page: 1 });
-    router.replace(params.toString() ? `${pathname}?${params.toString()}` : pathname);
-  }
 
   function clearFilters() {
     setFilters(emptyFilters());
@@ -224,6 +229,11 @@ export function InventoryPage() {
       ),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['vms'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-suggestions'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-clusters'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-nodes'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-tags'] });
       setBulkOpen(false);
       setConfirmBulkOpen(false);
       setPendingPatch(null);
@@ -425,6 +435,8 @@ export function InventoryPage() {
         onSubmit={handleBulkSubmit}
         pending={bulkMutation.isPending}
         error={bulkError}
+        suggestions={bulkSuggestions}
+        tagOptions={tagsQuery.data ?? []}
       />
       <ConfirmDialog
         open={confirmBulkOpen}

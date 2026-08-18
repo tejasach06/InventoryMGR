@@ -19,6 +19,10 @@ vi.mock('next/navigation', () => ({
 
 beforeEach(() => {
   vi.spyOn(vmsApi, 'listVmOwners').mockResolvedValue([]);
+  vi.spyOn(vmsApi, 'listVmSuggestions').mockResolvedValue({});
+  vi.spyOn(vmsApi, 'listVmClusters').mockResolvedValue([]);
+  vi.spyOn(vmsApi, 'listVmNodes').mockResolvedValue([]);
+  vi.spyOn(vmsApi, 'listVmTags').mockResolvedValue([]);
 });
 
 afterEach(() => {

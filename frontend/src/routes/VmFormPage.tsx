@@ -1,6 +1,6 @@
 'use client';
 
-import { Dispatch, FormEvent, ReactNode, SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
+import { Dispatch, FormEvent, SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -11,11 +11,13 @@ import type { NetworkRole, VmPayload } from '../api/types';
 import {
   Alert, FieldError, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass,
-  secondaryButtonClass, sectionTitleClass, selectClass, textareaClass,
+  secondaryButtonClass, selectClass, textareaClass,
 } from '../components/ui';
+import { ComboInput } from '../components/ComboInput';
+import { TagInput } from '../components/TagInput';
 import {
   collectErrors, criticalities, emptyVmFormValues, environments,
-  platforms, statuses, VmFormErrors, VmFormValues, vmFormSchema, vmToFormValues, vmTypes,
+  platforms, splitList, statuses, VmFormErrors, VmFormValues, vmFormSchema, vmToFormValues, vmTypes,
 } from '../lib/vmForm';
 import { cn } from '../lib/classNames';
 
@@ -62,54 +64,20 @@ function SelectInput({ name, label, values, errors, onChange, options, required 
   );
 }
 
-function ComboInput({ name, label, values, errors, onChange, options, required = false, type = 'text' }: BaseFieldProps & { options: string[]; type?: string }) {
-  const errorId = `${String(name)}-error`;
-  const listId = `${String(name)}-listbox`;
-  const value = values[name];
-  const raw = typeof value === 'boolean' ? '' : String(value ?? '');
-  const query = raw.trim().toLowerCase();
-  const matches = query.length > 0 ? options.filter((o) => o.toLowerCase().includes(query) && o.toLowerCase() !== query).slice(0, 8) : [];
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const [open, setOpen] = useState(false);
-  const activeId = activeIndex >= 0 && activeIndex < matches.length ? `${String(name)}-option-${activeIndex}` : undefined;
-  const isNumericOrDate = type === 'number' || type === 'date';
-  const listOpen = open && matches.length > 0;
-
-  function selectMatch(m: string) {
-    onChange(name, m);
-    setActiveIndex(-1);
-  }
-
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (matches.length === 0) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex((i) => (i + 1) % matches.length); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex((i) => (i <= 0 ? matches.length - 1 : i - 1)); }
-    else if (e.key === 'Enter' && activeIndex >= 0) { e.preventDefault(); selectMatch(matches[activeIndex]); }
-    else if (e.key === 'Escape') { setActiveIndex(-1); setOpen(false); }
-  }
-
+function FormCombo({ name, label, values, errors, onChange, options, required = false, type = 'text' }:
+  BaseFieldProps & { options: string[]; type?: string }) {
+  const v = values[name];
   return (
-    <div className="relative">
-      <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
-      <input className={cn(inputClass, isNumericOrDate && 'tabular-nums')} id={String(name)} name={String(name)} type={type} autoComplete="off" value={raw}
-        role="combobox" aria-expanded={listOpen} aria-controls={listId} aria-activedescendant={activeId} aria-autocomplete="list"
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        onChange={(e) => { onChange(name, e.target.value); setActiveIndex(-1); setOpen(true); }}
-        onKeyDown={onKeyDown}
-        aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])} />
-      {listOpen && (
-        <ul id={listId} role="listbox" className="absolute left-0 top-full z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-overlay)]">
-          {matches.map((m, i) => (
-            <li key={m} id={`${String(name)}-option-${i}`} role="option" aria-selected={i === activeIndex}>
-              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => selectMatch(m)}
-                className={cn('block w-full px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-tertiary)]', i === activeIndex && 'bg-[var(--color-surface-tertiary)]')}>{m}</button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <FieldError id={errorId} message={errors[name]} />
-    </div>
+    <ComboInput
+      id={String(name)}
+      label={label}
+      value={typeof v === 'boolean' ? '' : String(v ?? '')}
+      options={options}
+      onChange={(next) => onChange(name, next)}
+      error={errors[name]}
+      required={required}
+      type={type}
+    />
   );
 }
 
@@ -256,6 +224,9 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
 
 const EMPTY_OPTIONS = { cpu: [], datacenter: [], disk: [], os: [], os_by_family: { linux: [], windows: [] } };
 
+const union = (...lists: (string[] | undefined)[]) =>
+  Array.from(new Set(lists.flatMap((l) => l ?? []).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
 export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const params = useParams<{ id?: string }>();
   const id = params.id;
@@ -271,9 +242,14 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => vmsApi.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
   const optionsQuery = useQuery({ queryKey: ['settings', 'options'], queryFn: settingsApi.getDropdownOptions });
   const ownersQuery = useQuery({ queryKey: ['vm-owners'], queryFn: vmsApi.listVmOwners });
+  const suggestionsQuery = useQuery({ queryKey: ['vm-suggestions'], queryFn: vmsApi.listVmSuggestions });
+  const clustersQuery = useQuery({ queryKey: ['vm-clusters'], queryFn: vmsApi.listVmClusters });
+  const nodesQuery = useQuery({ queryKey: ['vm-nodes'], queryFn: vmsApi.listVmNodes });
+  const tagsQuery = useQuery({ queryKey: ['vm-tags'], queryFn: vmsApi.listVmTags });
 
   const options = optionsQuery.data ?? EMPTY_OPTIONS;
   const owners = ownersQuery.data ?? [];
+  const suggest = suggestionsQuery.data ?? {};
 
   useEffect(() => {
     if (vmQuery.data) {
@@ -361,8 +337,11 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
       initialSnapshot.current = JSON.stringify({ values, disks, ips });
       queryClient.invalidateQueries({ queryKey: ['vms'] });
       queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-suggestions'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-clusters'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-nodes'] });
+      queryClient.invalidateQueries({ queryKey: ['vm-tags'] });
       queryClient.invalidateQueries({ queryKey: ['decommissions'] });
-      queryClient.setQueryData(['vm', vm.id], vm);
       router.push(`/inventory/${vm.id}`);
     } catch { /* save.isError displayed above the form */ }
   }
@@ -400,15 +379,15 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
 
           <SectionCard title="Location">
             <div className="grid gap-4 lg:grid-cols-3">
-              <ComboInput name="datacenter" label="Datacenter" values={values} errors={errors} onChange={setField} options={options.datacenter} />
-              <TextInput name="cluster" label="Cluster" values={values} errors={errors} onChange={setField} required />
-              <TextInput name="node" label="Node" values={values} errors={errors} onChange={setField} />
+              <FormCombo name="datacenter" label="Datacenter" values={values} errors={errors} onChange={setField} options={union(options.datacenter, suggest.datacenter)} />
+              <FormCombo name="cluster" label="Cluster" values={values} errors={errors} onChange={setField} options={clustersQuery.data ?? []} required />
+              <FormCombo name="node" label="Node" values={values} errors={errors} onChange={setField} options={nodesQuery.data ?? []} />
             </div>
           </SectionCard>
 
           <SectionCard title="Hardware">
             <div className="grid gap-4 lg:grid-cols-3">
-              <ComboInput name="cpu_cores" label="CPU cores" values={values} errors={errors} onChange={setField} options={options.cpu} type="number" required />
+              <FormCombo name="cpu_cores" label="CPU cores" values={values} errors={errors} onChange={setField} options={options.cpu} type="number" required />
               <TextInput name="memory_mb" label="Memory GB" values={values} errors={errors} onChange={setField} type="number" required />
             </div>
             <DiskRows disks={disks} setDisks={setDisks} />
@@ -428,16 +407,16 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
                   <option value="windows">Windows</option>
                 </select>
               </div>
-              <ComboInput name="os_distribution" label="Operating system" values={values} errors={errors} onChange={setField}
-                options={values.os_family === 'linux' || values.os_family === 'windows' ? options.os_by_family[values.os_family] : options.os} />
-              <TextInput name="os_version" label="Version" values={values} errors={errors} onChange={setField} />
+              <FormCombo name="os_distribution" label="Operating system" values={values} errors={errors} onChange={setField}
+                options={union(values.os_family === 'linux' || values.os_family === 'windows' ? options.os_by_family[values.os_family] : options.os, suggest.os_distribution)} />
+              <FormCombo name="os_version" label="Version" values={values} errors={errors} onChange={setField} options={suggest.os_version ?? []} />
             </div>
           </SectionCard>
 
           <SectionCard title="Ownership">
             <div className="grid gap-4 lg:grid-cols-3">
-              <ComboInput name="owner" label="Owner" values={values} errors={errors} onChange={setField} options={owners} />
-              <TextInput name="business_owner" label="Business Owner" values={values} errors={errors} onChange={setField} />
+              <FormCombo name="owner" label="Owner" values={values} errors={errors} onChange={setField} options={owners} />
+              <FormCombo name="business_owner" label="Business Owner" values={values} errors={errors} onChange={setField} options={suggest.business_owner ?? []} />
             </div>
           </SectionCard>
 
@@ -474,7 +453,16 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
 
           <SectionCard title="Notes & Tags">
             <div className="grid gap-4">
-              <TextInput name="tags" label="Tags (semicolon-separated)" values={values} errors={errors} onChange={setField} />
+              <div>
+                <label className={labelClass} htmlFor="tags">Tags</label>
+                <TagInput
+                  id="tags"
+                  value={splitList(values.tags)}
+                  options={tagsQuery.data ?? []}
+                  onChange={(tags) => setField('tags', tags.join('; '))}
+                />
+                <p className={helpTextClass}>Press Enter or comma to add. Lowercase, letters/digits/._+- only.</p>
+              </div>
               <div>
                 <label className={labelClass} htmlFor="description">Description</label>
                 <textarea className={textareaClass} id="description" name="description" value={values.description} onChange={(e) => setField('description', e.target.value)} rows={3} />

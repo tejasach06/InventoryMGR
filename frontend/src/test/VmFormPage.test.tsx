@@ -27,8 +27,11 @@ beforeEach(() => {
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
   vi.spyOn(settingsApi, 'getDropdownOptions').mockResolvedValue({ cpu: [], datacenter: [], disk: [], cluster: [], os: [], os_by_family: { linux: [], windows: [] } });
   vi.spyOn(vmsApi, 'listVmOwners').mockResolvedValue([]);
+  vi.spyOn(vmsApi, 'listVmSuggestions').mockResolvedValue({});
+  vi.spyOn(vmsApi, 'listVmClusters').mockResolvedValue([]);
+  vi.spyOn(vmsApi, 'listVmNodes').mockResolvedValue([]);
+  vi.spyOn(vmsApi, 'listVmTags').mockResolvedValue([]);
 });
-
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();

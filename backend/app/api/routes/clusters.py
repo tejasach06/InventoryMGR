@@ -1,9 +1,6 @@
 import uuid
-from typing import Any, cast
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy import select
+from fastapi import APIRouter, status
 
 from app.api.deps import Csrf, DbSession, EditorUser, ViewerUser
 from app.db.models import PhysicalCluster, PhysicalNode
@@ -17,6 +14,8 @@ from app.schemas.clusters import (
     PhysicalNodeUpdate,
 )
 from app.services import clusters
+
+from ._child_crud import make_child_router, require_parent
 
 router = APIRouter()
 
@@ -57,101 +56,14 @@ def delete_cluster(cluster_id: uuid.UUID, db: DbSession, _: EditorUser, __: Csrf
     clusters.delete_cluster(db, cluster)
 
 
-
-def make_cluster_subrouter[ReadSchema: BaseModel, CreateSchema: BaseModel, UpdateSchema: BaseModel](
-    *,
-    child_segment: str,
-    model: Any,
-    fk_attr: str,
-    parent_model: Any,
-    create_schema: type[CreateSchema],
-    update_schema: type[UpdateSchema],
-    read_schema: type[ReadSchema],
-    order_col: Any,
-    not_found_detail: str,
-    parent_not_found_detail: str,
-) -> APIRouter:
-    """List/add/patch/delete for a cluster child, keyed on its parent id."""
-    router = APIRouter()
-
-    def _require_parent(db: DbSession, parent_id: uuid.UUID) -> None:
-        if db.get(parent_model, parent_id) is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=parent_not_found_detail
-            )
-
-    @router.get(f"/{{parent_id}}/{child_segment}", response_model=list[read_schema])  # type: ignore[valid-type]
-    def list_items(parent_id: uuid.UUID, db: DbSession, _: ViewerUser) -> list:
-        _require_parent(db, parent_id)
-        return list(
-            db.scalars(
-                select(model).where(getattr(model, fk_attr) == parent_id).order_by(order_col)
-            )
-        )
-
-    @router.post(
-        f"/{{parent_id}}/{child_segment}",
-        response_model=read_schema,
-        status_code=status.HTTP_201_CREATED,
-    )
-    def add_item(
-        parent_id: uuid.UUID, payload: create_schema,  # type: ignore[valid-type]
-        db: DbSession, user: EditorUser, __: Csrf
-    ):
-        _require_parent(db, parent_id)
-        item = model(**{fk_attr: parent_id}, **cast(BaseModel, payload).model_dump(), created_by_id=user.id, updated_by_id=user.id)
-        db.add(item)
-        db.commit()
-        db.refresh(item)
-        return item
-
-    @router.patch(f"/{{parent_id}}/{child_segment}/{{item_id}}", response_model=read_schema)
-    def update_item(
-        parent_id: uuid.UUID,
-        item_id: uuid.UUID,
-        payload: update_schema,  # type: ignore[valid-type]
-        db: DbSession,
-        user: EditorUser,
-        __: Csrf,
-    ):
-        item = db.scalar(
-            select(model).where(model.id == item_id, getattr(model, fk_attr) == parent_id)
-        )
-        if item is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=not_found_detail)
-        for key, value in cast(BaseModel, payload).model_dump(exclude_unset=True).items():
-            setattr(item, key, value)
-        item.updated_by_id = user.id
-        db.commit()
-        db.refresh(item)
-        return item
-
-    @router.delete(
-        f"/{{parent_id}}/{child_segment}/{{item_id}}", status_code=status.HTTP_204_NO_CONTENT
-    )
-    def delete_item(
-        parent_id: uuid.UUID, item_id: uuid.UUID, db: DbSession, _: EditorUser, __: Csrf
-    ) -> None:
-        item = db.scalar(
-            select(model).where(model.id == item_id, getattr(model, fk_attr) == parent_id)
-        )
-        if item is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=not_found_detail)
-        db.delete(item)
-        db.commit()
-
-    return router
-
-
-nodes_router = make_cluster_subrouter(
-    child_segment="nodes",
+nodes_router = make_child_router(
     model=PhysicalNode,
-    fk_attr="cluster_id",
-    parent_model=PhysicalCluster,
     create_schema=PhysicalNodeCreate,
     update_schema=PhysicalNodeUpdate,
     read_schema=PhysicalNodeRead,
     order_col=PhysicalNode.sort_order,
+    fk_attr="cluster_id",
+    parent_check=require_parent(PhysicalCluster, "Cluster not found"),
     not_found_detail="Node not found",
-    parent_not_found_detail="Cluster not found",
+    stamp_user=True,
 )

@@ -25,8 +25,11 @@ beforeEach(() => {
     os_by_family: { linux: ['Alpine Linux'], windows: ['Windows Server 2022'] },
   });
   vi.spyOn(vmsApi, 'listVmOwners').mockResolvedValue(['alice', 'alistair']);
+  vi.spyOn(vmsApi, 'listVmSuggestions').mockResolvedValue({});
+  vi.spyOn(vmsApi, 'listVmClusters').mockResolvedValue(['cluster-a', 'cluster-alpha']);
+  vi.spyOn(vmsApi, 'listVmNodes').mockResolvedValue([]);
+  vi.spyOn(vmsApi, 'listVmTags').mockResolvedValue([]);
 });
-
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -78,6 +81,17 @@ describe('VmFormPage combo/owner autocomplete', () => {
 
     fireEvent.change(screen.getByLabelText('Operating system'), { target: { value: 'Ubuntu' } });
     expect(screen.queryByRole('button', { name: 'Ubuntu 22.04' })).not.toBeInTheDocument();
+  });
+
+  it('suggests clusters and sets input value on select', async () => {
+    renderWithProviders(<VmFormPage mode="create" />);
+
+    fireEvent.change(screen.getByLabelText(/^Cluster/), { target: { value: 'clu' } });
+    expect(await screen.findByRole('button', { name: 'cluster-a' })).toBeInTheDocument();
+    const suggestion = await screen.findByRole('button', { name: 'cluster-alpha' });
+    fireEvent.click(suggestion);
+
+    expect(screen.getByLabelText(/^Cluster/)).toHaveValue('cluster-alpha');
   });
 });
 

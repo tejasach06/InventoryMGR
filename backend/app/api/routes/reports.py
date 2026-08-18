@@ -4,14 +4,18 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DbSession, ViewerUser
-from app.db.models import Vm
+from app.db.models import Vm, VmStatus
 from app.schemas.vms import ReportSummary
 
 router = APIRouter()
+
+def _owner_set():
+    return and_(Vm.business_owner.is_not(None), Vm.business_owner != "")
+
 
 REPORTS: dict[str, dict] = {
     "linux": {"label": "Linux Inventory", "filter": lambda q: q.where(Vm.os_family == "linux")},
@@ -23,16 +27,29 @@ REPORTS: dict[str, dict] = {
         "label": "Production Inventory",
         "filter": lambda q: q.where(Vm.environment == "production"),
     },
-    "monitoring": {"label": "Monitoring Status", "filter": lambda q: q},
-    "applications": {"label": "Application Inventory", "filter": lambda q: q},
-    "owner": {"label": "Owner Report", "filter": lambda q: q.order_by(Vm.business_owner.asc())},
+    "monitoring": {
+        "label": "Monitoring Status",
+        "filter": lambda q: q.where(Vm.monitoring_enabled == True),
+    },
+    "applications": {
+        "label": "Application Inventory",
+        "filter": lambda q: q.where(Vm.applications.any()),
+    },
+    "owner": {
+        "label": "Owner Report",
+        "filter": lambda q: q.where(_owner_set()).order_by(Vm.business_owner.asc()),
+        "count": lambda: select(func.count(func.distinct(Vm.business_owner))).where(_owner_set()),
+    },
     "pmp_access": {
         "label": "PMP Access Report",
         "filter": lambda q: q.where(Vm.pmp_enabled == True),
     },
     "decommission": {
         "label": "Decommission Report",
-        "filter": lambda q: q.order_by(Vm.decommission_date.asc()),
+        "filter": lambda q: q.where(
+            Vm.decommission_date.is_not(None),
+            Vm.status != VmStatus.decommissioned,
+        ).order_by(Vm.decommission_date.asc()),
     },
 }
 
@@ -100,9 +117,12 @@ def get_reports_summary(db: DbSession, _: ViewerUser) -> ReportSummary:
     total_vms = db.scalar(select(func.count(Vm.id))) or 0
     counts: dict[str, int] = {}
     for name, report in REPORTS.items():
+        counter = report.get("count")
+        if counter is not None:
+            counts[name] = db.scalar(counter()) or 0
+            continue
         subq = report["filter"](select(Vm.id)).subquery()
-        cnt = db.scalar(select(func.count()).select_from(subq)) or 0
-        counts[name] = cnt
+        counts[name] = db.scalar(select(func.count()).select_from(subq)) or 0
     return ReportSummary(total_vms=total_vms, counts=counts)
 
 
