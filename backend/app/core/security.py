@@ -53,12 +53,16 @@ def decode_session_token(token: str) -> dict[str, Any]:
     return jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
 
 
-def create_refresh_token(user_id: str) -> str:
+def create_refresh_token(user_id: str, persist: bool = False) -> str:
     settings = get_settings()
     expires_at = datetime.now(UTC) + timedelta(minutes=REFRESH_TTL_MINUTES)
-    payload: dict[str, Any] = {"sub": user_id, "type": "refresh", "exp": expires_at}
+    payload: dict[str, Any] = {
+        "sub": user_id,
+        "type": "refresh",
+        "persist": persist,
+        "exp": expires_at,
+    }
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
-
 
 def decode_refresh_token(token: str) -> dict[str, Any]:
     settings = get_settings()

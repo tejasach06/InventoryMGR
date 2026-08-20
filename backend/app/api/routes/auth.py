@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -125,7 +127,7 @@ def setup_admin(
     db.refresh(user)
     token = create_session_token(str(user.id), user.role.value)
     csrf = derive_csrf_token(token)
-    refresh_token = create_refresh_token(str(user.id))
+    refresh_token = create_refresh_token(str(user.id), persist=True)
     _set_auth_cookies(response, token=token, csrf=csrf)
     _set_refresh_cookie(response, refresh_token=refresh_token, persist=True)
     return LoginResponse(user=UserRead.model_validate(user))
@@ -146,7 +148,7 @@ def login(
         )
     token = create_session_token(str(user.id), user.role.value)
     csrf = derive_csrf_token(token)
-    refresh_token = create_refresh_token(str(user.id))
+    refresh_token = create_refresh_token(str(user.id), persist=payload.remember)
     _set_auth_cookies(response, token=token, csrf=csrf)
     _set_refresh_cookie(response, refresh_token=refresh_token, persist=payload.remember)
     return LoginResponse(user=UserRead.model_validate(user))
@@ -163,11 +165,17 @@ def refresh(request: Request, response: Response, db: DbSession) -> LoginRespons
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
-    user_id = payload.get("sub")
-    if not user_id:
+    if payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
+    try:
+        user_id = uuid.UUID(str(payload.get("sub")))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        ) from exc
+    persist = bool(payload.get("persist"))
     user = db.get(User, user_id)
     if user is None or not user.is_active:
         raise HTTPException(
@@ -175,9 +183,9 @@ def refresh(request: Request, response: Response, db: DbSession) -> LoginRespons
         )
     token = create_session_token(str(user.id), user.role.value)
     csrf = derive_csrf_token(token)
-    new_refresh = create_refresh_token(str(user.id))
+    new_refresh = create_refresh_token(str(user.id), persist=persist)
     _set_auth_cookies(response, token=token, csrf=csrf)
-    _set_refresh_cookie(response, refresh_token=new_refresh)
+    _set_refresh_cookie(response, refresh_token=new_refresh, persist=persist)
     return LoginResponse(user=UserRead.model_validate(user))
 
 
