@@ -9,13 +9,15 @@ MODULE="${1:?usage: omp-refactor.sh <module>}"
 LOG="backend/omp-refactor.log"
 
 run_pytest() {
-  (cd backend && APP_ENV=test DATABASE_URL="${TEST_DATABASE_URL:-}" uv run pytest "tests/" -k "$MODULE")
+  local filter
+  filter="$(basename "$MODULE")"
+  (cd backend && APP_ENV=test DATABASE_URL="${TEST_DATABASE_URL:-}" uv run pytest "tests/" -k "$filter")
 }
 
 run_pass() {
   local pass_name="$1" prompt="$2" commit_prefix="$3"
   echo "== $MODULE: $pass_name pass ==" | tee -a "$LOG"
-  omp "$prompt" >>"$LOG" 2>&1 || true  # omp's own exit status is not trusted
+  omp -p "$prompt" --plan-yolo >>"$LOG" 2>&1 || true  # omp's own exit status is not trusted; -p/--print is required for non-interactive/non-PTY shells
 
   if ! run_pytest; then
     echo "RED: $MODULE $pass_name pass failed pytest — stopping, tree left dirty. See $LOG." >&2
@@ -32,11 +34,11 @@ run_pass() {
 }
 
 run_pass "test" \
-  "In backend/app/$MODULE, using skill investigate-first, add missing pytest coverage for exported behavior, following backend/tests/conftest.py conventions. Run pytest tests/ -k $MODULE until green." \
+  "In backend/app/$MODULE, using skill investigate-first, add missing pytest coverage for exported behavior, following backend/tests/conftest.py conventions. Run pytest tests/ -k $(basename "$MODULE") until green." \
   "test" || exit 1
 
 run_pass "refactor" \
-  "Refactor backend/app/$MODULE using skill safe-refactor: tests written in the test pass are the safety net, bracket every edit with a test run, no behavior change. Run pytest tests/ -k $MODULE until green." \
+  "Refactor backend/app/$MODULE using skill safe-refactor: tests written in the test pass are the safety net, bracket every edit with a test run, no behavior change. Run pytest tests/ -k $(basename "$MODULE") until green." \
   "refactor" || exit 1
 
 echo "DONE: $MODULE" | tee -a "$LOG"
