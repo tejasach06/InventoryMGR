@@ -163,7 +163,7 @@ export function SettingsPage() {
         <PageHeader title="Settings" context="Administration" description="Manage appearance, notifications, users, and directory access." />
         <div className={cardClass}>
           <div
-            className="mb-6 flex gap-1 overflow-x-auto border-b border-[var(--color-border-subtle)]"
+            className="mb-6 flex flex-wrap gap-1 border-b border-[var(--color-border-subtle)]"
             role="tablist"
             aria-label="Settings categories"
           >
