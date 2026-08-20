@@ -4,21 +4,22 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ReactNode, useEffect } from 'react';
 import { auth as authApi } from '../../api/auth';
+import { ApiError } from '../../api/core';
 import { CurrentUserProvider } from '../../components/AuthContext';
 import { AppLayout } from '../../components/Layout';
-import { Logo, Skeleton } from '../../components/ui';
-
+import { Alert, Logo, secondaryButtonClass, Skeleton } from '../../components/ui';
 export default function AuthenticatedLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const me = useQuery({ queryKey: ['me'], queryFn: authApi.me });
 
 
+  const unauthenticated = me.isError
+    ? me.error instanceof ApiError && me.error.status === 401
+    : !me.isLoading && !me.data;
+
   useEffect(() => {
-    // Redirect to login if user is not authenticated (error) or if query succeeded but returned no user
-    if (me.isError || (!me.isLoading && !me.data)) {
-      router.replace('/login');
-    }
-  }, [me.data, me.isError, me.isLoading, router]);
+    if (unauthenticated) router.replace('/login');
+  }, [unauthenticated, router]);
   const user = me.data;
   
   if (me.isLoading) {
@@ -32,12 +33,30 @@ export default function AuthenticatedLayout({ children }: { children: ReactNode 
     );
   }
   
-  // If user is not authenticated or data is missing, show redirecting message
-  // (useEffect above handles the actual redirect)
-  if (me.isError || !user) {
-    return null;
+  if (unauthenticated) return null;
+
+  if (me.isError) {
+    return (
+      <div className="min-h-[100dvh] bg-[var(--color-surface-secondary)] p-4 sm:p-8">
+        <div className="mx-auto max-w-md space-y-4">
+          <Alert tone="error">
+            <div className="space-y-2">
+              <p>Could not load your session.</p>
+              <button
+                type="button"
+                className={secondaryButtonClass}
+                onClick={() => me.refetch()}
+              >
+                Retry
+              </button>
+            </div>
+          </Alert>
+        </div>
+      </div>
+    );
   }
 
+  if (!user) return null;
   return (
     <CurrentUserProvider user={user}>
       <AppLayout user={user}>{children}</AppLayout>

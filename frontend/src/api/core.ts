@@ -33,6 +33,16 @@ export async function parseResponse(response: Response): Promise<unknown> {
   try { return JSON.parse(text); } catch { return text; }
 }
 
+let refreshInFlight: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  refreshInFlight ??= fetch(`${API_PREFIX}/auth/refresh`, { method: 'POST', credentials: 'include' })
+    .then((res) => res.ok)
+    .catch(() => false)
+    .finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}, _retried = false): Promise<T> {
   const method = (options.method ?? 'GET').toUpperCase();
   const headers = new Headers(options.headers);
@@ -60,8 +70,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, _re
     clearTimeout(timeoutId);
 
     if (response.status === 401 && !_retried) {
-      const refreshRes = await fetch(`${API_PREFIX}/auth/refresh`, { method: 'POST', credentials: 'include' });
-      if (refreshRes.ok) {
+      if (await refreshSession()) {
         return apiRequest<T>(path, options, true);
       }
     }

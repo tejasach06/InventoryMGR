@@ -139,6 +139,73 @@ describe('apiRequest', () => {
 
     await expect(apiRequest('/vms')).rejects.toMatchObject({ status: 500, detail: 'boom' });
   });
+
+  it('retries once after a 401 when the refresh succeeds', async () => {
+    fetchMock
+      .mockResolvedValueOnce(fakeResponse({ status: 401, body: '{"detail":"expired"}' }))
+      .mockResolvedValueOnce(fakeResponse({ status: 200, body: '{"user":{"email":"ed@example.com"}}' }))
+      .mockResolvedValueOnce(fakeResponse({ status: 200, body: '{"id":"vm-1"}' }));
+
+    const result = await apiRequest<{ id: string }>('/vms/1');
+
+    expect(result).toEqual({ id: 'vm-1' });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/auth/refresh');
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('POST');
+  });
+
+  it('does not retry when the refresh fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce(fakeResponse({ status: 401, body: '{"detail":"expired"}' }))
+      .mockResolvedValueOnce(fakeResponse({ status: 401, body: '{"detail":"invalid"}' }));
+
+    await expect(apiRequest('/vms/1')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 401,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('issues a single refresh for concurrent 401s', async () => {
+    const firstCalls: Record<string, boolean> = {};
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/auth/refresh') {
+        return fakeResponse({ status: 200, body: '{"ok":true}' });
+      }
+      if (!firstCalls[url]) {
+        firstCalls[url] = true;
+        return fakeResponse({ status: 401, body: '{"detail":"expired"}' });
+      }
+      return fakeResponse({ status: 200, body: `{"path":"${url}"}` });
+    });
+
+    const [res1, res2] = await Promise.all([
+      apiRequest<{ path: string }>('/vms/1'),
+      apiRequest<{ path: string }>('/clusters/1'),
+    ]);
+
+    expect(res1).toEqual({ path: '/api/vms/1' });
+    expect(res2).toEqual({ path: '/api/clusters/1' });
+    const refreshCalls = fetchMock.mock.calls.filter((c) => c[0] === '/api/auth/refresh');
+    expect(refreshCalls).toHaveLength(1);
+  });
+
+  it('sends the CSRF cookie value read after the refresh', async () => {
+    document.cookie = 'inventorymgr_csrf=old';
+    fetchMock
+      .mockResolvedValueOnce(fakeResponse({ status: 401, body: '{"detail":"expired"}' }))
+      .mockImplementationOnce(async () => {
+        document.cookie = 'inventorymgr_csrf=new';
+        return fakeResponse({ status: 200, body: '{"ok":true}' });
+      })
+      .mockResolvedValueOnce(fakeResponse({ status: 200, body: '{"id":"vm-1"}' }));
+
+    await apiRequest('/vms/1', { method: 'PATCH', body: JSON.stringify({ name: 'vm' }) });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const lastCallInit = fetchMock.mock.calls[2][1];
+    expect(headerValue(lastCallInit, 'X-CSRF-Token')).toBe('new');
+  });
 });
 
 describe('ApiError', () => {
