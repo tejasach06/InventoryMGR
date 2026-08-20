@@ -272,6 +272,7 @@ class DashboardStats(BaseModel):
     decommission_overdue: list[DashboardAlertVm]
     missing_ip: list[DashboardAlertVm]
 
+
 class VmBulkFilters(BaseModel):
     """Body mirror of api/routes/vms.py::VmFilterParams.
 

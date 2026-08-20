@@ -8,13 +8,14 @@ import type { ImportAction, ImportBatch } from '../api/types';
 import { Alert, Badge, BadgeTone, EmptyState, PageHeader, PageTransition, Spinner, cardClass, helpTextClass, primaryButtonClass, secondaryButtonClass, statTileClass, tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass, monoClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 
-const actions: ImportAction[] = ['create', 'update', 'unchanged', 'conflict', 'invalid'];
+const actions: ImportAction[] = ['create', 'update', 'unchanged', 'conflict', 'invalid', 'decommission'];
 const actionTone: Record<ImportAction, BadgeTone> = {
   create: { type: 'status', value: 'running' },
   update: { type: 'status', value: 'unknown' },
   unchanged: { type: 'neutral' },
   conflict: { type: 'criticality', value: 'high' },
   invalid: { type: 'criticality', value: 'critical' },
+  decommission: { type: 'status', value: 'decommissioned' },
 };
 
 export interface PreviewSummary {
@@ -23,10 +24,11 @@ export interface PreviewSummary {
   unchanged: number;
   conflict: number;
   invalid: number;
+  decommission: number;
 }
 
 export function summarizePreview(batch: Pick<ImportBatch, 'summary' | 'rows'> | null | undefined): PreviewSummary {
-  const counts: PreviewSummary = { create: 0, update: 0, unchanged: 0, conflict: 0, invalid: 0 };
+  const counts: PreviewSummary = { create: 0, update: 0, unchanged: 0, conflict: 0, invalid: 0, decommission: 0 };
   if (!batch) return counts;
   for (const action of actions) {
     const value = batch.summary?.[action];
@@ -38,9 +40,12 @@ export function summarizePreview(batch: Pick<ImportBatch, 'summary' | 'rows'> | 
 const IP_ROLE_HEADERS = ['private_ip', 'public_ip', 'backup_ip'] as const;
 
 function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
+  const isDecommission = row.action === 'decommission';
   return (
     <tr className={tableRowClass}>
-      <th className={cn('whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]', monoClass, 'tabular-nums')} scope="row">{row.row_number}</th>
+      <th className={cn('whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]', monoClass, 'tabular-nums')} scope="row">
+        {isDecommission ? '—' : row.row_number}
+      </th>
       <td className="whitespace-nowrap px-4 py-3">
         <Badge value={row.action} tone={actionTone[row.action]} />
         {row.action === 'update' && Object.keys(row.changes ?? {}).length > 0 ? (
@@ -72,34 +77,52 @@ export function ImportCsvPage() {
   const [file, setFile] = useState<File | null>(null);
   const [batch, setBatch] = useState<ImportBatch | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [confirmDecommission, setConfirmDecommission] = useState(false);
+  const [commitResult, setCommitResult] = useState<{ created: number; updated: number; decommissioned: number } | null>(null);
+
   const preview = useMutation({
-    mutationFn: () => {
+    mutationFn: (fullInventory: boolean) => {
       if (!file) throw new Error('Choose a CSV file before previewing.');
-      return importsApi.previewImport(file);
+      return importsApi.previewImport(file, fullInventory);
     },
     onMutate: () => {
       setBatch(null);
+      setConfirmDecommission(false);
+      setCommitResult(null);
       commit.reset();
     },
-    onSuccess: (result) => setBatch(result),
+    onSuccess: (result) => {
+      setBatch(result);
+      setConfirmDecommission(false);
+      setCommitResult(null);
+    },
   });
+
   const commit = useMutation({
-    mutationFn: () => importsApi.commitImport(batch?.id ?? ''),
-    onSuccess: () => {
+    mutationFn: () => importsApi.commitImport(batch?.id ?? '', confirmDecommission),
+    onSuccess: (result) => {
+      setCommitResult(result);
       queryClient.invalidateQueries({ queryKey: ['vms'] });
       if (batch) setBatch({ ...batch, status: 'committed', committed_at: new Date().toISOString() });
     },
   });
+
   const summary = summarizePreview(batch);
   const hasBlockingRows = summary.conflict > 0 || summary.invalid > 0;
+  const candidateTotal = Number(batch?.summary?.decommission_candidate_total ?? 0);
+  const isMajorDecommission = summary.decommission > 0 && candidateTotal > 0 && summary.decommission * 2 > candidateTotal;
+  const cannotCommit = commit.isPending || hasBlockingRows || batch?.status === 'committed' || (isMajorDecommission && !confirmDecommission);
   const blockingReasonId = hasBlockingRows ? 'import-blocking-reason' : undefined;
 
   function handleFileChange(nextFile: File | null) {
     setFile(nextFile);
     setBatch(null);
+    setConfirmDecommission(false);
+    setCommitResult(null);
     preview.reset();
     commit.reset();
   }
+
   function clearFile(event: React.MouseEvent) {
     event.stopPropagation();
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -117,7 +140,7 @@ export function ImportCsvPage() {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    preview.mutate();
+    preview.mutate(false);
   }
 
   function downloadTemplate() {
@@ -197,22 +220,51 @@ export function ImportCsvPage() {
               </p>
             </details>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button className={batch ? secondaryButtonClass : primaryButtonClass} type="submit" disabled={preview.isPending || !file}>
-              {preview.isPending ? <><Spinner /> Uploading…</> : 'Preview CSV'}
-            </button>
-            <button className={secondaryButtonClass} type="button" onClick={downloadTemplate}>
-              Download template
-            </button>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                className={primaryButtonClass}
+                type="button"
+                onClick={() => preview.mutate(false)}
+                disabled={preview.isPending || !file}
+              >
+                {preview.isPending ? <><Spinner /> Uploading…</> : 'Preview partial import'}
+              </button>
+              <button
+                className={secondaryButtonClass}
+                type="button"
+                onClick={() => preview.mutate(true)}
+                disabled={preview.isPending || !file}
+              >
+                {preview.isPending ? <><Spinner /> Uploading…</> : 'Preview full inventory import'}
+              </button>
+              <button className={secondaryButtonClass} type="button" onClick={downloadTemplate}>
+                Download template
+              </button>
+            </div>
+            <p className={helpTextClass}>
+              Marks every VM missing from this file as decommissioned.
+            </p>
           </div>
         </form>
         {preview.isError ? <Alert>{detailMessage(preview.error)}</Alert> : null}
         {commit.isError ? <Alert>{detailMessage(commit.error)}</Alert> : null}
-        {commit.isSuccess ? <Alert tone="success">Import committed. Inventory has been updated from persisted preview rows.</Alert> : null}
+        {commit.isSuccess ? (
+          <Alert tone="success">
+            {commitResult?.decommissioned
+              ? `Import committed. Inventory updated: ${commitResult.created} created, ${commitResult.updated} updated, ${commitResult.decommissioned} decommissioned.`
+              : 'Import committed. Inventory has been updated from persisted preview rows.'}
+          </Alert>
+        ) : null}
         {batch && batch.ignored_columns?.length > 0 ? (
           <Alert tone="info">
             {batch.ignored_columns.length} columns ignored: {batch.ignored_columns.join(', ')}.
             Check for a misspelled header if you expected one of these to import.
+          </Alert>
+        ) : null}
+        {batch && batch.full_inventory && summary.decommission > 0 ? (
+          <Alert tone="info">
+            Full inventory import: {summary.decommission} VMs missing from this file will be marked as decommissioned.
           </Alert>
         ) : null}
         {batch ? (
@@ -222,12 +274,31 @@ export function ImportCsvPage() {
                 <p className={cn('text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-accent)]', monoClass)}>Batch {batch.id}</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--color-text-primary)]">{batch.filename}</h2>
               </div>
-              <button className={primaryButtonClass} type="button" onClick={() => commit.mutate()} disabled={commit.isPending || hasBlockingRows || batch.status === 'committed'} aria-describedby={blockingReasonId}>
-                {commit.isPending ? <><Spinner /> Committing…</> : batch.status === 'committed' ? 'Committed' : 'Commit persisted batch'}
-              </button>
+              <div className="flex flex-col items-end gap-2">
+                {isMajorDecommission && batch.status !== 'committed' ? (
+                  <label className="flex items-center gap-2 text-xs font-medium text-[var(--color-status-warning)] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={confirmDecommission}
+                      onChange={(e) => setConfirmDecommission(e.target.checked)}
+                      className="rounded border-[var(--color-border)]"
+                    />
+                    I confirm decommissioning more than half the inventory
+                  </label>
+                ) : null}
+                <button
+                  className={primaryButtonClass}
+                  type="button"
+                  onClick={() => commit.mutate()}
+                  disabled={cannotCommit}
+                  aria-describedby={blockingReasonId}
+                >
+                  {commit.isPending ? <><Spinner /> Committing…</> : batch.status === 'committed' ? 'Committed' : 'Commit persisted batch'}
+                </button>
+              </div>
             </div>
             {hasBlockingRows ? <Alert><span id="import-blocking-reason">Commit disabled: {summary.conflict} conflict rows and {summary.invalid} invalid rows. Resolve the CSV and preview again before commit.</span></Alert> : null}
-            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Preview summary">
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" aria-label="Preview summary">
               {actions.map((action) => (
                 <div key={action} data-testid={`summary-${action}`} className={statTileClass}>
                   <Badge value={action} tone={actionTone[action]} />
@@ -264,7 +335,7 @@ export function ImportCsvPage() {
                       <th className="px-4 py-3" scope="col">Cluster</th>
                       <th className="px-4 py-3" scope="col">Disks</th>
                       <th className="px-4 py-3" scope="col">IPs</th>
-                      <th className="px-4 py-3" scope="col">Errors</th>
+                      <th className="px-4 py-3" scope="col">Messages</th>
                     </tr>
                   </thead>
                   <tbody className={tableBodyClass}>

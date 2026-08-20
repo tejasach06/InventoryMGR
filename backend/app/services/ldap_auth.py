@@ -22,9 +22,19 @@ def save_config(db: Session, payload: LdapConfigUpdate) -> LdapConfig:
         config = LdapConfig(id=1, server_uri=payload.server_uri, user_base_dn=payload.user_base_dn)
         db.add(config)
     for field in (
-        "enabled", "server_uri", "start_tls", "verify_tls", "bind_dn", "user_base_dn",
-        "user_filter", "email_attribute", "group_attribute", "admin_group_dn", "editor_group_dn",
-        "viewer_group_dn", "default_role",
+        "enabled",
+        "server_uri",
+        "start_tls",
+        "verify_tls",
+        "bind_dn",
+        "user_base_dn",
+        "user_filter",
+        "email_attribute",
+        "group_attribute",
+        "admin_group_dn",
+        "editor_group_dn",
+        "viewer_group_dn",
+        "default_role",
     ):
         setattr(config, field, getattr(payload, field))
     if payload.bind_password is not None:
@@ -43,7 +53,9 @@ def _connection(config: LdapConfig) -> tuple[Server, Connection]:
         connect_timeout=5,
         tls=Tls(validate=ssl.CERT_REQUIRED if config.verify_tls else ssl.CERT_NONE),
     )
-    password = decrypt_secret(config.bind_password_encrypted) if config.bind_password_encrypted else None
+    password = (
+        decrypt_secret(config.bind_password_encrypted) if config.bind_password_encrypted else None
+    )
     if config.bind_dn and password is None:
         raise LDAPException("Configured LDAP bind password cannot be decrypted")
     connection = Connection(

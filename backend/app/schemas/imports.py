@@ -32,6 +32,7 @@ class ImportBatchRead(BaseModel):
     summary: dict[str, Any]
     ignored_columns: list[str]
     field_changes: dict[str, int]
+    full_inventory: bool
     created_at: datetime
     committed_at: datetime | None
     rows: list[ImportRowRead]
@@ -40,3 +41,8 @@ class ImportBatchRead(BaseModel):
 class ImportCommitResult(BaseModel):
     created: int
     updated: int
+    decommissioned: int
+
+
+class ImportCommitRequest(BaseModel):
+    confirm_decommission: bool = False

@@ -134,9 +134,7 @@ def test_list_vms_preserves_search_relations_filters_and_semantic_sort(
         owner="dave",
     )
     db_session.add(VmApplication(vm_id=high.id, app_name="nginx", app_owner="web"))
-    db_session.add(
-        VmNetwork(vm_id=high.id, ip_address="198.51.100.20", role=NetworkRole.public)
-    )
+    db_session.add(VmNetwork(vm_id=high.id, ip_address="198.51.100.20", role=NetworkRole.public))
     db_session.commit()
 
     searched, searched_total = list_vms(

@@ -62,7 +62,12 @@ def _create_admin_and_vms(db: Session) -> None:
     db.flush()
     rows = []
     statuses = [VmStatus.running, VmStatus.powered_off, VmStatus.unknown]
-    environments = [Environment.production, Environment.development, Environment.testing, Environment.uat]
+    environments = [
+        Environment.production,
+        Environment.development,
+        Environment.testing,
+        Environment.uat,
+    ]
     criticalities = [Criticality.low, Criticality.medium, Criticality.high, Criticality.critical]
     for i in range(VM_COUNT):
         rows.append(

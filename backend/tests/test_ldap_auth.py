@@ -24,7 +24,10 @@ def test_only_admin_can_read_and_save_ldap_config(client, db_session):
     viewer = create_user(db_session, email="viewer@example.com", role=UserRole.viewer)
     viewer_csrf = login(client, viewer.email)
     assert client.get("/api/settings/ldap").status_code == 403
-    assert client.put("/api/settings/ldap", headers=auth_headers(viewer_csrf), json={}).status_code == 403
+    assert (
+        client.put("/api/settings/ldap", headers=auth_headers(viewer_csrf), json={}).status_code
+        == 403
+    )
 
     headers = _admin_headers(client, db_session)
     assert client.put("/api/settings/ldap", json=_payload()).status_code == 403
@@ -48,18 +51,24 @@ def test_ldap_secret_is_encrypted_and_can_be_cleared(client, db_session):
     encrypted = config.bind_password_encrypted
     assert client.put("/api/settings/ldap", headers=headers, json=_payload()).status_code == 200
     assert db_session.get(LdapConfig, 1).bind_password_encrypted == encrypted
-    assert client.put(
-        "/api/settings/ldap", headers=headers, json=_payload(bind_password="")
-    ).status_code == 200
+    assert (
+        client.put(
+            "/api/settings/ldap", headers=headers, json=_payload(bind_password="")
+        ).status_code
+        == 200
+    )
     assert db_session.get(LdapConfig, 1).bind_password_encrypted is None
 
 
 def test_disabled_ldap_rejects_directory_only_login(client, db_session):
     headers = _admin_headers(client, db_session)
     assert client.put("/api/settings/ldap", headers=headers, json=_payload()).status_code == 200
-    assert client.post(
-        "/api/auth/login", json={"email": "directory@example.com", "password": "password"}
-    ).status_code == 401
+    assert (
+        client.post(
+            "/api/auth/login", json={"email": "directory@example.com", "password": "password"}
+        ).status_code
+        == 401
+    )
 
 
 def test_ldap_login_provisions_once_with_group_role(client, db_session, monkeypatch):
@@ -84,14 +93,19 @@ def test_ldap_login_provisions_once_with_group_role(client, db_session, monkeypa
         def start_tls(self):
             return True
 
-    monkeypatch.setattr("app.services.ldap_auth.Server", lambda *args, **kwargs: SimpleNamespace(ssl=False))
+    monkeypatch.setattr(
+        "app.services.ldap_auth.Server", lambda *args, **kwargs: SimpleNamespace(ssl=False)
+    )
     monkeypatch.setattr("app.services.ldap_auth.Connection", Connection)
     headers = _admin_headers(client, db_session)
-    assert client.put(
-        "/api/settings/ldap",
-        headers=headers,
-        json=_payload(enabled=True, admin_group_dn="cn=admins,dc=example,dc=com"),
-    ).status_code == 200
+    assert (
+        client.put(
+            "/api/settings/ldap",
+            headers=headers,
+            json=_payload(enabled=True, admin_group_dn="cn=admins,dc=example,dc=com"),
+        ).status_code
+        == 200
+    )
 
     for _ in range(2):
         response = client.post(
@@ -112,6 +126,9 @@ def test_local_user_keeps_password_and_role_when_ldap_enabled(client, db_session
         "app.services.ldap_auth.authenticate",
         lambda *_args: (_ for _ in ()).throw(AssertionError("LDAP must not run")),
     )
-    assert client.post(
-        "/api/auth/login", json={"email": local.email, "password": "local-password"}
-    ).status_code == 200
+    assert (
+        client.post(
+            "/api/auth/login", json={"email": local.email, "password": "local-password"}
+        ).status_code
+        == 200
+    )

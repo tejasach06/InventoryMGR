@@ -33,7 +33,9 @@ def test_rbac_storage_requires_editor_and_csrf_for_array_mutation(
     assert missing_csrf.status_code == 403
 
 
-def test_storage_editor_can_create_array_and_volume(client: TestClient, db_session: Session) -> None:
+def test_storage_editor_can_create_array_and_volume(
+    client: TestClient, db_session: Session
+) -> None:
     csrf = _login_as(client, db_session, role=UserRole.editor, email="storage-ok@example.com")
 
     array_response = client.post(

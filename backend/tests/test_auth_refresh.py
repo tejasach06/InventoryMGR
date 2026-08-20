@@ -71,6 +71,7 @@ def test_refresh_returns_200_and_rotates_session_for_editor(client, db_session: 
     old_session = client.cookies.get("inventorymgr_session")
     assert old_session is not None
     import time
+
     time.sleep(1.05)
     refresh_res = client.post("/api/auth/refresh")
     assert refresh_res.status_code == 200, refresh_res.text
@@ -80,7 +81,10 @@ def test_refresh_returns_200_and_rotates_session_for_editor(client, db_session: 
     assert new_session is not None
     assert new_session != old_session
 
-def test_refresh_rejects_a_session_token_used_as_a_refresh_token(client, db_session: Session) -> None:
+
+def test_refresh_rejects_a_session_token_used_as_a_refresh_token(
+    client, db_session: Session
+) -> None:
     create_user(db_session, email="editor-typecheck@example.com", role=UserRole.editor)
     login_res = client.post(
         "/api/auth/login",

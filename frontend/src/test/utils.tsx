@@ -124,8 +124,9 @@ export function makeImportBatch(overrides: Partial<ImportBatch> = {}): ImportBat
   return {
     id: 'batch-1',
     filename: 'vms.csv',
+    full_inventory: false,
     status: 'previewed',
-    summary: { create: 1, update: 0, unchanged: 0, conflict: 0, invalid: 0 },
+    summary: { create: 1, update: 0, unchanged: 0, conflict: 0, invalid: 0, decommission: 0 },
     ignored_columns: [],
     field_changes: {},
     rows: [makeImportRow()],

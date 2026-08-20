@@ -89,11 +89,19 @@ def create_app() -> FastAPI:
     app.include_router(imports.router, prefix="/api/imports", tags=["imports"])
     app.include_router(settings_router, prefix="/api/settings", tags=["settings"])
     app.include_router(storage_router, prefix="/api/storage", tags=["storage"])
-    app.include_router(volumes_router, prefix="/api/storage/arrays/{parent_id}/volumes", tags=["storage"])
-    app.include_router(luns_router, prefix="/api/storage/volumes/{parent_id}/luns", tags=["storage"])
-    app.include_router(shares_router, prefix="/api/storage/volumes/{parent_id}/shares", tags=["storage"])
+    app.include_router(
+        volumes_router, prefix="/api/storage/arrays/{parent_id}/volumes", tags=["storage"]
+    )
+    app.include_router(
+        luns_router, prefix="/api/storage/volumes/{parent_id}/luns", tags=["storage"]
+    )
+    app.include_router(
+        shares_router, prefix="/api/storage/volumes/{parent_id}/shares", tags=["storage"]
+    )
     app.include_router(clusters_router, prefix="/api/clusters", tags=["clusters"])
-    app.include_router(cluster_nodes_router, prefix="/api/clusters/{parent_id}/nodes", tags=["clusters"])
+    app.include_router(
+        cluster_nodes_router, prefix="/api/clusters/{parent_id}/nodes", tags=["clusters"]
+    )
     app.include_router(preferences_router, prefix="/api/user", tags=["user"])
     app.include_router(notifications_router, prefix="/api/notifications", tags=["notifications"])
 

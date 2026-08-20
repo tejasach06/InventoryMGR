@@ -34,7 +34,9 @@ def _op_condition_list(column: Any, values: list, operator: FilterOperator):
     return column.in_(values)
 
 
-def _op_condition(column: Any, value: Any, operator: FilterOperator, *, case_insensitive: bool = False):
+def _op_condition(
+    column: Any, value: Any, operator: FilterOperator, *, case_insensitive: bool = False
+):
     if case_insensitive:
         target = func.lower(func.coalesce(column, ""))
         needle = value.strip().lower()
@@ -55,8 +57,6 @@ def _op_condition(column: Any, value: Any, operator: FilterOperator, *, case_ins
 SHUTDOWN_STALE_DAYS = 90
 
 
-
-
 def template_tag_condition():
     path = cast('$[*] ? (@ like_regex "^template$" flag "i")', JSONPATH)
     return func.jsonb_path_exists(Vm.tags, path)
@@ -64,6 +64,7 @@ def template_tag_condition():
 
 def non_template_condition():
     return ~template_tag_condition()
+
 
 def shutdown_since_expr():
     """Latest moment a VM entered powered_off, falling back to creation."""

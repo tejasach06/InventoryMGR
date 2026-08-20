@@ -140,7 +140,11 @@ def login(
 ) -> LoginResponse:
     email = payload.email.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
-    if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
+    if (
+        user is None
+        or not user.is_active
+        or not verify_password(payload.password, user.password_hash)
+    ):
         user = ldap_auth.authenticate(db, email, payload.password)
     if user is None:
         raise HTTPException(

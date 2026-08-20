@@ -145,6 +145,7 @@ def list_tags(db: DbSession, _: ViewerUser) -> list[str]:
     rows = db.scalars(select(tag).distinct().order_by(tag)).all()
     return [t for t in rows if t]
 
+
 _SUGGESTION_COLUMNS = {
     "datacenter": Vm.datacenter,
     "os_distribution": Vm.os_distribution,
@@ -231,12 +232,8 @@ def _export_row(vm: Vm) -> dict[str, object]:
         _join_fields(d.disk_name, d.size_gb, d.storage_name, d.storage_type) for d in vm.disks
     )
     for header, role in IP_ROLE_HEADERS.items():
-        row[header] = ";".join(
-            n.ip_address for n in vm.networks if n.role == role
-        )
-    row["applications"] = ";".join(
-        _join_fields(a.app_name, a.app_owner) for a in vm.applications
-    )
+        row[header] = ";".join(n.ip_address for n in vm.networks if n.role == role)
+    row["applications"] = ";".join(_join_fields(a.app_name, a.app_owner) for a in vm.applications)
     return row
 
 
@@ -270,7 +267,9 @@ def _xlsx_response(vms: list[Vm]) -> Response:
             if value is None:
                 continue
             if isinstance(value, datetime):
-                sheet.write_datetime(row_index, column_index, value.replace(tzinfo=None), date_format)
+                sheet.write_datetime(
+                    row_index, column_index, value.replace(tzinfo=None), date_format
+                )
             elif isinstance(value, date):
                 sheet.write_datetime(row_index, column_index, value, date_format)
             elif isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -341,6 +340,7 @@ def bulk_update(
 ) -> VmBulkResult:
     result = bulk_update_vms(db, payload=payload, user=current_user)
     return VmBulkResult.model_validate(result)
+
 
 @router.get("/{vm_id}", response_model=VmRead)
 def get_vm(vm_id: uuid.UUID, db: DbSession, _: ViewerUser) -> VmRead:

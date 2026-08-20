@@ -19,6 +19,7 @@ from app.db.models import (
     VmApplication,
     VmDisk,
     VmNetwork,
+    VmStatus,
     compute_health_score,
 )
 from app.schemas.vms import VmCreate, VmUpdate
@@ -89,6 +90,7 @@ __all__ = [
     "parse_csv_bytes",
 ]
 
+
 def find_matching_vm(db: Session, normalized: dict[str, Any]) -> Vm | None:
     platform = Platform(normalized["platform"])
     name = normalized["name"].lower()
@@ -123,11 +125,21 @@ def _storage_warnings(db: Session, raw: dict[str, Any]) -> list[dict[str, str]]:
             select(StorageArray.name).where(func.lower(StorageArray.name).in_(seen))
         )
     }
-    return [_error("storage_name", f"no storage array named '{name}' exists") for name in names if name.lower() not in known]
+    return [
+        _error("storage_name", f"no storage array named '{name}' exists")
+        for name in names
+        if name.lower() not in known
+    ]
+
+
+def _decommission_candidates(db: Session, matched_vm_ids: set[uuid.UUID]) -> list[Vm]:
+    """Non-decommissioned VMs absent from a full-inventory CSV."""
+    stmt = select(Vm).where(Vm.status != VmStatus.decommissioned).order_by(Vm.name.asc())
+    return [vm for vm in db.scalars(stmt) if vm.id not in matched_vm_ids]
 
 
 def create_preview_batch(
-    db: Session, *, filename: str, content: bytes, user: User
+    db: Session, *, filename: str, content: bytes, user: User, full_inventory: bool = False
 ) -> CsvImportBatch:
     if len(content) > MAX_CSV_BYTES:
         raise HTTPException(
@@ -140,12 +152,21 @@ def create_preview_batch(
         status=ImportStatus.previewed,
         summary={},
         ignored_columns=ignored_columns,
+        full_inventory=full_inventory,
     )
     db.add(batch)
     db.flush()
 
     seen: set[tuple[str, ...]] = set()
-    summary = {"create": 0, "update": 0, "unchanged": 0, "conflict": 0, "invalid": 0}
+    summary = {
+        "create": 0,
+        "update": 0,
+        "unchanged": 0,
+        "conflict": 0,
+        "invalid": 0,
+        "decommission": 0,
+    }
+    matched_vm_ids: set[uuid.UUID] = set()
     field_changes: dict[str, int] = {}
     for idx, raw in enumerate(rows, start=2):
         normalized, errors = normalize_csv_row(raw)
@@ -165,6 +186,7 @@ def create_preview_batch(
                     action = ImportAction.create
                 else:
                     target_vm_id = match.id
+                    matched_vm_ids.add(match.id)
                     changes = diff_against_vm(normalized, match, raw)
                     action = ImportAction.update if changes else ImportAction.unchanged
                     for field in changes:
@@ -183,6 +205,25 @@ def create_preview_batch(
                 changes=changes,
             )
         )
+    if full_inventory:
+        candidates = _decommission_candidates(db, matched_vm_ids)
+        next_row = len(rows) + 2
+        for offset, vm in enumerate(candidates):
+            db.add(
+                CsvImportRow(
+                    batch_id=batch.id,
+                    row_number=next_row + offset,
+                    raw={"name": vm.name, "cluster": vm.cluster, "platform": vm.platform.value},
+                    normalized=None,
+                    action=ImportAction.decommission,
+                    target_vm_id=vm.id,
+                    errors=[],
+                    warnings=[],
+                    changes={"status": [vm.status.value, VmStatus.decommissioned.value]},
+                )
+            )
+        summary["decommission"] = len(candidates)
+        summary["decommission_candidate_total"] = len(candidates) + len(matched_vm_ids)
     batch.summary = summary
     batch.field_changes = field_changes
     db.commit()
@@ -316,6 +357,17 @@ def _attach_children(db: Session, vm: Vm, raw: dict[str, Any]) -> None:
 
 
 def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
+    if row.action == ImportAction.decommission:
+        vm = db.get(Vm, row.target_vm_id) if row.target_vm_id else None
+        if vm is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed"
+            )
+        payload: dict[str, Any] = {"status": VmStatus.decommissioned}
+        if vm.decommission_date is None:
+            payload["decommission_date"] = date.today()
+        update_vm(db, vm, VmUpdate.model_validate(payload), user, commit=False)
+        return "decommission", vm
     assert row.normalized is not None
     normalized = row.normalized.copy()
     date_fields = (
@@ -342,7 +394,9 @@ def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
     return "update", existing_vm
 
 
-def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, int]:
+def commit_batch(
+    db: Session, *, batch_id: uuid.UUID, user: User, confirm_decommission: bool = False
+) -> dict[str, int]:
     batch = load_batch_or_404(db, batch_id, user)
     if batch.status != ImportStatus.previewed:
         raise HTTPException(
@@ -356,8 +410,24 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
             status_code=status.HTTP_409_CONFLICT,
             detail="Import contains invalid or conflicting rows",
         )
+    decommission_rows = [r for r in batch.rows if r.action == ImportAction.decommission]
+    candidate_total = int(batch.summary.get("decommission_candidate_total", 0))
+    if (
+        decommission_rows
+        and not confirm_decommission
+        and candidate_total
+        and len(decommission_rows) * 2 > candidate_total
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"This import would decommission {len(decommission_rows)} of {candidate_total} VMs "
+                "(over half the inventory). Re-submit with confirm_decommission to proceed."
+            ),
+        )
     created = 0
     updated = 0
+    decommissioned = 0
     touched_vms: list[Vm] = []
     for row in batch.rows:
         if row.action == ImportAction.unchanged:
@@ -367,6 +437,8 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
             touched_vms.append(vm)
             if action == "create":
                 created += 1
+            elif action == "decommission":
+                decommissioned += 1
             else:
                 updated += 1
         except HTTPException:
@@ -395,4 +467,4 @@ def commit_batch(db: Session, *, batch_id: uuid.UUID, user: User) -> dict[str, i
     except Exception:
         db.rollback()
         raise
-    return {"created": created, "updated": updated}
+    return {"created": created, "updated": updated, "decommissioned": decommissioned}

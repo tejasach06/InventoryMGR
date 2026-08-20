@@ -5,7 +5,7 @@ export type VmStatus = 'running' | 'powered_off' | 'decommissioned' | 'unknown';
 export type Criticality = 'low' | 'medium' | 'high' | 'critical';
 export type VmType = 'permanent' | 'temporary';
 export type Environment = 'production' | 'development' | 'testing' | 'uat' | 'dr' | 'staging' | 'sandbox';
-export type ImportAction = 'create' | 'update' | 'unchanged' | 'conflict' | 'invalid';
+export type ImportAction = 'create' | 'update' | 'unchanged' | 'conflict' | 'invalid' | 'decommission';
 export type DropdownCategory = 'cpu' | 'datacenter' | 'disk' | 'os' | 'cluster';
 export type StorageVendor = 'synology' | 'netapp';
 export type OsFamily = 'linux' | 'windows';
@@ -194,6 +194,7 @@ export interface ImportRow {
 export interface ImportBatch {
   id: string;
   filename: string;
+  full_inventory: boolean;
   status: 'previewed' | 'committed' | 'cancelled';
   summary: Record<ImportAction, number> & Record<string, number>;
   ignored_columns: string[];
@@ -206,6 +207,7 @@ export interface ImportBatch {
 export interface CommitResult {
   created: number;
   updated: number;
+  decommissioned: number;
 }
 
 export interface DueVm {

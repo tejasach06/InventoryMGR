@@ -59,6 +59,7 @@ __all__ = [
     "update_vm",
 ]
 
+
 def get_vm_or_404(db: Session, vm_id: uuid.UUID) -> Vm:
     vm = db.get(Vm, vm_id)
     if vm is None:

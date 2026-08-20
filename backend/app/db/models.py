@@ -92,6 +92,7 @@ class ImportAction(StrEnum):
     create = "create"
     update = "update"
     unchanged = "unchanged"
+    decommission = "decommission"
     conflict = "conflict"
     invalid = "invalid"
 
@@ -356,6 +357,9 @@ class CsvImportBatch(Base):
     summary: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     ignored_columns: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     field_changes: Mapped[dict[str, int]] = mapped_column(JSONB, nullable=False, default=dict)
+    full_inventory: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false", default=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now_utc, nullable=False
     )
@@ -427,6 +431,7 @@ class LdapConfig(Base, TimestampMixin):
     default_role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"), nullable=False, default=UserRole.viewer
     )
+
 
 class DecommissionAck(Base, TimestampMixin):
     __tablename__ = "decommission_acks"
