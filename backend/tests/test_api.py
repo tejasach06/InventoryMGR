@@ -1,8 +1,10 @@
 # backend/tests/test_api.py
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+
 from app.db.models import UserRole
-from tests.conftest import create_user, create_vm_row, login, auth_headers
+from tests.conftest import auth_headers, create_user, create_vm_row, login
+
 
 def test_api_vm_endpoints(client: TestClient, db_session: Session):
     user = create_user(db_session, email="test@example.com", role=UserRole.admin)

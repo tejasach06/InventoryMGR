@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import DecommissionAck, NetworkRole, Vm, VmNetwork, VmStatus
+from app.db.models import DecommissionAck, Vm, VmNetwork, VmStatus
 from app.schemas.notifications import DueVmRead, DuplicateIpRead, DuplicateIpVm
 from app.services.app_settings import get_notify_days
 from app.services.vm_filters import non_template_condition

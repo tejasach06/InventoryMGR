@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
+from app.core.ip_utils import normalize_ip
 from app.db.models import NetworkRole
 from app.schemas.vms import VmBase
 
@@ -288,7 +289,7 @@ def _parse_disks(
     return disks
 
 
-from app.core.ip_utils import normalize_ip
+
 
 def _parse_ips(
     row: dict[str, str], field: str, errors: list[dict[str, str]] | None = None
