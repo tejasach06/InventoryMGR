@@ -3,7 +3,6 @@ from datetime import date
 
 from pydantic import BaseModel
 
-from app.db.models import NetworkRole
 
 
 class DueVmRead(BaseModel):
@@ -24,5 +23,5 @@ class DuplicateIpVm(BaseModel):
 
 class DuplicateIpRead(BaseModel):
     ip_address: str
-    role: NetworkRole
+    occurrences: int
     vms: list[DuplicateIpVm]

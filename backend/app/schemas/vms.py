@@ -14,6 +14,7 @@ from app.db.models import (
     VmStatus,
     VmType,
 )
+from app.services.ip_utils import normalize_ip
 
 STRING_FIELDS = {
     "external_id",
@@ -156,11 +157,13 @@ class DiskRead(DiskCreate):
 
 
 class NetworkCreate(BaseModel):
-    ip_address: str
+    ip_address: str = Field(..., max_length=64)
+    @field_validator("ip_address", mode="after")
+    @classmethod
+    def _normalize_ip(cls, v: str) -> str:
+        return normalize_ip(v)
     role: NetworkRole = NetworkRole.private
     sort_order: int = 0
-
-
 class NetworkRead(NetworkCreate):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -188,15 +191,18 @@ class DiskUpdate(BaseModel):
 
 
 class NetworkUpdate(BaseModel):
-    ip_address: str | None = None
+    ip_address: str | None = Field(None, max_length=64)
+    @field_validator("ip_address", mode="after")
+    @classmethod
+    def _normalize_ip(cls, v: str | None) -> str | None:
+        return normalize_ip(v) if v else v
     role: NetworkRole | None = None
     sort_order: int | None = None
-
-
 class ApplicationUpdate(BaseModel):
     app_name: str | None = None
     app_owner: str | None = None
     description: str | None = None
+
 
 
 class AuditUserRead(BaseModel):

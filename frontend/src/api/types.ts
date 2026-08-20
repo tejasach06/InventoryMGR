@@ -228,7 +228,7 @@ export interface DuplicateIpVm {
 
 export interface DuplicateIp {
   ip_address: string;
-  role: NetworkRole;
+  occurrences: number;
   vms: DuplicateIpVm[];
 }
 export interface AppSettings {

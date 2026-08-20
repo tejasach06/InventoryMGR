@@ -78,7 +78,7 @@ describe('NotificationBell', () => {
   it('renders persistent duplicate IP notifications with no dismiss button', async () => {
     vi.mocked(vmsApi.decommissionNotifications).mockResolvedValue([] as never);
     vi.mocked(vmsApi.duplicateIpNotifications).mockResolvedValue([
-      { ip_address: '10.5.5.5', role: 'private', vms: [{ vm_id: 'vm1', name: 'web-a' }, { vm_id: 'vm2', name: 'web-b' }] },
+      { ip_address: '10.5.5.5', occurrences: 2, vms: [{ vm_id: 'vm1', name: 'web-a' }, { vm_id: 'vm2', name: 'web-b' }] },
     ] as never);
     renderWithProviders(<NotificationBell />);
 

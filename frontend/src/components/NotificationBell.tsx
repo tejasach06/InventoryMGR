@@ -98,7 +98,7 @@ export function NotificationBell() {
                   </p>
                   <ul>
                     {duplicates.map((d) => (
-                      <li key={`${d.role}-${d.ip_address}`}>
+                      <li key={d.ip_address}>
                         <Link
                           href={`/inventory?q=${encodeURIComponent(d.ip_address)}`}
                           onClick={() => setOpen(false)}
@@ -108,7 +108,7 @@ export function NotificationBell() {
                             {d.ip_address}
                           </span>
                           <span className={cn(monoClass, 'shrink-0 text-xs tabular-nums text-[var(--color-text-secondary)]')}>
-                            {d.vms.length} VMs
+                          {d.vms.length > 1 ? `${d.vms.length} VMs` : `${d.occurrences} NICs`}
                           </span>
                         </Link>
                       </li>

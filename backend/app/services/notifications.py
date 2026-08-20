@@ -68,11 +68,11 @@ def list_duplicate_ips(db: Session) -> list[DuplicateIpRead]:
     inventory_cond = non_template_condition()
     # Find (ip_address, role) pairs with > 1 distinct active, non-template VMs
     dup_keys_stmt = (
-        select(VmNetwork.ip_address, VmNetwork.role)
+        select(VmNetwork.ip_address)
         .join(Vm, VmNetwork.vm_id == Vm.id)
-        .where(Vm.status != VmStatus.decommissioned, inventory_cond)
-        .group_by(VmNetwork.ip_address, VmNetwork.role)
-        .having(func.count(func.distinct(Vm.id)) > 1)
+        .where(Vm.status == VmStatus.running, inventory_cond)
+        .group_by(VmNetwork.ip_address)
+        .having(func.count(VmNetwork.id) > 1)
         .order_by(VmNetwork.ip_address.asc())
     )
     dup_keys = db.execute(dup_keys_stmt).all()
@@ -80,17 +80,17 @@ def list_duplicate_ips(db: Session) -> list[DuplicateIpRead]:
         return []
 
     result: list[DuplicateIpRead] = []
-    for ip_addr, role in dup_keys:
+    for ip_addr in db.execute(dup_keys_stmt).scalars():
+        occurrences = db.scalar(
+            select(func.count(VmNetwork.id))
+            .join(Vm, VmNetwork.vm_id == Vm.id)
+            .where(VmNetwork.ip_address == ip_addr, Vm.status == VmStatus.running, inventory_cond)
+        )
         vm_rows = (
             db.execute(
                 select(Vm.id, Vm.name)
                 .join(VmNetwork, VmNetwork.vm_id == Vm.id)
-                .where(
-                    VmNetwork.ip_address == ip_addr,
-                    VmNetwork.role == role,
-                    Vm.status != VmStatus.decommissioned,
-                    inventory_cond,
-                )
+                .where(VmNetwork.ip_address == ip_addr, Vm.status == VmStatus.running, inventory_cond)
                 .distinct()
                 .order_by(Vm.name.asc())
             )
@@ -99,7 +99,7 @@ def list_duplicate_ips(db: Session) -> list[DuplicateIpRead]:
         result.append(
             DuplicateIpRead(
                 ip_address=ip_addr,
-                role=role if isinstance(role, NetworkRole) else NetworkRole(role),
+                occurrences=occurrences or 0,
                 vms=[DuplicateIpVm(vm_id=r[0], name=r[1]) for r in vm_rows],
             )
         )
