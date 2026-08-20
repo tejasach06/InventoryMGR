@@ -248,26 +248,30 @@ export function UsersPanel() {
         </button>
       </div>
       {showCreate ? (
-        <form className={cardClass + ' mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end animate-fade-in'} onSubmit={submit} noValidate>
-          <div>
-            <label className={labelClass} htmlFor="new-email">Email</label>
-            <input className={inputClass} id="new-email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} aria-describedby={emailError ? 'new-email-error' : undefined} />
-            <FieldError id="new-email-error" message={emailError} />
+        <form className={cardClass + ' mb-6 space-y-4 animate-fade-in'} onSubmit={submit} noValidate>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <label className={labelClass} htmlFor="new-email">Email</label>
+              <input className={inputClass} id="new-email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} aria-describedby={emailError ? 'new-email-error' : undefined} />
+              <FieldError id="new-email-error" message={emailError} />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="new-password">Password</label>
+              <input className={inputClass} id="new-password" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} aria-describedby={passwordError ? 'new-password-error' : undefined} />
+              <FieldError id="new-password-error" message={passwordError} />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="new-role">Role</label>
+              <select className={selectClass} id="new-role" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as UserRole })}>{roles.map((role) => <option key={role} value={role} title={roleDescriptions[role]}>{role}</option>)}</select>
+              <p className={helpTextClass}>{roleDescriptions[form.role]}</p>
+            </div>
           </div>
-          <div>
-            <label className={labelClass} htmlFor="new-password">Password</label>
-            <input className={inputClass} id="new-password" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} aria-describedby={passwordError ? 'new-password-error' : undefined} />
-            <FieldError id="new-password-error" message={passwordError} />
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--color-border-subtle)] pt-4">
+            <label className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)]" htmlFor="new-active"><input className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]/12" id="new-active" type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> Active</label>
+            <button className={primaryButtonClass} type="submit" disabled={create.isPending}>
+              {create.isPending ? <><Spinner /> Creating…</> : 'Create user'}
+            </button>
           </div>
-          <div>
-            <label className={labelClass} htmlFor="new-role">Role</label>
-            <select className={selectClass} id="new-role" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as UserRole })}>{roles.map((role) => <option key={role} value={role} title={roleDescriptions[role]}>{role}</option>)}</select>
-            <p className={helpTextClass}>{roleDescriptions[form.role]}</p>
-          </div>
-          <label className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)]" htmlFor="new-active"><input className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]/12" id="new-active" type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> Active</label>
-          <button className={primaryButtonClass} type="submit" disabled={create.isPending}>
-            {create.isPending ? <><Spinner /> Creating…</> : 'Create user'}
-          </button>
         </form>
       ) : null}
       {create.isError ? <Alert>{detailMessage(create.error)}</Alert> : null}
