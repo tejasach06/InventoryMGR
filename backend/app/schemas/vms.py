@@ -14,7 +14,7 @@ from app.db.models import (
     VmStatus,
     VmType,
 )
-from app.services.ip_utils import normalize_ip
+from app.core.ip_utils import normalize_ip
 
 STRING_FIELDS = {
     "external_id",

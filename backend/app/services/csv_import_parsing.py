@@ -288,7 +288,7 @@ def _parse_disks(
     return disks
 
 
-from app.services.ip_utils import normalize_ip
+from app.core.ip_utils import normalize_ip
 
 def _parse_ips(
     row: dict[str, str], field: str, errors: list[dict[str, str]] | None = None
