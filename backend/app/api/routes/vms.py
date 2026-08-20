@@ -80,7 +80,7 @@ class VmFilterParams:
     shutdown_stale: bool | None = None
     decommission_overdue: bool | None = None
     missing_ip: bool | None = None
-
+    duplicate_ip: bool | None = None
 
 @router.get("", response_model=VmList)
 def list_inventory(

@@ -1,12 +1,13 @@
 import uuid
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import DecommissionAck, Vm, VmStatus
-from app.schemas.notifications import DueVmRead
+from app.db.models import DecommissionAck, NetworkRole, Vm, VmNetwork, VmStatus
+from app.schemas.notifications import DueVmRead, DuplicateIpRead, DuplicateIpVm
 from app.services.app_settings import get_notify_days
+from app.services.vm_filters import non_template_condition
 
 
 def _due_vms(db: Session, cutoff: date) -> list[Vm]:
@@ -61,3 +62,45 @@ def ack(db: Session, user_id: uuid.UUID, vm_ids: list[uuid.UUID] | None) -> None
         else:
             db.add(DecommissionAck(user_id=user_id, vm_id=vm_id, acked_date=dec_date))
     db.commit()
+
+def list_duplicate_ips(db: Session) -> list[DuplicateIpRead]:
+    """Find active, non-template VMs that share the same IP address and role."""
+    inventory_cond = non_template_condition()
+    # Find (ip_address, role) pairs with > 1 distinct active, non-template VMs
+    dup_keys_stmt = (
+        select(VmNetwork.ip_address, VmNetwork.role)
+        .join(Vm, VmNetwork.vm_id == Vm.id)
+        .where(Vm.status != VmStatus.decommissioned, inventory_cond)
+        .group_by(VmNetwork.ip_address, VmNetwork.role)
+        .having(func.count(func.distinct(Vm.id)) > 1)
+        .order_by(VmNetwork.ip_address.asc())
+    )
+    dup_keys = db.execute(dup_keys_stmt).all()
+    if not dup_keys:
+        return []
+
+    result: list[DuplicateIpRead] = []
+    for ip_addr, role in dup_keys:
+        vm_rows = (
+            db.execute(
+                select(Vm.id, Vm.name)
+                .join(VmNetwork, VmNetwork.vm_id == Vm.id)
+                .where(
+                    VmNetwork.ip_address == ip_addr,
+                    VmNetwork.role == role,
+                    Vm.status != VmStatus.decommissioned,
+                    inventory_cond,
+                )
+                .distinct()
+                .order_by(Vm.name.asc())
+            )
+            .all()
+        )
+        result.append(
+            DuplicateIpRead(
+                ip_address=ip_addr,
+                role=role if isinstance(role, NetworkRole) else NetworkRole(role),
+                vms=[DuplicateIpVm(vm_id=r[0], name=r[1]) for r in vm_rows],
+            )
+        )
+    return result

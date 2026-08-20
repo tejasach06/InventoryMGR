@@ -145,6 +145,7 @@ export interface DashboardAlertVm {
   name: string;
   environment: Environment;
   days: number;
+  detail?: string | null;
 }
 
 export interface ReportSummary {
@@ -172,6 +173,7 @@ export interface DashboardStats {
   shutdown_stale: DashboardAlertVm[];
   decommission_overdue: DashboardAlertVm[];
   missing_ip: DashboardAlertVm[];
+  duplicate_ip: DashboardAlertVm[];
 }
 
 export interface ImportRowError {
@@ -218,6 +220,17 @@ export interface DueVm {
   unread: boolean;
 }
 
+
+export interface DuplicateIpVm {
+  vm_id: string;
+  name: string;
+}
+
+export interface DuplicateIp {
+  ip_address: string;
+  role: NetworkRole;
+  vms: DuplicateIpVm[];
+}
 export interface AppSettings {
   decommission_notify_days: number;
   storage_usage_warn_pct: number;

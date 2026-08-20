@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.models import (
+    AuditLog,
     CsvImportBatch,
     CsvImportRow,
     ImportAction,
@@ -132,10 +133,18 @@ def _storage_warnings(db: Session, raw: dict[str, Any]) -> list[dict[str, str]]:
     ]
 
 
-def _decommission_candidates(db: Session, matched_vm_ids: set[uuid.UUID]) -> list[Vm]:
-    """Non-decommissioned VMs absent from a full-inventory CSV."""
+def _decommission_candidates(
+    db: Session, matched_vm_ids: set[uuid.UUID], scopes: set[tuple[str, str]]
+) -> list[Vm]:
+    """Non-decommissioned VMs absent from a full-inventory CSV, restricted to
+    the (cluster, platform) pairs the CSV covers."""
     stmt = select(Vm).where(Vm.status != VmStatus.decommissioned).order_by(Vm.name.asc())
-    return [vm for vm in db.scalars(stmt) if vm.id not in matched_vm_ids]
+    return [
+        vm
+        for vm in db.scalars(stmt)
+        if vm.id not in matched_vm_ids
+        and ((vm.cluster or "").strip().lower(), vm.platform.value) in scopes
+    ]
 
 
 def create_preview_batch(
@@ -167,6 +176,7 @@ def create_preview_batch(
         "decommission": 0,
     }
     matched_vm_ids: set[uuid.UUID] = set()
+    scopes: set[tuple[str, str]] = set()
     field_changes: dict[str, int] = {}
     for idx, raw in enumerate(rows, start=2):
         normalized, errors = normalize_csv_row(raw)
@@ -181,6 +191,12 @@ def create_preview_batch(
                 errors = [_error("identity", "duplicate CSV identity")]
             else:
                 seen.add(key)
+                scopes.add(
+                    (
+                        (normalized.get("cluster") or "").strip().lower(),
+                        str(normalized.get("platform") or ""),
+                    )
+                )
                 match = find_matching_vm(db, normalized)
                 if match is None:
                     action = ImportAction.create
@@ -206,7 +222,7 @@ def create_preview_batch(
             )
         )
     if full_inventory:
-        candidates = _decommission_candidates(db, matched_vm_ids)
+        candidates = _decommission_candidates(db, matched_vm_ids, scopes)
         next_row = len(rows) + 2
         for offset, vm in enumerate(candidates):
             db.add(
@@ -229,6 +245,42 @@ def create_preview_batch(
     db.commit()
     return load_batch_or_404(db, batch.id, user)
 
+
+def _plan_ip_changes(
+    vm: Vm, clean: dict[str, str], header: str, claimed: set[str]
+) -> tuple[list[tuple[VmNetwork, str]], list[str]]:
+    """(rows to retarget, addresses to insert) for one IP column.
+
+    Positional: the cell's new addresses reuse this role's rows that the cell
+    no longer mentions, in sort_order. Surplus rows are left untouched — a
+    partial import never deletes an IP.
+    """
+    role = IP_ROLE_HEADERS[header]
+    # ordered dedup of mentioned addresses
+    mentioned_list = _parse_ips(clean, header)
+    mentioned: list[str] = []
+    for a in mentioned_list:
+        if a not in mentioned:
+            mentioned.append(a)
+
+    role_rows = sorted(
+        [n for n in vm.networks if n.role == role],
+        key=lambda n: (n.sort_order, str(n.id)),
+    )
+    role_addrs = {n.ip_address for n in role_rows}
+    new_addrs = [a for a in mentioned if a not in role_addrs and a not in claimed]
+    reusable = [n for n in role_rows if n.ip_address not in mentioned]
+
+    retarget_count = min(len(new_addrs), len(reusable))
+    retargets = list(zip(reusable[:retarget_count], new_addrs[:retarget_count], strict=False))
+    inserts = new_addrs[retarget_count:]
+
+    for _, a in retargets:
+        claimed.add(a)
+    for a in inserts:
+        claimed.add(a)
+
+    return retargets, inserts
 
 def diff_against_vm(
     normalized: dict[str, Any], vm: Vm, raw: dict[str, Any] | None = None
@@ -262,16 +314,14 @@ def diff_against_vm(
         # Accumulate exactly as _attach_children does, so the preview and the
         # batch rollup promise precisely what the commit will create. An address
         # repeated in a cell, or under a second role, is one network row.
-        seen_ips = {n.ip_address for n in vm.networks}
+        claimed_ips = {n.ip_address for n in vm.networks}
         for header in IP_ROLE_HEADERS:
-            added_ips = []
-            for ip_address in _parse_ips(clean, header):
-                if ip_address in seen_ips:
-                    continue
-                seen_ips.add(ip_address)
-                added_ips.append(ip_address)
-            if added_ips:
-                changes[header] = [None, added_ips]
+            retargets, inserts = _plan_ip_changes(vm, clean, header, claimed_ips)
+            old_retargeted = [n.ip_address for n, _ in retargets]
+            new_retargeted = [a for _, a in retargets]
+            new_combined = new_retargeted + inserts
+            if old_retargeted or new_combined:
+                changes[header] = [old_retargeted if old_retargeted else None, new_combined]
     for field, new_value in normalized.items():
         if field in CHILD_HEADERS:
             continue
@@ -302,7 +352,7 @@ def load_batch_or_404(db: Session, batch_id: uuid.UUID, user: User) -> CsvImport
     return batch
 
 
-def _attach_children(db: Session, vm: Vm, raw: dict[str, Any]) -> None:
+def _attach_children(db: Session, vm: Vm, raw: dict[str, Any], user: User) -> None:
     """Attach the row's disks and IPs that the VM has no matching child for.
 
     Additive only: existing children are never modified or removed. A row that
@@ -332,17 +382,28 @@ def _attach_children(db: Session, vm: Vm, raw: dict[str, Any]) -> None:
         )
         disk_order += 1
 
-    existing_ips = {n.ip_address for n in vm.networks}
+    claimed_ips = {n.ip_address for n in vm.networks}
     ip_order = len(vm.networks)
-    for header, role in IP_ROLE_HEADERS.items():
-        for ip_address in _parse_ips(clean, header):
-            if ip_address in existing_ips:
-                continue
-            existing_ips.add(ip_address)
+    for header in IP_ROLE_HEADERS:
+        retargets, inserts = _plan_ip_changes(vm, clean, header, claimed_ips)
+        for net_row, new_addr in retargets:
+            old_addr = net_row.ip_address
+            net_row.ip_address = new_addr
+            db.add(
+                AuditLog(
+                    vm_id=vm.id,
+                    user_id=user.id,
+                    field_name=header,
+                    old_value=old_addr,
+                    new_value=new_addr,
+                )
+            )
+        role = IP_ROLE_HEADERS[header]
+        for new_addr in inserts:
             db.add(
                 VmNetwork(
                     vm_id=vm.id,
-                    ip_address=ip_address,
+                    ip_address=new_addr,
                     role=role,
                     sort_order=ip_order,
                 )
@@ -382,7 +443,7 @@ def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
     if row.action == ImportAction.create:
         vm = create_vm(db, VmCreate.model_validate({**DEFAULTS, **normalized}), user, commit=False)
         db.flush()
-        _attach_children(db, vm, row.raw)
+        _attach_children(db, vm, row.raw, user)
         return "create", vm
     if row.target_vm_id is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
@@ -390,7 +451,7 @@ def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
     if existing_vm is None or find_matching_vm(db, row.normalized) != existing_vm:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
     update_vm(db, existing_vm, VmUpdate.model_validate(normalized), user, commit=False)
-    _attach_children(db, existing_vm, row.raw)
+    _attach_children(db, existing_vm, row.raw, user)
     return "update", existing_vm
 
 

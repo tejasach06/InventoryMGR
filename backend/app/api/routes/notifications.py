@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status
 
 from app.api.deps import Csrf, DbSession, ViewerUser
-from app.schemas.notifications import AckRequest, DueVmRead
+from app.schemas.notifications import AckRequest, DueVmRead, DuplicateIpRead
 from app.services import notifications
 
 router = APIRouter()
@@ -15,3 +15,8 @@ def list_decommissions(db: DbSession, user: ViewerUser) -> list[DueVmRead]:
 @router.post("/decommissions/ack", status_code=status.HTTP_204_NO_CONTENT)
 def ack_decommissions(payload: AckRequest, db: DbSession, user: ViewerUser, __: Csrf) -> None:
     notifications.ack(db, user.id, payload.vm_ids)
+
+
+@router.get("/duplicate-ips", response_model=list[DuplicateIpRead])
+def list_duplicate_ips(db: DbSession, _: ViewerUser) -> list[DuplicateIpRead]:
+    return notifications.list_duplicate_ips(db)

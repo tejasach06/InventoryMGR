@@ -4,7 +4,7 @@ from typing import Any
 
 from sqlalchemy import Select, String, and_, case, cast, exists, func, literal_column, or_, select
 from sqlalchemy.dialects.postgresql import JSONPATH
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, aliased, selectinload
 
 from app.db.models import (
     AuditLog,
@@ -99,6 +99,36 @@ def decommission_overdue_condition():
     )
 
 
+def duplicate_ip_condition():
+    """Another active, non-template VM holds the same address in the same role."""
+    mine = aliased(VmNetwork)
+    other = aliased(VmNetwork)
+    other_vm = aliased(Vm)
+    return and_(
+        Vm.status != VmStatus.decommissioned,
+        exists(
+            select(mine.id)
+            .where(mine.vm_id == Vm.id)
+            .where(
+                exists(
+                    select(other.id)
+                    .where(other.ip_address == mine.ip_address)
+                    .where(other.role == mine.role)
+                    .where(other.vm_id != mine.vm_id)
+                    .where(other.vm_id == other_vm.id)
+                    .where(other_vm.status != VmStatus.decommissioned)
+                    .where(
+                        ~func.jsonb_path_exists(
+                            other_vm.tags,
+                            cast('$[*] ? (@ like_regex "^template$" flag "i")', JSONPATH),
+                        )
+                    )
+                )
+            )
+        ),
+    )
+
+
 def missing_ip_condition():
     """VM has zero vm_networks rows. NOT EXISTS, mirroring the ip_role filter."""
     return ~exists(select(VmNetwork.vm_id).where(VmNetwork.vm_id == Vm.id))
@@ -136,6 +166,7 @@ def apply_vm_filters(
     shutdown_stale: bool | None = None,
     decommission_overdue: bool | None = None,
     missing_ip: bool | None = None,
+    duplicate_ip: bool | None = None,
 ) -> Select[tuple[Vm]]:
     if ip_role:
         # EXISTS, not a join: a VM with several IPs in the role must appear once.
@@ -251,6 +282,9 @@ def apply_vm_filters(
     if missing_ip is not None:
         match = missing_ip_condition()
         stmt = stmt.where(match if missing_ip else ~match)
+    if duplicate_ip is not None:
+        match = duplicate_ip_condition()
+        stmt = stmt.where(match if duplicate_ip else ~match)
     return stmt
 
 

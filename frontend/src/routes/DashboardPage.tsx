@@ -398,6 +398,9 @@ export function DashboardPage() {
               { key: 'noip', title: 'No IP address', tone: 'warning' as const, toneLabel: 'Warning', rows: d.missing_ip,
                 meta: () => 'no IP',
                 href: '/inventory?missing_ip=true', hrefLabel: 'View VMs without IPs' },
+              { key: 'dupip', title: 'Duplicate IP address', tone: 'critical' as const, toneLabel: 'Critical', rows: d.duplicate_ip,
+                meta: (vm: DashboardAlertVm) => vm.detail ?? 'duplicate IP',
+                href: '/inventory?duplicate_ip=true', hrefLabel: 'View VMs with duplicate IPs' },
             ];
             const total = groups.reduce((n, g) => n + g.rows.length, 0);
             return (
@@ -420,10 +423,10 @@ export function DashboardPage() {
                 {total === 0 ? (
                   <div className="px-5 py-10 text-center">
                     <p className="text-sm font-semibold tracking-wide text-[var(--color-status-running)]">All clear</p>
-                    <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">No stale shutdowns, overdue decommissions, or missing IPs.</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">No stale shutdowns, overdue decommissions, missing IPs, or duplicate IPs.</p>
                   </div>
                 ) : (
-                  <div className="flex flex-col divide-y divide-[var(--color-border)]/70 lg:flex-row lg:divide-x lg:divide-y-0">
+                  <div className="grid grid-cols-1 divide-y divide-[var(--color-border)]/70 sm:grid-cols-2 sm:divide-y-0 sm:gap-px sm:bg-[var(--color-border)]/70 lg:grid-cols-4 [&>*]:bg-[var(--color-surface)]">
                     {groups.map(({ key, ...g }) => <AlertGroup key={key} {...g} />)}
                   </div>
                 )}

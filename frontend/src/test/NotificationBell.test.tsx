@@ -5,7 +5,7 @@ import { renderWithProviders } from './utils';
 import { vms as vmsApi } from '../api/vms';
 
 vi.mock('../api/vms', () => ({
-  vms: { decommissionNotifications: vi.fn(), ackDecommissions: vi.fn() },
+  vms: { decommissionNotifications: vi.fn(), ackDecommissions: vi.fn(), duplicateIpNotifications: vi.fn() },
 }));
 
 const due = [
@@ -20,6 +20,7 @@ describe('NotificationBell', () => {
 
   beforeEach(() => {
     vi.mocked(vmsApi.decommissionNotifications).mockResolvedValue(due as never);
+    vi.mocked(vmsApi.duplicateIpNotifications).mockResolvedValue([] as never);
     vi.mocked(vmsApi.ackDecommissions).mockResolvedValue(null as never);
   });
 
@@ -72,5 +73,20 @@ describe('NotificationBell', () => {
     expect(await screen.findByText('Upcoming decommissions')).toBeInTheDocument();
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByText('Upcoming decommissions')).toBeNull());
+  });
+
+  it('renders persistent duplicate IP notifications with no dismiss button', async () => {
+    vi.mocked(vmsApi.decommissionNotifications).mockResolvedValue([] as never);
+    vi.mocked(vmsApi.duplicateIpNotifications).mockResolvedValue([
+      { ip_address: '10.5.5.5', role: 'private', vms: [{ vm_id: 'vm1', name: 'web-a' }, { vm_id: 'vm2', name: 'web-b' }] },
+    ] as never);
+    renderWithProviders(<NotificationBell />);
+
+    expect(await screen.findByTestId('notif-badge')).toHaveTextContent('1');
+    fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
+    expect(await screen.findByText('Duplicate IP addresses')).toBeInTheDocument();
+    expect(screen.getByText('10.5.5.5')).toBeInTheDocument();
+    expect(screen.getByText('2 VMs')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /dismiss/i })).toBeNull();
   });
 });

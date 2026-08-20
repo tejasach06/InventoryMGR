@@ -244,7 +244,7 @@ class DashboardAlertVm(BaseModel):
     name: str
     environment: Environment
     days: int
-
+    detail: str | None = None
 
 class ReportSummary(BaseModel):
     total_vms: int
@@ -271,7 +271,7 @@ class DashboardStats(BaseModel):
     shutdown_stale: list[DashboardAlertVm]
     decommission_overdue: list[DashboardAlertVm]
     missing_ip: list[DashboardAlertVm]
-
+    duplicate_ip: list[DashboardAlertVm]
 
 class VmBulkFilters(BaseModel):
     """Body mirror of api/routes/vms.py::VmFilterParams.
@@ -301,7 +301,7 @@ class VmBulkFilters(BaseModel):
     shutdown_stale: bool | None = None
     decommission_overdue: bool | None = None
     missing_ip: bool | None = None
-
+    duplicate_ip: bool | None = None
 
 class VmBulkUpdate(BaseModel):
     """Fields safe to set across many VMs at once.

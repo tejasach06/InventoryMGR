@@ -4,10 +4,11 @@ from fastapi import APIRouter
 from sqlalchemy import case, func, select
 
 from app.api.deps import DbSession, ViewerUser
-from app.db.models import OsFamily, Vm, VmApplication, VmDisk
+from app.db.models import OsFamily, Vm, VmApplication, VmDisk, VmNetwork, VmStatus
 from app.schemas.vms import DashboardAlertVm, DashboardStats
 from app.services.vms import (
     decommission_overdue_condition,
+    duplicate_ip_condition,
     missing_ip_condition,
     non_template_condition,
     shutdown_since_expr,
@@ -143,6 +144,42 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
             )
         )
 
+    # List 4: Duplicate IP address
+    dup_ip_vms = db.scalars(
+        select(Vm)
+        .where(duplicate_ip_condition(), inventory_condition)
+        .order_by(Vm.name.asc())
+        .limit(ALERT_LIST_LIMIT)
+    ).all()
+    duplicate_ip: list[DashboardAlertVm] = []
+    for vm in dup_ip_vms:
+        # Find first conflicting address (lowest sort_order VmNetwork matching duplicate rule)
+        conflicting_ip: str | None = None
+        for net in sorted(vm.networks, key=lambda n: (n.sort_order, str(n.id))):
+            other_count = db.scalar(
+                select(func.count(VmNetwork.id))
+                .join(Vm, VmNetwork.vm_id == Vm.id)
+                .where(
+                    VmNetwork.ip_address == net.ip_address,
+                    VmNetwork.role == net.role,
+                    VmNetwork.vm_id != vm.id,
+                    Vm.status != VmStatus.decommissioned,
+                    inventory_condition,
+                )
+            )
+            if other_count and other_count > 0:
+                conflicting_ip = net.ip_address
+                break
+        duplicate_ip.append(
+            DashboardAlertVm(
+                id=vm.id,
+                name=vm.name,
+                environment=vm.environment,
+                days=0,
+                detail=conflicting_ip,
+            )
+        )
+
     return DashboardStats(
         total=row.total,
         linux=row.linux,
@@ -163,4 +200,5 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
         shutdown_stale=shutdown_stale,
         decommission_overdue=decommission_overdue,
         missing_ip=missing_ip,
+        duplicate_ip=duplicate_ip,
     )

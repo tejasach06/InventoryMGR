@@ -17,6 +17,7 @@ export const advancedFilterNames = [
   'shutdown_stale',
   'decommission_overdue',
   'missing_ip',
+  'duplicate_ip',
 ] as const;
 export const filterNames = [...coreFilterNames, ...advancedFilterNames] as const;
 

@@ -243,7 +243,7 @@ export function ImportCsvPage() {
               </button>
             </div>
             <p className={helpTextClass}>
-              Marks every VM missing from this file as decommissioned.
+              Marks VMs missing from this file as decommissioned, limited to the clusters and platforms the file covers.
             </p>
           </div>
         </form>

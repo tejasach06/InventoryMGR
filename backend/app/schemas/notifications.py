@@ -3,6 +3,8 @@ from datetime import date
 
 from pydantic import BaseModel
 
+from app.db.models import NetworkRole
+
 
 class DueVmRead(BaseModel):
     vm_id: uuid.UUID
@@ -14,3 +16,13 @@ class DueVmRead(BaseModel):
 
 class AckRequest(BaseModel):
     vm_ids: list[uuid.UUID] | None = None
+
+class DuplicateIpVm(BaseModel):
+    vm_id: uuid.UUID
+    name: str
+
+
+class DuplicateIpRead(BaseModel):
+    ip_address: str
+    role: NetworkRole
+    vms: list[DuplicateIpVm]

@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.db.models import AuditLog, ImportAction, UserRole, Vm, VmStatus
+from app.db.models import AuditLog, ImportAction, NetworkRole, UserRole, Vm, VmNetwork, VmStatus
 from app.services.csv_import import (
     commit_batch,
     create_preview_batch,
@@ -542,4 +542,199 @@ def test_already_decommissioned_vms_are_not_candidates(db_session: Session) -> N
     )
 
     assert batch.summary["decommission"] == 0
+
+def test_csv_import_ip_update_in_place_and_audit(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-ip-update@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="ip-vm-1",
+        platform="proxmox",
+        cluster="c1",
+        status="running",
+    )
+    net = VmNetwork(vm_id=vm.id, ip_address="10.0.0.5", role=NetworkRole.private, sort_order=0)
+    db_session.add(net)
+    db_session.commit()
+
+    content = b"name,platform,cluster,private_ip\nip-vm-1,proxmox,c1,10.0.0.9\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="ip_update.csv",
+        content=content,
+        user=editor,
+    )
+    assert batch.summary["update"] == 1
+    row = batch.rows[0]
+    assert row.changes["private_ip"] == [["10.0.0.5"], ["10.0.0.9"]]
+
+    result = commit_batch(db_session, batch_id=batch.id, user=editor)
+    assert result == {"created": 0, "updated": 1, "decommissioned": 0}
+
+    db_session.refresh(vm)
+    assert len(vm.networks) == 1
+    assert vm.networks[0].ip_address == "10.0.0.9"
+    assert vm.networks[0].role == NetworkRole.private
+
+    audits = db_session.scalars(
+        select(AuditLog).where(AuditLog.vm_id == vm.id, AuditLog.field_name == "private_ip")
+    ).all()
+    assert len(audits) == 1
+    assert audits[0].old_value == "10.0.0.5"
+    assert audits[0].new_value == "10.0.0.9"
+
+
+def test_csv_import_unchanged_ips_produce_no_mutation_or_audit(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-ip-unchanged@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="ip-vm-2",
+        platform="proxmox",
+        cluster="c1",
+        status="running",
+    )
+    net = VmNetwork(vm_id=vm.id, ip_address="10.0.0.9", role=NetworkRole.private, sort_order=0)
+    db_session.add(net)
+    db_session.commit()
+
+    content = b"name,platform,cluster,private_ip\nip-vm-2,proxmox,c1,10.0.0.9\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="ip_unchanged.csv",
+        content=content,
+        user=editor,
+    )
+    assert batch.summary["unchanged"] == 1
+    assert "private_ip" not in batch.rows[0].changes
+
+    commit_batch(db_session, batch_id=batch.id, user=editor)
+    db_session.refresh(vm)
+    assert len(vm.networks) == 1
+    assert vm.networks[0].ip_address == "10.0.0.9"
+
+    audits = db_session.scalars(
+        select(AuditLog).where(AuditLog.vm_id == vm.id, AuditLog.field_name == "private_ip")
+    ).all()
+    assert len(audits) == 0
+
+
+def test_csv_import_surplus_ips_left_untouched(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-ip-surplus@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="ip-vm-3",
+        platform="proxmox",
+        cluster="c1",
+        status="running",
+    )
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.1", role=NetworkRole.private, sort_order=0))
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.2", role=NetworkRole.private, sort_order=1))
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.3", role=NetworkRole.private, sort_order=2))
+    db_session.commit()
+
+    content = b"name,platform,cluster,private_ip\nip-vm-3,proxmox,c1,10.0.0.1\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="ip_surplus.csv",
+        content=content,
+        user=editor,
+    )
+    assert batch.summary["unchanged"] == 1
+    commit_batch(db_session, batch_id=batch.id, user=editor)
+
+    db_session.refresh(vm)
+    addrs = sorted(n.ip_address for n in vm.networks)
+    assert addrs == ["10.0.0.1", "10.0.0.2", "10.0.0.3"]
+
+
+def test_csv_import_retarget_then_insert_ips(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-ip-retarget-insert@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="ip-vm-4",
+        platform="proxmox",
+        cluster="c1",
+        status="running",
+    )
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.1", role=NetworkRole.private, sort_order=0))
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.2", role=NetworkRole.private, sort_order=1))
+    db_session.commit()
+
+    content = b"name,platform,cluster,private_ip\nip-vm-4,proxmox,c1,10.0.0.1;10.0.0.3;10.0.0.4\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="ip_retarget_insert.csv",
+        content=content,
+        user=editor,
+    )
+    assert batch.summary["update"] == 1
+    assert batch.rows[0].changes["private_ip"] == [["10.0.0.2"], ["10.0.0.3", "10.0.0.4"]]
+
+    commit_batch(db_session, batch_id=batch.id, user=editor)
+
+    db_session.refresh(vm)
+    addrs = sorted(n.ip_address for n in vm.networks)
+    assert addrs == ["10.0.0.1", "10.0.0.3", "10.0.0.4"]
+
+
+def test_full_inventory_scope_by_cluster_and_platform(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-scope@example.com", role=UserRole.editor)
+    a1 = create_vm_row(db_session, editor, name="a1", platform="vmware", cluster="prod-a", status="running")
+    create_vm_row(db_session, editor, name="b1", platform="vmware", cluster="prod-b", status="running")
+    create_vm_row(db_session, editor, name="a2", platform="proxmox", cluster="PROD-A", status="running")
+
+    # CSV has row only for cluster prod-a / vmware naming nonexistent VM
+    content = b"name,platform,cluster\nnonexistent,vmware,prod-a\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="full_scoped.csv",
+        content=content,
+        user=editor,
+        full_inventory=True,
+    )
+
+    decom_rows = [r for r in batch.rows if r.action == ImportAction.decommission]
+    assert len(decom_rows) == 1
+    assert decom_rows[0].target_vm_id == a1.id
+    assert batch.summary["decommission_candidate_total"] == 1
+
+
+def test_full_inventory_scope_case_insensitive_cluster(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-scope-case@example.com", role=UserRole.editor)
+    a2 = create_vm_row(db_session, editor, name="a2", platform="proxmox", cluster="prod-a", status="running")
+
+    # CSV cluster PROD-A with proxmox
+    content = b"name,platform,cluster\nnonexistent,proxmox,PROD-A\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="full_scoped_case.csv",
+        content=content,
+        user=editor,
+        full_inventory=True,
+    )
+    decom_rows = [r for r in batch.rows if r.action == ImportAction.decommission]
+    assert len(decom_rows) == 1
+    assert decom_rows[0].target_vm_id == a2.id
+
+
+def test_full_inventory_all_invalid_rows_yield_zero_decommission(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-scope-invalid@example.com", role=UserRole.editor)
+    create_vm_row(db_session, editor, name="a1", platform="vmware", cluster="prod-a", status="running")
+
+    # Empty / invalid rows
+    content = b"name,platform,cluster\n,invalid-plat,\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="invalid_full.csv",
+        content=content,
+        user=editor,
+        full_inventory=True,
+    )
+    decom_rows = [r for r in batch.rows if r.action == ImportAction.decommission]
+    assert len(decom_rows) == 0
+    assert batch.summary.get("decommission", 0) == 0
+
     assert len([r for r in batch.rows if r.action == ImportAction.decommission]) == 0
