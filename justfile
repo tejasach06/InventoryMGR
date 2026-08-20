@@ -44,6 +44,8 @@ quadlet-secrets:
 		echo "delete the stale InventoryMGR database secret and rerun: podman secret rm inventorymgr-postgres-password inventorymgr-database-url" >&2
 		exit 1
 	fi
+omp-refactor module:
+	bash tools/omp-refactor.sh {{module}}
 
 up: env
 	podman compose up -d --build
