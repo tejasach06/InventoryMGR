@@ -1,7 +1,9 @@
 # backend/tests/test_db.py
 from sqlalchemy.orm import Session
-from app.db.models import User, UserRole, Vm
+
+from app.db.models import User, UserRole
 from tests.conftest import create_user, create_vm_row
+
 
 def test_db_models(db_session: Session):
     # Verify user creation
