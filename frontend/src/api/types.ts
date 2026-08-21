@@ -5,7 +5,7 @@ export type VmStatus = 'running' | 'powered_off' | 'decommissioned' | 'unknown';
 export type Criticality = 'low' | 'medium' | 'high' | 'critical';
 export type VmType = 'permanent' | 'temporary';
 export type Environment = 'production' | 'development' | 'testing' | 'uat' | 'dr' | 'staging' | 'sandbox';
-export type ImportAction = 'create' | 'update' | 'unchanged' | 'conflict' | 'invalid';
+export type ImportAction = 'create' | 'update' | 'unchanged' | 'conflict' | 'invalid' | 'decommission';
 export type DropdownCategory = 'cpu' | 'datacenter' | 'disk' | 'os' | 'cluster';
 export type StorageVendor = 'synology' | 'netapp';
 export type OsFamily = 'linux' | 'windows';
@@ -145,6 +145,7 @@ export interface DashboardAlertVm {
   name: string;
   environment: Environment;
   days: number;
+  detail?: string | null;
 }
 
 export interface ReportSummary {
@@ -172,6 +173,7 @@ export interface DashboardStats {
   shutdown_stale: DashboardAlertVm[];
   decommission_overdue: DashboardAlertVm[];
   missing_ip: DashboardAlertVm[];
+  duplicate_ip: DashboardAlertVm[];
 }
 
 export interface ImportRowError {
@@ -194,6 +196,7 @@ export interface ImportRow {
 export interface ImportBatch {
   id: string;
   filename: string;
+  full_inventory: boolean;
   status: 'previewed' | 'committed' | 'cancelled';
   summary: Record<ImportAction, number> & Record<string, number>;
   ignored_columns: string[];
@@ -206,6 +209,7 @@ export interface ImportBatch {
 export interface CommitResult {
   created: number;
   updated: number;
+  decommissioned: number;
 }
 
 export interface DueVm {
@@ -216,6 +220,17 @@ export interface DueVm {
   unread: boolean;
 }
 
+
+export interface DuplicateIpVm {
+  vm_id: string;
+  name: string;
+}
+
+export interface DuplicateIp {
+  ip_address: string;
+  occurrences: number;
+  vms: DuplicateIpVm[];
+}
 export interface AppSettings {
   decommission_notify_days: number;
   storage_usage_warn_pct: number;

@@ -61,37 +61,37 @@ ps:
 up-local: env db-up
 	cd backend && uv sync
 	cd backend && uv run alembic upgrade head
-	cd frontend && bun install
-	cd frontend && bun run build
+	cd frontend && nub install
+	cd frontend && nub run build
 	pm2 start ecosystem.config.js
 	@echo "frontend: http://127.0.0.1:3000  api: http://127.0.0.1:8000/api/health"
 api-dev:
 	cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 web-dev:
-	cd frontend && bun run dev
+	cd frontend && nub run dev
 
 api-test:
 	cd backend && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest
 
 web-test:
-	cd frontend && bun run test
+	cd frontend && nub run test
 
 e2e:
-	cd frontend && bunx playwright test
+	cd frontend && nubx playwright test
 
 verify:
 	cd backend && uv run ruff check app tests && APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest
-	cd frontend && bun run lint && bun run typecheck && bun run test
-	cd frontend && bunx playwright test
+	cd frontend && nub run lint && nub run typecheck && nub run test
+	cd frontend && nubx playwright test
 
 audit:
-	@echo "=== Frontend (bun audit) ==="
-	cd frontend && bun audit
+	@echo "=== Frontend (nub audit) ==="
+	cd frontend && nub audit
 	@echo "=== Backend (uv audit) ==="
 	cd backend && uv audit
 	@echo "=== TypeScript typecheck ==="
-	cd frontend && bun run typecheck
+	cd frontend && nub run typecheck
 	@echo "=== Python lint (ruff) ==="
 	cd backend && uv run ruff check app tests
 	@echo "=== Accepted risks check ==="

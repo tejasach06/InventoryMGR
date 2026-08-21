@@ -31,18 +31,18 @@ InventoryMGR is a documentation-only infrastructure inventory for virtual machin
 
 Always run commands inside `devbox shell`. Use `just` recipes for primary tasks:
 
-- **Full Quality Gate**: `just verify` (runs `ruff check`, `pytest`, `bun lint`, `bun typecheck`, `vitest`, `playwright`).
-- **Security & Compliance Audit**: `just audit` (runs `bun audit`, `uv audit`, `typecheck`, `ruff`, `tools/check-accepted-risks.sh`).
+- **Full Quality Gate**: `just verify` (runs `ruff check`, `pytest`, `nub lint`, `nub typecheck`, `vitest`, `playwright`).
+- **Security & Compliance Audit**: `just audit` (runs `nub audit`, `uv audit`, `typecheck`, `ruff`, `tools/check-accepted-risks.sh`).
 - **Backend Commands**:
   - Dev API server: `just api-dev` (`uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload`)
   - Run pytest suite: `just api-test` (`APP_ENV=test DATABASE_URL="$TEST_DATABASE_URL" uv run pytest`)
   - Linting: `cd backend && uv run ruff check app tests`
   - DB Migrations: `cd backend && uv run alembic upgrade head`
 - **Frontend Commands**:
-  - Dev web server: `just web-dev` (`bun run dev`)
-  - Run unit tests: `just web-test` (`bun run test`)
-  - Lint & typecheck: `cd frontend && bun run lint && bun run typecheck` (`tsc --noEmit`)
-  - Run Playwright E2E: `just e2e` (`bunx playwright test`)
+  - Dev web server: `just web-dev` (`nub run dev`)
+  - Run unit tests: `just web-test` (`nub run test`)
+  - Lint & typecheck: `cd frontend && nub run lint && nub run typecheck` (`tsc --noEmit`)
+  - Run Playwright E2E: `just e2e` (`nubx playwright test`)
 - **Database Helper**: `just db-up` (starts Docker Postgres container and creates `inventorymgr_test` DB).
 - **Deployment Commands**: `just up` (podman compose container stack), `just up-local` (PM2 process manager stack). See `docs/RUNBOOK.md` for full operations guide.
 
@@ -88,7 +88,7 @@ Always run commands inside `devbox shell`. Use `just` recipes for primary tasks:
 - **Environment Manager**: Devbox (`devbox.json`). All commands should run inside `devbox shell`.
 - **Branching Model**: Active development takes place on `dev`. The `main` branch is deploy-only and uses an expanded `.gitignore` to exclude dev assets; deployments run `deploy.sh` (`git pull origin main && git clean -fdX`).
 - **Backend Runtime**: Python >=3.12 managed via `uv`. Dependencies listed in `backend/pyproject.toml` and locked in `backend/uv.lock`.
-- **Frontend Runtime**: Node.js 22 environment using **Bun** package manager (`bun run`, `bun install`, `bunx`).
+- **Frontend Runtime**: Node.js 22 environment using **Nub** package manager (`nub run`, `nub install`, `nubx`).
 - **Container Topology**: Postgres 16 running on `127.0.0.1:54329` for local testing (`docker-compose.e2e-db.yml`).
 - **Security Registers**: Accepted risks documented in `ACCEPTED_RISKS.md` and checked by `tools/check-accepted-risks.sh`.
 
@@ -112,7 +112,7 @@ Always run commands inside `devbox shell`. Use `just` recipes for primary tasks:
 ## Agent Tooling & Workflow
 
 - **Codebase discovery — `graphify` first**: use `graphify query "<question>"`, `graphify path "<A>" "<B>"`, and `graphify explain "<concept>"` before text-based grep/glob when finding files, mapping architecture, or tracing connections between modules. Run `graphify update .` at the end of every task/phase after code modifications.
-- **Large output processing — `context-mode`**: route large/unbounded command output (pytest suites, npm/bun test logs, git logs/diffs, build output, container logs, large data files) through `ctx_execute`, `ctx_execute_file`, `ctx_search`, `ctx_index`, or `ctx_batch_execute` instead of reading raw. For indexing, use `ctx_index(path:)`, never `ctx_index(content:)`.
+- **Large output processing — `context-mode`**: route large/unbounded command output (pytest suites, nub test logs, git logs/diffs, build output, container logs, large data files) through `ctx_execute`, `ctx_execute_file`, `ctx_search`, `ctx_index`, or `ctx_batch_execute` instead of reading raw. For indexing, use `ctx_index(path:)`, never `ctx_index(content:)`.
 - **Cross-session memory — `mempalace`**: `mempalace search "<query>"` before answering questions about past decisions; `mempalace mine .` to add new project/session context to the `inventorymgr` wing.
 - **Skills, by trigger**:
   - `impeccable` — UI/UX work touching `src/routes/`, `src/components/ui.tsx`, or DESIGN.md rules.

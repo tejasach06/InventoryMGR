@@ -32,9 +32,7 @@ def _resolve_targets(db: Session, payload: VmBulkRequest) -> list[Vm]:
 
 
 def _patch_for(vm: Vm, payload: VmBulkRequest) -> VmUpdate:
-    values = payload.patch.model_dump(
-        exclude_unset=True, exclude={"tags_add", "tags_remove"}
-    )
+    values = payload.patch.model_dump(exclude_unset=True, exclude={"tags_add", "tags_remove"})
     if payload.patch.tags_add or payload.patch.tags_remove:
         removals = {tag.lower() for tag in payload.patch.tags_remove}
         kept = [tag for tag in (vm.tags or []) if tag.lower() not in removals]

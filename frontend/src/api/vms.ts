@@ -1,5 +1,5 @@
 import { API_PREFIX, apiRequest } from './core';
-import type { Application, AuditLogEntry, BulkPatch, BulkResult, Disk, DueVm, Network, Vm, VmList, VmPayload } from './types';
+import type { Application, AuditLogEntry, BulkPatch, BulkResult, Disk, DueVm, DuplicateIp, Network, Vm, VmList, VmPayload } from './types';
 
 export const vms = {
   listVms: (params: URLSearchParams) => apiRequest<VmList>(`/vms?${params.toString()}`),
@@ -58,4 +58,5 @@ export const vms = {
       method: 'POST',
       body: JSON.stringify({ vm_ids: vmIds ?? null }),
     }),
+  duplicateIpNotifications: () => apiRequest<DuplicateIp[]>('/notifications/duplicate-ips'),
 };

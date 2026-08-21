@@ -1,7 +1,11 @@
+from datetime import date
+
+import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.db.models import AuditLog, ImportAction, UserRole, Vm
+from app.db.models import AuditLog, ImportAction, NetworkRole, UserRole, Vm, VmNetwork, VmStatus
 from app.services.csv_import import (
     commit_batch,
     create_preview_batch,
@@ -53,7 +57,10 @@ def test_normalize_rejects_invalid_values_with_exact_errors() -> None:
         {"field": "applications", "message": "must be name or name:owner entries separated by ;"},
         {"field": "cluster", "message": "is required and cannot be blank"},
         {"field": "cpu_cores", "message": "must be an integer >= 0"},
-        {"field": "disks", "message": "must be name:size[:storage_name[:storage_type]] separated by ;"},
+        {
+            "field": "disks",
+            "message": "must be name:size[:storage_name[:storage_type]] separated by ;",
+        },
         {"field": "last_verified_at", "message": "must be ISO date YYYY-MM-DD"},
         {"field": "monitoring_enabled", "message": "must be one of true, false, yes, no, 1, 0"},
         {"field": "name", "message": "is required and cannot be blank"},
@@ -118,9 +125,7 @@ def test_identity_key_uses_cluster_not_node_or_datacenter() -> None:
     )
     assert identity_key(
         {"platform": "vmware", "name": "Existing App", "cluster": "vc-cluster-a"}
-    ) != identity_key(
-        {"platform": "vmware", "name": "Existing App", "cluster": "vc-cluster-b"}
-    )
+    ) != identity_key({"platform": "vmware", "name": "Existing App", "cluster": "vc-cluster-b"})
 
 
 def test_preview_and_commit_preserve_matching_additive_children_audit_and_health(
@@ -144,9 +149,7 @@ def test_preview_and_commit_preserve_matching_additive_children_audit_and_health
         b"Existing App,pve,pve-cluster-a,101,dc-a,pve-01,new-owner,true,os:80:ssd:thin,10.0.0.5,nginx:web-team\n"
     )
 
-    batch = create_preview_batch(
-        db_session, filename="inventory.csv", content=content, user=editor
-    )
+    batch = create_preview_batch(db_session, filename="inventory.csv", content=content, user=editor)
 
     assert batch.summary == {
         "create": 0,
@@ -154,6 +157,7 @@ def test_preview_and_commit_preserve_matching_additive_children_audit_and_health
         "unchanged": 0,
         "conflict": 0,
         "invalid": 0,
+        "decommission": 0,
     }
     assert batch.field_changes == {
         "applications": 1,
@@ -175,6 +179,7 @@ def test_preview_and_commit_preserve_matching_additive_children_audit_and_health
     assert commit_batch(db_session, batch_id=batch.id, user=editor) == {
         "created": 0,
         "updated": 1,
+        "decommissioned": 0,
     }
     reloaded = db_session.scalar(
         select(Vm)
@@ -332,6 +337,7 @@ def test_preview_flags_intrafile_duplicates_with_platform_identity_rules(
         "unchanged": 0,
         "conflict": 2,
         "invalid": 0,
+        "decommission": 0,
     }
     assert [row.action for row in batch.rows] == [
         ImportAction.create,
@@ -341,3 +347,394 @@ def test_preview_flags_intrafile_duplicates_with_platform_identity_rules(
     ]
     assert batch.rows[1].errors == [{"field": "identity", "message": "duplicate CSV identity"}]
     assert batch.rows[3].errors == [{"field": "identity", "message": "duplicate CSV identity"}]
+
+
+def test_full_import_decommissions_absent_vm_and_records_audit_and_health(
+    db_session: Session,
+) -> None:
+    editor = create_user(db_session, email="csv-full-decom@example.com", role=UserRole.editor)
+    vm_alpha = create_vm_row(
+        db_session,
+        editor,
+        name="alpha",
+        platform="proxmox",
+        cluster="pve-cluster-a",
+        status="running",
+        decommission_date=None,
+    )
+    vm_beta = create_vm_row(
+        db_session,
+        editor,
+        name="beta",
+        platform="proxmox",
+        cluster="pve-cluster-a",
+        status="running",
+        decommission_date=None,
+    )
+
+    content = b"name,platform,cluster\nalpha,proxmox,pve-cluster-a\n"
+
+    batch = create_preview_batch(
+        db_session,
+        filename="full_inventory.csv",
+        content=content,
+        user=editor,
+        full_inventory=True,
+    )
+
+    assert batch.summary["decommission"] == 1
+    assert batch.summary["unchanged"] == 1
+    assert len(batch.rows) == 2
+    decom_row = next(r for r in batch.rows if r.action == ImportAction.decommission)
+    assert decom_row.target_vm_id == vm_beta.id
+    assert decom_row.raw["name"] == "beta"
+
+    result = commit_batch(
+        db_session,
+        batch_id=batch.id,
+        user=editor,
+        confirm_decommission=True,
+    )
+    assert result == {"created": 0, "updated": 0, "decommissioned": 1}
+
+    db_session.refresh(vm_beta)
+    db_session.refresh(vm_alpha)
+
+    assert vm_beta.status == VmStatus.decommissioned
+    assert vm_beta.decommission_date == date.today()
+    assert vm_alpha.status == VmStatus.running
+
+    audits = db_session.scalars(
+        select(AuditLog).where(AuditLog.vm_id == vm_beta.id).order_by(AuditLog.field_name)
+    ).all()
+    status_audits = [
+        (a.field_name, a.old_value, a.new_value) for a in audits if a.field_name == "status"
+    ]
+    assert status_audits == [("status", "running", "decommissioned")]
+
+
+def test_full_import_preserves_existing_decommission_date(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-date-pres@example.com", role=UserRole.editor)
+    create_vm_row(
+        db_session,
+        editor,
+        name="alpha",
+        platform="proxmox",
+        cluster="pve-cluster-a",
+        status="running",
+    )
+    existing_date = date(2025, 1, 1)
+    vm_beta = create_vm_row(
+        db_session,
+        editor,
+        name="beta",
+        platform="proxmox",
+        cluster="pve-cluster-a",
+        status="running",
+        decommission_date=existing_date,
+    )
+
+    content = b"name,platform,cluster\nalpha,proxmox,pve-cluster-a\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="full_inventory.csv",
+        content=content,
+        user=editor,
+        full_inventory=True,
+    )
+    commit_batch(
+        db_session,
+        batch_id=batch.id,
+        user=editor,
+        confirm_decommission=True,
+    )
+
+    db_session.refresh(vm_beta)
+    assert vm_beta.status == VmStatus.decommissioned
+    assert vm_beta.decommission_date == existing_date
+
+
+def test_partial_import_leaves_absent_vms_untouched(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-partial@example.com", role=UserRole.editor)
+    create_vm_row(
+        db_session,
+        editor,
+        name="alpha",
+        platform="proxmox",
+        cluster="pve-cluster-a",
+        status="running",
+    )
+    vm_beta = create_vm_row(
+        db_session,
+        editor,
+        name="beta",
+        platform="proxmox",
+        cluster="pve-cluster-a",
+        status="running",
+    )
+
+    content = b"name,platform,cluster\nalpha,proxmox,pve-cluster-a\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="partial_inventory.csv",
+        content=content,
+        user=editor,
+        full_inventory=False,
+    )
+
+    assert batch.summary.get("decommission", 0) == 0
+    assert not any(r.action == ImportAction.decommission for r in batch.rows)
+
+    result = commit_batch(db_session, batch_id=batch.id, user=editor)
+    assert result == {"created": 0, "updated": 0, "decommissioned": 0}
+
+    db_session.refresh(vm_beta)
+    assert vm_beta.status == VmStatus.running
+
+
+def test_full_import_guard_protects_against_major_decommission(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-guard@example.com", role=UserRole.editor)
+    create_vm_row(
+        db_session, editor, name="vm1", platform="proxmox", cluster="c1", status="running"
+    )
+    create_vm_row(
+        db_session, editor, name="vm2", platform="proxmox", cluster="c1", status="running"
+    )
+    create_vm_row(
+        db_session, editor, name="vm3", platform="proxmox", cluster="c1", status="running"
+    )
+
+    # 1 present, 2 absent (2 of 3 > 50%)
+    content = b"name,platform,cluster\nvm1,proxmox,c1\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="full_inventory.csv",
+        content=content,
+        user=editor,
+        full_inventory=True,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        commit_batch(db_session, batch_id=batch.id, user=editor, confirm_decommission=False)
+    assert exc_info.value.status_code == 409
+    assert "over half" in exc_info.value.detail
+
+    result = commit_batch(db_session, batch_id=batch.id, user=editor, confirm_decommission=True)
+    assert result == {"created": 0, "updated": 0, "decommissioned": 2}
+
+
+def test_already_decommissioned_vms_are_not_candidates(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-already-decom@example.com", role=UserRole.editor)
+    create_vm_row(
+        db_session, editor, name="vm1", platform="proxmox", cluster="c1", status="running"
+    )
+    create_vm_row(
+        db_session, editor, name="vm2", platform="proxmox", cluster="c1", status="decommissioned"
+    )
+
+    content = b"name,platform,cluster\nvm1,proxmox,c1\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="full_inventory.csv",
+        content=content,
+        user=editor,
+        full_inventory=True,
+    )
+
+    assert batch.summary["decommission"] == 0
+
+def test_csv_import_ip_update_in_place_and_audit(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-ip-update@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="ip-vm-1",
+        platform="proxmox",
+        cluster="c1",
+        status="running",
+    )
+    net = VmNetwork(vm_id=vm.id, ip_address="10.0.0.5", role=NetworkRole.private, sort_order=0)
+    db_session.add(net)
+    db_session.commit()
+
+    content = b"name,platform,cluster,private_ip\nip-vm-1,proxmox,c1,10.0.0.9\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="ip_update.csv",
+        content=content,
+        user=editor,
+    )
+    assert batch.summary["update"] == 1
+    row = batch.rows[0]
+    assert row.changes["private_ip"] == [["10.0.0.5"], ["10.0.0.9"]]
+
+    result = commit_batch(db_session, batch_id=batch.id, user=editor)
+    assert result == {"created": 0, "updated": 1, "decommissioned": 0}
+
+    db_session.refresh(vm)
+    assert len(vm.networks) == 1
+    assert vm.networks[0].ip_address == "10.0.0.9"
+    assert vm.networks[0].role == NetworkRole.private
+
+    audits = db_session.scalars(
+        select(AuditLog).where(AuditLog.vm_id == vm.id, AuditLog.field_name == "private_ip")
+    ).all()
+    assert len(audits) == 1
+    assert audits[0].old_value == "10.0.0.5"
+    assert audits[0].new_value == "10.0.0.9"
+
+
+def test_csv_import_unchanged_ips_produce_no_mutation_or_audit(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-ip-unchanged@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="ip-vm-2",
+        platform="proxmox",
+        cluster="c1",
+        status="running",
+    )
+    net = VmNetwork(vm_id=vm.id, ip_address="10.0.0.9", role=NetworkRole.private, sort_order=0)
+    db_session.add(net)
+    db_session.commit()
+
+    content = b"name,platform,cluster,private_ip\nip-vm-2,proxmox,c1,10.0.0.9\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="ip_unchanged.csv",
+        content=content,
+        user=editor,
+    )
+    assert batch.summary["unchanged"] == 1
+    assert "private_ip" not in batch.rows[0].changes
+
+    commit_batch(db_session, batch_id=batch.id, user=editor)
+    db_session.refresh(vm)
+    assert len(vm.networks) == 1
+    assert vm.networks[0].ip_address == "10.0.0.9"
+
+    audits = db_session.scalars(
+        select(AuditLog).where(AuditLog.vm_id == vm.id, AuditLog.field_name == "private_ip")
+    ).all()
+    assert len(audits) == 0
+
+
+def test_csv_import_surplus_ips_left_untouched(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-ip-surplus@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="ip-vm-3",
+        platform="proxmox",
+        cluster="c1",
+        status="running",
+    )
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.1", role=NetworkRole.private, sort_order=0))
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.2", role=NetworkRole.private, sort_order=1))
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.3", role=NetworkRole.private, sort_order=2))
+    db_session.commit()
+
+    content = b"name,platform,cluster,private_ip\nip-vm-3,proxmox,c1,10.0.0.1\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="ip_surplus.csv",
+        content=content,
+        user=editor,
+    )
+    assert batch.summary["unchanged"] == 1
+    commit_batch(db_session, batch_id=batch.id, user=editor)
+
+    db_session.refresh(vm)
+    addrs = sorted(n.ip_address for n in vm.networks)
+    assert addrs == ["10.0.0.1", "10.0.0.2", "10.0.0.3"]
+
+
+def test_csv_import_retarget_then_insert_ips(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-ip-retarget-insert@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="ip-vm-4",
+        platform="proxmox",
+        cluster="c1",
+        status="running",
+    )
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.1", role=NetworkRole.private, sort_order=0))
+    db_session.add(VmNetwork(vm_id=vm.id, ip_address="10.0.0.2", role=NetworkRole.private, sort_order=1))
+    db_session.commit()
+
+    content = b"name,platform,cluster,private_ip\nip-vm-4,proxmox,c1,10.0.0.1;10.0.0.3;10.0.0.4\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="ip_retarget_insert.csv",
+        content=content,
+        user=editor,
+    )
+    assert batch.summary["update"] == 1
+    assert batch.rows[0].changes["private_ip"] == [["10.0.0.2"], ["10.0.0.3", "10.0.0.4"]]
+
+    commit_batch(db_session, batch_id=batch.id, user=editor)
+
+    db_session.refresh(vm)
+    addrs = sorted(n.ip_address for n in vm.networks)
+    assert addrs == ["10.0.0.1", "10.0.0.3", "10.0.0.4"]
+
+
+def test_full_inventory_scope_by_cluster_and_platform(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-scope@example.com", role=UserRole.editor)
+    a1 = create_vm_row(db_session, editor, name="a1", platform="vmware", cluster="prod-a", status="running")
+    create_vm_row(db_session, editor, name="b1", platform="vmware", cluster="prod-b", status="running")
+    create_vm_row(db_session, editor, name="a2", platform="proxmox", cluster="PROD-A", status="running")
+
+    # CSV has row only for cluster prod-a / vmware naming nonexistent VM
+    content = b"name,platform,cluster\nnonexistent,vmware,prod-a\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="full_scoped.csv",
+        content=content,
+        user=editor,
+        full_inventory=True,
+    )
+
+    decom_rows = [r for r in batch.rows if r.action == ImportAction.decommission]
+    assert len(decom_rows) == 1
+    assert decom_rows[0].target_vm_id == a1.id
+    assert batch.summary["decommission_candidate_total"] == 1
+
+
+def test_full_inventory_scope_case_insensitive_cluster(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-scope-case@example.com", role=UserRole.editor)
+    a2 = create_vm_row(db_session, editor, name="a2", platform="proxmox", cluster="prod-a", status="running")
+
+    # CSV cluster PROD-A with proxmox
+    content = b"name,platform,cluster\nnonexistent,proxmox,PROD-A\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="full_scoped_case.csv",
+        content=content,
+        user=editor,
+        full_inventory=True,
+    )
+    decom_rows = [r for r in batch.rows if r.action == ImportAction.decommission]
+    assert len(decom_rows) == 1
+    assert decom_rows[0].target_vm_id == a2.id
+
+
+def test_full_inventory_all_invalid_rows_yield_zero_decommission(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-scope-invalid@example.com", role=UserRole.editor)
+    create_vm_row(db_session, editor, name="a1", platform="vmware", cluster="prod-a", status="running")
+
+    # Empty / invalid rows
+    content = b"name,platform,cluster\n,invalid-plat,\n"
+    batch = create_preview_batch(
+        db_session,
+        filename="invalid_full.csv",
+        content=content,
+        user=editor,
+        full_inventory=True,
+    )
+    decom_rows = [r for r in batch.rows if r.action == ImportAction.decommission]
+    assert len(decom_rows) == 0
+    assert batch.summary.get("decommission", 0) == 0
+
+    assert len([r for r in batch.rows if r.action == ImportAction.decommission]) == 0

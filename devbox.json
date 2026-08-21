@@ -12,13 +12,13 @@
   },
   "shell": {
     "init_hook": [
-      "export PATH=\"$HOME/.bun/bin:$PATH\""
+      "export PATH=\"$HOME/.nub/bin:$PATH\""
     ],
     "scripts": {
       "setup": [
         "(cd backend && uv sync --extra dev)",
-        "[ -x \"$HOME/.bun/bin/bun\" ] || (curl -fsSL https://bun.sh/install | BUN_INSTALL=\"$HOME/.bun\" bash)",
-        "(cd frontend && bun install)",
+        "[ -x \"$HOME/.nub/bin/nub\" ] || (curl -fsSL https://nubjs.com/install.sh | bash)",
+        "(cd frontend && nub install)",
         "(cd backend && uv run alembic upgrade head)"
       ]
     }

@@ -3,11 +3,11 @@ import io
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import PlainTextResponse
 
 from app.api.deps import Csrf, DbSession, EditorUser, ViewerUser
-from app.schemas.imports import ImportBatchRead, ImportCommitResult
+from app.schemas.imports import ImportBatchRead, ImportCommitRequest, ImportCommitResult
 from app.services.csv_import import (
     TEMPLATE_COLUMNS,
     TEMPLATE_SAMPLE_ROWS,
@@ -27,6 +27,7 @@ async def preview_import(
     current_user: EditorUser,
     _: Csrf,
     file: Annotated[UploadFile, File()],
+    full_inventory: Annotated[bool, Form()] = False,
 ) -> object:
     if file.content_type not in ALLOWED_CSV_TYPES:
         raise HTTPException(
@@ -35,7 +36,11 @@ async def preview_import(
         )
     content = await file.read()
     return create_preview_batch(
-        db, filename=file.filename or "upload.csv", content=content, user=current_user
+        db,
+        filename=file.filename or "upload.csv",
+        content=content,
+        user=current_user,
+        full_inventory=full_inventory,
     )
 
 
@@ -61,6 +66,15 @@ def get_import(batch_id: uuid.UUID, db: DbSession, current_user: ViewerUser) -> 
 
 @router.post("/{batch_id}/commit", response_model=ImportCommitResult)
 def commit_import(
-    batch_id: uuid.UUID, db: DbSession, current_user: EditorUser, _: Csrf
+    batch_id: uuid.UUID,
+    db: DbSession,
+    current_user: EditorUser,
+    _: Csrf,
+    payload: ImportCommitRequest | None = None,
 ) -> dict[str, int]:
-    return commit_batch(db, batch_id=batch_id, user=current_user)
+    return commit_batch(
+        db,
+        batch_id=batch_id,
+        user=current_user,
+        confirm_decommission=bool(payload and payload.confirm_decommission),
+    )

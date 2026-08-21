@@ -31,9 +31,7 @@ def test_put_accent_persists_for_viewer(client, db_session: Session) -> None:
     create_user(db_session, email="accent-violet@example.com", role=UserRole.viewer)
     csrf = login(client, "accent-violet@example.com")
 
-    response = client.put(
-        "/api/user/accent", json={"accent": "violet"}, headers=auth_headers(csrf)
-    )
+    response = client.put("/api/user/accent", json={"accent": "violet"}, headers=auth_headers(csrf))
 
     assert response.status_code == 200, response.text
     assert response.json() == {"accent": "violet"}
@@ -64,9 +62,7 @@ def test_put_accent_requires_csrf(client, db_session: Session) -> None:
 
 def test_put_accent_preserves_column_layout(client, db_session: Session) -> None:
     user = create_user(db_session, email="accent-layout@example.com")
-    user.preferences = {
-        "columns_inventory": [{"key": "name", "visible": True, "order": 0}]
-    }
+    user.preferences = {"columns_inventory": [{"key": "name", "visible": True, "order": 0}]}
     db_session.commit()
     csrf = login(client, "accent-layout@example.com")
 

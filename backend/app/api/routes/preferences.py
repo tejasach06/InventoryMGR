@@ -32,6 +32,7 @@ def update_accent(
     db.commit()
     return payload
 
+
 DEFAULT_COLUMNS = [
     {"key": "name", "visible": True, "order": 0},
     {"key": "platform", "visible": True, "order": 1},
@@ -75,7 +76,9 @@ def get_columns(page_key: str, user: CurrentUser) -> ColumnPreferencesRead:
     prefs = user.preferences or {}
     columns = prefs.get(f"columns_{page_key}")
     if not columns:
-        return ColumnPreferencesRead(columns=[ColumnPreference.model_validate(c) for c in DEFAULT_COLUMNS])
+        return ColumnPreferencesRead(
+            columns=[ColumnPreference.model_validate(c) for c in DEFAULT_COLUMNS]
+        )
     # Rewrite and dedupe together: a layout holding both ip_address and
     # private_ip would otherwise yield the key twice, and every later save
     # would fail the duplicate check with no way for the UI to recover.

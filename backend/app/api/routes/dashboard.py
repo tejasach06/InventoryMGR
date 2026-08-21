@@ -4,10 +4,11 @@ from fastapi import APIRouter
 from sqlalchemy import case, func, select
 
 from app.api.deps import DbSession, ViewerUser
-from app.db.models import OsFamily, Vm, VmApplication, VmDisk
+from app.db.models import OsFamily, Vm, VmApplication, VmDisk, VmNetwork, VmStatus
 from app.schemas.vms import DashboardAlertVm, DashboardStats
 from app.services.vms import (
     decommission_overdue_condition,
+    duplicate_ip_condition,
     missing_ip_condition,
     non_template_condition,
     shutdown_since_expr,
@@ -41,21 +42,44 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
         ).where(inventory_condition)
     ).one()
 
-    total_disk_gb = db.scalar(
-        select(func.coalesce(func.sum(VmDisk.size_gb), 0)).join(Vm).where(inventory_condition)
-    ) or 0
+    total_disk_gb = (
+        db.scalar(
+            select(func.coalesce(func.sum(VmDisk.size_gb), 0)).join(Vm).where(inventory_condition)
+        )
+        or 0
+    )
 
-    status_rows = db.execute(select(Vm.status, func.count(Vm.id)).where(inventory_condition).group_by(Vm.status)).all()
-    by_status = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in status_rows if k is not None}
+    status_rows = db.execute(
+        select(Vm.status, func.count(Vm.id)).where(inventory_condition).group_by(Vm.status)
+    ).all()
+    by_status = {
+        str(k.value if hasattr(k, "value") else k): cnt for k, cnt in status_rows if k is not None
+    }
 
-    env_rows = db.execute(select(Vm.environment, func.count(Vm.id)).where(inventory_condition).group_by(Vm.environment)).all()
-    by_environment = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in env_rows if k is not None}
+    env_rows = db.execute(
+        select(Vm.environment, func.count(Vm.id))
+        .where(inventory_condition)
+        .group_by(Vm.environment)
+    ).all()
+    by_environment = {
+        str(k.value if hasattr(k, "value") else k): cnt for k, cnt in env_rows if k is not None
+    }
 
-    crit_rows = db.execute(select(Vm.criticality, func.count(Vm.id)).where(inventory_condition).group_by(Vm.criticality)).all()
-    by_criticality = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in crit_rows if k is not None}
+    crit_rows = db.execute(
+        select(Vm.criticality, func.count(Vm.id))
+        .where(inventory_condition)
+        .group_by(Vm.criticality)
+    ).all()
+    by_criticality = {
+        str(k.value if hasattr(k, "value") else k): cnt for k, cnt in crit_rows if k is not None
+    }
 
-    os_rows = db.execute(select(Vm.os_family, func.count(Vm.id)).where(inventory_condition).group_by(Vm.os_family)).all()
-    by_os_family = {str(k.value if hasattr(k, "value") else k): cnt for k, cnt in os_rows if k is not None}
+    os_rows = db.execute(
+        select(Vm.os_family, func.count(Vm.id)).where(inventory_condition).group_by(Vm.os_family)
+    ).all()
+    by_os_family = {
+        str(k.value if hasattr(k, "value") else k): cnt for k, cnt in os_rows if k is not None
+    }
 
     now = datetime.now(UTC)
     today = now.date()
@@ -104,7 +128,10 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
 
     # List 3: Missing IP address
     no_ip_vms = db.scalars(
-        select(Vm).where(missing_ip_condition(), inventory_condition).order_by(Vm.name.asc()).limit(ALERT_LIST_LIMIT)
+        select(Vm)
+        .where(missing_ip_condition(), inventory_condition)
+        .order_by(Vm.name.asc())
+        .limit(ALERT_LIST_LIMIT)
     ).all()
     missing_ip: list[DashboardAlertVm] = []
     for vm in no_ip_vms:
@@ -114,6 +141,42 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
                 name=vm.name,
                 environment=vm.environment,
                 days=0,
+            )
+        )
+
+    # List 4: Duplicate IP address
+    dup_ip_vms = db.scalars(
+        select(Vm)
+        .where(duplicate_ip_condition(), inventory_condition)
+        .order_by(Vm.name.asc())
+        .limit(ALERT_LIST_LIMIT)
+    ).all()
+    duplicate_ip: list[DashboardAlertVm] = []
+    for vm in dup_ip_vms:
+        # Find first conflicting address (lowest sort_order VmNetwork matching duplicate rule)
+        conflicting_ip: str | None = None
+        for net in sorted(vm.networks, key=lambda n: (n.sort_order, str(n.id))):
+            other_count = db.scalar(
+                select(func.count(VmNetwork.id))
+                .join(Vm, VmNetwork.vm_id == Vm.id)
+                .where(
+                    VmNetwork.ip_address == net.ip_address,
+                    VmNetwork.role == net.role,
+                    VmNetwork.vm_id != vm.id,
+                    Vm.status != VmStatus.decommissioned,
+                    inventory_condition,
+                )
+            )
+            if other_count and other_count > 0:
+                conflicting_ip = net.ip_address
+                break
+        duplicate_ip.append(
+            DashboardAlertVm(
+                id=vm.id,
+                name=vm.name,
+                environment=vm.environment,
+                days=0,
+                detail=conflicting_ip,
             )
         )
 
@@ -137,4 +200,5 @@ def get_dashboard(db: DbSession, _: ViewerUser) -> DashboardStats:
         shutdown_stale=shutdown_stale,
         decommission_overdue=decommission_overdue,
         missing_ip=missing_ip,
-        )
+        duplicate_ip=duplicate_ip,
+    )

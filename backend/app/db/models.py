@@ -1,6 +1,5 @@
 import uuid
-from datetime import UTC, date, datetime
-from enum import StrEnum
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -19,107 +18,65 @@ from sqlalchemy import (
     literal_column,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from .base import Base, TimestampMixin, now_utc
+from .enums import (
+    Criticality,
+    DropdownCategory,
+    Environment,
+    ImportAction,
+    ImportStatus,
+    NetworkRole,
+    OsFamily,
+    Platform,
+    StorageVendor,
+    UserRole,
+    VmStatus,
+    VmType,
+    os_family_enum,
+)
+from .health import compute_health_score
 
 # ponytail: JSONB for preferences — flexible per-user config without schema changes
 
-
-class Base(DeclarativeBase):
-    pass
-
-
-class UserRole(StrEnum):
-    admin = "admin"
-    editor = "editor"
-    viewer = "viewer"
-
-
-class Platform(StrEnum):
-    proxmox = "proxmox"
-    vmware = "vmware"
-
-
-class VmStatus(StrEnum):
-    running = "running"
-    powered_off = "powered_off"
-    decommissioned = "decommissioned"
-    unknown = "unknown"
-
-
-class Environment(StrEnum):
-    production = "production"
-    development = "development"
-    testing = "testing"
-    uat = "uat"
-    dr = "dr"
-    staging = "staging"
-    sandbox = "sandbox"
-
-
-class Criticality(StrEnum):
-    low = "low"
-    medium = "medium"
-    high = "high"
-    critical = "critical"
-
-
-class VmType(StrEnum):
-    permanent = "permanent"
-    temporary = "temporary"
-
-
-class OsFamily(StrEnum):
-    linux = "linux"
-    windows = "windows"
-
-
-os_family_enum = Enum(OsFamily, name="os_family")
-
-
-class ImportStatus(StrEnum):
-    previewed = "previewed"
-    committed = "committed"
-    cancelled = "cancelled"
-
-
-class NetworkRole(StrEnum):
-    private = "private"
-    public = "public"
-    backup = "backup"
-
-
-class ImportAction(StrEnum):
-    create = "create"
-    update = "update"
-    unchanged = "unchanged"
-    conflict = "conflict"
-    invalid = "invalid"
-
-
-class DropdownCategory(StrEnum):
-    cpu = "cpu"
-    datacenter = "datacenter"
-    disk = "disk"
-    os = "os"
-    cluster = "cluster"
-
-
-class StorageVendor(StrEnum):
-    synology = "synology"
-    netapp = "netapp"
-
-
-def now_utc() -> datetime:
-    return datetime.now(UTC)
-
-
-class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=now_utc, nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=now_utc, onupdate=now_utc, nullable=False
-    )
+__all__ = [
+    "Base",
+    "TimestampMixin",
+    "now_utc",
+    "UserRole",
+    "Platform",
+    "VmStatus",
+    "Environment",
+    "Criticality",
+    "VmType",
+    "OsFamily",
+    "os_family_enum",
+    "ImportStatus",
+    "NetworkRole",
+    "ImportAction",
+    "DropdownCategory",
+    "StorageVendor",
+    "compute_health_score",
+    "User",
+    "Vm",
+    "VmDisk",
+    "VmNetwork",
+    "VmApplication",
+    "AuditLog",
+    "DropdownOption",
+    "CsvImportBatch",
+    "CsvImportRow",
+    "AppSetting",
+    "LdapConfig",
+    "DecommissionAck",
+    "StorageArray",
+    "StorageVolume",
+    "StorageLun",
+    "StorageNfsShare",
+    "PhysicalCluster",
+    "PhysicalNode",
+]
 
 
 class User(Base, TimestampMixin):
@@ -208,25 +165,6 @@ class Vm(Base, TimestampMixin):
     )
 
 
-def compute_health_score(vm: "Vm") -> int:
-    if any(tag.strip().lower() == "template" for tag in (vm.tags or [])):
-        return 0
-    score = 0
-    if vm.description:
-        score += 10
-    if vm.business_owner or vm.technical_owner or vm.owner:
-        score += 15
-    if vm.applications:
-        score += 20
-    if vm.networks:
-        score += 15
-    if vm.disks:
-        score += 15
-    if vm.monitoring_enabled:
-        score += 10
-    if vm.decommission_date:
-        score += 15
-    return score
 
 
 Index(
@@ -356,6 +294,9 @@ class CsvImportBatch(Base):
     summary: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     ignored_columns: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     field_changes: Mapped[dict[str, int]] = mapped_column(JSONB, nullable=False, default=dict)
+    full_inventory: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false", default=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now_utc, nullable=False
     )
@@ -427,6 +368,7 @@ class LdapConfig(Base, TimestampMixin):
     default_role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"), nullable=False, default=UserRole.viewer
     )
+
 
 class DecommissionAck(Base, TimestampMixin):
     __tablename__ = "decommission_acks"

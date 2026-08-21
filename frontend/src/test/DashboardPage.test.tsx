@@ -11,7 +11,7 @@ import { storage as storageApi } from '../api/storage';
 const stats: DashboardStats = {
   total: 0, linux: 0, windows: 0, production: 0, development: 0,
   test_uat: 0, powered_off: 0, without_monitoring: 0, without_applications: 0,
-  shutdown_stale: [], decommission_overdue: [], missing_ip: [],
+  shutdown_stale: [], decommission_overdue: [], missing_ip: [], duplicate_ip: [],
 };
 const emptyVms: VmList = { items: [], total: 0, limit: 200, offset: 0 };
 
@@ -44,6 +44,7 @@ describe('DashboardPage', () => {
       shutdown_stale: [{ id: 'vm-1', name: 'stale-vm-1', environment: 'production', days: 95 }],
       decommission_overdue: [{ id: 'vm-2', name: 'overdue-vm-2', environment: 'development', days: 10 }],
       missing_ip: [{ id: 'vm-3', name: 'noip-vm-3', environment: 'testing', days: 0 }],
+      duplicate_ip: [{ id: 'vm-4', name: 'dupip-vm-4', environment: 'production', days: 0, detail: '10.2.2.2' }],
     };
     vi.spyOn(dashboardApi, 'getDashboard').mockResolvedValue(statsWithAlerts);
     vi.spyOn(vmsApi, 'listVms').mockResolvedValue(emptyVms);
@@ -52,11 +53,12 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByText('VM Alerts')).toBeInTheDocument();
     expect(screen.getByText('Infrastructure status')).toBeInTheDocument();
-    expect(screen.getByText('3 active')).toBeInTheDocument();
+    expect(screen.getByText('4 active')).toBeInTheDocument();
 
     expect(screen.getByText('Powered off > 90 days')).toBeInTheDocument();
     expect(screen.getByText('Past decommission date')).toBeInTheDocument();
     expect(screen.getByText('No IP address')).toBeInTheDocument();
+    expect(screen.getByText('Duplicate IP address')).toBeInTheDocument();
 
     expect(screen.getByText('stale-vm-1')).toBeInTheDocument();
     expect(screen.getByText('95d shutdown')).toBeInTheDocument();
@@ -69,6 +71,10 @@ describe('DashboardPage', () => {
     expect(screen.getByText('noip-vm-3')).toBeInTheDocument();
     expect(screen.getByText('no IP')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View VMs without IPs' })).toHaveAttribute('href', '/inventory?missing_ip=true');
+
+    expect(screen.getByText('dupip-vm-4')).toBeInTheDocument();
+    expect(screen.getByText('10.2.2.2')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View VMs with duplicate IPs' })).toHaveAttribute('href', '/inventory?duplicate_ip=true');
   });
 
   it('renders overflow +N more line when group exceeds 5 rows', async () => {

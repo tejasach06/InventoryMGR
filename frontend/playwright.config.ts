@@ -35,7 +35,7 @@ export default defineConfig({
         timeout: 60_000,
       },
       {
-        command: 'bun run dev',
+        command: 'nub run dev',
         url: 'http://127.0.0.1:3000/login',
         reuseExistingServer: true,
         timeout: 60_000,

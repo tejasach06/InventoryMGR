@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | { read -r f; case \"$f\" in backend/alembic/versions/*) echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Migrations are generated via alembic revision --autogenerate, not hand-edited.\"}}';; esac; }"
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | { read -r f; case \"$f\" in .env|*/.env) echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\".env holds live secrets; edit .env.example instead.\"}}';; esac; }"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | { read -r f; case \"$f\" in backend/*.py) (cd backend && uv run ruff check --fix \"${f#backend/}\") 2>&1 || true;; esac; }",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | { read -r f; case \"$f\" in backend/*.py) (cd backend && uv run mypy \"${f#backend/}\") 2>&1 || true;; esac; }",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | { read -r f; case \"$f\" in frontend/src/*.ts|frontend/src/*.tsx) (cd frontend && bun run test -- \"$(basename \"${f%.*}\")\" --run) 2>&1 || true;; esac; }",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

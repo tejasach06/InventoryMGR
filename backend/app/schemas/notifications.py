@@ -14,3 +14,13 @@ class DueVmRead(BaseModel):
 
 class AckRequest(BaseModel):
     vm_ids: list[uuid.UUID] | None = None
+
+class DuplicateIpVm(BaseModel):
+    vm_id: uuid.UUID
+    name: str
+
+
+class DuplicateIpRead(BaseModel):
+    ip_address: str
+    occurrences: int
+    vms: list[DuplicateIpVm]

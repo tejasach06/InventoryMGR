@@ -13,6 +13,7 @@ from app.schemas.vms import ReportSummary
 
 router = APIRouter()
 
+
 def _owner_set():
     return and_(Vm.business_owner.is_not(None), Vm.business_owner != "")
 

@@ -20,6 +20,7 @@ from app.services.vm_filters import (
     FilterOperator,
     apply_vm_filters,
     decommission_overdue_condition,
+    duplicate_ip_condition,
     list_vms,
     missing_ip_condition,
     non_template_condition,
@@ -49,15 +50,16 @@ __all__ = [
     "get_vm_detail_or_404",
     "get_vm_or_404",
     "list_vms",
+    "duplicate_ip_condition",
     "missing_ip_condition",
     "non_template_condition",
     "recompute_health",
     "shutdown_since_expr",
     "shutdown_stale_condition",
     "template_tag_condition",
-    "to_vm_read",
     "update_vm",
 ]
+
 
 def get_vm_or_404(db: Session, vm_id: uuid.UUID) -> Vm:
     vm = db.get(Vm, vm_id)

@@ -27,6 +27,7 @@ export const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfi
   shutdown_stale: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Over 90 days', false: 'Under 90 days' } },
   decommission_overdue: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Overdue', false: 'Not overdue' } },
   missing_ip: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Missing', false: 'Present' } },
+  duplicate_ip: { kind: 'multiSelect', options: ['true', 'false'] as const, labels: { true: 'Duplicate', false: 'Unique' } },
 };
 
 export const advancedFilterLabels: Record<AdvancedFilterName, string> = {
@@ -47,6 +48,7 @@ export const advancedFilterLabels: Record<AdvancedFilterName, string> = {
   shutdown_stale: 'Stale Shutdown',
   decommission_overdue: 'Decommission',
   missing_ip: 'IP Address',
+  duplicate_ip: 'Duplicate IP',
 };
 
 // Every non-search filter now lives in the drawer, so the groups must cover
@@ -54,7 +56,7 @@ export const advancedFilterLabels: Record<AdvancedFilterName, string> = {
 export const filterGroups: { label: string; filters: AdvancedFilterName[] }[] = [
   { label: 'Core', filters: ['status', 'platform', 'criticality'] },
   { label: 'Infrastructure', filters: ['cluster', 'node', 'ip_role'] },
-  { label: 'State', filters: ['health', 'shutdown_stale', 'decommission_overdue', 'missing_ip'] },
+  { label: 'State', filters: ['health', 'shutdown_stale', 'decommission_overdue', 'missing_ip', 'duplicate_ip'] },
   { label: 'Ownership & Environment', filters: ['environment', 'owner', 'os_family', 'application', 'tag'] },
   { label: 'Features', filters: ['monitoring_enabled', 'pmp_enabled'] },
 ];
@@ -96,6 +98,7 @@ export const emptyFilterState: Filters = {
   shutdown_stale: [],
   decommission_overdue: [],
   missing_ip: [],
+  duplicate_ip: [],
 };
 
 const chipTypeOverrides: Partial<Record<AdvancedFilterName, 'environment' | 'platform' | 'os_family' | 'criticality'>> = {

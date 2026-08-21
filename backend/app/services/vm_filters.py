@@ -4,7 +4,7 @@ from typing import Any
 
 from sqlalchemy import Select, String, and_, case, cast, exists, func, literal_column, or_, select
 from sqlalchemy.dialects.postgresql import JSONPATH
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, aliased, selectinload
 
 from app.db.models import (
     AuditLog,
@@ -34,7 +34,9 @@ def _op_condition_list(column: Any, values: list, operator: FilterOperator):
     return column.in_(values)
 
 
-def _op_condition(column: Any, value: Any, operator: FilterOperator, *, case_insensitive: bool = False):
+def _op_condition(
+    column: Any, value: Any, operator: FilterOperator, *, case_insensitive: bool = False
+):
     if case_insensitive:
         target = func.lower(func.coalesce(column, ""))
         needle = value.strip().lower()
@@ -55,8 +57,6 @@ def _op_condition(column: Any, value: Any, operator: FilterOperator, *, case_ins
 SHUTDOWN_STALE_DAYS = 90
 
 
-
-
 def template_tag_condition():
     path = cast('$[*] ? (@ like_regex "^template$" flag "i")', JSONPATH)
     return func.jsonb_path_exists(Vm.tags, path)
@@ -64,6 +64,7 @@ def template_tag_condition():
 
 def non_template_condition():
     return ~template_tag_condition()
+
 
 def shutdown_since_expr():
     """Latest moment a VM entered powered_off, falling back to creation."""
@@ -95,6 +96,36 @@ def decommission_overdue_condition():
         Vm.decommission_date.is_not(None),
         Vm.decommission_date <= today,
         Vm.status != VmStatus.decommissioned,
+    )
+
+
+def duplicate_ip_condition():
+    """Another active, non-template VM holds the same address in the same role."""
+    mine = aliased(VmNetwork)
+    other = aliased(VmNetwork)
+    other_vm = aliased(Vm)
+    return and_(
+        Vm.status != VmStatus.decommissioned,
+        exists(
+            select(mine.id)
+            .where(mine.vm_id == Vm.id)
+            .where(
+                exists(
+                    select(other.id)
+                    .where(other.ip_address == mine.ip_address)
+                    .where(other.role == mine.role)
+                    .where(other.vm_id != mine.vm_id)
+                    .where(other.vm_id == other_vm.id)
+                    .where(other_vm.status != VmStatus.decommissioned)
+                    .where(
+                        ~func.jsonb_path_exists(
+                            other_vm.tags,
+                            cast('$[*] ? (@ like_regex "^template$" flag "i")', JSONPATH),
+                        )
+                    )
+                )
+            )
+        ),
     )
 
 
@@ -135,6 +166,7 @@ def apply_vm_filters(
     shutdown_stale: bool | None = None,
     decommission_overdue: bool | None = None,
     missing_ip: bool | None = None,
+    duplicate_ip: bool | None = None,
 ) -> Select[tuple[Vm]]:
     if ip_role:
         # EXISTS, not a join: a VM with several IPs in the role must appear once.
@@ -250,6 +282,9 @@ def apply_vm_filters(
     if missing_ip is not None:
         match = missing_ip_condition()
         stmt = stmt.where(match if missing_ip else ~match)
+    if duplicate_ip is not None:
+        match = duplicate_ip_condition()
+        stmt = stmt.where(match if duplicate_ip else ~match)
     return stmt
 
 

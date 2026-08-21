@@ -62,7 +62,7 @@ services:
       frontend:
         condition: service_healthy
     command: >
-      bash -c "npm install --legacy-peer-deps --silent --no-save && npx playwright test --project=chromium"
+      bash -c "curl -fsSL https://nubjs.com/install.sh | bash && export PATH=\"/root/.nub/bin:$$PATH\" && nub install --frozen-lockfile && nubx playwright test --project=chromium"
 
 volumes:
   playwright-node-modules:

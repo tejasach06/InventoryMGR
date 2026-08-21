@@ -1,3 +1,8 @@
+from app.schemas.vm_children import (
+    DiskCreate, DiskRead, DiskUpdate, 
+    NetworkCreate, NetworkRead, NetworkUpdate, 
+    ApplicationCreate, ApplicationRead, ApplicationUpdate
+)
 import uuid
 from collections.abc import Sequence
 from datetime import date, datetime
@@ -5,6 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.ip_utils import normalize_ip
 from app.db.models import (
     Criticality,
     Environment,
@@ -141,63 +147,6 @@ class VmUpdate(VmBase):
         return self
 
 
-class DiskCreate(BaseModel):
-    disk_name: str
-    storage_name: str | None = None
-    size_gb: int = Field(default=0, ge=0)
-    storage_type: str | None = None
-    sort_order: int = 0
-
-
-class DiskRead(DiskCreate):
-    model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID
-    vm_id: uuid.UUID
-
-
-class NetworkCreate(BaseModel):
-    ip_address: str
-    role: NetworkRole = NetworkRole.private
-    sort_order: int = 0
-
-
-class NetworkRead(NetworkCreate):
-    model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID
-    vm_id: uuid.UUID
-
-
-class ApplicationCreate(BaseModel):
-    app_name: str
-    app_owner: str | None = None
-    description: str | None = None
-
-
-class ApplicationRead(ApplicationCreate):
-    model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID
-    vm_id: uuid.UUID
-
-
-class DiskUpdate(BaseModel):
-    disk_name: str | None = None
-    storage_name: str | None = None
-    size_gb: int | None = Field(default=None, ge=0)
-    storage_type: str | None = None
-    sort_order: int | None = None
-
-
-class NetworkUpdate(BaseModel):
-    ip_address: str | None = None
-    role: NetworkRole | None = None
-    sort_order: int | None = None
-
-
-class ApplicationUpdate(BaseModel):
-    app_name: str | None = None
-    app_owner: str | None = None
-    description: str | None = None
-
 
 class AuditUserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -244,7 +193,7 @@ class DashboardAlertVm(BaseModel):
     name: str
     environment: Environment
     days: int
-
+    detail: str | None = None
 
 class ReportSummary(BaseModel):
     total_vms: int
@@ -271,6 +220,7 @@ class DashboardStats(BaseModel):
     shutdown_stale: list[DashboardAlertVm]
     decommission_overdue: list[DashboardAlertVm]
     missing_ip: list[DashboardAlertVm]
+    duplicate_ip: list[DashboardAlertVm]
 
 class VmBulkFilters(BaseModel):
     """Body mirror of api/routes/vms.py::VmFilterParams.
@@ -300,7 +250,7 @@ class VmBulkFilters(BaseModel):
     shutdown_stale: bool | None = None
     decommission_overdue: bool | None = None
     missing_ip: bool | None = None
-
+    duplicate_ip: bool | None = None
 
 class VmBulkUpdate(BaseModel):
     """Fields safe to set across many VMs at once.

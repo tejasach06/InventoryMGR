@@ -29,7 +29,11 @@ def _is_last_active_admin(db: DbSession, user: User) -> bool:
 
 def _raise_unique_email(exc: IntegrityError) -> None:
     msg = str(exc.orig) if exc.orig else str(exc)
-    if isinstance(exc.orig, UniqueViolation) or "users_email" in msg or "UNIQUE constraint failed" in msg:
+    if (
+        isinstance(exc.orig, UniqueViolation)
+        or "users_email" in msg
+        or "UNIQUE constraint failed" in msg
+    ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="User email already exists"
         ) from exc
@@ -87,9 +91,7 @@ def patch_user(
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(
-    user_id: uuid.UUID, db: DbSession, current_user: AdminUser, __: Csrf
-) -> None:
+def delete_user(user_id: uuid.UUID, db: DbSession, current_user: AdminUser, __: Csrf) -> None:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -110,4 +112,3 @@ def delete_user(
             status_code=status.HTTP_409_CONFLICT,
             detail="User has linked records (audit log, imports). Deactivate the account instead.",
         ) from exc
-

@@ -63,7 +63,7 @@ test('admin creates a Proxmox VM, previews a CSV create/update import, commits i
     mimeType: 'text/csv',
     buffer: Buffer.from(csv),
   });
-  await page.getByRole('button', { name: 'Preview CSV' }).click();
+  await page.getByRole('button', { name: 'Preview partial import' }).click();
   await page.waitForTimeout(3000);
   const summary = page.locator('[data-testid^="summary-"]');
   await expect(summary.first()).toBeVisible();
@@ -97,7 +97,7 @@ test('pages through the inventory and changes rows per page', async ({ page }) =
     mimeType: 'text/csv',
     buffer: Buffer.from(rows.join('\n')),
   });
-  await page.getByRole('button', { name: 'Preview CSV' }).click();
+  await page.getByRole('button', { name: 'Preview partial import' }).click();
   await page.getByRole('button', { name: 'Commit persisted batch' }).click();
   await expect(page.getByText('Import committed. Inventory has been updated from persisted preview rows.')).toBeVisible();
 

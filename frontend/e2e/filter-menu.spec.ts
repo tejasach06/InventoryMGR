@@ -18,7 +18,12 @@ async function loginAsAdmin(page: Page) {
     await page.getByLabel('Password').fill(adminPassword);
     await signInButton.click();
   }
-  await expect(page).toHaveURL(/\/inventory$/);
+  try {
+    await expect(page).toHaveURL(/\/inventory$/, { timeout: 15000 });
+  } catch (e) {
+    await page.screenshot({ path: 'login-failure.png' });
+    throw e;
+  }
 }
 
 test.describe('Filter Menu', () => {

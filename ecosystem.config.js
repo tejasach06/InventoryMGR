@@ -11,7 +11,7 @@ module.exports = {
     {
       name: 'inventorymgr-web',
       cwd: './frontend',
-      script: 'bun',
+      script: 'nub',
       args: 'run start',
       interpreter: 'none',
       env: { NODE_ENV: 'production' },
