@@ -93,6 +93,14 @@ function CheckboxInput({ name, label, values, onChange }: BaseFieldProps) {
 }
 
 
+// crypto.randomUUID() only exists in secure contexts (https/localhost); these ids are
+// just React list keys, not security-sensitive, so fall back when it's unavailable
+// (e.g. plain-HTTP deployments without TLS termination).
+function rowId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `row-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 type DiskRow = { rowId: string; name: string; size: string; unit: 'GB' | 'TB'; storage: string; type: string };
 
 function parseDiskPaste(text: string): DiskRow[] | null {
@@ -102,7 +110,7 @@ function parseDiskPaste(text: string): DiskRow[] | null {
   for (const part of parts) {
     const [name, size] = part.split(':').map((s) => s.trim());
     if (!name || !size || !Number.isFinite(Number(size)) || Number(size) <= 0) return null;
-    rows.push({ rowId: crypto.randomUUID(), name, size, unit: 'GB', storage: '', type: '' });
+    rows.push({ rowId: rowId(), name, size, unit: 'GB', storage: '', type: '' });
   }
   return rows;
 }
@@ -161,7 +169,7 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
           </div>
         ))}
       </div>
-      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setDisks((rows) => [...rows, { rowId: crypto.randomUUID(), name: '', size: '', unit: 'GB', storage: '', type: '' }])}>
+      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setDisks((rows) => [...rows, { rowId: rowId(), name: '', size: '', unit: 'GB', storage: '', type: '' }])}>
         + Add another disk
       </button>
     </div>
@@ -173,7 +181,7 @@ type IpRow = { rowId: string; ip: string; role: NetworkRole };
 function parseIpPaste(text: string): IpRow[] | null {
   const parts = text.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
   if (parts.length < 2) return null;
-  return parts.map((ip) => ({ rowId: crypto.randomUUID(), ip, role: 'private' as NetworkRole }));
+  return parts.map((ip) => ({ rowId: rowId(), ip, role: 'private' as NetworkRole }));
 }
 function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction<IpRow[]>> }) {
   const update = (i: number, patch: Partial<IpRow>) => setIps((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -215,7 +223,7 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
           </div>
         ))}
       </div>
-      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setIps((rows) => [...rows, { rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole }])}>
+      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setIps((rows) => [...rows, { rowId: rowId(), ip: '', role: 'private' as NetworkRole }])}>
         + Add IP address
       </button>
     </div>
@@ -234,8 +242,8 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const queryClient = useQueryClient();
   const [values, setValues] = useState<VmFormValues>(() => emptyVmFormValues());
   const [errors, setErrors] = useState<VmFormErrors>({});
-  const [disks, setDisks] = useState<DiskRow[]>(() => [{ rowId: crypto.randomUUID(), name: '', size: '', unit: 'GB', storage: '', type: '' }]);
-  const [ips, setIps] = useState<IpRow[]>(() => [{ rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole }]);
+  const [disks, setDisks] = useState<DiskRow[]>(() => [{ rowId: rowId(), name: '', size: '', unit: 'GB', storage: '', type: '' }]);
+  const [ips, setIps] = useState<IpRow[]>(() => [{ rowId: rowId(), ip: '', role: 'private' as NetworkRole }]);
   const initialSnapshot = useRef<string>(JSON.stringify({ values, disks, ips }));
   const isDirty = useMemo(() => JSON.stringify({ values, disks, ips }) !== initialSnapshot.current, [values, disks, ips]);
 
@@ -255,18 +263,18 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
     if (vmQuery.data) {
       const loadedValues = vmToFormValues(vmQuery.data);
       const loadedDisks = vmQuery.data.disks.length > 0 ? vmQuery.data.disks.map((d) => ({
-        rowId: crypto.randomUUID(),
+        rowId: rowId(),
         name: d.disk_name,
         size: String(d.size_gb >= 1024 ? d.size_gb / 1024 : d.size_gb),
         unit: (d.size_gb >= 1024 ? 'TB' : 'GB') as 'GB' | 'TB',
         storage: d.storage_name ?? '',
         type: d.storage_type ?? '',
-      })) : [{ rowId: crypto.randomUUID(), name: '', size: '', unit: 'GB' as const, storage: '', type: '' }];
+      })) : [{ rowId: rowId(), name: '', size: '', unit: 'GB' as const, storage: '', type: '' }];
       const loadedIps = vmQuery.data.networks.length > 0 ? vmQuery.data.networks.map((n) => ({
-        rowId: crypto.randomUUID(),
+        rowId: rowId(),
         ip: n.ip_address,
         role: n.role,
-      })) : [{ rowId: crypto.randomUUID(), ip: '', role: 'private' as NetworkRole }];
+      })) : [{ rowId: rowId(), ip: '', role: 'private' as NetworkRole }];
       setValues(loadedValues);
       setDisks(loadedDisks);
       setIps(loadedIps);

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Builder stage ----
-FROM docker.io/oven/bun:1.3.14 AS builder
+FROM node:22-bookworm-slim AS builder
 ARG INVENTORYMGR_API_URL=http://backend:8000
 ENV INVENTORYMGR_API_URL=${INVENTORYMGR_API_URL}
 
@@ -9,21 +9,23 @@ ENV INVENTORYMGR_API_URL=${INVENTORYMGR_API_URL}
 WORKDIR /app
 
 # Install dependencies (cached layer)
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY package.json pnpm-lock.yaml ./
+RUN curl -fsSL https://nubjs.com/install.sh | bash
+ENV PATH="/root/.nub/bin:$PATH"
+RUN nub ci
 
 # Copy source code
 COPY . ./
 
 # Build production assets
-RUN bun run build
+RUN nub run build
 
 # ---- Runtime stage ----
-FROM docker.io/oven/bun:1.3.14
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 
-# Copy built assets and necessary files from builder
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
@@ -32,11 +34,13 @@ COPY --from=builder /app/next.config.mjs ./
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/postcss.config.mjs ./
 
-EXPOSE 3000
+# Install curl (needed for healthcheck and the nub installer)
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL https://nubjs.com/install.sh | bash
+ENV PATH="/root/.nub/bin:$PATH"
 
-# Install curl for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:3000/ || exit 1
 # Run Next.js server
-CMD ["bun", "run", "start"]
+CMD ["nub", "run", "start"]

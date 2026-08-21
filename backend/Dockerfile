@@ -14,8 +14,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential libpq-dev curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Install uv (fast Python package manager)
-RUN pip install --no-cache-dir uv
+RUN curl -fsSL https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
 # Copy only the dependency definition files first for caching
 COPY pyproject.toml uv.lock ./

@@ -8,8 +8,8 @@ git clean -fdX
 cd backend
 uv sync --frozen --no-dev
 cd ../frontend
-bun install --frozen-lockfile
-bun run build
+nub ci
+nub run build
 cd ..
 
 pm2 restart all

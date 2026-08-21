@@ -6,7 +6,7 @@ InventoryMGR is a full-stack virtual machine inventory application for small and
 
 - **Backend**: Python 3.12+, FastAPI, SQLAlchemy, Alembic, PostgreSQL, PyJWT
 - **Frontend**: Next.js 16, React, TypeScript, Tailwind CSS, TanStack Query
-- **Tooling**: devbox, uv, bun, just, pytest, Vitest, Playwright
+- **Tooling**: devbox, uv, nub, just, pytest, Vitest, Playwright
 
 ## Features
 
