@@ -41,6 +41,7 @@ from app.services.csv_import_parsing import (
     MAX_CSV_ROWS,
     OPTIONAL_HEADERS,
     PLATFORM_ALIASES,
+    PROTECTED_HEADERS,
     REQUIRED_HEADERS,
     REQUIRED_HEADERS_ORDER,
     STRING_HEADERS,
@@ -75,12 +76,14 @@ __all__ = [
     "MAX_CSV_ROWS",
     "OPTIONAL_HEADERS",
     "PLATFORM_ALIASES",
+    "PROTECTED_HEADERS",
     "REQUIRED_HEADERS",
     "REQUIRED_HEADERS_ORDER",
     "STRING_HEADERS",
     "TEMPLATE_COLUMNS",
     "TEMPLATE_GROUPS",
     "TEMPLATE_SAMPLE_ROWS",
+    "applicable_updates",
     "commit_batch",
     "create_preview_batch",
     "diff_against_vm",
@@ -282,6 +285,36 @@ def _plan_ip_changes(
 
     return retargets, inserts
 
+def _vm_field_is_set(vm: Vm, field: str) -> bool:
+    """Whether the VM already holds a curated value for `field`.
+
+    False for a boolean is treated as unset, so a CSV may still turn a flag on
+    but never off.
+    """
+    value = getattr(vm, field)
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip() != ""
+    return True
+
+
+def applicable_updates(normalized: dict[str, Any], vm: Vm) -> dict[str, Any]:
+    """`normalized` minus protected columns the VM already has a value for.
+
+    Human-maintained columns (ownership, monitoring/PMP, criticality, compliance
+    dates) are gap-filled only: the extraction script that generates the CSV has
+    no authority over them, so it may fill a blank but never overwrite.
+    """
+    return {
+        field: value
+        for field, value in normalized.items()
+        if field not in PROTECTED_HEADERS or not _vm_field_is_set(vm, field)
+    }
+
+
 def diff_against_vm(
     normalized: dict[str, Any], vm: Vm, raw: dict[str, Any] | None = None
 ) -> dict[str, list[Any]]:
@@ -322,7 +355,7 @@ def diff_against_vm(
             new_combined = new_retargeted + inserts
             if old_retargeted or new_combined:
                 changes[header] = [old_retargeted if old_retargeted else None, new_combined]
-    for field, new_value in normalized.items():
+    for field, new_value in applicable_updates(normalized, vm).items():
         if field in CHILD_HEADERS:
             continue
         if not hasattr(vm, field):
@@ -450,7 +483,8 @@ def _commit_row(db: Session, row: CsvImportRow, user: User) -> tuple[str, Vm]:
     existing_vm: Vm | None = db.get(Vm, row.target_vm_id)
     if existing_vm is None or find_matching_vm(db, row.normalized) != existing_vm:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Import target VM changed")
-    update_vm(db, existing_vm, VmUpdate.model_validate(normalized), user, commit=False)
+    payload = applicable_updates(normalized, existing_vm)
+    update_vm(db, existing_vm, VmUpdate.model_validate(payload), user, commit=False)
     _attach_children(db, existing_vm, row.raw, user)
     return "update", existing_vm
 
