@@ -66,12 +66,23 @@ def list_backups() -> list[dict]:
     return dumps
 
 
+def require_writable_dir() -> Path:
+    """Return backup_dir, raising BackupError if it is not writable by this process."""
+    path = backup_dir()
+    if not os.access(path, os.W_OK | os.X_OK):
+        raise BackupError(
+            f"Backup directory {path} is not writable by uid {os.geteuid()}. "
+            f"Fix ownership on the host mount (chown -R {os.geteuid()} <host dir>) "
+            f"or set BACKUP_DIR to a writable path."
+        )
+    return path
+
+
 def run_dump(db: Session, *, kind: str, user_id: uuid.UUID | None) -> BackupJob:
     """Run pg_dump custom format to backup_dir and track in BackupJob."""
     now = datetime.now(UTC)
     filename = f"inventorymgr-{now:%Y%m%dT%H%M%SZ}-{kind}{BACKUP_SUFFIX}"
-    path = backup_dir() / filename
-
+    path = require_writable_dir() / filename
     job = BackupJob(
         kind=kind,
         status="running",
