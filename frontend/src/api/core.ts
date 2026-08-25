@@ -43,13 +43,18 @@ function refreshSession(): Promise<boolean> {
   return refreshInFlight;
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}, _retried = false): Promise<T> {
-  const method = (options.method ?? 'GET').toUpperCase();
-  const headers = new Headers(options.headers);
+export async function apiRequest<T>(
+  path: string,
+  options: RequestInit & { timeoutMs?: number } = {},
+  _retried = false
+): Promise<T> {
+  const { timeoutMs = 10000, ...init } = options;
+  const method = (init.method ?? 'GET').toUpperCase();
+  const headers = new Headers(init.headers);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!(options.body instanceof FormData) && options.body !== undefined && !headers.has('Content-Type')) {
+  if (!(init.body instanceof FormData) && init.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -58,10 +63,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, _re
     if (token) headers.set('X-CSRF-Token', token);
   }
 
-
   try {
     const response = await fetch(`${API_PREFIX}${path}`, {
-      ...options,
+      ...init,
       method,
       headers,
       credentials: 'include',

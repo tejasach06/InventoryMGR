@@ -22,6 +22,7 @@ graphify-out/
 .claude/*
 !.claude/settings.json
 data/
+/backups/
 *.log
 .DS_Store
 Thumbs.db

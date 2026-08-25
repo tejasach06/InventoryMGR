@@ -23,6 +23,8 @@ class Settings(BaseSettings):
         default="http://localhost:3000,http://127.0.0.1:3000",
         alias="APP_CORS_ORIGINS",
     )
+    backup_dir: str = Field(default="./backups", alias="BACKUP_DIR")
+    pg_bin_dir: str = Field(default="", alias="PG_BIN_DIR")
 
     @computed_field  # type: ignore[prop-decorator]
     @property

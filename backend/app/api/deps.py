@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.security import decode_session_token, verify_csrf_token
 from app.db.models import User, UserRole
 from app.db.session import get_db
+from app.services import app_settings
 
 DbSession = Annotated[Session, Depends(get_db)]
 
@@ -44,6 +45,11 @@ def get_current_user(db: DbSession, request: Request) -> User:
     if user is None or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive or missing user"
+        )
+    epoch = app_settings.get_session_epoch(db)
+    if epoch and int(payload.get("iat", 0)) < epoch:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Session invalidated"
         )
     return user
 

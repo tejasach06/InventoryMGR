@@ -375,3 +375,33 @@ export type ClusterPayload = Partial<Omit<PhysicalCluster, 'id' | 'nodes' | 'cre
 export type NodePayload = Partial<Omit<PhysicalNode, 'id' | 'cluster_id'>> & {
   name: string;
 };
+
+export interface BackupFile {
+  name: string;
+  size_bytes: number;
+  created_at: string;
+}
+
+export interface BackupJob {
+  id: string;
+  kind: string;
+  status: string;
+  filename: string | null;
+  size_bytes: number | null;
+  error: string | null;
+  user_id: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface BackupSettings {
+  enabled: boolean;
+  hour_utc: number;
+  retention: number;
+}
+
+export interface BackupsOverview {
+  backups: BackupFile[];
+  jobs: BackupJob[];
+  settings: BackupSettings;
+}

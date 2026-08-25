@@ -3,6 +3,7 @@ from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -68,6 +69,7 @@ __all__ = [
     "CsvImportBatch",
     "CsvImportRow",
     "AppSetting",
+    "BackupJob",
     "LdapConfig",
     "DecommissionAck",
     "StorageArray",
@@ -343,6 +345,26 @@ class AppSetting(Base):
 
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class BackupJob(Base):
+    __tablename__ = "backup_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)  # manual | scheduled | pre_restore | restore
+    status: Mapped[str] = mapped_column(String(20), nullable=False)  # running | success | failed
+    filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True  # null = scheduler
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=now_utc, nullable=False, index=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped["User | None"] = relationship()
 
 
 class LdapConfig(Base, TimestampMixin):

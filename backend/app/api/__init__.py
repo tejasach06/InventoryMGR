@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.routes import (
     audit,
     auth,
+    backups,
     clusters,
     dashboard,
     imports,
@@ -49,3 +50,4 @@ api_router.include_router(
 )
 api_router.include_router(preferences.router, prefix="/user", tags=["user"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(backups.router, prefix="/backups", tags=["backups"])

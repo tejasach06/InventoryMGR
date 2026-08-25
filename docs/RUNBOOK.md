@@ -280,4 +280,26 @@ Check available revisions:
 cd backend && uv run alembic history
 ```
 
+## Database Backups
+
+InventoryMGR includes an admin-only database backup and restore system creating PostgreSQL custom-format (`pg_dump -Fc`) archives.
+
+### Storage and Permissions
+- Dumps land in `BACKUP_DIR` (default `./backups` in development, `/var/lib/inventorymgr/backups` in containers).
+- Container backend runs as user `1000:1000`. Ensure the host `./backups` directory is owned by UID 1000:
+  ```bash
+  mkdir -p ./backups && chown -R 1000:1000 ./backups
+  ```
+
+### Retention and Scheduling
+- Nightly backups can be enabled in Settings > Backups.
+- Retention limits the number of `.dump` files kept (default 7). Older files are automatically pruned after each backup run.
+
+### Manual Restore via CLI
+To restore a backup archive manually from CLI:
+```bash
+pg_restore --clean --if-exists --no-owner --no-privileges --dbname="$DATABASE_URL" path/to/file.dump
+cd backend && uv run alembic upgrade head
+```
+
 <!-- END AUTO-GENERATED -->

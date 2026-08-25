@@ -44,9 +44,13 @@ def make_csrf_token() -> str:
 def create_session_token(user_id: str, role: str) -> str:
     settings = get_settings()
     expires_at = datetime.now(UTC) + timedelta(minutes=SESSION_TTL_MINUTES)
-    payload: dict[str, Any] = {"sub": user_id, "role": role, "exp": expires_at}
+    payload: dict[str, Any] = {
+        "sub": user_id,
+        "role": role,
+        "exp": expires_at,
+        "iat": datetime.now(UTC),
+    }
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
-
 
 def decode_session_token(token: str) -> dict[str, Any]:
     settings = get_settings()
@@ -61,9 +65,9 @@ def create_refresh_token(user_id: str, persist: bool = False) -> str:
         "type": "refresh",
         "persist": persist,
         "exp": expires_at,
+        "iat": datetime.now(UTC),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
-
 
 def decode_refresh_token(token: str) -> dict[str, Any]:
     settings = get_settings()

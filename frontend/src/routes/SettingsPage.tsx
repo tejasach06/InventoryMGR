@@ -12,6 +12,7 @@ import { ACCENT_PRESETS, AccentId } from '../lib/accentPresets';
 import { cn } from '../lib/classNames';
 import { UsersPanel } from './UsersPage';
 import { LdapPanel } from './LdapSettingsPanel';
+import { BackupsPanel } from './BackupsPanel';
 
 function AppearancePanel() {
   const queryClient = useQueryClient();
@@ -155,7 +156,7 @@ function NotificationsPanel() {
 
 export function SettingsPage() {
   const user = useCurrentUser();
-  const [activeTab, setActiveTab] = useState<'appearance' | 'users' | 'notifications' | 'ldap'>('appearance');
+  const [activeTab, setActiveTab] = useState<'appearance' | 'users' | 'notifications' | 'ldap' | 'backups'>('appearance');
 
   return (
     <PageTransition>
@@ -233,6 +234,22 @@ export function SettingsPage() {
                 >
                   LDAP
                 </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-backups"
+                  aria-selected={activeTab === 'backups'}
+                  aria-controls="panel-backups"
+                  onClick={() => setActiveTab('backups')}
+                  className={cn(
+                    '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+                    activeTab === 'backups'
+                      ? 'border-[var(--color-accent)] bg-[var(--color-surface-tertiary)] text-[var(--color-accent-text)]'
+                      : 'border-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]',
+                  )}
+                >
+                  Backups
+                </button>
               </>
             ) : null}
           </div>
@@ -245,8 +262,10 @@ export function SettingsPage() {
               </div>
             ) : activeTab === 'notifications' ? (
               <NotificationsPanel />
-            ) : (
+            ) : activeTab === 'ldap' ? (
               <LdapPanel />
+            ) : (
+              <BackupsPanel />
             )}
           </div>
         </div>

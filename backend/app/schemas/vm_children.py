@@ -1,7 +1,10 @@
 import uuid
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from app.core.ip_utils import normalize_ip
 from app.db.models import NetworkRole
+
 
 class DiskCreate(BaseModel):
     disk_name: str
