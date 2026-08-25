@@ -1,6 +1,7 @@
 from app.db.models import VmNetwork
 from app.schemas.vms import NetworkCreate, NetworkRead, NetworkUpdate
-from app.services.vms import get_vm_or_404, recompute_health
+from app.services.vm_mutations import recompute_health
+from app.services.vms import get_vm_or_404
 
 from ._child_crud import make_child_router
 

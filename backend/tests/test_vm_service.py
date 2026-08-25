@@ -11,7 +11,9 @@ from app.db.models import (
     VmNetwork,
 )
 from app.schemas.vms import DiskCreate, NetworkCreate, VmCreate, VmUpdate
-from app.services.vms import FilterOperator, clone_vm, create_vm, list_vms, update_vm
+from app.services.vm_filters import FilterOperator, list_vms
+from app.services.vm_mutations import create_vm, update_vm
+from app.services.vms import clone_vm
 
 from .conftest import create_user, create_vm_row
 

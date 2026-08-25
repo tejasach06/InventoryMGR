@@ -1,12 +1,21 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.vms import (
-    VmCreate, VmUpdate, DiskCreate, NetworkCreate, ApplicationCreate,
-    VmBulkFilters, VmBulkUpdate, VmBulkRequest
-)
+from app.schemas.clusters import PhysicalClusterCreate, PhysicalNodeCreate
+from app.schemas.ldap import LdapConfigUpdate
+from app.schemas.notifications import DuplicateIpRead
+from app.schemas.preferences import AccentPreference
+from app.schemas.settings import AppSettingsUpdate
+from app.schemas.storage import ArrayCreate, LunCreate, VolumeCreate
 from app.schemas.users import UserCreate
-from app.schemas.auth import LoginRequest, SetupAdminRequest
+from app.schemas.vms import (
+    DiskCreate,
+    NetworkCreate,
+    VmBulkRequest,
+    VmBulkUpdate,
+    VmCreate,
+)
+
 
 def test_vm_create_schema():
     # Valid VmCreate
@@ -50,8 +59,7 @@ def test_user_schema_validation():
     with pytest.raises(ValidationError):
         UserCreate(email="not-an-email", password="password123", role="viewer")
 
-from app.schemas.clusters import PhysicalNodeCreate, PhysicalClusterCreate
-from app.schemas.storage import LunCreate, VolumeCreate, ArrayCreate
+
 
 def test_cluster_schemas():
     node = PhysicalNodeCreate(name="node1", ip_addresses=[{"label": "mgmt", "address": "10.0.0.1"}])
@@ -70,10 +78,7 @@ def test_storage_schemas():
     arr = ArrayCreate(name="arr1", vendor="synology")
     assert arr.name == "arr1"
 
-from app.schemas.ldap import LdapConfigUpdate
-from app.schemas.notifications import DuplicateIpRead
-from app.schemas.preferences import AccentPreference
-from app.schemas.settings import AppSettingsUpdate
+
 
 def test_settings_and_config():
     # LDAP config

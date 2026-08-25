@@ -1,34 +1,4 @@
-import uuid
-
-from pydantic import BaseModel, ConfigDict, Field
-
-from app.db.models import DropdownCategory, OsFamily
-
-
-class DropdownOptionRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    category: DropdownCategory
-    value: str
-    family: OsFamily | None = None
-
-
-class DropdownOptionCreate(BaseModel):
-    category: DropdownCategory
-    value: str = Field(..., min_length=1, max_length=255)
-    family: OsFamily | None = None
-
-    def normalized_value(self) -> str:
-        return self.value.strip()
-
-
-class DropdownOptionUpdate(BaseModel):
-    value: str = Field(..., min_length=1, max_length=255)
-    family: OsFamily | None = None
-
-    def normalized_value(self) -> str:
-        return self.value.strip()
+from pydantic import BaseModel, Field
 
 
 class GroupedDropdownOptions(BaseModel):

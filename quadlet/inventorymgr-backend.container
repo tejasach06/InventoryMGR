@@ -9,8 +9,10 @@ Image=localhost/inventorymgr-backend:latest
 Network=inventorymgr.network
 PublishPort=127.0.0.1:8000:8000
 Environment=APP_ENV=production
+Environment=BACKUP_DIR=/var/lib/inventorymgr/backups
 Secret=inventorymgr-jwt-secret,type=env,target=JWT_SECRET
 Secret=inventorymgr-database-url,type=env,target=DATABASE_URL
+Volume=%h/inventorymgr-backups:/var/lib/inventorymgr/backups:Z
 HealthCmd=curl -f http://localhost:8000/api/health
 HealthInterval=30s
 HealthTimeout=5s

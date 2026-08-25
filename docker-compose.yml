@@ -29,6 +29,9 @@ services:
       APP_ENV: ${APP_ENV:-development}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-inventorymgr}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-inventorymgr}
       JWT_SECRET: ${JWT_SECRET:-replace-with-32-byte-random-secret}
+      BACKUP_DIR: /var/lib/inventorymgr/backups
+    volumes:
+      - ./backups:/var/lib/inventorymgr/backups:z
     depends_on:
       db:
         condition: service_healthy

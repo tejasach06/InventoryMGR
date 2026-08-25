@@ -1,8 +1,3 @@
-from app.schemas.vm_children import (
-    DiskCreate, DiskRead, DiskUpdate, 
-    NetworkCreate, NetworkRead, NetworkUpdate, 
-    ApplicationCreate, ApplicationRead, ApplicationUpdate
-)
 import uuid
 from collections.abc import Sequence
 from datetime import date, datetime
@@ -10,7 +5,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.core.ip_utils import normalize_ip
 from app.db.models import (
     Criticality,
     Environment,
@@ -19,6 +13,17 @@ from app.db.models import (
     Platform,
     VmStatus,
     VmType,
+)
+from app.schemas.vm_children import (
+    ApplicationCreate,  # noqa: F401
+    ApplicationRead,
+    ApplicationUpdate,  # noqa: F401
+    DiskCreate,
+    DiskRead,
+    DiskUpdate,  # noqa: F401
+    NetworkCreate,
+    NetworkRead,
+    NetworkUpdate,  # noqa: F401
 )
 
 STRING_FIELDS = {

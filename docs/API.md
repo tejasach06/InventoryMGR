@@ -103,10 +103,6 @@ All routes are prefixed with `/api`. Authentication uses a session cookie set on
 | PUT | `/settings/ldap` | Replace LDAP config |
 | POST | `/settings/ldap/test` | Test bind/search, optionally with a username+password |
 | GET | `/settings/options` | Grouped dropdown options for all categories |
-| GET | `/settings/options/all` | Flat list of all options |
-| POST | `/settings/options` | Create dropdown option |
-| PATCH | `/settings/options/{option_id}` | Update dropdown option |
-| DELETE | `/settings/options/{option_id}` | Delete dropdown option |
 
 ## Storage
 

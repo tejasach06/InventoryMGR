@@ -32,13 +32,13 @@ just up-local
 ### PM2 management
 
 ```bash
-just pm2-status     # process table
-just pm2-logs       # tail logs
-just pm2-restart    # rolling restart
-just pm2-stop       # stop without killing daemon
-just pm2-kill       # kill daemon entirely
-just pm2-save       # persist across reboots
-just pm2-startup    # install OS init script
+pm2 status          # process table
+pm2 logs            # tail logs
+pm2 restart all     # rolling restart
+pm2 stop all        # stop without killing daemon
+pm2 kill            # kill daemon entirely
+pm2 save            # persist across reboots
+pm2 startup         # install OS init script
 ```
 
 ### Reverse proxy (nginx)
@@ -265,7 +265,7 @@ pg_isready -h 127.0.0.1 -p 54329 -U inventorymgr
 
 Rebuild the previous frontend, then:
 ```bash
-just pm2-restart
+pm2 restart all
 ```
 
 ### Database
@@ -278,6 +278,28 @@ cd backend && uv run alembic downgrade -1
 Check available revisions:
 ```bash
 cd backend && uv run alembic history
+```
+
+## Database Backups
+
+InventoryMGR includes an admin-only database backup and restore system creating PostgreSQL custom-format (`pg_dump -Fc`) archives.
+
+### Storage and Permissions
+- Dumps land in `BACKUP_DIR` (default `./backups` in development, `/var/lib/inventorymgr/backups` in containers).
+- Container backend runs as user `1000:1000`. Ensure the host `./backups` directory is owned by UID 1000:
+  ```bash
+  mkdir -p ./backups && chown -R 1000:1000 ./backups
+  ```
+
+### Retention and Scheduling
+- Nightly backups can be enabled in Settings > Backups.
+- Retention limits the number of `.dump` files kept (default 7). Older files are automatically pruned after each backup run.
+
+### Manual Restore via CLI
+To restore a backup archive manually from CLI:
+```bash
+pg_restore --clean --if-exists --no-owner --no-privileges --dbname="$DATABASE_URL" path/to/file.dump
+cd backend && uv run alembic upgrade head
 ```
 
 <!-- END AUTO-GENERATED -->

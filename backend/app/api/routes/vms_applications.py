@@ -1,6 +1,7 @@
 from app.db.models import VmApplication
 from app.schemas.vms import ApplicationCreate, ApplicationRead, ApplicationUpdate
-from app.services.vms import get_vm_or_404, recompute_health
+from app.services.vm_mutations import recompute_health
+from app.services.vms import get_vm_or_404
 
 from ._child_crud import make_child_router
 

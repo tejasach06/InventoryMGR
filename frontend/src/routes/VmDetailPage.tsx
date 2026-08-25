@@ -50,6 +50,21 @@ function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) 
     </button>
   );
 }
+function RemoveRowButton({ onClick, title }: { onClick: () => void; title: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
+      title={title}
+    >
+      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+}
+
 
 function Field({
   label,
@@ -186,16 +201,7 @@ function DisksPanel({ vm }: { vm: Vm }) {
                   <td className={cn(tableCellClass, 'tabular-nums text-[var(--color-text-primary)]')}>{d.size_gb}</td>
                   <td className={cn(tableCellClass, 'text-[var(--color-text-secondary)]')}>{d.storage_type ?? '—'}</td>
                   <td className={tableCellClass}>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteDiskId(d.id)}
-                      className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
-                      title={`Remove ${d.disk_name}`}
-                    >
-                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                    <RemoveRowButton onClick={() => setDeleteDiskId(d.id)} title={`Remove ${d.disk_name}`} />
                   </td>
                 </tr>
               ))}
@@ -266,16 +272,7 @@ function NetworksPanel({ vm }: { vm: Vm }) {
                   </td>
                   <td className={cn(tableCellClass, 'capitalize text-[var(--color-text-secondary)]')}>{n.role}</td>
                   <td className={tableCellClass}>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteNetworkId(n.id)}
-                      className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
-                      title={`Remove ${n.ip_address}`}
-                    >
-                      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                    <RemoveRowButton onClick={() => setDeleteNetworkId(n.id)} title={`Remove ${n.ip_address}`} />
                   </td>
                 </tr>
               ))}
@@ -331,16 +328,7 @@ function ApplicationsPanel({ vm }: { vm: Vm }) {
                 <span className="font-medium text-[var(--color-text-primary)]">{a.app_name}</span>
                 {a.description && <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">{a.description}</p>}
               </div>
-              <button
-                type="button"
-                onClick={() => setDeleteAppId(a.id)}
-                className="p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-criticality-critical-bg)] hover:text-[var(--color-criticality-critical)] rounded transition-colors"
-                title={`Remove ${a.app_name}`}
-              >
-                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
+              <RemoveRowButton onClick={() => setDeleteAppId(a.id)} title={`Remove ${a.app_name}`} />
             </li>
           ))}
         </ul>

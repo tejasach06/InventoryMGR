@@ -97,26 +97,3 @@ audit:
 	@echo "=== Accepted risks check ==="
 	bash tools/check-accepted-risks.sh
 
-pm2-start:
-	pm2 start ecosystem.config.js
-
-pm2-stop:
-	pm2 stop all
-
-pm2-restart:
-	pm2 restart all
-
-pm2-kill:
-	pm2 kill
-
-pm2-logs:
-	pm2 logs
-
-pm2-status:
-	pm2 status
-
-pm2-save:
-	pm2 save
-
-pm2-startup:
-	pm2 startup

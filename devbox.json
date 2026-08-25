@@ -4,7 +4,8 @@
     "python@3.13",
     "nodejs@22",
     "uv",
-    "just"
+    "just",
+    "postgresql@17"
   ],
   "env": {
     "DATABASE_URL": "postgresql+psycopg://inventorymgr@127.0.0.1:54329/inventorymgr",

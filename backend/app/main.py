@@ -1,5 +1,6 @@
+import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Any, cast
 
 from fastapi import FastAPI
@@ -12,6 +13,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from app.api import api_router
 from app.api.routes.auth import limiter as auth_limiter
 from app.core.config import get_settings, validate_production_settings
+from app.services.backup_scheduler import scheduler_loop
 
 
 class SecurityHeadersMiddleware:
@@ -40,8 +42,16 @@ class SecurityHeadersMiddleware:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     validate_production_settings(settings)
-    yield
-
+    task = None
+    if settings.app_env != "test":
+        task = asyncio.create_task(scheduler_loop())
+    try:
+        yield
+    finally:
+        if task is not None:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
 
 def create_app() -> FastAPI:
     settings = get_settings()

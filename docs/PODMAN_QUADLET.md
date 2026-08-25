@@ -68,9 +68,10 @@ New `quadlet/` directory, files copied to
 - `inventorymgr-backend.container`
   - `Image=localhost/inventorymgr-backend:latest`
   - `Environment=APP_ENV=production`
+  - `Environment=BACKUP_DIR=/var/lib/inventorymgr/backups`
   - `Secret=inventorymgr-jwt-secret,type=env,target=JWT_SECRET`
   - `Secret=inventorymgr-database-url,type=env,target=DATABASE_URL`
-  - `Network=inventorymgr.network`
+  - `Volume=%h/inventorymgr-backups:/var/lib/inventorymgr/backups:Z` (create `~/inventorymgr-backups` on the host)
   - `PublishPort=127.0.0.1:8000:8000`
   - `After=inventorymgr-db.service` / `Requires=inventorymgr-db.service`
   - `HealthCmd=curl -f http://localhost:8000/api/health` (mirrors Dockerfile HEALTHCHECK)

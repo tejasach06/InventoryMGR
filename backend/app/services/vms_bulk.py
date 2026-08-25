@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.db.models import User, Vm
 from app.schemas.vms import VmBulkRequest, VmUpdate
-from app.services.vms import apply_vm_filters, update_vm
+from app.services.vm_filters import apply_vm_filters
+from app.services.vm_mutations import update_vm
 
 # A mis-set filter should not be able to rewrite the whole fleet in one request.
 BULK_MAX = 1000

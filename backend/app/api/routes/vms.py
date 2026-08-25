@@ -23,26 +23,23 @@ from app.db.models import (
 )
 from app.schemas.vms import VmBulkRequest, VmBulkResult, VmCreate, VmList, VmRead, VmUpdate
 from app.services.csv_import import IP_ROLE_HEADERS
-from app.services.vms import (
-    SORT_PATTERN,
-    FilterOperator,
-    apply_vm_filters,
-    get_vm_detail_or_404,
-    get_vm_or_404,
-    list_vms,
-    to_vm_read,
+from app.services.vm_filters import SORT_PATTERN, FilterOperator, apply_vm_filters, list_vms
+from app.services.vm_mutations import (
+    create_vm as create_vm_service,
+)
+from app.services.vm_mutations import (
+    delete_vm as delete_vm_service,
+)
+from app.services.vm_mutations import (
+    update_vm as update_vm_service,
 )
 from app.services.vms import (
     clone_vm as clone_vm_service,
 )
 from app.services.vms import (
-    create_vm as create_vm_service,
-)
-from app.services.vms import (
-    delete_vm as delete_vm_service,
-)
-from app.services.vms import (
-    update_vm as update_vm_service,
+    get_vm_detail_or_404,
+    get_vm_or_404,
+    to_vm_read,
 )
 from app.services.vms_bulk import bulk_update_vms
 
