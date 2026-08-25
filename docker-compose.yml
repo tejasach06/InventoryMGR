@@ -22,7 +22,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    user: "1000:1000"
+    userns_mode: "${USERNS_MODE:-keep-id:uid=1000,gid=1000}"
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:

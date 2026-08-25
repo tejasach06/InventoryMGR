@@ -286,9 +286,10 @@ InventoryMGR includes an admin-only database backup and restore system creating 
 
 ### Storage and Permissions
 - Dumps land in `BACKUP_DIR` (default `./backups` in development, `/var/lib/inventorymgr/backups` in containers).
-- Container backend runs as user `1000:1000`. Ensure the host `./backups` directory is owned by UID 1000:
+- Under rootless Podman (`just up`), containers use `userns_mode: keep-id`, so host `./backups` owned by the invoking user is automatically writable without manual `chown`.
+- Under standard Docker (no `keep-id` support), set `USERNS_MODE=host` in `.env` and grant UID 1000 ownership:
   ```bash
-  mkdir -p ./backups && chown -R 1000:1000 ./backups
+  mkdir -p ./backups && sudo chown -R 1000:1000 ./backups
   ```
 
 ### Retention and Scheduling

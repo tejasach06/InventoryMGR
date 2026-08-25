@@ -1,3 +1,4 @@
+import os
 import shutil
 import time
 from pathlib import Path
@@ -199,3 +200,21 @@ def test_scheduler_tick(db_session: Session, tmp_path: Path):
     # Immediate second tick -> no duplicate dump (within 23h)
     backup_scheduler._tick()
     assert len(list(tmp_path.glob("*.dump"))) == 1
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root bypasses filesystem write permissions")
+def test_backup_unwritable_dir_returns_actionable_error(
+    client: TestClient, db_session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    locked.chmod(0o500)
+    monkeypatch.setenv("BACKUP_DIR", str(locked))
+    get_settings.cache_clear()
+    create_user(db_session, email="admin@example.com", role=UserRole.admin)
+    csrf = login(client, "admin@example.com")
+    resp = client.post("/api/backups", headers=auth_headers(csrf))
+    assert resp.status_code == 500
+    assert "not writable" in resp.json()["detail"]
+    assert db_session.scalars(select(BackupJob)).all() == []  # no phantom job row
+    locked.chmod(0o700)

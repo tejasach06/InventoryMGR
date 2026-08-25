@@ -30,6 +30,11 @@ RUN uv sync --frozen --no-dev
 # Copy the rest of the backend source code
 COPY . .
 
+RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin appuser && \
+    install -d -o 1000 -g 1000 /var/lib/inventorymgr/backups && \
+    chown -R 1000:1000 /app
+USER appuser
+
 # Expose FastAPI default port
 EXPOSE 8000
 
