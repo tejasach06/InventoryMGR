@@ -1,15 +1,9 @@
 import { apiRequest } from './core';
 import type { AccentId } from '../lib/accentPresets';
-import type { AppSettings, DropdownCategory, DropdownOption, DropdownOptions, LdapConfig, OsFamily } from './types';
+import type { AppSettings, DropdownOptions, LdapConfig } from './types';
 
 export const settings = {
   getDropdownOptions: () => apiRequest<DropdownOptions>('/settings/options'),
-  getAllDropdownOptions: () => apiRequest<DropdownOption[]>('/settings/options/all'),
-  createDropdownOption: (category: DropdownCategory, value: string, family: OsFamily | null = null) =>
-    apiRequest<DropdownOption>('/settings/options', { method: 'POST', body: JSON.stringify({ category, value, family }) }),
-  updateDropdownOption: (id: string, value: string, family: OsFamily | null = null) =>
-    apiRequest<DropdownOption>(`/settings/options/${id}`, { method: 'PATCH', body: JSON.stringify({ value, family }) }),
-  deleteDropdownOption: (id: string) => apiRequest<null>(`/settings/options/${id}`, { method: 'DELETE' }),
 
   getColumnPreferences: (pageKey: string) =>
     apiRequest<{ columns: { key: string; visible: boolean; order: number }[] }>(`/user/preferences/${pageKey}`),

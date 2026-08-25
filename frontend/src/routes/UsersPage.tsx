@@ -56,10 +56,25 @@ function buildDeleteUserMutation(userId: string, queryClient: ReturnType<typeof 
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   };
 }
+interface UserEditorState {
+  role: UserRole;
+  setRole: (role: UserRole) => void;
+  isActive: boolean;
+  setIsActive: (active: boolean) => void;
+  password: string;
+  setPassword: (password: string) => void;
+  reviewing: boolean;
+  setReviewing: (reviewing: boolean) => void;
+  confirmingDelete: boolean;
+  setConfirmingDelete: (confirming: boolean) => void;
+  success: string | undefined;
+  setSuccess: (msg: string | undefined) => void;
+  update: { isPending: boolean; mutate: () => void; isError: boolean; error: unknown };
+  remove: { isPending: boolean; mutate: () => void; isError: boolean; error: unknown };
+}
 
-function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
+function useUserEditor(user: User, onUpdateSuccess?: () => void): UserEditorState {
   const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
   const [role, setRole] = useState<UserRole>(user.role);
   const [isActive, setIsActive] = useState(user.is_active);
   const [password, setPassword] = useState('');
@@ -67,9 +82,72 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [success, setSuccess] = useState<string>();
   const update = useMutation(
-    buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient, () => { setEditing(false); setSuccess(`Updated access for ${user.email}.`); }),
+    buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient, () => {
+      setSuccess(`Updated access for ${user.email}.`);
+      onUpdateSuccess?.();
+    }),
   );
   const remove = useMutation(buildDeleteUserMutation(user.id, queryClient));
+
+  return {
+    role,
+    setRole,
+    isActive,
+    setIsActive,
+    password,
+    setPassword,
+    reviewing,
+    setReviewing,
+    confirmingDelete,
+    setConfirmingDelete,
+    success,
+    setSuccess,
+    update,
+    remove,
+  };
+}
+
+function UserAccessDialogs({
+  user,
+  role,
+  isActive,
+  editor,
+}: {
+  user: User;
+  role: UserRole;
+  isActive: boolean;
+  editor: UserEditorState;
+}) {
+  return (
+    <>
+      <ConfirmDialog
+        open={editor.reviewing}
+        title="Review access change"
+        body={`${user.email}: role: ${user.role} → ${role}; status: ${user.is_active ? 'active' : 'inactive'} → ${isActive ? 'active' : 'inactive'}`}
+        confirmLabel="Save"
+        tone={!isActive || roles.indexOf(role) < roles.indexOf(user.role) ? 'danger' : 'primary'}
+        pending={editor.update.isPending}
+        onConfirm={() => { editor.setReviewing(false); editor.update.mutate(); }}
+        onCancel={() => editor.setReviewing(false)}
+      />
+      <ConfirmDialog
+        open={editor.confirmingDelete}
+        title="Delete user"
+        body={`Permanently delete ${user.email}? This cannot be undone.`}
+        confirmLabel="Delete"
+        tone="danger"
+        pending={editor.remove.isPending}
+        onConfirm={() => { editor.setConfirmingDelete(false); editor.remove.mutate(); }}
+        onCancel={() => editor.setConfirmingDelete(false)}
+      />
+    </>
+  );
+}
+
+function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const editor = useUserEditor(user, () => setEditing(false));
+  const { role, setRole, isActive, setIsActive, password, setPassword, setReviewing, setConfirmingDelete, success, update, remove } = editor;
 
   return (
     <div className={cardClass}>
@@ -111,26 +189,7 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
               {remove.isPending ? <><Spinner /> Deleting…</> : 'Delete'}
             </button>
           </div>
-          <ConfirmDialog
-            open={reviewing}
-            title="Review access change"
-            body={`${user.email}: role: ${user.role} → ${role}; status: ${user.is_active ? 'active' : 'inactive'} → ${isActive ? 'active' : 'inactive'}`}
-            confirmLabel="Save"
-            tone={!isActive || roles.indexOf(role) < roles.indexOf(user.role) ? 'danger' : 'primary'}
-            pending={update.isPending}
-            onConfirm={() => { setReviewing(false); update.mutate(); }}
-            onCancel={() => setReviewing(false)}
-          />
-          <ConfirmDialog
-            open={confirmingDelete}
-            title="Delete user"
-            body={`Permanently delete ${user.email}? This cannot be undone.`}
-            confirmLabel="Delete"
-            tone="danger"
-            pending={remove.isPending}
-            onConfirm={() => { setConfirmingDelete(false); remove.mutate(); }}
-            onCancel={() => setConfirmingDelete(false)}
-          />
+          <UserAccessDialogs user={user} role={role} isActive={isActive} editor={editor} />
           {success ? <Alert tone="success">{success}</Alert> : null}
           {update.isError ? <Alert>{detailMessage(update.error)}</Alert> : null}
           {remove.isError ? <Alert>{detailMessage(remove.error)}</Alert> : null}
@@ -141,15 +200,8 @@ function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {
 }
 
 function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
-  const queryClient = useQueryClient();
-  const [role, setRole] = useState<UserRole>(user.role);
-  const [isActive, setIsActive] = useState(user.is_active);
-  const [password, setPassword] = useState('');
-  const [reviewing, setReviewing] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [success, setSuccess] = useState<string>();
-  const update = useMutation(buildUpdateUserMutation(user.id, role, isActive, password, setPassword, queryClient, () => setSuccess(`Updated access for ${user.email}.`)));
-  const remove = useMutation(buildDeleteUserMutation(user.id, queryClient));
+  const editor = useUserEditor(user);
+  const { role, setRole, isActive, setIsActive, password, setPassword, setReviewing, setConfirmingDelete, success, update, remove } = editor;
 
   return (
     <>
@@ -185,26 +237,7 @@ function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
           </div>
         </td>
       </tr>
-      <ConfirmDialog
-        open={reviewing}
-        title="Review access change"
-        body={`${user.email}: role: ${user.role} → ${role}; status: ${user.is_active ? 'active' : 'inactive'} → ${isActive ? 'active' : 'inactive'}`}
-        confirmLabel="Save"
-        tone={!isActive || roles.indexOf(role) < roles.indexOf(user.role) ? 'danger' : 'primary'}
-        pending={update.isPending}
-        onConfirm={() => { setReviewing(false); update.mutate(); }}
-        onCancel={() => setReviewing(false)}
-      />
-      <ConfirmDialog
-        open={confirmingDelete}
-        title="Delete user"
-        body={`Permanently delete ${user.email}? This cannot be undone.`}
-        confirmLabel="Delete"
-        tone="danger"
-        pending={remove.isPending}
-        onConfirm={() => { setConfirmingDelete(false); remove.mutate(); }}
-        onCancel={() => setConfirmingDelete(false)}
-      />
+      <UserAccessDialogs user={user} role={role} isActive={isActive} editor={editor} />
       {success ? <tr><td colSpan={5} className="px-4 py-2"><Alert tone="success">{success}</Alert></td></tr> : null}
       {update.isError ? (
         <tr><td colSpan={5} className="px-4 py-2"><Alert>{detailMessage(update.error)}</Alert></td></tr>

@@ -31,7 +31,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-replace-with-32-byte-random-secret}
       BACKUP_DIR: /var/lib/inventorymgr/backups
     volumes:
-      - ./backups:/var/lib/inventorymgr/backups
+      - ./backups:/var/lib/inventorymgr/backups:z
     depends_on:
       db:
         condition: service_healthy

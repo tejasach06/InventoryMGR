@@ -105,6 +105,3 @@ export function hasActiveFilters(filters: Filters): boolean {
 export function humanize(value: string): string {
   return value.replace(/_/g, ' ');
 }
-
-export const neutralChipClass =
-  'inline-flex items-center rounded-md bg-[var(--color-surface-tertiary)] px-2 py-1 text-[0.6875rem] capitalize text-[var(--color-text-secondary)]';

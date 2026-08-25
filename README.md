@@ -99,12 +99,6 @@ See [docs/RUNBOOK.md](docs/RUNBOOK.md) for the full environment variable referen
 docker compose up -d
 ```
 
-For E2E tests in Docker (no local services needed):
-
-```bash
-docker compose -f docker-compose.e2e.yml run --rm playwright
-```
-
 ## Deployment
 
 Run `just up` (podman) or `just up-local` (PM2) to deploy. See [docs/RUNBOOK.md](docs/RUNBOOK.md) for details, health checks, common issues, and rollback procedures.

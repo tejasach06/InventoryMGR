@@ -32,13 +32,13 @@ just up-local
 ### PM2 management
 
 ```bash
-just pm2-status     # process table
-just pm2-logs       # tail logs
-just pm2-restart    # rolling restart
-just pm2-stop       # stop without killing daemon
-just pm2-kill       # kill daemon entirely
-just pm2-save       # persist across reboots
-just pm2-startup    # install OS init script
+pm2 status          # process table
+pm2 logs            # tail logs
+pm2 restart all     # rolling restart
+pm2 stop all        # stop without killing daemon
+pm2 kill            # kill daemon entirely
+pm2 save            # persist across reboots
+pm2 startup         # install OS init script
 ```
 
 ### Reverse proxy (nginx)
@@ -265,7 +265,7 @@ pg_isready -h 127.0.0.1 -p 54329 -U inventorymgr
 
 Rebuild the previous frontend, then:
 ```bash
-just pm2-restart
+pm2 restart all
 ```
 
 ### Database

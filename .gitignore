@@ -3,10 +3,11 @@
 .env.*.local
 .venv/
 node_modules/
-.devbox/postgres/
+.devbox/
 .mcp.json
 backend/.mypy_cache/
 backend/.pytest_cache/
+backend/.ruff_cache/
 backend/.coverage
 backend/coverage.json
 __pycache__/
@@ -32,87 +33,21 @@ frontend/playwright-report/
 *.sqlite
 *.db
 .serena
-.devbox
-AGENTS.md
-gan-harness/
-tailwind.config.js
 *.tsbuildinfo
-debug-*.png
-.tokensave
-
-# Additional untracked caches and ide tools
 .pi/
 .pytest_cache/
 .ruff_cache/
-.devbox/
 .worktrees/
-
-# One-off scripts and debug files
-*test_user*.py
-seed_*.py
-debug-*.mjs
-eval-iter*.js
-evaluate-inventory*.js
-evaluate-inventory*.ts
-evaluate-inventory*.mjs
+.impeccable/
+.superpowers/
+frontend/reports/
+reports/
 
 # CSV outputs/inputs
 *.csv
-
-# E2E test temporary files and evaluations
-frontend/e2e/eval-*.spec.ts
-frontend/e2e/login-*.spec.ts
-frontend/*screenshot*.png
-frontend/login-page.png
-
-# Reports and logs
-frontend/reports/
-evaluation_results.json
-final-evaluation-result.json
 
 # MemPalace per-project files (issue #185)
 mempalace.yaml
 entities.json
 
-# Gitignored on main
-backend/tests/
-frontend/src/test/
-frontend/e2e/
-docs/*
-!docs/RUNBOOK.md
-!docs/API.md
-!docs/ALERTS.md
-!docs/PODMAN_QUADLET.md
-DESIGN.md
-PRODUCT.md
-AGENTS.md
-justfile
-devbox.json
-devbox.lock
-frontend/eslint.config.mjs
-frontend/vitest.config.ts
-frontend/playwright.config.ts
-graphify-out/
-.impeccable/
-.superpowers/
-tools/
-reports/
-sample-import.csv
-create-placeholders.sh
-ACCEPTED_RISKS.md
-README.md
-CONTRIBUTING.md
-backend/.ruff_cache/
-backend/.pytest_cache/
-backend/test.db
-backend/inventorymgr.db
-frontend/tsconfig.tsbuildinfo
-frontend/test-results/
-frontend/test-api-direct.mjs
-frontend/test-mock-data.mjs
-frontend/direct-page-check.mjs
-frontend/reports/
-docker-compose.e2e.yml
-mempalace.yaml
-entities.json
-.mcp.json
+# Deploy-branch exclusions live in main's .gitignore and are cleaned via deploy.sh (git clean -fdX)

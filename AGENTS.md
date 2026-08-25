@@ -69,7 +69,7 @@ Always run commands inside `devbox shell`. Use `just` recipes for primary tasks:
 ### CSV Import & Export Round-Trip
 - Import (`csv_import.py`) and export (`export_vms`) share identical cell schemas for child collections to guarantee lossless export → import round-trips:
   - Disks: `name:size[:storage_name[:storage_type]]` (separated by `;`)
-  - Role-scoped IPs: `address[:vlan[:gateway]]` (separated by `;`)
+  - Role-scoped IPs: `address` (separated by `;`)
   - Applications: `name[:owner]` (separated by `;`)
 
 ## Important Files

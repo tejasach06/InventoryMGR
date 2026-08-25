@@ -6,7 +6,7 @@ from sqlalchemy import case, func, select
 from app.api.deps import DbSession, ViewerUser
 from app.db.models import OsFamily, Vm, VmApplication, VmDisk, VmNetwork, VmStatus
 from app.schemas.vms import DashboardAlertVm, DashboardStats
-from app.services.vms import (
+from app.services.vm_filters import (
     decommission_overdue_condition,
     duplicate_ip_condition,
     missing_ip_condition,
