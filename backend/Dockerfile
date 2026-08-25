@@ -2,37 +2,28 @@
 
 # ---- Base stage ----
 FROM python:3.13-slim-bookworm AS base
-
-# Set environment variables for Python
-ENV PYTHONUNBUFFERED=1
-
-# Set work directory
+ENV PYTHONUNBUFFERED=1 UV_LINK_MODE=copy
 WORKDIR /app
 
-# Install build dependencies needed for psycopg (postgres driver)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential libpq-dev curl ca-certificates gnupg && \
-    install -d /usr/share/postgresql-common/pgdg && \
-    curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
-    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
-    apt-get update && apt-get install -y --no-install-recommends postgresql-client-17 && \
+# pg_dump/pg_restore 17 must match the postgres:17 server used by compose/quadlet.
+# Dearmor .asc to binary .gpg so minimal apt (gpgv only, no gpg package) verifies the repo.
+ADD https://www.postgresql.org/media/keys/ACCC4CF8.asc /tmp/pgdg.asc
+RUN python -c 'import base64, pathlib; s=pathlib.Path("/tmp/pgdg.asc").read_text(); b=base64.b64decode("".join(l for l in s.splitlines() if not l.startswith(("-","=")) and ":" not in l and l)); p=pathlib.Path("/usr/share/postgresql-common/pgdg"); p.mkdir(parents=True, exist_ok=True); (p/"apt.postgresql.org.gpg").write_bytes(b)' && \
+    rm /tmp/pgdg.asc && \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates postgresql-client-17 && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
+COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /uvx /usr/local/bin/
 
-# Copy only the dependency definition files first for caching
 COPY pyproject.toml uv.lock ./
-
-# Install runtime dependencies (no dev deps)
-RUN uv sync --frozen --no-dev
-
-# Copy the rest of the backend source code
-COPY . .
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 
 RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin appuser && \
-    install -d -o 1000 -g 1000 /var/lib/inventorymgr/backups && \
-    chown -R 1000:1000 /app
+    install -d -o 1000 -g 1000 /var/lib/inventorymgr/backups
+
+COPY --chown=1000:1000 . .
 USER appuser
 
 # Expose FastAPI default port

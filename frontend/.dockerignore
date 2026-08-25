@@ -22,3 +22,8 @@ data
 debug-*.png
 test-results
 playwright-report
+e2e
+src/test
+vitest.config.ts
+playwright.config.ts
+coverage
