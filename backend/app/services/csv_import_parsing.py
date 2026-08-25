@@ -28,6 +28,24 @@ IP_ROLE_HEADERS = {
 DISK_DEFAULT_HEADERS = {"storage_name", "storage_type"}
 CHILD_HEADERS = {"disks", "applications"} | set(IP_ROLE_HEADERS) | DISK_DEFAULT_HEADERS
 
+# Human-curated columns: on an update row, CSV values may only gap-fill an empty
+# field, never overwrite an existing value.
+PROTECTED_HEADERS: frozenset[str] = frozenset({
+    "owner",
+    "business_owner",
+    "technical_owner",
+    "monitoring_enabled",
+    "pmp_enabled",
+    "backup_location",
+    "criticality",
+    "environment",
+    "vm_type",
+    "sr_id",
+    "last_patch_date",
+    "last_vuln_scan_date",
+    "last_verified_at",
+    "security_remarks",
+})
 OPTIONAL_HEADERS = (set(VmBase.model_fields) - EXCLUDED_FROM_CSV - REQUIRED_HEADERS) | CHILD_HEADERS
 ALL_HEADERS = REQUIRED_HEADERS | OPTIONAL_HEADERS
 

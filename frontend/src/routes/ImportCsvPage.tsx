@@ -211,7 +211,12 @@ export function ImportCsvPage() {
                 ownership, operations, compliance dates, notes — and two SAMPLE- rows you
                 should delete once you have copied the formats. Blank cells are left
                 unchanged on existing VMs and take default values on new ones — importing
-                never clears a field. Include external_id (VM-ID) and sr_id (SR-ID) columns
+                never clears a field. On existing VMs, curated columns — owner,
+                business_owner, technical_owner, monitoring_enabled, pmp_enabled,
+                backup_location, criticality, environment, vm_type, sr_id,
+                last_patch_date, last_vuln_scan_date, last_verified_at,
+                security_remarks — are only filled when empty; an import never overwrites
+                a value you already set there. Include external_id (VM-ID) and sr_id (SR-ID) columns
                 to import those identifiers; when external_id is present it is what matches
                 a row to an existing VM instead of the name. List several disks as
                 name:size pairs (os:100;data:500) and several IPs in private_ip,

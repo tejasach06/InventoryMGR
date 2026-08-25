@@ -163,7 +163,6 @@ def test_preview_and_commit_preserve_matching_additive_children_audit_and_health
         "applications": 1,
         "disks": 1,
         "monitoring_enabled": 1,
-        "owner": 1,
         "private_ip": 1,
     }
     assert batch.rows[0].action == ImportAction.update
@@ -172,7 +171,6 @@ def test_preview_and_commit_preserve_matching_additive_children_audit_and_health
         "disks": [None, ["os:80"]],
         "applications": [None, ["nginx"]],
         "private_ip": [None, ["10.0.0.5"]],
-        "owner": ["old-owner", "new-owner"],
         "monitoring_enabled": [False, True],
     }
 
@@ -202,8 +200,8 @@ def test_preview_and_commit_preserve_matching_additive_children_audit_and_health
     ).all()
     assert [(entry.field_name, entry.old_value, entry.new_value) for entry in audits] == [
         ("monitoring_enabled", "False", "True"),
-        ("owner", "old-owner", "new-owner"),
     ]
+    assert reloaded.owner == "old-owner"
 
 
 def test_preview_matches_proxmox_by_vmid_name_cluster_ignoring_node_and_datacenter(
@@ -235,7 +233,6 @@ def test_preview_matches_proxmox_by_vmid_name_cluster_ignoring_node_and_datacent
     assert batch.rows[0].changes == {
         "datacenter": ["dc-a", "dc-z"],
         "node": ["pve-01", "pve-99"],
-        "owner": ["old-owner", "new-owner"],
     }
 
 
@@ -291,7 +288,6 @@ def test_preview_matches_vmware_by_name_cluster_ignoring_vmid_node_and_datacente
         "datacenter": ["dc-a", "dc-z"],
         "external_id": ["vm-101", "vm-202"],
         "node": ["esx-01", "esx-99"],
-        "owner": ["old-owner", "new-owner"],
     }
 
 
@@ -738,3 +734,125 @@ def test_full_inventory_all_invalid_rows_yield_zero_decommission(db_session: Ses
     assert batch.summary.get("decommission", 0) == 0
 
     assert len([r for r in batch.rows if r.action == ImportAction.decommission]) == 0
+
+
+def test_import_does_not_overwrite_curated_columns(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-protect@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="Curated VM",
+        platform="proxmox",
+        external_id="101",
+        cluster="pve-cluster-a",
+        datacenter="dc-a",
+        node="pve-node-03",
+        owner="infra-team",
+        monitoring_enabled=True,
+        pmp_enabled=True,
+        criticality="high",
+        last_patch_date=date(2026, 7, 14),
+        security_remarks="pen tested",
+    )
+    content = (
+        b"name,platform,cluster,external_id,owner,monitoring_enabled,pmp_enabled,criticality,last_patch_date,security_remarks,node\n"
+        b"Curated VM,pve,pve-cluster-a,101,root,false,false,low,2026-01-01,script generated,pve-node-07\n"
+    )
+
+    batch = create_preview_batch(db_session, filename="curated.csv", content=content, user=editor)
+
+    assert batch.summary["update"] == 1
+    assert batch.field_changes == {"node": 1}
+    assert batch.rows[0].changes == {"node": ["pve-node-03", "pve-node-07"]}
+
+    commit_batch(db_session, batch_id=batch.id, user=editor)
+
+    reloaded = db_session.scalar(select(Vm).where(Vm.id == vm.id))
+    assert reloaded is not None
+    assert reloaded.owner == "infra-team"
+    assert reloaded.monitoring_enabled is True
+    assert reloaded.pmp_enabled is True
+    assert reloaded.criticality.value == "high"
+    assert reloaded.last_patch_date == date(2026, 7, 14)
+    assert reloaded.security_remarks == "pen tested"
+    assert reloaded.node == "pve-node-07"
+
+    audits = db_session.scalars(
+        select(AuditLog).where(AuditLog.vm_id == vm.id).order_by(AuditLog.field_name)
+    ).all()
+    assert [(entry.field_name, entry.old_value, entry.new_value) for entry in audits] == [
+        ("node", "pve-node-03", "pve-node-07"),
+    ]
+
+
+def test_import_fills_empty_curated_columns(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-gapfill@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="Gap Fill VM",
+        platform="proxmox",
+        external_id="102",
+        cluster="pve-cluster-a",
+        owner=None,
+        monitoring_enabled=False,
+        last_patch_date=None,
+    )
+    content = (
+        b"name,platform,cluster,external_id,owner,monitoring_enabled,last_patch_date\n"
+        b"Gap Fill VM,pve,pve-cluster-a,102,infra-team,true,2026-07-14\n"
+    )
+
+    batch = create_preview_batch(db_session, filename="gapfill.csv", content=content, user=editor)
+
+    assert batch.summary["update"] == 1
+    assert batch.rows[0].action == ImportAction.update
+    assert batch.field_changes == {
+        "last_patch_date": 1,
+        "monitoring_enabled": 1,
+        "owner": 1,
+    }
+    assert batch.rows[0].changes == {
+        "last_patch_date": [None, "2026-07-14"],
+        "monitoring_enabled": [False, True],
+        "owner": [None, "infra-team"],
+    }
+
+    commit_batch(db_session, batch_id=batch.id, user=editor)
+
+    reloaded = db_session.scalar(select(Vm).where(Vm.id == vm.id))
+    assert reloaded is not None
+    assert reloaded.owner == "infra-team"
+    assert reloaded.monitoring_enabled is True
+    assert reloaded.last_patch_date == date(2026, 7, 14)
+
+
+def test_import_never_disables_a_curated_flag(db_session: Session) -> None:
+    editor = create_user(db_session, email="csv-noflip@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session,
+        editor,
+        name="Flagged VM",
+        platform="proxmox",
+        external_id="103",
+        cluster="pve-cluster-a",
+        monitoring_enabled=True,
+    )
+    content = (
+        b"name,platform,cluster,external_id,monitoring_enabled\n"
+        b"Flagged VM,pve,pve-cluster-a,103,false\n"
+    )
+
+    batch = create_preview_batch(db_session, filename="noflip.csv", content=content, user=editor)
+
+    assert batch.summary["unchanged"] == 1
+    assert batch.summary["update"] == 0
+    assert batch.field_changes == {}
+    assert batch.rows[0].action == ImportAction.unchanged
+    assert batch.rows[0].changes == {}
+
+    commit_batch(db_session, batch_id=batch.id, user=editor)
+
+    reloaded = db_session.scalar(select(Vm).where(Vm.id == vm.id))
+    assert reloaded is not None
+    assert reloaded.monitoring_enabled is True
