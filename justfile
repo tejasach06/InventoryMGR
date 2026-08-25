@@ -15,8 +15,14 @@ env:
 	@echo "wrote .env with a generated JWT_SECRET"
 
 build-prod:
-	podman build -t localhost/inventorymgr-backend:latest ./backend
-	podman build -t localhost/inventorymgr-frontend:latest --build-arg "INVENTORYMGR_API_URL=${INVENTORYMGR_API_URL:-http://inventorymgr-backend:8000}" ./frontend
+	#!/usr/bin/env bash
+	set -euo pipefail
+	podman build -t localhost/inventorymgr-backend:latest ./backend &
+	back=$!
+	podman build -t localhost/inventorymgr-frontend:latest --build-arg "INVENTORYMGR_API_URL=${INVENTORYMGR_API_URL:-http://inventorymgr-backend:8000}" ./frontend &
+	front=$!
+	wait $back
+	wait $front
 
 quadlet-secrets:
 	#!/usr/bin/env bash

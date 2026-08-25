@@ -82,9 +82,6 @@ services:
       watch:
         - action: rebuild
           path: frontend/Dockerfile
-        - action: sync
-          path: frontend/src
-          target: /app/src
 
 volumes:
   pgdata:

@@ -23,24 +23,15 @@ RUN nub run build
 
 # ---- Runtime stage ----
 FROM node:22-bookworm-slim
-
 WORKDIR /app
+ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
 
-COPY --from=builder --chown=1000:1000 /app/.next ./.next
-COPY --from=builder --chown=1000:1000 /app/public ./public
-COPY --from=builder --chown=1000:1000 /app/node_modules ./node_modules
-COPY --from=builder --chown=1000:1000 /app/package.json ./
-COPY --from=builder --chown=1000:1000 /app/next.config.mjs ./
-COPY --from=builder --chown=1000:1000 /app/tsconfig.json ./
-COPY --from=builder --chown=1000:1000 /app/postcss.config.mjs ./
-
-# Install curl (needed for healthcheck and the nub installer)
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
-RUN curl -fsSL https://nubjs.com/install.sh | bash && chmod 755 /root && chmod -R o+rX /root/.nub
-ENV PATH="/root/.nub/bin:$PATH"
+
+COPY --from=builder --chown=1000:1000 /app/public ./public
+COPY --from=builder --chown=1000:1000 /app/.next/standalone ./
+COPY --from=builder --chown=1000:1000 /app/.next/static ./.next/static
 
 EXPOSE 3000
-
 HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:3000/ || exit 1
-# Run Next.js server
-CMD ["nub", "run", "start"]
+CMD ["node", "server.js"]
