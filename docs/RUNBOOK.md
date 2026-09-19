@@ -1,306 +1,87 @@
-# InventoryMGR Runbook
+# Runbook
 
-<!-- AUTO-GENERATED: deployment steps, health checks, and env table generated from justfile, docker-compose.yml, frontend/package.json, backend/app/core/config.py -->
+Operating InventoryMGR in a deployed environment.
 
-## Environment Variables
+## Startup
 
-<!-- AUTO-GENERATED from backend/app/core/config.py -->
+- **Compose**: `just up` (generates `.env` if missing, `podman compose up -d
+  --build`). Verify with `just ps` / `just logs`.
+- **Quadlet**: see `docs/PODMAN_QUADLET.md`.
+- Readiness: `curl -f http://127.0.0.1:8000/api/health` and
+  `curl -f http://127.0.0.1:3000/`.
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `APP_ENV` | No | `development` | Runtime mode: `development`, `test`, `production` |
-| `DATABASE_URL` | Yes | — | PostgreSQL connection string (`postgresql+psycopg://...`) |
-| `TEST_DATABASE_URL` | No | — | Separate DB for pytest; set to the `_test` variant |
-| `JWT_SECRET` | **Yes in prod** | placeholder | Signing key for session tokens (`just env` generates 32+ random bytes) |
-| `SESSION_COOKIE_NAME` | No | `inventorymgr_session` | Session cookie name |
-| `CSRF_COOKIE_NAME` | No | `inventorymgr_csrf` | CSRF cookie name |
-| `APP_CORS_ORIGINS` | No | `http://localhost:3000,...` | Comma-separated allowed origins |
-| `INVENTORYMGR_API_URL` | Yes (frontend build) | — | Backend URL baked into Next.js build (`http://127.0.0.1:8000` for PM2, `http://backend:8000` for Podman) |
-| `POSTGRES_PORT` | No | `5432` | Host port mapping for compose |
-| `BACKEND_PORT` | No | `8000` | Host port mapping for compose |
-| `FRONTEND_PORT` | No | `3000` | Host port mapping for compose |
-## Deployment: PM2
+## Configuration
 
-Single command bootstrap (provisions database, installs dependencies, migrates schema, builds frontend, and starts PM2 processes):
+All runtime config is env vars, sourced from `.env` (see `.env.example`):
 
-```bash
-just up-local
+| Var | Purpose |
+|---|---|
+| `APP_ENV` | `development` or `production`. Set `production` **only** when served over HTTPS — enables `Secure` cookies. |
+| `DATABASE_URL` | `postgresql+psycopg://...` connection string. |
+| `JWT_SECRET` | 32-byte random secret (`just env` generates one). Rotating invalidates all sessions. |
+| `SESSION_COOKIE_NAME` / `CSRF_COOKIE_NAME` | Cookie names, change only if colliding with another app on the same domain. |
+| `APP_CORS_ORIGINS` | Comma-separated allowed origins. |
+| `BACKUP_DIR` | Host path (bind-mounted into the backend container as `/var/lib/inventorymgr/backups`). |
+| `INVENTORYMGR_API_URL` | Frontend's backend base URL (build-time for Next.js). |
+
+## Backups
+
+- Scheduled automatically by `backup_scheduler.py` (runs inside the backend
+  process lifespan, skipped when `APP_ENV=test`).
+- Manual trigger, list, download, restore: `/api/backups/*` (admin-only), or
+  directly via `pg_dump`/`pg_restore` against `DATABASE_URL` if the API is
+  unavailable.
+- Files: `pg_dump -Fc` custom-format dumps, named
+  `inventorymgr-YYYYMMDDTHHMMSSZ-<label>.dump` in `BACKUP_DIR`, validated by a
+  strict filename regex before any file-path operation (path traversal guard).
+- **Restore**: use the `/api/backups/{filename}/restore` endpoint, or manually:
+  `pg_restore -d <DATABASE_URL as libpq> --clean --if-exists <file>.dump`.
+  Take a fresh backup before restoring over live data.
+
+## Database migrations
+
+Migrations are generated, never hand-written:
+
+```
+cd backend && uv run alembic revision --autogenerate -m "..."
 ```
 
-`ecosystem.config.js` is committed at the repo root and may be customized per host.
+Review the generated diff and its `downgrade()` before committing. Apply with
+`uv run alembic upgrade head` (run automatically on backend container start —
+see `backend/Dockerfile`/entrypoint).
 
-### PM2 management
+Postgres major-version upgrades: see `tools/migrate-postgres-16-to-17.sh`.
 
-```bash
-pm2 status          # process table
-pm2 logs            # tail logs
-pm2 restart all     # rolling restart
-pm2 stop all        # stop without killing daemon
-pm2 kill            # kill daemon entirely
-pm2 save            # persist across reboots
-pm2 startup         # install OS init script
-```
+## CSV import
 
-### Reverse proxy (nginx)
-
-```nginx
-location /api/ { proxy_pass http://127.0.0.1:8000; }
-location /     { proxy_pass http://127.0.0.1:3000; }
-```
-
-### First login
-
-Navigate to `/login`. If no users exist the page shows **Create admin account** (or check `GET /api/auth/setup`).
-
-## Deployment: Podman
-
-```bash
-# Start all services
-just up
-
-# Tail logs
-just logs
-
-# Check status
-just ps
-
-# Stop
-just down
-```
-
-To move a conflicting port mapping:
-
-```bash
-FRONTEND_PORT=3100 just up
-```
-
-| Service | Port | Description |
-|---------|------|-------------|
-| `db` | `${POSTGRES_PORT:-5432}` | PostgreSQL 17 |
-| `backend` | `${BACKEND_PORT:-8000}` | FastAPI |
-| `frontend` | `${FRONTEND_PORT:-3000}` | Next.js |
-
-## Deployment: Podman Quadlet (systemd, rootless)
-
-Use Quadlet on production hosts when systemd should own rootless Podman
-containers directly. This is separate from the compose-based `just up` path.
-
-### Build production images
-
-```bash
-# Frontend rewrites /api/* to the backend container on the Quadlet network.
-just build-prod
-
-# Optional: bake a different backend URL into Next.js rewrites.
-INVENTORYMGR_API_URL=http://inventorymgr-backend:8000 just build-prod
-```
-
-### Create production secrets
-
-```bash
-just quadlet-secrets
-```
-
-The target is idempotent and creates these Podman secrets if absent:
-
-- `inventorymgr-jwt-secret` → `JWT_SECRET`
-- `inventorymgr-postgres-password` → PostgreSQL `POSTGRES_PASSWORD`
-- `inventorymgr-database-url` → backend `DATABASE_URL`
-
-Keep the PostgreSQL password and database URL secrets in sync. If only one of
-the database secrets exists, delete both and rerun `just quadlet-secrets`.
-
-### Install Quadlet units
-
-```bash
-mkdir -p ~/.config/containers/systemd
-cp quadlet/* ~/.config/containers/systemd/
-systemctl --user daemon-reload
-```
-
-The committed units create a shared `inventorymgr` network, an
-`inventorymgr-pgdata` volume, and these services:
-
-| Service | Host binding | Description |
-|---------|--------------|-------------|
-| `inventorymgr-db.service` | none | PostgreSQL 17 |
-| `inventorymgr-backend.service` | `127.0.0.1:8000` | FastAPI API |
-| `inventorymgr-frontend.service` | `127.0.0.1:3000` | Next.js frontend |
-
-### Activate at boot
-
-```bash
-loginctl enable-linger "$USER"
-systemctl --user enable --now inventorymgr-db.service
-systemctl --user enable --now inventorymgr-backend.service
-systemctl --user enable --now inventorymgr-frontend.service
-```
-
-Quadlet supports `After=`/`Requires=` ordering, not compose-style
-`condition: service_healthy`. The backend image runs Alembic migrations on
-startup and the app uses its existing startup behavior if PostgreSQL is still
-initializing.
-
-### Status and logs
-
-```bash
-systemctl --user status inventorymgr-db.service inventorymgr-backend.service inventorymgr-frontend.service
-journalctl --user -u inventorymgr-backend.service -f
-journalctl --user -u inventorymgr-frontend.service -f
-```
-
-Health checks:
-
-```bash
-curl http://127.0.0.1:8000/api/health
-curl -I http://127.0.0.1:3000/
-```
-
-### Rollback Quadlet deployment
-
-Build or retag the previous images, then restart the services:
-
-```bash
-systemctl --user stop inventorymgr-frontend.service inventorymgr-backend.service
-podman tag localhost/inventorymgr-backend:<previous> localhost/inventorymgr-backend:latest
-podman tag localhost/inventorymgr-frontend:<previous> localhost/inventorymgr-frontend:latest
-systemctl --user start inventorymgr-backend.service inventorymgr-frontend.service
-```
-
-Stop the whole stack if needed:
-
-```bash
-systemctl --user stop inventorymgr-frontend.service inventorymgr-backend.service inventorymgr-db.service
-```
-## Health Checks
-
-| Check | Command | Expected |
-|-------|---------|---------|
-| Backend alive | `curl http://localhost:8000/api/health` | `{"status":"ok"}` |
-| Frontend alive | `curl http://localhost:3000/` | HTTP 200 |
-| PostgreSQL | `pg_isready -h 127.0.0.1 -p 54329 -U inventorymgr` | `accepting connections` |
-
-### PostgreSQL major-version upgrade (16 → 17)
-
-PostgreSQL data files are not compatible across major versions. If
-`inventorymgr-db` is still running Postgres 16 on a host where the Quadlet
-units / `docker-compose.yml` now pin `postgres:17-alpine`, do **not** just
-restart the service — that leaves the container unable to read the old data
-directory. Use the migration script instead:
-
-```bash
-tools/migrate-postgres-16-to-17.sh
-```
-
-It dumps the running 16 instance (`pg_dumpall`), stands up a scratch PG17
-volume, restores into it, sanity-checks a row count, then cuts the
-`inventorymgr-pgdata` volume over — preserving the original PG16 data as
-`inventorymgr-pgdata-pg16-backup` (not deleted; remove manually once you've
-confirmed the app is healthy on PG17). Run it on the production host as the
-user owning the Quadlet units. See the script header for full details and
-prerequisites.
-
-Proceed like this:
-
-1. On the production host, update the checkout to a commit that contains
-   `tools/migrate-postgres-16-to-17.sh`.
-2. Before running `deploy.sh` or restarting services, run the migration script
-   while the current Postgres 16 `inventorymgr-db.service` is still healthy:
-   `tools/migrate-postgres-16-to-17.sh`.
-3. Confirm these post-migration checks:
-   - `curl http://127.0.0.1:8000/api/health` returns `{"status":"ok"}`.
-   - `curl -I http://127.0.0.1:3000/` returns HTTP 200.
-   - The admin user can log in and load the VM inventory.
-4. Keep `inventorymgr-pgdata-pg16-backup` and the SQL dump generated by the
-   script until at least one successful production backup cycle has completed.
-   Do not delete either immediately after cutover.
-5. If the app fails after cutover, stop the services, restore the preserved
-   PG16 volume name, retag/restart the old Postgres 16 unit/image, and use the
-   SQL dump as a fallback restore source.
-
-The PM2 deployment path uses whatever PostgreSQL the host package manager
-installed — it is not managed by this repo's container images, so a 16→17
-upgrade there follows your OS's normal `pg_upgrade`/`pg_dumpall` procedure,
-not this script.
+- The CSV importer (`backend/app/services/csv_import.py`) is the **sole** way
+  to bulk-load VMs (Proxmox/VMware exports or hand-built sheets).
+- Disks column format: `name:size[:storage_name[:storage_type]]`.
+- Proxmox identity matching for update-vs-create requires **both**
+  `external_id`/`vmid` **and** `name` to match an existing row; a mismatch on
+  either is treated as a new/conflicting record.
+- Import is preview-then-commit: `/api/imports` returns a diff
+  (`create`/`update`/`unchanged`/`decommission`/`conflict`/`invalid` per row)
+  before anything is written.
 
 ## Alerts
 
-Alert triggers, thresholds, and tag-based suppression are documented in
-[ALERTS.md](ALERTS.md).
+See `docs/ALERTS.md`.
 
-## Common Issues
+## Troubleshooting
 
-### Backend won't start — `JWT_SECRET must be changed in production`
+| Symptom | Check |
+|---|---|
+| Backend container unhealthy | `podman compose logs backend`; confirm `DATABASE_URL` reachable and `db` healthcheck passed first (`depends_on: service_healthy`). |
+| Frontend 502/unreachable | Confirm backend healthy first (frontend `depends_on` backend); check `INVENTORYMGR_API_URL` matches the backend's reachable address from the frontend container's network. |
+| Login fails for an LDAP user | Check `/api/settings/ldap` config (admin-only) and that bind credentials decrypt correctly (`ldap3`/`cryptography`); test with a local/admin account first to isolate LDAP vs. general auth. |
+| 403 on `/api/settings/*` | Expected for non-admin roles — verify the user's role, not the endpoint. |
+| Migration drift | Never hand-edit `backend/alembic/versions/`; regenerate with `--autogenerate` and diff against the model change that caused drift. |
+| Backup restore fails filename check | Filename must match `inventorymgr-\d{8}T\d{6}Z-[a-z_]+\.dump`; don't rename dump files manually. |
 
-Generate a fresh secret and write `.env`:
-```bash
-just env
-```
-### Alembic migration fails — `relation already exists`
+## Deployment
 
-The DB is ahead of the migration history. Check with:
-```bash
-cd backend && uv run alembic current
-uv run alembic history --verbose
-```
-
-### Frontend build fails — `INVENTORYMGR_API_URL not set`
-
-Pass it at build time:
-```bash
-INVENTORYMGR_API_URL=http://127.0.0.1:8000 bun run build
-```
-
-### PostgreSQL not accepting connections
-
-```bash
-podman compose -f docker-compose.e2e-db.yml up -d
-podman compose -f docker-compose.e2e-db.yml logs db-test
-pg_isready -h 127.0.0.1 -p 54329 -U inventorymgr
-```
-
-## Rollback
-
-### PM2
-
-Rebuild the previous frontend, then:
-```bash
-pm2 restart all
-```
-
-### Database
-
-Alembic supports step-by-step downgrade:
-```bash
-cd backend && uv run alembic downgrade -1
-```
-
-Check available revisions:
-```bash
-cd backend && uv run alembic history
-```
-
-## Database Backups
-
-InventoryMGR includes an admin-only database backup and restore system creating PostgreSQL custom-format (`pg_dump -Fc`) archives.
-
-### Storage and Permissions
-- Dumps land in `BACKUP_DIR` (default `./backups` in development, `/var/lib/inventorymgr/backups` in containers).
-- Under rootless Podman (`just up`), containers use `userns_mode: keep-id`, so host `./backups` owned by the invoking user is automatically writable without manual `chown`.
-- Under standard Docker (no `keep-id` support), set `USERNS_MODE=host` in `.env` and grant UID 1000 ownership:
-  ```bash
-  mkdir -p ./backups && sudo chown -R 1000:1000 ./backups
-  ```
-
-### Retention and Scheduling
-- Nightly backups can be enabled in Settings > Backups.
-- Retention limits the number of `.dump` files kept (default 7). Older files are automatically pruned after each backup run.
-
-### Manual Restore via CLI
-To restore a backup archive manually from CLI:
-```bash
-pg_restore --clean --if-exists --no-owner --no-privileges --dbname="$DATABASE_URL" path/to/file.dump
-cd backend && uv run alembic upgrade head
-```
-
-<!-- END AUTO-GENERATED -->
+`./deploy.sh` deploys the `main` branch via Podman rootless Compose:
+service-local build contexts (`./backend`, `./frontend`), `.dockerignore`
+excludes `.venv`/`node_modules`, healthchecks target `127.0.0.1`. Run
+`just verify` before deploying.

@@ -43,6 +43,13 @@ frontend/playwright-report/
 frontend/reports/
 reports/
 
+# docs/* ignored except the allowlisted files (see AGENTS.md)
+docs/*
+!docs/RUNBOOK.md
+!docs/API.md
+!docs/ALERTS.md
+!docs/PODMAN_QUADLET.md
+
 # CSV outputs/inputs
 *.csv
 

@@ -1,116 +1,89 @@
 # InventoryMGR
 
-InventoryMGR is a full-stack virtual machine inventory application for small and medium businesses managing 50–500 VMs. It provides a FastAPI backend, a Next.js/Tailwind frontend, PostgreSQL persistence, cookie-based authentication, role-based access control, and a complete VM lifecycle documentation workflow — without connecting to any hypervisor.
-
-## Stack
-
-- **Backend**: Python 3.12+, FastAPI, SQLAlchemy, Alembic, PostgreSQL, PyJWT
-- **Frontend**: Next.js 16, React, TypeScript, Tailwind CSS, TanStack Query
-- **Tooling**: devbox, uv, nub, just, pytest, Vitest, Playwright
+Manual VM, storage, and hardware inventory tracker. Postgres-backed, no
+hypervisor connection — all data is user-entered or CSV-imported (Proxmox/VMware
+exports).
 
 ## Features
 
- - First-deployment admin account creation from the login page.
- - Session-cookie authentication with CSRF protection for state-changing requests.
- - LDAP/Active Directory authentication with group-to-role mapping, configured in Settings (admin-only).
- - Roles: `admin`, `editor`, and `viewer`.
- - VM inventory with full CRUD — create, edit, clone, archive, delete.
- - Per-VM sub-resources managed inline on the detail page:
-   - Unlimited disks (name, storage, size, type)
-   - Unlimited network interfaces (IPv4, VLAN, gateway)
-   - Multiple applications per VM (name, owner, description)
- - Storage inventory: arrays → volumes → LUNs/shares, with capacity warning threshold (`storage_usage_warn_pct`).
- - Physical cluster inventory with nodes.
- - Decommission notification bell driven by `decommission_notify_days`.
- - Documentation health score (0–100) based on completeness of key fields.
- - Audit log recording every field change with old/new values and the acting user.
- - Dashboard with 9 infrastructure summary cards and recently added VMs.
- - 8 predefined downloadable CSV reports (Linux, Windows, Production, Monitoring, etc.).
- - CSV/XLSX export of all VMs or a filtered subset (`format=csv` or `format=xlsx`).
- - CSV import with preview, per-row change detail, duplicate detection, and error report. Supports all importable VM fields including `vm_type`, role-scoped IP columns (`private_ip`, `public_ip`, `backup_ip` as semicolon-separated addresses), `applications` (`name[:owner]` entries separated by `;`), and disk cells (`name:size[:storage_name[:storage_type]]` entries separated by `;`). Imports only ever add disks, IPs, and applications; blank cells never clear a field.
- - Light/dark theme plus a per-user accent color (six presets), persisted server-side.
- - Per-user saved column preferences per page, and bulk edit across selected or all matching VMs.
- - Admin-only user management.
-## Project layout
+- **VM inventory** — CRUD for VMs with disks, networks, applications; bulk edit;
+  CSV import with preview/commit and conflict resolution.
+- **Storage & clusters** — track storage arrays (Synology, NetApp, …) and
+  cluster groupings independently of VMs.
+- **Alerts** — synchronous SQL predicates flag inventory issues (e.g. stale
+  environments), case-insensitively excluding `template`/`backup`-tagged VMs.
+- **Reports** — CSV/XLSX export of inventory fields.
+- **Users & auth** — JWT session-cookie auth, role-based access
+  (`admin`/`editor`/`viewer`), optional LDAP bind (credentials encrypted at rest).
+- **Settings** — app-wide settings and LDAP configuration, admin-only.
+- **Backups** — scheduled Postgres backups to a mounted volume.
 
-```text
-backend/     FastAPI app, database models, Alembic migrations, pytest tests
-frontend/    Next.js app, API client, UI routes, unit and E2E tests
-justfile     Common local commands
-devbox.json  Development runtime and PostgreSQL scripts
-docs/        API.md (endpoint reference) · CONTRIBUTING.md (setup, scripts, testing) · RUNBOOK.md (deployment, ops) · ALERTS.md (alert rules, tag suppression)
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Backend | FastAPI, SQLAlchemy 2, Alembic, Postgres (psycopg), `uv`, Python 3.13 |
+| Frontend | Next.js 16 (App Router), React 19, TanStack Query, Tailwind 4, Bun |
+| Deploy | Podman rootless Compose or Quadlet units (`quadlet/`) |
+
+## Layout
+
+```
+backend/app/{core,db,schemas,services,api}   # core → db → schemas → services → api/routes
+backend/alembic/versions/                    # generated migrations, never hand-edit
+backend/tests/                               # pytest
+frontend/src/{app,routes,components,hooks,lib,api}
+frontend/src/test/                           # vitest unit tests
+frontend/e2e/                                # Playwright
+quadlet/                                     # Podman Quadlet unit files
+docs/                                        # runbook, API reference, alerts, quadlet deploy
 ```
 
-## Quick start
+## Quickstart
 
-Requires [devbox](https://www.jetify.com/devbox).
-
-```bash
-devbox shell
-just setup      # install deps, init DB, run migrations
-
-just api-dev    # FastAPI on :8000
-just web-dev    # Next.js on :3000
+```
+just setup          # devbox environment
+just env            # generate .env from .env.example (JWT_SECRET)
+just up-local        # db-up + uv sync + bun install
+just api-dev         # uvicorn --reload on :8000
+just web-dev         # next dev on :3000
 ```
 
-Open `http://127.0.0.1:3000`. On a fresh database `/login` shows **Create admin account**.
+Or run the full stack in containers:
 
-If setup has already run and you just need to start the services:
-
-```bash
-just db-up
-just api-dev
-just web-dev
+```
+just up              # podman compose up -d --build
 ```
 
-### Tests
+Frontend: http://127.0.0.1:3000 · API: http://127.0.0.1:8000/api/health
 
-```bash
-just api-test   # pytest (backend)
-just web-test   # Vitest (frontend)
-just e2e        # Playwright end-to-end
+## Common commands
 
-just verify     # all of the above + lint + typecheck
-```
+| Task | Command |
+|---|---|
+| Backend tests | `just api-test` |
+| Backend lint | `cd backend && uv run ruff check app tests` |
+| Frontend unit tests | `just web-test` |
+| Frontend lint/typecheck | `cd frontend && bun run lint` |
+| E2E | `just e2e` |
+| Full gate before calling anything done | `just verify` |
+| New migration | `cd backend && uv run alembic revision --autogenerate -m "..."` |
 
+## Documentation
 
-## Configuration
-
-Copy the example file and edit secrets before running outside local development:
-
-```bash
-cp .env.example .env
-```
-
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `APP_ENV` | No | `development`, `test`, or `production` |
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `JWT_SECRET` | Yes (prod) | Must be 32+ random bytes in production |
-| `APP_CORS_ORIGINS` | No | Comma-separated frontend origins |
-
-See [docs/RUNBOOK.md](docs/RUNBOOK.md) for the full environment variable reference.
-
-## Docker
-
-`docker-compose.yml` defines three services: `db` (Postgres 16), `backend` (:8000), `frontend` (:3000).
-
-```bash
-docker compose up -d
-```
+- [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — operating the deployed stack: startup,
+  backups, restore, troubleshooting.
+- [`docs/API.md`](docs/API.md) — REST API reference.
+- [`docs/ALERTS.md`](docs/ALERTS.md) — alert predicate reference.
+- [`docs/PODMAN_QUADLET.md`](docs/PODMAN_QUADLET.md) — Quadlet-based deployment.
+- [`AGENTS.md`](AGENTS.md) — conventions for agents/contributors working in this repo.
 
 ## Deployment
 
-Run `just up` (podman) or `just up-local` (PM2) to deploy. See [docs/RUNBOOK.md](docs/RUNBOOK.md) for details, health checks, common issues, and rollback procedures.
-
-## API Reference
-
-See [docs/API.md](docs/API.md) for the full endpoint reference. All routes are prefixed with `/api`; authentication uses a session cookie set on `POST /api/auth/login`.
-
-## Contributing
-
-Contributions are welcome. Please read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for local setup and testing guidance, then open an issue or pull request with a clear summary of the change.
+`./deploy.sh` deploys `main` via Podman rootless Compose (service-local build
+contexts, `.venv`/`node_modules` excluded, healthchecks against `127.0.0.1`).
+See `docs/RUNBOOK.md` and `docs/PODMAN_QUADLET.md` for details.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+MIT — see [`LICENSE`](LICENSE).
