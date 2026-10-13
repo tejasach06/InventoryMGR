@@ -15,7 +15,7 @@ systemd-managed Podman containers (rootless). Unit files live in `quadlet/`.
 
 Backend/frontend units pull secrets via Podman secrets
 (`inventorymgr-jwt-secret`, `inventorymgr-database-url`) rather than plaintext
-env vars — see `[Container]` `Secret=` directives.
+env vars . see `[Container]` `Secret=` directives.
 
 ## First-time setup
 
@@ -57,7 +57,7 @@ systemctl --user restart inventorymgr-backend.service
 ```
 
 Database secrets (`inventorymgr-postgres-password` /
-`inventorymgr-database-url`) must be rotated together — `just quadlet-secrets`
+`inventorymgr-database-url`) must be rotated together . `just quadlet-secrets`
 refuses to create one without the other (see `justfile`).
 
 ## Compose vs. Quadlet

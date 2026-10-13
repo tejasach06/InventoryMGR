@@ -30,7 +30,7 @@ exports).
 ## Layout
 
 ```
-backend-rust/src/{core,db,models,schemas,services,api}    # Axum handlers and SQLx queries
+backend-rust/src/{core,db,models,schemas,api}    # Axum handlers and SQLx queries
 backend-rust/migrations/                                # Native Alembic-compatible SQL revision chain
 backend/                                                # Parity reference oracle (Python 3.13)
 frontend/src/{app,routes,components,hooks,lib,api}
@@ -70,7 +70,7 @@ Frontend: http://127.0.0.1:3000 · API: http://127.0.0.1:8000/api/health
 | Security audit | `just audit` |
 
 `just setup` provisions Python 3.13 and the `backend/.venv` parity oracle as test-only tooling. Production runs only Rust.
-`just verify` runs Cargo tests, frontend checks, the 237-case HTTP parity suite, four migration cases, restore concurrency, and the isolated Playwright runner.
+`just verify` runs Cargo tests, frontend checks, the 237-case HTTP parity suite, three migration startup scenarios with a historical-row preservation assertion, restore concurrency, and the isolated Playwright runner.
 `just e2e` creates a disposable Postgres container and starts freshly built backend and frontend processes on allocated ports. It ignores application database URLs and cleans up only resources it owns. Direct Playwright invocation without the runner is rejected.
 
 

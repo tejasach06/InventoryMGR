@@ -14,7 +14,7 @@ use axum::{
 };
 use serde_json::json;
 use sqlx::PgPool;
-use std::sync::Arc;
+use std::sync::{Arc, Once, atomic::{AtomicBool, Ordering}};
 use uuid::Uuid;
 #[derive(Clone)]
 pub struct AppState {
@@ -111,21 +111,63 @@ impl FromRequestParts<AppState> for AuthUser {
         let id =
             Uuid::parse_str(&claims.sub).map_err(|_| ApiError::unauthorized("Invalid session"))?;
         let user=sqlx::query_as::<_,User>("SELECT id,email,password_hash,role,is_active,auth_source,preferences,created_at,updated_at FROM users WHERE id=$1").bind(id).fetch_optional(&state.pool).await.map_err(|e|ApiError::internal(e.to_string()))?.filter(|u|u.is_active).ok_or_else(||ApiError::unauthorized("Inactive or missing user"))?;
-        if session_epoch(&state.pool).await? > claims.iat {
-            return Err(ApiError::unauthorized("Session invalidated"));
-        }
+        validate_session(state, claims.generation.as_deref(), claims.iat).await?;
         Ok(Self(user))
     }
 }
-pub async fn session_epoch(pool: &PgPool) -> Result<i64, ApiError> {
-    Ok(
-        sqlx::query_scalar::<_, String>("SELECT value FROM app_settings WHERE key='session_epoch'")
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| ApiError::internal(e.to_string()))?
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(0),
-    )
+pub const RESTORE_AUTH_MARKER: &str = ".restore-auth-blocked";
+static RESTORE_AUTH_INITIALIZED: Once = Once::new();
+static RESTORE_AUTH_BLOCKED: AtomicBool = AtomicBool::new(false);
+pub fn block_restore_auth(blocked: bool) {
+    RESTORE_AUTH_BLOCKED.store(blocked, Ordering::SeqCst);
+}
+fn auth_available(state: &AppState) -> Result<(), ApiError> {
+    RESTORE_AUTH_INITIALIZED.call_once(|| {
+        let marker = std::path::Path::new(&state.settings.backup_dir).join(RESTORE_AUTH_MARKER);
+        if marker.try_exists().unwrap_or(true) {
+            block_restore_auth(true);
+        }
+    });
+    if RESTORE_AUTH_BLOCKED.load(Ordering::SeqCst) {
+        return Err(ApiError::unauthorized("Session invalidated; database recovery required"));
+    }
+    Ok(())
+}
+fn session_matches(token: Option<&str>, current: Option<&str>, issued: i64, epoch: i64) -> bool {
+    match token {
+        Some(generation) => current == Some(generation),
+        None => epoch == 0 || issued > epoch,
+    }
+}
+pub async fn validate_session(state: &AppState, generation: Option<&str>, issued: i64) -> Result<(), ApiError> {
+    auth_available(state)?;
+    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key,value FROM app_settings WHERE key IN ('session_generation','session_epoch')")
+        .fetch_all(&state.pool).await.map_err(|e| ApiError::internal(e.to_string()))?;
+    let current = settings.iter().find(|(key,_)| key == "session_generation").map(|(_,value)| value.as_str());
+    let epoch = settings.iter().find(|(key,_)| key == "session_epoch").map(|(_,value)| value.parse::<i64>())
+        .transpose().map_err(|_| ApiError::internal("Invalid session epoch"))?.unwrap_or(0);
+    if !session_matches(generation,current,issued,epoch) {
+        return Err(ApiError::unauthorized("Session invalidated"));
+    }
+    Ok(())
+}
+pub async fn session_generation(state: &AppState) -> Result<String, ApiError> {
+    auth_available(state)?;
+    let pool = &state.pool;
+    if let Some(generation) = sqlx::query_scalar::<_, String>("SELECT value FROM app_settings WHERE key='session_generation'")
+        .fetch_optional(pool).await.map_err(|e| ApiError::internal(e.to_string()))? {
+        return Ok(generation);
+    }
+    sqlx::query("INSERT INTO app_settings(key,value) VALUES('session_generation',$1) ON CONFLICT(key) DO NOTHING")
+        .bind(Uuid::new_v4().to_string()).execute(pool).await.map_err(|e| ApiError::internal(e.to_string()))?;
+    sqlx::query_scalar("SELECT value FROM app_settings WHERE key='session_generation'")
+        .fetch_one(pool).await.map_err(|e| ApiError::internal(e.to_string()))
+}
+pub async fn invalidate_sessions(pool: &PgPool) -> Result<(), ApiError> {
+    sqlx::query("INSERT INTO app_settings(key,value) VALUES('session_generation',$1),('session_epoch',$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value")
+        .bind(Uuid::new_v4().to_string()).bind(chrono::Utc::now().timestamp().to_string())
+        .execute(pool).await.map_err(|e| ApiError::internal(e.to_string()))?;
+    Ok(())
 }
 pub struct RequireRole<const R: u8>(pub User);
 impl<const R: u8> FromRequestParts<AppState> for RequireRole<R> {
@@ -200,6 +242,16 @@ impl JsonSchema for serde_json::Value {
 mod tests {
     use super::*;
     use axum::extract::FromRequest;
+    #[test]
+    fn generation_invalidates_tokens_even_in_the_same_second() {
+        assert!(session_matches(Some("before"), Some("before"), 42, 42));
+        assert!(!session_matches(Some("before"), Some("after"), 42, 42));
+        assert!(session_matches(Some("after"), Some("after"), 42, 42));
+        assert!(!session_matches(None, Some("after"), 42, 42));
+        assert!(!session_matches(None, Some("after"), 41, 42));
+        assert!(session_matches(None, Some("after"), 43, 42));
+        assert!(session_matches(None, None, 42, 0));
+    }
     #[tokio::test]
     async fn setup_missing_fields_matches_source_errors() {
         let state = AppState {

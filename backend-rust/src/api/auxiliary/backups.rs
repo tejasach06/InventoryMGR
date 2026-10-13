@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use std::{path::{Path as FsPath, PathBuf}, time::Duration};
 use tokio::{io::AsyncWriteExt, process::Command};
 use uuid::Uuid;
-use crate::api::deps::{Admin, ApiError, AppState, Csrf};
+use crate::api::deps::{block_restore_auth, invalidate_sessions, RESTORE_AUTH_MARKER, Admin, ApiError, AppState, Csrf};
 use super::{db_error, setting};
 
 const LOCK_KEY: i64 = 8_273_641_905;
@@ -14,10 +14,16 @@ const MAX_UPLOAD: u64 = 2 * 1024 * 1024 * 1024;
 fn valid_filename(name: &str) -> bool {
     let Some(rest)=name.strip_prefix("inventorymgr-") else { return false; };
     let Some(rest)=rest.strip_suffix(".dump") else { return false; };
-    let bytes=rest.as_bytes();
-    bytes.len()>17 && bytes.get(8)==Some(&b'T') && bytes.get(15)==Some(&b'Z') && bytes.get(16)==Some(&b'-')
+    let (timestamp, suffix) = match rest.split_once('-') { Some(parts) => parts, None => return false };
+    let kind = match suffix.split_once('-') {
+        Some((kind, unique)) if unique.len()==32 && unique.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)) => kind,
+        Some(_) => return false,
+        None => suffix,
+    };
+    if kind.is_empty() || !kind.bytes().all(|c| c.is_ascii_lowercase() || c==b'_') { return false; }
+    let bytes=timestamp.as_bytes();
+    bytes.len()==16 && bytes.get(8)==Some(&b'T') && bytes.get(15)==Some(&b'Z')
         && bytes[..8].iter().chain(bytes[9..15].iter()).all(u8::is_ascii_digit)
-        && bytes[17..].iter().all(|c| c.is_ascii_lowercase() || *c==b'_')
 }
 async fn directory(state: &AppState) -> Result<PathBuf,ApiError> {
     let path=PathBuf::from(&state.settings.backup_dir);
@@ -62,7 +68,9 @@ async fn backup_settings(state: &AppState) -> Result<Value,ApiError> {
 async fn prune(state: &AppState) -> Result<(),ApiError> {
     let retention=backup_settings(state).await?["retention"].as_u64().unwrap_or(7) as usize;
     let directory=directory(state).await?;
-    for entry in files(state).await?.into_iter().skip(retention) { if let Some(name)=entry["name"].as_str() { let _=tokio::fs::remove_file(directory.join(name)).await; } }
+    let candidates=files(state).await?;
+    let running: Vec<String>=sqlx::query_scalar("SELECT filename FROM backup_jobs WHERE status='running' AND filename IS NOT NULL").fetch_all(&state.pool).await.map_err(db_error)?;
+    for entry in candidates.into_iter().filter(|entry| !running.iter().any(|name|entry["name"].as_str()==Some(name.as_str()))).skip(retention) { if let Some(name)=entry["name"].as_str() { let _=tokio::fs::remove_file(directory.join(name)).await; } }
     Ok(())
 }
 fn executable(state: &AppState,command: &str) -> PathBuf { if state.settings.pg_bin_dir.is_empty() { command.into() } else { FsPath::new(&state.settings.pg_bin_dir).join(command) } }
@@ -76,11 +84,14 @@ async fn run(command: &mut Command,seconds: u64,name: &str) -> Result<std::proce
 async fn job(state: &AppState,id: Uuid) -> Result<Value,ApiError> {
     sqlx::query_scalar("SELECT to_jsonb(j) FROM backup_jobs j WHERE id=$1").bind(id).fetch_one(&state.pool).await.map_err(db_error)
 }
+fn backup_filename(now: DateTime<Utc>, kind: &str, id: Uuid) -> String {
+    format!("inventorymgr-{}-{kind}-{}.dump",now.format("%Y%m%dT%H%M%SZ"),id.simple())
+}
 async fn dump(state: &AppState,kind: &str,user: Option<Uuid>) -> Result<Value,ApiError> {
     let now=Utc::now();
-    let name=format!("inventorymgr-{}-{kind}.dump",now.format("%Y%m%dT%H%M%SZ"));
-    let path=writable_directory(state).await?.join(&name);
     let id=Uuid::new_v4();
+    let name=backup_filename(now,kind,id);
+    let path=writable_directory(state).await?.join(&name);
     sqlx::query("INSERT INTO backup_jobs(id,kind,status,filename,user_id,started_at) VALUES($1,$2,'running',$3,$4,$5)")
         .bind(id).bind(kind).bind(name).bind(user).bind(now).execute(&state.pool).await.map_err(db_error)?;
     let outcome=run(Command::new(executable(state,"pg_dump")).arg("--format=custom").arg("--no-owner").arg("--no-privileges").arg(format!("--file={}",path.display())).arg(&state.settings.database_url),3600,"pg_dump").await;
@@ -127,6 +138,7 @@ pub async fn settings(State(state): State<AppState>,_: Admin,_: Csrf,Json(payloa
     for (key,value) in [("backup_schedule_enabled",payload.enabled.map(|v|v.to_string())),("backup_schedule_hour_utc",payload.hour_utc.map(|v|v.to_string())),("backup_retention",payload.retention.map(|v|v.to_string()))] {
         if let Some(value)=value { sqlx::query("INSERT INTO app_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value").bind(key).bind(value).execute(&mut *tx).await.map_err(db_error)?; }
     }
+
     tx.commit().await.map_err(db_error)?;
     Ok(Json(backup_settings(&state).await?))
 }
@@ -139,6 +151,7 @@ async fn drain_connections(state: &AppState) -> Result<(), ApiError> {
         connections.push(state.pool.acquire().await.map_err(db_error)?);
     }
     for connection in connections {
+
         connection.close().await.map_err(db_error)?;
     }
     Ok(())
@@ -178,21 +191,37 @@ pub async fn restore(State(state): State<AppState>, user: Admin, _: Csrf, multip
     if let Some(error)=upload_error { return Err(error); }
     file.flush().await.map_err(|e|ApiError::internal(e.to_string()))?;
     drop(file);
+    let validation=run(Command::new(executable(&state,"pg_restore")).arg("--exit-on-error").arg("--file=-").arg(&path.0).stdout(std::process::Stdio::null()),3600,"pg_restore archive validation").await?;
+    if !validation.status.success() {
+        return Err(ApiError::bad_request(format!("Invalid backup archive: {}",stderr_tail(&validation.stderr))));
+    }
     dump(&state,"pre_restore",Some(user.0.id)).await?;
     drain_connections(&state).await?;
     let started=Utc::now();
-    let output=run(Command::new(executable(&state,"pg_restore")).arg("--clean").arg("--if-exists").arg("--no-owner").arg("--no-privileges").arg(format!("--dbname={}",state.settings.database_url)).arg(&path.0),3600,"pg_restore").await?;
+    invalidate_sessions(&state.pool).await?;
+    let marker=writable_directory(&state).await?.join(RESTORE_AUTH_MARKER);
+    let guard=tokio::fs::OpenOptions::new().write(true).create_new(true).open(&marker).await.map_err(|e|ApiError::internal(e.to_string()))?;
+    guard.sync_all().await.map_err(|e|ApiError::internal(e.to_string()))?;
+    drop(guard);
+    block_restore_auth(true);
+    let outcome=run(Command::new(executable(&state,"pg_restore")).arg("--single-transaction").arg("--exit-on-error").arg("--clean").arg("--if-exists").arg("--no-owner").arg("--no-privileges").arg(format!("--dbname={}",state.settings.database_url)).arg(&path.0),3600,"pg_restore").await;
+    let error=match outcome {
+        Ok(output) if output.status.success()=>None,
+        Ok(output)=>Some(format!("pg_restore failed ({}): {}",output.status,stderr_tail(&output.stderr))),
+        Err(error)=>Some(error.message),
+    };
     drain_connections(&state).await?;
     crate::db::migrate(&state.pool).await.map_err(|e|ApiError::internal(format!("Database migration failed: {e}")))?;
+    invalidate_sessions(&state.pool).await?;
+    tokio::fs::remove_file(marker).await.map_err(|e|ApiError::internal(e.to_string()))?;
+    block_restore_auth(false);
     let id=Uuid::new_v4();
-    let stderr=stderr_tail(&output.stderr);
-    let error=if stderr.is_empty() {None} else {Some(stderr)};
-    let mut tx=state.pool.begin().await.map_err(db_error)?;
-    sqlx::query("INSERT INTO backup_jobs(id,kind,status,filename,size_bytes,error,user_id,started_at,finished_at) VALUES($1,'restore','success',$2,$3,$4,$5,$6,now())")
-        .bind(id).bind(path.0.file_name().unwrap_or_default().to_string_lossy().as_ref()).bind(size as i64).bind(error).bind(user.0.id).bind(started).execute(&mut *tx).await.map_err(db_error)?;
-    sqlx::query("INSERT INTO app_settings(key,value) VALUES('session_epoch',$1) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value").bind(Utc::now().timestamp().to_string()).execute(&mut *tx).await.map_err(db_error)?;
-    tx.commit().await.map_err(db_error)?;
-    let mut response=Json(job(&state,id).await?).into_response();
+    sqlx::query("INSERT INTO backup_jobs(id,kind,status,filename,size_bytes,error,user_id,started_at,finished_at) VALUES($1,'restore',$2,$3,$4,$5,(SELECT id FROM users WHERE id=$6),$7,now())")
+        .bind(id).bind(if error.is_some() {"failed"} else {"success"}).bind(path.0.file_name().unwrap_or_default().to_string_lossy().as_ref()).bind(size as i64).bind(&error).bind(user.0.id).bind(started).execute(&state.pool).await.map_err(db_error)?;
+    let mut response=match error {
+        Some(message)=>ApiError::internal(message).into_response(),
+        None=>Json(job(&state,id).await?).into_response(),
+    };
     let secure=if state.settings.secure_cookies {"; Secure"} else {""};
     for (cookie,path,samesite) in [
         (state.settings.session_cookie_name.as_str(),"/","Lax"),
@@ -233,7 +262,18 @@ mod tests {
     use super::*;
     #[test] fn filenames_are_strict() {
         assert!(valid_filename("inventorymgr-20261009T120000Z-pre_restore.dump"));
+        assert!(valid_filename("inventorymgr-20261009T120000Z-manual-0123456789abcdef0123456789abcdef.dump"));
+        assert!(!valid_filename("inventorymgr-20261009T120000Z-manual-012345.dump"));
+        assert!(!valid_filename("inventorymgr-20261009T120000Z-manual-../../bad.dump"));
         for name in ["../inventorymgr-20261009T120000Z-manual.dump","inventorymgr-20261009T120000Z-.dump","inventorymgr-20261009T120000Z-Manual.dump","inventorymgr-20261009T120000Z-manual.dump/extra"] {assert!(!valid_filename(name));}
+    }
+    #[test] fn same_second_backups_have_distinct_valid_names() {
+        let now=DateTime::parse_from_rfc3339("2026-10-09T02:00:00Z").unwrap().with_timezone(&Utc);
+        let first=backup_filename(now,"manual",Uuid::new_v4());
+        let second=backup_filename(now,"manual",Uuid::new_v4());
+        assert_ne!(first,second);
+        assert!(valid_filename(&first));
+        assert!(valid_filename(&second));
     }
     #[test] fn scheduler_matches_daily_rules() {
         let now=DateTime::parse_from_rfc3339("2026-10-09T02:00:00Z").unwrap().with_timezone(&Utc);
@@ -244,3 +284,4 @@ mod tests {
         assert!(should_run(now,Some(now-chrono::Duration::hours(36)),3));
     }
 }
+

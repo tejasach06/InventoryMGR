@@ -3,7 +3,6 @@ use std::env;
 pub struct Settings {
     pub app_env: String,
     pub database_url: String,
-    pub test_database_url: String,
     pub jwt_secret: String,
     pub session_cookie_name: String,
     pub csrf_cookie_name: String,
@@ -32,11 +31,6 @@ impl Settings {
             database_url: get(
                 "DATABASE_URL",
                 "postgresql://inventorymgr@127.0.0.1:54329/inventorymgr",
-            )
-            .replace("postgresql+psycopg://", "postgresql://"),
-            test_database_url: get(
-                "TEST_DATABASE_URL",
-                "postgresql://inventorymgr@127.0.0.1:54329/inventorymgr_test",
             )
             .replace("postgresql+psycopg://", "postgresql://"),
             jwt_secret,

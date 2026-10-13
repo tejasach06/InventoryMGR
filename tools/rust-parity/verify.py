@@ -63,7 +63,7 @@ class Client:
             if key == 'filename' and re.fullmatch(r'tmp[^/]+\.dump', value):
                 return '<restore-upload>.dump'
             if re.fullmatch(r'inventorymgr-\d{8}T\d{6}Z-.*\.dump', value):
-                return re.sub(r'\d{8}T\d{6}Z', '<timestamp>', value)
+                return re.sub(r'-[0-9a-f]{32}(?=\.dump$)', '', re.sub(r'\d{8}T\d{6}Z', '<timestamp>', value))
         return value
 
     def request(self, method, path, payload=None, *, csrf=True, upload=None, label=None):
@@ -138,12 +138,13 @@ class Client:
             parsed.load(header)
             for name, morsel in parsed.items():
                 cookies[name] = {k: ('<timestamp>' if k == 'expires' else str(v).lower() if k == 'samesite' else v) for k, v in morsel.items() if v}
+
         record = {'case': label or f'{method} {path}', 'status': response.status, 'content_type': content_type,
                   'body': self.normalize(body), 'cookies': cookies,
                   'headers': {k.lower(): response.headers[k] for k in ('X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy', 'Permissions-Policy') if k in response.headers}}
         for actual, alias in self.ids.items():
             record['case'] = record['case'].replace(actual, alias)
-        record['case'] = re.sub(r'\d{8}T\d{6}Z', '<timestamp>', record['case'])
+        record['case'] = re.sub(r'-[0-9a-f]{32}(?=\.dump)', '', re.sub(r'\d{8}T\d{6}Z', '<timestamp>', record['case']))
         self.records.append(record)
         for template, operations in SPEC['paths'].items():
             if method.lower() in operations and re.fullmatch(re.sub(r'\{[^}]+\}', '[^/]+', template), path.split('?')[0]):
@@ -167,7 +168,6 @@ def suite(port):
     c.request('POST', '/api/auth/setup', {'email': 'bad@parity.test', 'password': 'short'})
     c.request('POST', '/api/auth/login', {})
     c.request('POST', '/api/auth/refresh')
-    # Every frozen operation gets an unauthenticated boundary probe.
     for path, methods in SPEC['paths'].items():
         for method in methods:
             if method not in ('get', 'post', 'put', 'patch', 'delete') or path.startswith('/api/auth/'):
@@ -249,7 +249,20 @@ def suite(port):
         c.must('GET', sp)
         c.must('PATCH', sp + '/' + child, patch)
         c.must('DELETE', sp + '/' + child)
-    c.must('GET', '/api/dashboard')
+    dash_pre = c.must('GET', '/api/dashboard')
+    tmpl_id = c.must('POST', '/api/vms', {**vm, 'name': 'tmpl-excluded', 'tags': ['Template'], 'networks': [], 'decommission_date': '2000-01-01'})['id']
+    bkp_id = c.must('POST', '/api/vms', {**vm, 'name': 'backup-excluded', 'tags': ['BACKUP'], 'networks': [], 'decommission_date': '2000-01-01'})['id']
+    dash_post = c.must('GET', '/api/dashboard')
+    if dash_post['total'] != dash_pre['total']:
+        raise AssertionError(f"Expected dashboard total {dash_pre['total']} (excluded template/backup tags), got {dash_post['total']}")
+    excluded = c.must('GET', '/api/vms?q=excluded&missing_ip=true')
+    assert excluded['items'] == [], f"Excluded VMs leaked into missing-IP alerts: {excluded['items']}"
+    ordinary = c.must('GET', '/api/vms?q=excluded')
+    assert ordinary['total'] == 2, f"Ordinary inventory lost tagged VMs: {ordinary}"
+    due = c.must('GET', '/api/notifications/decommissions')
+    assert {tmpl_id, bkp_id}.isdisjoint({row['vm_id'] for row in due}), f"Excluded VMs leaked into notifications: {due}"
+    c.must('DELETE', '/api/vms/' + tmpl_id)
+    c.must('DELETE', '/api/vms/' + bkp_id)
     summary = c.must('GET', '/api/reports/summary')
     for name in ('linux', 'windows', 'missing'):
         c.request('GET', '/api/reports/' + name + '?format=csv')
@@ -266,6 +279,7 @@ def suite(port):
     c.must('GET', '/api/backups')
     c.must('PATCH', '/api/backups/settings', {'enabled': False, 'hour_utc': 3, 'retention': 2})
     c.request('GET', '/api/backups/missing.dump/download')
+
     c.request('DELETE', '/api/backups/missing.dump')
     c.request('POST', '/api/backups/restore', upload=('bad.dump', b'not-a-dump', 'application/octet-stream', {'confirm': 'WRONG'}))
     backup = c.must('POST', '/api/backups')
@@ -274,7 +288,6 @@ def suite(port):
     if status != 200 or not dump.startswith(b'PGDMP'):
         raise RuntimeError('Backup download is not a real PostgreSQL custom dump')
     c.must('DELETE', '/api/backups/' + filename)
-    # Viewer and editor use separate cookie jars and exercise RBAC with valid CSRF.
     for role in ('viewer', 'editor'):
         c.cookies.clear()
         c.must('POST', '/api/auth/login', {'email': f'{role}@parity.test', 'password': PASSWORD, 'remember': role == 'editor'})
@@ -405,3 +418,4 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+

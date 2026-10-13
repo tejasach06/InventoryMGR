@@ -72,4 +72,4 @@ target/
 **/.audit/
 .omp/
 **/.omp/
-*.png
+frontend/login-failure.png

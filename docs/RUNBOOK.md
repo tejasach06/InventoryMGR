@@ -4,78 +4,102 @@ Operating InventoryMGR in a deployed environment.
 
 ## Startup
 
-- **Compose**: `just up` (generates `.env` if missing, `podman compose up -d --build`). Verify with `just ps` / `just logs`.
-- **Quadlet**: see `docs/PODMAN_QUADLET.md`.
-- Readiness: `curl -f http://127.0.0.1:8000/api/health` and `curl -f http://127.0.0.1:3000/`.
+- Compose uses `just up`. This generates `.env` if missing and runs `podman compose up -d --build`. Inspect services with `just ps` and `just logs`.
+- Quadlet setup is in `docs/PODMAN_QUADLET.md`.
+- Check readiness with `curl -f http://127.0.0.1:8000/api/health` and `curl -f http://127.0.0.1:3000/`.
 
 ## Configuration
 
-All runtime config is env vars, sourced from `.env` (see `.env.example`):
+Runtime configuration comes from environment variables. See `.env.example`.
 
-| Var | Purpose |
+| Variable | Purpose |
 |---|---|
-| `APP_ENV` | `development` or `production`. Set `production` **only** when served over HTTPS — enables `Secure` cookies. |
-| `DATABASE_URL` | `postgresql://...` connection string. |
-| `JWT_SECRET` | 32-byte random secret (`just env` generates one). Rotating invalidates all sessions. |
-| `SESSION_COOKIE_NAME` / `CSRF_COOKIE_NAME` | Cookie names, change only if colliding with another app on the same domain. |
+| `APP_ENV` | `development` or `production`. Use `production` only over HTTPS because session cookies require a secure connection. |
+| `DATABASE_URL` | PostgreSQL connection string. |
+| `JWT_SECRET` | Random signing and encryption secret. `just env` generates it. Rotation invalidates sessions and prevents decryption of existing LDAP bind credentials. |
+| `SESSION_COOKIE_NAME` and `CSRF_COOKIE_NAME` | Cookie names. Change them if another application uses the same names on this domain. |
 | `APP_CORS_ORIGINS` | Comma-separated allowed origins. |
-| `BACKUP_DIR` | Host path (bind-mounted into the backend container as `/var/lib/inventorymgr/backups`). |
-| `INVENTORYMGR_API_URL` | Frontend's backend base URL (build-time for Next.js). |
+| `BACKUP_DIR` | Backup directory, mounted as `/var/lib/inventorymgr/backups` in the backend container. |
+| `INVENTORYMGR_API_URL` | Backend URL used by the frontend at build time. |
 
 ## Backups
 
-- Scheduled automatically by `backend-rust/src/api/auxiliary/backups.rs`, skipped when `APP_ENV=test`.
-- Manual trigger, list, download, restore: `/api/backups/*` (admin-only), or directly via `pg_dump`/`pg_restore` against `DATABASE_URL` if the API is unavailable.
-- Files: `pg_dump -Fc` custom-format dumps, named `inventorymgr-YYYYMMDDTHHMMSSZ-<label>.dump` in `BACKUP_DIR`, validated by a strict filename regex before any file-path operation (path traversal guard).
-- **Restore**: use the `/api/backups/{filename}/restore` endpoint, or manually: `pg_restore -d <DATABASE_URL as libpq> --clean --if-exists <file>.dump`. Take a fresh backup before restoring over live data.
+Scheduled backups run in the Rust backend and are disabled when `APP_ENV=test`.
+The admin-only `/api/backups/*` endpoints support creation, listing, downloading, deletion, and restore.
+
+Archives use the `pg_dump -Fc` custom format.
+New filenames are `inventorymgr-YYYYMMDDTHHMMSSZ-<label>-<32 lowercase hex UUID>.dump`.
+The unique suffix prevents concurrent manual requests from sharing a destination.
+Legacy filenames without the UUID suffix remain readable.
+Labels contain lowercase letters or underscores. All file operations validate the complete filename before resolving its path.
+
+Restore validates the entire archive with `pg_restore` before changing the database or creating the recovery backup.
+The destructive restore runs in one transaction with `--exit-on-error`.
+A failed command returns an error and cannot produce a successful backup job.
+The recovery archive retains the state immediately before restore.
+
+Session and refresh tokens carry a persisted session-generation identifier.
+Restore rotates this identifier before and after the database operation, so earlier tokens cannot remain valid within the same second.
+Session invalidation does not depend on recording the job or retaining the requesting administrator in the restored database.
+If invalidation cannot be persisted, `BACKUP_DIR/.restore-auth-blocked` keeps authentication blocked across process restarts. Repair the schema, rotate the persisted session generation and epoch cutoff, remove this marker, and restart only after confirming that the repair succeeded. Removing the marker alone does not repair invalidation.
+
+Take a fresh backup before manually restoring live data.
+For recovery outside the API, use `pg_restore --single-transaction --exit-on-error --clean --if-exists -d <database> <archive>` and invalidate sessions before reopening access.
 
 ## Database migrations
 
-The native migrator in `backend-rust/src/db/mod.rs` executes the embedded revision chain in `backend-rust/migrations/0001_inventory_schema.sql` through SQLx 0.9.
-Startup locks migration execution with a PostgreSQL advisory lock. Empty databases receive the full chain. Recognized historical Alembic revisions receive the remaining upgrades through head `0024`.
-The preserved `alembic_version.version_num` records the applied revision. There is no `_sqlx_migrations` ledger or `sqlx::migrate!` macro. Unknown revisions and nonempty unversioned schemas fail startup rather than guessing an upgrade.
-Postgres major-version upgrades: see `tools/migrate-postgres-16-to-17.sh`.
+The native migrator in `backend-rust/src/db/mod.rs` executes the embedded revision chain in `backend-rust/migrations/0001_inventory_schema.sql` through SQLx.
+Startup uses a PostgreSQL advisory lock. Empty databases receive the full chain.
+Recognized historical Alembic revisions receive the remaining upgrades through head `0024`.
+
+`alembic_version.version_num` remains the revision ledger.
+There is no `_sqlx_migrations` ledger.
+Unknown revisions and nonempty unversioned schemas fail startup.
+For PostgreSQL major-version upgrades, see `tools/migrate-postgres-16-to-17.sh`.
 
 ## CSV import
 
-- The CSV importer (`backend-rust/src/api/auxiliary/imports.rs`) is the sole way to bulk-load VMs from exports or hand-built sheets.
-- Disks column format: `name:size[:storage_name[:storage_type]]`.
-- Proxmox identity matching for update-vs-create requires **both** `external_id`/`vmid` **and** `name` to match an existing row; a mismatch on either is treated as a new/conflicting record.
-- Import is preview-then-commit: `/api/imports` returns a diff (`create`/`update`/`unchanged`/`decommission`/`conflict`/`invalid` per row) before anything is written.
+The CSV importer is the sole bulk VM importer.
+The disks column uses `name:size[:storage_name[:storage_type]]`.
+Proxmox updates require both `external_id` or `vmid` and `name` to match an existing VM.
+
+Import is preview-then-commit.
+`/api/imports` reports `create`, `update`, `unchanged`, `decommission`, `conflict`, or `invalid` for each row before writing data.
 
 ## Alerts
 
 See `docs/ALERTS.md`.
+Both `template` and `backup` tags exclude VMs from alert predicates, regardless of case.
 
 ## Troubleshooting
 
 | Symptom | Check |
 |---|---|
-| Backend container unhealthy | `podman compose logs backend`; confirm `DATABASE_URL` reachable and `db` healthcheck passing. |
-| Frontend 502/unreachable | Confirm backend healthy first (frontend `depends_on` backend); check `INVENTORYMGR_API_URL` network resolution. |
-| Login fails for an LDAP user | Check `/api/settings/ldap` config (admin-only) and that bind credentials decrypt correctly with `JWT_SECRET`. |
-| 403 on `/api/settings/*` | Expected for non-admin roles — verify the user's role, not the endpoint. |
-| Migration drift | Inspect `backend-rust/migrations/0001_inventory_schema.sql` and `SELECT version_num FROM alembic_version`; expected head is `0024`. Back up before repair and test recovery on an isolated copy. |
-| Backup restore fails filename check | Filename must match `inventorymgr-\\d{8}T\\d{6}Z-[a-z_]+\\.dump`; don't rename dump files manually. |
+| Backend container unhealthy | Read `podman compose logs backend` and confirm database readiness. |
+| Frontend returns 502 | Confirm backend health and the `INVENTORYMGR_API_URL` network address. |
+| LDAP login fails | Inspect the admin-only LDAP settings and confirm that the bind credential decrypts with the configured `JWT_SECRET`. |
+| Settings endpoint returns 403 | These endpoints require an administrator. |
+| Migration drift | Compare `alembic_version` with head `0024`. Test repair on an isolated copy before touching live data. |
+| Backup filename rejected | Keep the generated archive name. Only the documented timestamp, label, optional UUID suffix, and `.dump` extension are allowed. |
+| Access blocked after restore failure | Check restore and invalidation errors before restarting. Confirm database integrity and session-generation persistence before reopening access. |
 
 ## Deployment
 
-`./deploy.sh` deploys the `main` branch via Podman rootless Compose:
-service-local build contexts (`./backend-rust`, `./frontend`), `.dockerignore`
-excludes `target`/`node_modules`, healthchecks target `127.0.0.1`. Run
-`just verify` before deploying.
+`./deploy.sh` deploys `main` through rootless Podman Compose.
+Backend and frontend build from service-local contexts.
+Healthchecks target `127.0.0.1`.
+Run `just verify` and `just audit` before deploying.
 
-## Rust Backend Migration (2026-10-10)
+The production backend is Rust-only.
+Python under `backend/` is retained as a test-only parity oracle, not a deployment runtime.
+`just setup` prepares it with `uv sync --extra dev`.
 
-The operational backend runs native Rust with Axum 0.8, SQLx 0.9, and Postgres.
-- **Runtime**: Entire operational backend is Rust-only; no Python runtime exists in production containers or host deploy paths.
-- **Image Artifact**: Built and verified using isolated image `localhost/inventorymgr-backend:isolated-smoke` based on multi-stage `backend-rust/Dockerfile` (`rust:1.98-bookworm` build stage, `docker.io/library/postgres:17` runtime stage with native `pg_dump`/`pg_restore`).
-- **Health and HTTP Verification**: Proved against an isolated database with healthy HTTP 200 responses on `/api/health` and verified HTTP routing and authentication on `/api/auth/login`.
-- **Parity Oracle**: The Python source tree under `backend/` is retained strictly as an explicit parity reference oracle for historical contract checks and schema verification tools (`tools/rust-parity/`).
-- **Development Tooling**: `devbox.json` updated with native Rust toolchain (`rustc`, `cargo`, `cargo-audit`, `nodejs@26.8.0`, `just`, `postgresql@17`), and `justfile` recipes corrected to compile Rust binaries, eliminate legacy `ecosystem.config.js` and `pm2` invocations, and enforce explicit `cargo audit` checks without unconditional error suppression.
+`just verify` builds Rust, runs backend and frontend checks, compares HTTP contracts, checks empty and historical database upgrades, exercises restore concurrency, and runs Playwright.
+Evidence defaults to `.audit/verification`. Set `VERIFY_OUTPUT_DIR` to choose another directory.
+The three migration startup scenarios include a separate historical-row preservation assertion.
+HTTP operation coverage includes unauthenticated boundary probes and does not by itself prove every successful workflow.
 
-`just setup` explicitly syncs the test-only Python oracle with `uv sync --extra dev`. Python is not part of the production image.
-`just verify` rebuilds this checkout, runs Cargo tests and frontend checks, HTTP parity, four migration cases, restore concurrency, and Playwright. Evidence defaults to `.audit/verification`; `VERIFY_OUTPUT_DIR` overrides it.
-`just e2e` and the frontend `e2e` command use `tools/run-rust-e2e.sh`. The runner owns a disposable Postgres container and process groups, allocates ports, rebuilds both applications, and removes its resources on exit. It never uses `DATABASE_URL` as a test fallback.
-`just build-prod` defaults the frontend rewrite to `http://inventorymgr-backend:8000` for Quadlet networking. Override `INVENTORYMGR_API_URL` only for the intended deployment network.
-
+`just e2e` uses `tools/run-rust-e2e.sh`.
+It creates disposable PostgreSQL and application processes on allocated ports and removes only its own resources.
+It never falls back to the application's `DATABASE_URL`.
+`just build-prod` defaults the frontend backend URL to `http://inventorymgr-backend:8000` for Quadlet networking.

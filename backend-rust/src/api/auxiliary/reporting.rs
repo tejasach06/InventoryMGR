@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::api::deps::{AppState, ApiError, Viewer, Csrf};
 use super::{db_error, setting};
 
-const INVENTORY: &str = "NOT jsonb_path_exists(v.tags, '$[*] ? (@ like_regex \"^template$\" flag \"i\")')";
+const INVENTORY: &str = "NOT jsonb_path_exists(v.tags, '$[*] ? (@ like_regex \"^(template|backup)$\" flag \"i\")')";
 const REPORTS: &[(&str, &str)] = &[
     ("linux", "v.os_family='linux'"), ("windows", "v.os_family='windows'"),
     ("production", "v.environment='production'"), ("monitoring", "v.monitoring_enabled"),
@@ -74,7 +74,7 @@ pub async fn dashboard(State(state): State<AppState>, _: Viewer) -> Result<Json<
         ("shutdown_stale", format!("v.status='powered_off' AND {since}<=now()-interval '90 days'"), format!("floor(extract(epoch FROM(now()-{since}))/86400)"), since.to_owned(),"NULL::text".to_owned()),
         ("decommission_overdue", "v.decommission_date<=CURRENT_DATE AND v.status<>'decommissioned'".into(), "CURRENT_DATE-v.decommission_date".into(),"v.decommission_date".into(),"NULL::text".into()),
         ("missing_ip", "NOT EXISTS(SELECT 1 FROM vm_networks n WHERE n.vm_id=v.id)".into(),"0".into(),"v.name".into(),"NULL::text".into()),
-        ("duplicate_ip", "v.status<>'decommissioned' AND EXISTS(SELECT 1 FROM vm_networks n JOIN vm_networks n2 ON n2.ip_address=n.ip_address AND n2.role=n.role AND n2.vm_id<>n.vm_id JOIN vms other ON other.id=n2.vm_id WHERE n.vm_id=v.id AND other.status<>'decommissioned' AND NOT jsonb_path_exists(other.tags,'$[*] ? (@ like_regex \"^template$\" flag \"i\")'))".into(), "0".into(),"v.name".into(), "(SELECT n.ip_address FROM vm_networks n WHERE n.vm_id=v.id AND EXISTS(SELECT 1 FROM vm_networks n2 JOIN vms v ON v.id=n2.vm_id WHERE n2.ip_address=n.ip_address AND n2.role=n.role AND n2.vm_id<>n.vm_id AND v.status<>'decommissioned' AND NOT jsonb_path_exists(v.tags,'$[*] ? (@ like_regex \"^template$\" flag \"i\")')) ORDER BY n.sort_order,n.id LIMIT 1)".into()),
+        ("duplicate_ip", "v.status<>'decommissioned' AND EXISTS(SELECT 1 FROM vm_networks n JOIN vm_networks n2 ON n2.ip_address=n.ip_address AND n2.role=n.role AND n2.vm_id<>n.vm_id JOIN vms other ON other.id=n2.vm_id WHERE n.vm_id=v.id AND other.status<>'decommissioned' AND NOT jsonb_path_exists(other.tags,'$[*] ? (@ like_regex \"^(template|backup)$\" flag \"i\")'))".into(), "0".into(),"v.name".into(), "(SELECT n.ip_address FROM vm_networks n WHERE n.vm_id=v.id AND EXISTS(SELECT 1 FROM vm_networks n2 JOIN vms v ON v.id=n2.vm_id WHERE n2.ip_address=n.ip_address AND n2.role=n.role AND n2.vm_id<>n.vm_id AND v.status<>'decommissioned' AND NOT jsonb_path_exists(v.tags,'$[*] ? (@ like_regex \"^(template|backup)$\" flag \"i\")')) ORDER BY n.sort_order,n.id LIMIT 1)".into()),
     ];
     for (key,condition,days,order,detail) in alerts {
         result[key]=json!(values(&state.pool,format!("SELECT jsonb_build_object('id',v.id,'name',v.name,'environment',v.environment,'days',({days})::int,'detail',{detail}) FROM vms v WHERE {INVENTORY} AND {condition} ORDER BY {order} LIMIT 50")).await?);
@@ -85,7 +85,7 @@ pub async fn dashboard(State(state): State<AppState>, _: Viewer) -> Result<Json<
 async fn notify_days(state: &AppState) -> Result<i32,ApiError> { Ok(setting(&state.pool,"decommission_notify_days","30").await?.parse().unwrap_or(30)) }
 pub async fn due(State(state): State<AppState>, user: Viewer) -> Result<Json<Value>,ApiError> {
     let days=notify_days(&state).await?;
-    let rows: Vec<Value> = sqlx::query_scalar("SELECT jsonb_build_object('vm_id',v.id,'name',v.name,'decommission_date',v.decommission_date,'days_remaining',v.decommission_date-CURRENT_DATE,'unread',a.acked_date IS DISTINCT FROM v.decommission_date) FROM vms v LEFT JOIN decommission_acks a ON a.vm_id=v.id AND a.user_id=$1 WHERE v.decommission_date<=CURRENT_DATE+$2 AND v.status<>'decommissioned' ORDER BY v.decommission_date")
+    let rows: Vec<Value> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT jsonb_build_object('vm_id',v.id,'name',v.name,'decommission_date',v.decommission_date,'days_remaining',v.decommission_date-CURRENT_DATE,'unread',a.acked_date IS DISTINCT FROM v.decommission_date) FROM vms v LEFT JOIN decommission_acks a ON a.vm_id=v.id AND a.user_id=$1 WHERE v.decommission_date<=CURRENT_DATE+$2 AND v.status<>'decommissioned' AND {INVENTORY} ORDER BY v.decommission_date")))
         .bind(user.0.id).bind(days).fetch_all(&state.pool).await.map_err(db_error)?;
     Ok(Json(json!(rows)))
 }
@@ -94,7 +94,7 @@ pub struct Ack { vm_ids: Option<Vec<Uuid>> }
 pub async fn ack(State(state): State<AppState>, user: Viewer, _: Csrf, Json(payload): Json<Ack>) -> Result<Response,ApiError> {
     let days=notify_days(&state).await?;
     let mut tx=state.pool.begin().await.map_err(db_error)?;
-    let ids: Vec<(Uuid,chrono::NaiveDate)> = sqlx::query_as("SELECT id,decommission_date FROM vms WHERE decommission_date<=CURRENT_DATE+$1 AND status<>'decommissioned' AND ($2::uuid[] IS NULL OR id=ANY($2))")
+    let ids: Vec<(Uuid,chrono::NaiveDate)> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT id,decommission_date FROM vms v WHERE decommission_date<=CURRENT_DATE+$1 AND status<>'decommissioned' AND {INVENTORY} AND ($2::uuid[] IS NULL OR id=ANY($2))")))
         .bind(days).bind(payload.vm_ids).fetch_all(&mut *tx).await.map_err(db_error)?;
     for (id,date) in ids { sqlx::query("INSERT INTO decommission_acks(id,user_id,vm_id,acked_date,created_at,updated_at) VALUES($1,$2,$3,$4,now(),now()) ON CONFLICT(user_id,vm_id) DO UPDATE SET acked_date=EXCLUDED.acked_date,updated_at=now()")
         .bind(Uuid::new_v4()).bind(user.0.id).bind(id).bind(date).execute(&mut *tx).await.map_err(db_error)?; }
@@ -105,3 +105,4 @@ pub async fn duplicate_ips(State(state): State<AppState>, _: Viewer) -> Result<J
     let rows=values(&state.pool,format!("WITH active AS(SELECT n.ip_address,v.id,v.name FROM vm_networks n JOIN vms v ON v.id=n.vm_id WHERE v.status='running' AND {INVENTORY}), duplicates AS(SELECT ip_address,count(*) occurrences FROM active GROUP BY ip_address HAVING count(*)>1) SELECT jsonb_build_object('ip_address',d.ip_address,'occurrences',d.occurrences,'vms',(SELECT jsonb_agg(jsonb_build_object('vm_id',a.id,'name',a.name) ORDER BY a.name) FROM (SELECT DISTINCT id,name FROM active WHERE ip_address=d.ip_address) a)) FROM duplicates d ORDER BY d.ip_address")).await?;
     Ok(Json(json!(rows)))
 }
+

@@ -20,6 +20,8 @@ pub struct SessionClaims {
     pub role: String,
     pub exp: i64,
     pub iat: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,6 +31,8 @@ pub struct RefreshClaims {
     pub persist: bool,
     pub exp: i64,
     pub iat: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation: Option<String>,
 }
 
 pub fn hash_password(password: &str) -> Result<String, String> {
@@ -76,6 +80,7 @@ pub fn verify_csrf_token(provided: &str, session_token: &str, secret: &str) -> b
 pub fn create_session_token(
     user_id: &str,
     role: &str,
+    generation: &str,
     secret: &str,
 ) -> Result<String, jsonwebtoken::errors::Error> {
     let now = Utc::now();
@@ -85,6 +90,7 @@ pub fn create_session_token(
         role: role.to_string(),
         exp: expires.timestamp(),
         iat: now.timestamp(),
+        generation: Some(generation.to_owned()),
     };
     encode(
         &Header::default(),
@@ -110,6 +116,7 @@ pub fn decode_session_token(
 pub fn create_refresh_token(
     user_id: &str,
     persist: bool,
+    generation: &str,
     secret: &str,
 ) -> Result<String, jsonwebtoken::errors::Error> {
     let now = Utc::now();
@@ -120,6 +127,7 @@ pub fn create_refresh_token(
         persist,
         exp: expires.timestamp(),
         iat: now.timestamp(),
+        generation: Some(generation.to_owned()),
     };
     encode(
         &Header::default(),
@@ -169,10 +177,26 @@ mod tests {
         assert!(!verify_csrf_token(&token, "other-session", "secret"));
     }
     #[test]
+    fn session_carries_generation_and_legacy_claims_still_decode() {
+        let token = create_session_token("user", "admin", "generation", "secret").unwrap();
+        let claims = decode_session_token(&token, "secret").unwrap();
+        assert_eq!(claims.generation.as_deref(), Some("generation"));
+        assert_eq!(claims.exp - claims.iat, 43200);
+        let legacy = serde_json::json!({"sub":"user","role":"admin","iat":Utc::now().timestamp(),"exp":Utc::now().timestamp()+43200});
+        let token = encode(&Header::default(), &legacy, &EncodingKey::from_secret(b"secret")).unwrap();
+        let claims = decode_session_token(&token, "secret").unwrap();
+        assert_eq!(claims.sub, "user");
+        assert_eq!(claims.generation, None);
+        let legacy = serde_json::json!({"sub":"user","type":"refresh","persist":true,"iat":Utc::now().timestamp(),"exp":Utc::now().timestamp()+604800});
+        let token = encode(&Header::default(), &legacy, &EncodingKey::from_secret(b"secret")).unwrap();
+        assert_eq!(decode_refresh_token(&token, "secret").unwrap().generation, None);
+    }
+    #[test]
     fn refresh_keeps_persistence() {
-        let token = create_refresh_token("user", true, "secret").unwrap();
+        let token = create_refresh_token("user", true, "generation", "secret").unwrap();
         let claims = decode_refresh_token(&token, "secret").unwrap();
         assert_eq!(claims.r#type, "refresh");
+        assert_eq!(claims.generation.as_deref(), Some("generation"));
         assert!(claims.persist);
         assert_eq!(claims.exp - claims.iat, 604800);
     }

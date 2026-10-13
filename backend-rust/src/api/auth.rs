@@ -1,5 +1,5 @@
 use crate::{
-    api::deps::{header_cookie, session_epoch, ApiError, AppState, AuthUser, Csrf},
+    api::deps::{header_cookie, session_generation, validate_session, ApiError, AppState, AuthUser, Csrf},
     core::{
         ldap,
         security::{
@@ -82,15 +82,17 @@ async fn setup_status(
 fn db(e: sqlx::Error) -> ApiError {
     ApiError::internal(e.to_string())
 }
-pub fn cookies(state: &AppState, user: &User, persist: bool) -> Result<HeaderMap, ApiError> {
+pub async fn cookies(state: &AppState, user: &User, persist: bool) -> Result<HeaderMap, ApiError> {
+    let generation = session_generation(state).await?;
     let token = create_session_token(
         &user.id.to_string(),
         user.role.as_str(),
+        &generation,
         &state.settings.jwt_secret,
     )
     .map_err(|e| ApiError::internal(e.to_string()))?;
     let csrf = derive_csrf_token(&token, &state.settings.jwt_secret);
-    let refresh = create_refresh_token(&user.id.to_string(), persist, &state.settings.jwt_secret)
+    let refresh = create_refresh_token(&user.id.to_string(), persist, &generation, &state.settings.jwt_secret)
         .map_err(|e| ApiError::internal(e.to_string()))?;
     let secure = if state.settings.secure_cookies {
         "; Secure"
@@ -148,7 +150,7 @@ async fn setup_admin(
     tx.commit().await.map_err(db)?;
     Ok((
         StatusCode::CREATED,
-        cookies(&state, &user, true)?,
+        cookies(&state, &user, true).await?,
         Json(LoginResponse { user: user.into() }),
     )
         .into_response())
@@ -171,7 +173,7 @@ async fn login(
     }
     .ok_or_else(|| ApiError::unauthorized("Invalid email or password"))?;
     Ok((
-        cookies(&state, &user, payload.remember)?,
+        cookies(&state, &user, payload.remember).await?,
         Json(LoginResponse { user: user.into() }),
     )
         .into_response())
@@ -193,11 +195,9 @@ async fn refresh(State(state): State<AppState>, headers: HeaderMap) -> Result<Re
         .map_err(db)?
         .filter(|u| u.is_active)
         .ok_or_else(|| ApiError::unauthorized("Inactive or missing user"))?;
-    if session_epoch(&state.pool).await? > claims.iat {
-        return Err(ApiError::unauthorized("Session invalidated"));
-    }
+    validate_session(&state, claims.generation.as_deref(), claims.iat).await?;
     Ok((
-        cookies(&state, &user, claims.persist)?,
+        cookies(&state, &user, claims.persist).await?,
         Json(LoginResponse { user: user.into() }),
     )
         .into_response())

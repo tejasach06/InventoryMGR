@@ -1,11 +1,13 @@
-Deployment/runtime: Use Podman rootless Compose with service-local contexts (`./backend`, `./frontend`), relative Dockerfile paths, and `.dockerignore` exclusions for `.venv`/`node_modules`. Healthchecks target `127.0.0.1`. Deploy via `deploy.sh` on `main`, pruning ignored dev files.
-<!-- created=2026-08-01, last=2026-08-07 -->
-§
-Domain, Alerts & CSV Import: InventoryMGR is a manual VM/storage/hardware inventory (Postgres backend, no hypervisor connection). Alerts are synchronous SQL predicates with case-insensitive `EXCLUDED_TAGS` (`template`, `backup`) filtering. CSV reports export model fields (`cpu_cores`, `memory_mb`, etc.). VM CSV import is the sole importer; disks format is `name:size[:storage_name[:storage_type]]`. Proxmox identity matching requires both `external_id`/`vmid` AND `name` match.
-<!-- created=2026-08-01, last=2026-08-07 -->
-§
-Settings, Theme & Security: Settings authentication uses `ldap3`/`cryptography` with encrypted bind credentials; admin endpoints (`/api/settings/ldap`, `/api/settings/app`) require `AdminUser` (test viewer 403). `ThemeSegmented` (Settings) is the sole theme control; login page forces dark theme.
-<!-- created=2026-08-01, last=2026-08-07 -->
-§
-Frontend Architecture & UI Tokens: Next.js App Router (Bun/Vitest) with Geist font family (`--font-sans`, `--font-mono`, `--font-display`). Layout enforces `min-h-[100dvh]`. Shared UI primitives live in `frontend/src/components/ui.tsx`. Interactive buttons use `active:scale-[0.98]` tactile scaling. NotificationBell renders inline within the sidebar header in `Layout.tsx`.
-<!-- created=2026-08-01, last=2026-08-07 -->
+InventoryMGR tracks manually entered or CSV-imported VM, storage, and hardware inventory. It does not connect to hypervisors. The production backend is native Rust under `backend-rust/`. Python under `backend/` is a test-only HTTP and migration parity oracle.
+
+The frontend uses Next.js App Router, React, TanStack Query, and nub. Shared UI primitives are in `frontend/src/components/ui.tsx`.
+
+Rootless Podman Compose and Quadlet use service-local backend and frontend build contexts. `deploy.sh` targets `main`. Do not deploy during verification.
+
+Run `just verify` for backend tests, frontend checks, HTTP parity, migration startup scenarios, restore concurrency, and isolated browser workflows. Run `just audit` for dependency advisories and accepted-risk checks. Passing parity does not replace successful workflow assertions.
+
+CSV import requires preview before commit. Disk cells use `name:size[:storage_name[:storage_type]]`. Proxmox matching requires both identity and name.
+
+Alerts exclude `template` and `backup` tags case-insensitively. App and LDAP settings require an administrator. LDAP bind credentials are encrypted at rest.
+
+Keep environment files, build outputs, audit scratch, database dumps, browser reports, and local agent state out of Git. Keep source, lockfiles, native migrations, deployment configuration, and reproducible verification tools in Git.
