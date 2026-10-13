@@ -47,7 +47,7 @@ DEFAULT_COLUMNS = [
     {"key": "vm_type", "visible": False, "order": 11},
     {"key": "datacenter", "visible": False, "order": 12},
     {"key": "node", "visible": False, "order": 13},
-    {"key": "os", "visible": False, "order": 14},
+    {"key": "os_family", "visible": False, "order": 14},
     {"key": "owner", "visible": False, "order": 15},
     {"key": "business_owner", "visible": False, "order": 16},
     {"key": "technical_owner", "visible": False, "order": 17},
@@ -62,10 +62,11 @@ DEFAULT_COLUMNS = [
     {"key": "backup_ip", "visible": False, "order": 26},
 ]
 
-# ip_address predates IP roles. Saved layouts still contain it, so reads rewrite
-# it to private_ip in place — before the merge below, or the merge would append
-# private_ip as a second entry and the duplicate check would reject the layout.
-LEGACY_COLUMN_KEYS = {"ip_address": "private_ip"}
+# ip_address predates IP roles, and os predates the os_family rename. Saved
+# layouts still contain them, so reads rewrite them in place — before the
+# merge below, or the merge would append the new key as a second entry and
+# the duplicate check would reject the layout.
+LEGACY_COLUMN_KEYS = {"ip_address": "private_ip", "os": "os_family"}
 
 # Still accepted on write so a browser holding pre-deploy JS does not 422 mid-session.
 ALL_COLUMN_KEYS = {c["key"] for c in DEFAULT_COLUMNS} | set(LEGACY_COLUMN_KEYS)

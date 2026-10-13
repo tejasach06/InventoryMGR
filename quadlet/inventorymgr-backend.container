@@ -1,5 +1,5 @@
 [Unit]
-Description=InventoryMGR FastAPI backend
+Description=InventoryMGR Rust backend
 After=inventorymgr-db.service
 Requires=inventorymgr-db.service
 
@@ -13,7 +13,7 @@ Environment=BACKUP_DIR=/var/lib/inventorymgr/backups
 Secret=inventorymgr-jwt-secret,type=env,target=JWT_SECRET
 Secret=inventorymgr-database-url,type=env,target=DATABASE_URL
 Volume=%h/inventorymgr-backups:/var/lib/inventorymgr/backups:Z
-HealthCmd=curl -f http://localhost:8000/api/health
+HealthCmd=curl -f http://127.0.0.1:8000/api/health
 HealthInterval=30s
 HealthTimeout=5s
 HealthRetries=3

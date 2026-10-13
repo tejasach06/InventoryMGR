@@ -58,3 +58,18 @@ mempalace.yaml
 entities.json
 
 # Deploy-branch exclusions live in main's .gitignore and are cleaned via deploy.sh (git clean -fdX)
+
+# Build and audit scratch
+target/
+**/target/
+.accounts-target/
+**/.accounts-target/
+.parity-accounts/
+**/.parity-accounts/
+.parity-scratch/
+**/.parity-scratch/
+.audit/
+**/.audit/
+.omp/
+**/.omp/
+*.png

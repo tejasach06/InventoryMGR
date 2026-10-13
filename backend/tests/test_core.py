@@ -70,27 +70,27 @@ def test_refresh_token_roundtrip():
 
 def test_settings_cors_origins():
     from app.core.config import Settings
-    s = Settings(app_cors_origins="http://a.com, http://b.com , , http://c.com")
+    s = Settings(APP_CORS_ORIGINS="http://a.com, http://b.com , , http://c.com")
     assert s.cors_origins == ["http://a.com", "http://b.com", "http://c.com"]
-    s = Settings(app_cors_origins="")
+    s = Settings(APP_CORS_ORIGINS="")
     assert s.cors_origins == []
 
 def test_settings_secure_cookies():
     from app.core.config import Settings
-    s_dev = Settings(app_env="development")
+    s_dev = Settings(APP_ENV="development")
     assert s_dev.secure_cookies is False
-    s_prod = Settings(app_env="production")
+    s_prod = Settings(APP_ENV="production")
     assert s_prod.secure_cookies is True
 
 def test_validate_production_settings():
     from app.core.config import PLACEHOLDER_SECRET, Settings, validate_production_settings
     # Development is fine
-    s_dev = Settings(app_env="development", jwt_secret=PLACEHOLDER_SECRET)
+    s_dev = Settings(APP_ENV="development", JWT_SECRET=PLACEHOLDER_SECRET)
     validate_production_settings(s_dev)
     # Production with placeholder fails
-    s_prod_bad = Settings(app_env="production", jwt_secret=PLACEHOLDER_SECRET)
+    s_prod_bad = Settings(APP_ENV="production", JWT_SECRET=PLACEHOLDER_SECRET)
     with pytest.raises(RuntimeError, match="JWT_SECRET must be set"):
         validate_production_settings(s_prod_bad)
     # Production with strong secret passes
-    s_prod_good = Settings(app_env="production", jwt_secret="a-very-strong-secret-that-is-long-enough")
+    s_prod_good = Settings(APP_ENV="production", JWT_SECRET="a-very-strong-secret-that-is-long-enough")
     validate_production_settings(s_prod_good)

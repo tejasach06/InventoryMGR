@@ -16,10 +16,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
   backend:
     build:
-      context: ./backend
+      context: ./backend-rust
       dockerfile: Dockerfile
     restart: unless-stopped
     userns_mode: "${USERNS_MODE:-keep-id:uid=1000,gid=1000}"
@@ -27,7 +26,7 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
       APP_ENV: ${APP_ENV:-development}
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-inventorymgr}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-inventorymgr}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-inventorymgr}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-inventorymgr}
       JWT_SECRET: ${JWT_SECRET:-replace-with-32-byte-random-secret}
       BACKUP_DIR: /var/lib/inventorymgr/backups
     volumes:
@@ -36,7 +35,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -48,11 +47,7 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: backend/Dockerfile
-        - action: sync
-          path: backend/app
-          target: /app/app
-
+          path: backend-rust
   frontend:
     build:
       context: ./frontend
@@ -69,7 +64,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -82,6 +77,5 @@ services:
       watch:
         - action: rebuild
           path: frontend/Dockerfile
-
 volumes:
   pgdata:
