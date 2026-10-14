@@ -1,7 +1,8 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { FormEvent, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { auth as authApi } from '../api/auth';
 import { detailMessage } from '../api/core';
 import type { User, UserRole } from '../api/types';
@@ -33,7 +34,7 @@ function buildUpdateUserMutation(
   isActive: boolean,
   password: string,
   setPassword: (value: string) => void,
-  queryClient: ReturnType<typeof useQueryClient>,
+  queryClient: QueryClient,
   onSuccess?: () => void,
 ) {
   return {
@@ -50,7 +51,7 @@ function buildUpdateUserMutation(
   };
 }
 
-function buildDeleteUserMutation(userId: string, queryClient: ReturnType<typeof useQueryClient>) {
+function buildDeleteUserMutation(userId: string, queryClient: QueryClient) {
   return {
     mutationFn: () => authApi.deleteUser(userId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
@@ -118,7 +119,14 @@ function UserAccessDialogs({
   isActive: boolean;
   editor: UserEditorState;
 }) {
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!editor.reviewing && !editor.confirmingDelete) return null;
+
+  const dialogs = (
     <>
       <ConfirmDialog
         open={editor.reviewing}
@@ -142,6 +150,8 @@ function UserAccessDialogs({
       />
     </>
   );
+
+  return mounted ? createPortal(dialogs, document.body) : null;
 }
 
 function UserCard({ user, isSelf }: { user: User; isSelf: boolean }) {

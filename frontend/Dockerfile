@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Builder stage ----
-FROM node:22-bookworm-slim AS builder
+FROM node:24-bookworm-slim AS builder
 ARG INVENTORYMGR_API_URL=http://backend:8000
 ENV INVENTORYMGR_API_URL=${INVENTORYMGR_API_URL}
 
@@ -19,10 +19,10 @@ RUN nub ci
 COPY . ./
 
 # Build production assets
-RUN nub run build
+RUN nub run --node build
 
 # ---- Runtime stage ----
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
 

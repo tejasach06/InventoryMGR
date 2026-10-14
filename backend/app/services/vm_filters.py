@@ -58,7 +58,7 @@ SHUTDOWN_STALE_DAYS = 90
 
 
 def template_tag_condition():
-    path = cast('$[*] ? (@ like_regex "^template$" flag "i")', JSONPATH)
+    path = cast('$[*] ? (@ like_regex "^(template|backup)$" flag "i")', JSONPATH)
     return func.jsonb_path_exists(Vm.tags, path)
 
 
@@ -120,7 +120,7 @@ def duplicate_ip_condition():
                     .where(
                         ~func.jsonb_path_exists(
                             other_vm.tags,
-                            cast('$[*] ? (@ like_regex "^template$" flag "i")', JSONPATH),
+                            cast('$[*] ? (@ like_regex "^(template|backup)$" flag "i")', JSONPATH),
                         )
                     )
                 )
@@ -148,6 +148,7 @@ def apply_vm_filters(
     criticality: list[Criticality] | None = None,
     criticality_op: FilterOperator = FilterOperator.eq,
     monitoring_enabled: bool | None = None,
+
     monitoring_enabled_op: FilterOperator = FilterOperator.eq,
     node: list[str] | None = None,
     node_op: FilterOperator = FilterOperator.eq,
@@ -285,6 +286,8 @@ def apply_vm_filters(
     if duplicate_ip is not None:
         match = duplicate_ip_condition()
         stmt = stmt.where(match if duplicate_ip else ~match)
+    if any(value is not None for value in (shutdown_stale, decommission_overdue, missing_ip, duplicate_ip)):
+        stmt = stmt.where(~template_tag_condition())
     return stmt
 
 
@@ -296,6 +299,7 @@ _CRITICALITY_ORDER = case(
         Criticality.high: 1,
         Criticality.medium: 2,
         Criticality.low: 3,
+
     },
     value=Vm.criticality,
 )
@@ -334,7 +338,7 @@ def list_vms(
     offset: int,
     sort: str | None = None,
     direction: str = "asc",
-) -> tuple[list[Vm], int]:
+    ) -> tuple[list[Vm], int]:
     base = apply_vm_filters(select(Vm), **filters)
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     if sort is None:
@@ -355,3 +359,4 @@ def list_vms(
         .offset(offset)
     ).all()
     return list(items), total
+

@@ -16,6 +16,7 @@ def _due_vms(db: Session, cutoff: date) -> list[Vm]:
         .where(Vm.decommission_date.is_not(None))
         .where(Vm.decommission_date <= cutoff)
         .where(Vm.status != VmStatus.decommissioned)
+        .where(non_template_condition())
         .order_by(Vm.decommission_date.asc())
     )
     return list(db.scalars(stmt).all())

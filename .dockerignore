@@ -47,3 +47,13 @@ debug-*.png
 test-results/
 playwright-report/
 frontend/playwright-report/
+# Rust build artifacts
+target/
+**/target
+backend-rust/target/
+.accounts-target/
+**/.accounts-target
+.cargo/
+.parity-accounts/
+**/.parity-accounts
+
