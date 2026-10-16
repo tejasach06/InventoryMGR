@@ -36,23 +36,25 @@ pub fn router() -> Router<AppState> {
 }
 static ATTEMPTS: LazyLock<Mutex<HashMap<(String, &'static str), VecDeque<Instant>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
+fn peer(headers: &HeaderMap) -> String {
+    headers
+        .get("x-inventory-peer")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("remote")
+        .to_owned()
+}
 fn rate(
     state: &AppState,
-    headers: &HeaderMap,
+    scope: String,
     path: &'static str,
     limit: usize,
 ) -> Result<(), ApiError> {
     if state.settings.app_env == "test" {
         return Ok(());
     }
-    let ip = headers
-        .get("x-inventory-peer")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("remote")
-        .to_owned();
     let now = Instant::now();
     let mut attempts = ATTEMPTS.lock();
-    let queue = attempts.entry((ip, path)).or_default();
+    let queue = attempts.entry((scope, path)).or_default();
     while queue
         .front()
         .is_some_and(|t| now.duration_since(*t) >= Duration::from_secs(60))
@@ -127,7 +129,7 @@ async fn setup_admin(
     headers: HeaderMap,
     crate::api::deps::ValidatedJson(payload): crate::api::deps::ValidatedJson<SetupAdminRequest>,
 ) -> Result<Response, ApiError> {
-    rate(&state, &headers, "setup", 3)?;
+    rate(&state, peer(&headers), "setup", 3)?;
     let email = auth::email(&payload.email)?;
     auth::password(&payload.password)?;
     let mut tx = state.pool.begin().await.map_err(db)?;
@@ -157,11 +159,10 @@ async fn setup_admin(
 }
 async fn login(
     State(state): State<AppState>,
-    headers: HeaderMap,
     crate::api::deps::ValidatedJson(payload): crate::api::deps::ValidatedJson<LoginRequest>,
 ) -> Result<Response, ApiError> {
-    rate(&state, &headers, "login", 10)?;
     let email = auth::email(&payload.email)?;
+    rate(&state, email.clone(), "login", 10)?;
     let local = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email=$1")
         .bind(&email)
         .fetch_optional(&state.pool)
@@ -229,4 +230,48 @@ async fn logout(State(state): State<AppState>, _: AuthUser, _csrf: Csrf) -> Resp
 }
 async fn me(AuthUser(user): AuthUser) -> Json<UserRead> {
     Json(user.into())
+}
+
+#[cfg(test)]
+mod rate_tests {
+    use super::*;
+    use crate::core::config::Settings;
+    use sqlx::postgres::PgPoolOptions;
+    use std::sync::Arc;
+
+    fn state() -> AppState {
+        AppState {
+            pool: PgPoolOptions::new()
+                .connect_lazy("postgresql://inventorymgr@127.0.0.1/inventorymgr")
+                .unwrap(),
+            settings: Arc::new(Settings {
+                app_env: "production".into(),
+                database_url: String::new(),
+                jwt_secret: "test-secret".into(),
+                session_cookie_name: "session".into(),
+                csrf_cookie_name: "csrf".into(),
+                secure_cookies: true,
+                cors_origins: Vec::new(),
+                backup_dir: String::new(),
+                pg_bin_dir: String::new(),
+                host: "127.0.0.1".into(),
+                port: 8000,
+            }),
+            database_access: Arc::new(tokio::sync::RwLock::new(())),
+        }
+    }
+
+    #[tokio::test]
+    async fn login_limit_is_scoped_to_the_target_account() {
+        ATTEMPTS.lock().clear();
+        let state = state();
+        assert!(rate(&state, "alice@example.com".into(), "login", 1).is_ok());
+        assert_eq!(
+            rate(&state, "alice@example.com".into(), "login", 1)
+                .unwrap_err()
+                .status,
+            StatusCode::TOO_MANY_REQUESTS
+        );
+        assert!(rate(&state, "bob@example.com".into(), "login", 1).is_ok());
+    }
 }

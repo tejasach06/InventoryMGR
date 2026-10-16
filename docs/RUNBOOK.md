@@ -7,6 +7,7 @@ Operating InventoryMGR in a deployed environment.
 - Compose uses `just up`. This generates `.env` if missing and runs `podman compose up -d --build`. Inspect services with `just ps` and `just logs`.
 - Quadlet setup is in `docs/PODMAN_QUADLET.md`.
 - Check readiness with `curl -f http://127.0.0.1:8000/api/health` and `curl -f http://127.0.0.1:3000/`.
+- Production images run both application processes as unprivileged UID 1000.
 
 ## Configuration
 
@@ -65,6 +66,9 @@ Proxmox updates require both `external_id` or `vmid` and `name` to match an exis
 
 Import is preview-then-commit.
 `/api/imports` reports `create`, `update`, `unchanged`, `decommission`, `conflict`, or `invalid` for each row before writing data.
+
+
+CSV exports prefix spreadsheet formula trigger characters with an apostrophe. XLSX exports use explicit string cells rather than formula cells.
 
 ## Alerts
 

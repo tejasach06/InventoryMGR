@@ -6,14 +6,20 @@ const SCALARS:&str="name external_id fqdn platform datacenter sr_id cluster node
 fn text(v:&Value)->String{match v{Value::Null=>String::new(),Value::String(s)=>s.clone(),_=>v.to_string()}}
 fn joined(child:&Value,keys:&[&str])->String{let mut parts:Vec<_>=keys.iter().map(|k|text(&child[*k])).collect();while parts.last().is_some_and(String::is_empty){parts.pop();}parts.join(":")}
 fn export_row(v:&Value)->Vec<String>{let mut row:Vec<_>=SCALARS.split_whitespace().map(|key|if key=="tags"{v[key].as_array().unwrap().iter().filter_map(Value::as_str).collect::<Vec<_>>().join(";")}else{text(&v[key])}).collect();row.push(v["disks"].as_array().unwrap().iter().map(|d|joined(d,&["disk_name","size_gb","storage_name","storage_type"])).collect::<Vec<_>>().join(";"));for role in ["private","public","backup"]{row.push(v["networks"].as_array().unwrap().iter().filter(|n|n["role"].as_str()==Some(role)).map(|n|text(&n["ip_address"])).collect::<Vec<_>>().join(";"));}row.push(v["applications"].as_array().unwrap().iter().map(|a|joined(a,&["app_name","app_owner"])).collect::<Vec<_>>().join(";"));row}
+fn csv_text(value:String)->String{
+ if value.starts_with(['=','+','-','@','\t','\r']){format!("'{value}")}else{value}
+}
+fn csv(vms:&[Value],headers:&[&str])->Result<Vec<u8>,ApiError>{
+ let mut writer=csv::WriterBuilder::new().terminator(csv::Terminator::CRLF).from_writer(Vec::new());writer.write_record(headers).map_err(|e|ApiError::internal(e.to_string()))?;
+ for vm in vms{writer.write_record(export_row(vm).into_iter().map(csv_text)).map_err(|e|ApiError::internal(e.to_string()))?;}
+ writer.into_inner().map_err(|e|ApiError::internal(e.to_string()))
+}
 pub async fn export(State(s):State<AppState>,_:Viewer,RawQuery(raw):RawQuery)->Result<Response,ApiError>{
  let p=filters::query(raw);filters::validate_query(&p)?;let format=filters::first(&p,"format").unwrap_or("csv");if !["csv","xlsx"].contains(&format){return Err(invalid("Invalid export format"));}
  let ids=selected_ids(&s,&p,true).await?;let mut c=s.pool.acquire().await.map_err(db_error)?;let vms=vm_details(&mut c,&ids).await?;
  let headers:Vec<_>=SCALARS.split_whitespace().chain(["disks","private_ip","public_ip","backup_ip","applications"]).collect();
  let(bytes,media,filename)=if format=="csv"{
-  let mut writer=csv::WriterBuilder::new().terminator(csv::Terminator::CRLF).from_writer(Vec::new());writer.write_record(&headers).map_err(|e|ApiError::internal(e.to_string()))?;
-  for vm in &vms{writer.write_record(export_row(vm)).map_err(|e|ApiError::internal(e.to_string()))?;}
-  let bytes=writer.into_inner().map_err(|e|ApiError::internal(e.to_string()))?;(bytes,"text/csv; charset=utf-8","vm-inventory.csv")
+  (csv(&vms,&headers)?,"text/csv; charset=utf-8","vm-inventory.csv")
  }else{(xlsx(&vms,&headers)?,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","vm-inventory.xlsx")};
  Ok((StatusCode::OK,[(header::CONTENT_TYPE,media.to_owned()),(header::CONTENT_DISPOSITION,format!("attachment; filename=\"{filename}\""))],bytes).into_response())
 }
@@ -39,5 +45,13 @@ fn xlsx(vms:&[Value],headers:&[&str])->Result<Vec<u8>,ApiError>{
   let mut xml=String::new();archive.by_name("xl/worksheets/sheet1.xml").unwrap().read_to_string(&mut xml).unwrap();
   for cell in ["AL2","AM2","AN2"]{assert!(xml.contains(&format!("<c r=\"{cell}\"")),"missing derived empty cell {cell}");}
   assert!(!xml.contains("<c r=\"B2\""),"nullable external_id should stay absent");
+ }
+ #[test]fn csv_export_does_not_emit_formula_cells(){
+  let vm=json!({"name":"=HYPERLINK(\"https://example.invalid\")","tags":[],"disks":[],"networks":[],"applications":[]});
+  let headers:Vec<_>=SCALARS.split_whitespace().chain(["disks","private_ip","public_ip","backup_ip","applications"]).collect();
+  let bytes=csv(&[vm],&headers).unwrap();
+  let mut reader=csv::Reader::from_reader(bytes.as_slice());
+  let row=reader.records().next().unwrap().unwrap();
+  assert_eq!(&row[0],"'=HYPERLINK(\"https://example.invalid\")");
  }
 }
