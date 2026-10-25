@@ -49,10 +49,13 @@ impl From<User> for UserRead {
     }
 }
 pub fn email(value: &str) -> Result<String, ApiError> {
+    if value.len() > 254 {
+        return Err(validation("Email must be at most 254 bytes"));
+    }
     let value = value.trim().to_lowercase();
     static RE: std::sync::LazyLock<regex::Regex> =
         std::sync::LazyLock::new(|| regex::Regex::new(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").unwrap());
-    if !RE.is_match(&value) {
+    if value.len() > 254 || !RE.is_match(&value) {
         return Err(validation("must be a valid email address"));
     }
     Ok(value)
@@ -61,7 +64,11 @@ pub fn validation(message: impl Into<String>) -> ApiError {
     ApiError::new(axum::http::StatusCode::UNPROCESSABLE_ENTITY, message)
 }
 pub fn password(value: &str) -> Result<(), ApiError> {
-    if value.chars().count() < 8 {
+    let length = value.chars().count();
+    if length > 1024 {
+        return Err(validation("String should have at most 1024 characters"));
+    }
+    if length < 8 {
         return Err(validation("String should have at least 8 characters"));
     }
     Ok(())
@@ -104,7 +111,7 @@ mod tests {
 impl crate::api::deps::JsonSchema for LoginRequest {
     const FIELDS: &'static [(&'static str, bool, crate::api::deps::FieldKind)] = &[
         ("email", true, crate::api::deps::FieldKind::Email),
-        ("password", true, crate::api::deps::FieldKind::String),
+        ("password", true, crate::api::deps::FieldKind::StrLen(0, 1024)),
         ("remember", false, crate::api::deps::FieldKind::Bool),
     ];
 }

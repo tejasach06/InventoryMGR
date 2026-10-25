@@ -22,6 +22,7 @@ pub struct SessionClaims {
     pub iat: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generation: Option<String>,
+    pub credential: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -33,6 +34,7 @@ pub struct RefreshClaims {
     pub iat: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generation: Option<String>,
+    pub credential: String,
 }
 
 pub fn hash_password(password: &str) -> Result<String, String> {
@@ -58,6 +60,29 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
         .is_ok()
 }
 
+fn credential_mac(user_id: &str, auth_source: &str, password_hash: &str, secret: &str) -> HmacSha256 {
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).expect("valid HMAC key");
+    mac.update(b"inventorymgr:credential:v1\0");
+    for value in [user_id, auth_source, password_hash] {
+        mac.update(&(value.len() as u64).to_be_bytes());
+        mac.update(value.as_bytes());
+    }
+    mac
+}
+
+pub fn credential_fingerprint(
+    user_id: &str, auth_source: &str, password_hash: &str, secret: &str,
+) -> String {
+    hex::encode(credential_mac(user_id, auth_source, password_hash, secret).finalize().into_bytes())
+}
+
+pub fn verify_credential_fingerprint(
+    provided: &str, user_id: &str, auth_source: &str, password_hash: &str, secret: &str,
+) -> bool {
+    let Ok(bytes) = hex::decode(provided) else { return false };
+    credential_mac(user_id, auth_source, password_hash, secret).verify_slice(&bytes).is_ok()
+}
+
 pub fn derive_csrf_token(session_token: &str, secret: &str) -> String {
     let mut mac =
         HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC can take key of any size");
@@ -81,6 +106,7 @@ pub fn create_session_token(
     user_id: &str,
     role: &str,
     generation: &str,
+    credential: &str,
     secret: &str,
 ) -> Result<String, jsonwebtoken::errors::Error> {
     let now = Utc::now();
@@ -91,6 +117,7 @@ pub fn create_session_token(
         exp: expires.timestamp(),
         iat: now.timestamp(),
         generation: Some(generation.to_owned()),
+        credential: credential.to_owned(),
     };
     encode(
         &Header::default(),
@@ -117,6 +144,7 @@ pub fn create_refresh_token(
     user_id: &str,
     persist: bool,
     generation: &str,
+    credential: &str,
     secret: &str,
 ) -> Result<String, jsonwebtoken::errors::Error> {
     let now = Utc::now();
@@ -128,6 +156,7 @@ pub fn create_refresh_token(
         exp: expires.timestamp(),
         iat: now.timestamp(),
         generation: Some(generation.to_owned()),
+        credential: credential.to_owned(),
     };
     encode(
         &Header::default(),
@@ -177,27 +206,35 @@ mod tests {
         assert!(!verify_csrf_token(&token, "other-session", "secret"));
     }
     #[test]
-    fn session_carries_generation_and_legacy_claims_still_decode() {
-        let token = create_session_token("user", "admin", "generation", "secret").unwrap();
+    fn session_carries_generation_and_rejects_unbound_legacy_claims() {
+        let token = create_session_token("user", "admin", "generation", "credential", "secret").unwrap();
         let claims = decode_session_token(&token, "secret").unwrap();
         assert_eq!(claims.generation.as_deref(), Some("generation"));
         assert_eq!(claims.exp - claims.iat, 43200);
         let legacy = serde_json::json!({"sub":"user","role":"admin","iat":Utc::now().timestamp(),"exp":Utc::now().timestamp()+43200});
         let token = encode(&Header::default(), &legacy, &EncodingKey::from_secret(b"secret")).unwrap();
-        let claims = decode_session_token(&token, "secret").unwrap();
-        assert_eq!(claims.sub, "user");
-        assert_eq!(claims.generation, None);
+        assert!(decode_session_token(&token, "secret").is_err());
         let legacy = serde_json::json!({"sub":"user","type":"refresh","persist":true,"iat":Utc::now().timestamp(),"exp":Utc::now().timestamp()+604800});
         let token = encode(&Header::default(), &legacy, &EncodingKey::from_secret(b"secret")).unwrap();
-        assert_eq!(decode_refresh_token(&token, "secret").unwrap().generation, None);
+        assert!(decode_refresh_token(&token, "secret").is_err());
     }
     #[test]
     fn refresh_keeps_persistence() {
-        let token = create_refresh_token("user", true, "generation", "secret").unwrap();
+        let token = create_refresh_token("user", true, "generation", "credential", "secret").unwrap();
         let claims = decode_refresh_token(&token, "secret").unwrap();
         assert_eq!(claims.r#type, "refresh");
         assert_eq!(claims.generation.as_deref(), Some("generation"));
         assert!(claims.persist);
         assert_eq!(claims.exp - claims.iat, 604800);
+    }
+    #[test]
+    fn credential_binding_changes_only_with_that_users_credential() {
+        let fingerprint = credential_fingerprint("alice", "local", "old-verifier", "secret");
+        assert!(verify_credential_fingerprint(&fingerprint, "alice", "local", "old-verifier", "secret"));
+        assert!(!verify_credential_fingerprint(&fingerprint, "alice", "local", "new-verifier", "secret"));
+        assert!(!verify_credential_fingerprint(&fingerprint, "bob", "local", "old-verifier", "secret"));
+        assert!(!verify_credential_fingerprint(&fingerprint, "alice", "ldap", "old-verifier", "secret"));
+        assert!(!verify_credential_fingerprint(&fingerprint, "alice", "local", "old-verifier", "other-secret"));
+        assert!(!fingerprint.contains("old-verifier"));
     }
 }

@@ -3,13 +3,17 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
-export PATH="$HOME/.nub/bin:$HOME/.local/bin:$PATH"
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 work="$(mktemp -d)"
+mkdir -p "$work/pg-bin"
+for tool in pg_dump pg_restore; do
+  install -m 700 tools/rust-parity/pg_bridge.py "$work/pg-bin/$tool"
+done
 container="inventorymgr-e2e-$(basename "$work" | tr '[:upper:]' '[:lower:]')"
 backend_pid=""
 frontend_pid=""
 cleanup() {
-  trap - EXIT INT TERM
+  status=$?
   for pid in "$frontend_pid" "$backend_pid"; do
     if [ -n "$pid" ]; then
       kill -TERM -- "-$pid" 2>/dev/null || true
@@ -17,13 +21,19 @@ cleanup() {
     fi
   done
   podman rm -f "$container" >/dev/null 2>&1 || true
+  if [ "$status" -ne 0 ]; then
+    log_dir="frontend/reports/e2e-$(basename "$work")"
+    mkdir -p "$log_dir"
+    cp "$work/backend.log" "$work/frontend.log" "$log_dir/" 2>/dev/null || true
+    echo "E2E application logs: $log_dir" >&2
+  fi
   rm -rf "$work"
 }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-podman run --detach --name "$container" --publish 127.0.0.1::5432 --env POSTGRES_HOST_AUTH_METHOD=trust --env POSTGRES_DB=inventorymgr_e2e docker.io/library/postgres:17 >/dev/null
+podman run --detach --name "$container" --publish 127.0.0.1::5432 --env POSTGRES_HOST_AUTH_METHOD=trust --env POSTGRES_DB=inventorymgr_e2e docker.io/library/postgres:17-bookworm@sha256:858bb5e98eed02eb8cafbcdc007f9a65d1b613972028944a8ec2133ccaf80d27 >/dev/null
 for attempt in {1..60}; do
   if podman exec "$container" pg_isready -U postgres -d inventorymgr_e2e >/dev/null 2>&1; then break; fi
   if [ "$attempt" -eq 60 ]; then echo "Postgres readiness timed out" >&2; exit 1; fi
@@ -32,6 +42,8 @@ done
 db_port="$(podman port "$container" 5432/tcp)"
 db_port="${db_port##*:}"
 export TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:$db_port/inventorymgr_e2e"
+export PG_BIN_DIR="$work/pg-bin" PARITY_PG_CONTAINER="$container"
+export PARITY_PG_URL="postgresql://postgres@127.0.0.1:5432/inventorymgr_e2e"
 export DATABASE_URL="$TEST_DATABASE_URL" APP_ENV=test HOST=127.0.0.1
 export JWT_SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
 export BACKUP_DIR="$work/backups"
@@ -41,11 +53,13 @@ export BASE_URL="http://127.0.0.1:$frontend_port"
 export INVENTORYMGR_E2E_RUNNER=1
 export CARGO_TARGET_DIR="$REPO_ROOT/backend-rust/target"
 (cd backend-rust && cargo build --locked)
-(cd frontend && nub run --node build)
+(cd frontend && pnpm run build)
 mkdir -p frontend/.next/standalone/.next
 cp -r frontend/.next/static frontend/.next/standalone/.next/
 if [ -d frontend/public ]; then cp -r frontend/public frontend/.next/standalone/; fi
 mkdir -p frontend/reports
+# Set after the build to exercise runtime cookie configuration.
+export CSRF_COOKIE_NAME=inventorymgr_e2e+csrf
 
 setsid env PORT="$backend_port" "$CARGO_TARGET_DIR/debug/inventorymgr-backend" >"$work/backend.log" 2>&1 &
 backend_pid=$!

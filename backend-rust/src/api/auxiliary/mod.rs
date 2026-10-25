@@ -4,17 +4,17 @@ mod reporting;
 
 use axum::{extract::DefaultBodyLimit, routing::{get, post}, Router};
 use crate::api::deps::AppState;
-pub use backups::scheduler_loop;
+pub use backups::{initialize_backups, scheduler_loop};
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/imports/preview", post(imports::preview))
+        .route("/imports/preview", post(imports::preview).layer(DefaultBodyLimit::max(6 * 1024 * 1024)))
         .route("/imports/template", get(imports::template))
         .route("/imports/{batch_id}", get(imports::get_batch))
         .route("/imports/{batch_id}/commit", post(imports::commit))
         .route("/backups", get(backups::overview).post(backups::create))
         .route("/backups/settings", axum::routing::patch(backups::settings))
-        .route("/backups/restore", post(backups::restore))
+        .route("/backups/restore", post(backups::restore).layer(DefaultBodyLimit::max(2 * 1024 * 1024 * 1024 + 1024 * 1024)))
         .route("/backups/{filename}/download", get(backups::download))
         .route("/backups/{filename}", axum::routing::delete(backups::delete))
         .route("/reports/summary", get(reporting::summary))
@@ -23,7 +23,6 @@ pub fn router() -> Router<AppState> {
         .route("/notifications/decommissions", get(reporting::due))
         .route("/notifications/decommissions/ack", post(reporting::ack))
         .route("/notifications/duplicate-ips", get(reporting::duplicate_ips))
-        .layer(DefaultBodyLimit::max(2 * 1024 * 1024 * 1024 + 1024 * 1024))
 }
 
 pub(super) fn db_error(error: sqlx::Error) -> crate::api::deps::ApiError {

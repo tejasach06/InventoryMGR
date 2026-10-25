@@ -6,8 +6,9 @@ const SCALARS:&str="name external_id fqdn platform datacenter sr_id cluster node
 fn text(v:&Value)->String{match v{Value::Null=>String::new(),Value::String(s)=>s.clone(),_=>v.to_string()}}
 fn joined(child:&Value,keys:&[&str])->String{let mut parts:Vec<_>=keys.iter().map(|k|text(&child[*k])).collect();while parts.last().is_some_and(String::is_empty){parts.pop();}parts.join(":")}
 fn export_row(v:&Value)->Vec<String>{let mut row:Vec<_>=SCALARS.split_whitespace().map(|key|if key=="tags"{v[key].as_array().unwrap().iter().filter_map(Value::as_str).collect::<Vec<_>>().join(";")}else{text(&v[key])}).collect();row.push(v["disks"].as_array().unwrap().iter().map(|d|joined(d,&["disk_name","size_gb","storage_name","storage_type"])).collect::<Vec<_>>().join(";"));for role in ["private","public","backup"]{row.push(v["networks"].as_array().unwrap().iter().filter(|n|n["role"].as_str()==Some(role)).map(|n|text(&n["ip_address"])).collect::<Vec<_>>().join(";"));}row.push(v["applications"].as_array().unwrap().iter().map(|a|joined(a,&["app_name","app_owner"])).collect::<Vec<_>>().join(";"));row}
-fn csv_text(value:String)->String{
- if value.starts_with(['=','+','-','@','\t','\r']){format!("'{value}")}else{value}
+pub(crate) fn csv_text(value:String)->String{
+ let candidate=value.trim_start_matches(' ');
+ if candidate.starts_with(['=','+','-','@','\t','\r','\n']){format!("'{value}")}else{value}
 }
 fn csv(vms:&[Value],headers:&[&str])->Result<Vec<u8>,ApiError>{
  let mut writer=csv::WriterBuilder::new().terminator(csv::Terminator::CRLF).from_writer(Vec::new());writer.write_record(headers).map_err(|e|ApiError::internal(e.to_string()))?;
@@ -47,11 +48,11 @@ fn xlsx(vms:&[Value],headers:&[&str])->Result<Vec<u8>,ApiError>{
   assert!(!xml.contains("<c r=\"B2\""),"nullable external_id should stay absent");
  }
  #[test]fn csv_export_does_not_emit_formula_cells(){
-  let vm=json!({"name":"=HYPERLINK(\"https://example.invalid\")","tags":[],"disks":[],"networks":[],"applications":[]});
+  let vm=json!({"name":"  =HYPERLINK(\"https://example.invalid\")","tags":[],"disks":[],"networks":[],"applications":[]});
   let headers:Vec<_>=SCALARS.split_whitespace().chain(["disks","private_ip","public_ip","backup_ip","applications"]).collect();
   let bytes=csv(&[vm],&headers).unwrap();
   let mut reader=csv::Reader::from_reader(bytes.as_slice());
   let row=reader.records().next().unwrap().unwrap();
-  assert_eq!(&row[0],"'=HYPERLINK(\"https://example.invalid\")");
+  assert_eq!(&row[0],"'  =HYPERLINK(\"https://example.invalid\")");
  }
 }

@@ -1,7 +1,7 @@
 ---
 services:
   db:
-    image: postgres:17-alpine
+    image: docker.io/library/postgres:17-alpine@sha256:eee6c6e1b0894fa4fe0075eb054af9fd1cf39a35321c2d4110626cfe506411fb
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-inventorymgr}
@@ -21,6 +21,7 @@ services:
       context: ./backend-rust
       dockerfile: Dockerfile
     restart: unless-stopped
+    stop_grace_period: 30s
     userns_mode: "${USERNS_MODE:-keep-id:uid=1000,gid=1000}"
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -29,6 +30,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-inventorymgr}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-inventorymgr}
       JWT_SECRET: ${JWT_SECRET:-replace-with-32-byte-random-secret}
       BACKUP_DIR: /var/lib/inventorymgr/backups
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-inventorymgr_session}
+      CSRF_COOKIE_NAME: ${CSRF_COOKIE_NAME:-inventorymgr_csrf}
     volumes:
       - ./backups:/var/lib/inventorymgr/backups:z
     depends_on:
@@ -60,11 +63,12 @@ services:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
       INVENTORYMGR_API_URL: http://backend:8000
+      CSRF_COOKIE_NAME: ${CSRF_COOKIE_NAME:-inventorymgr_csrf}
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/"]
+      test: ["CMD", "node", "/app/healthcheck.cjs"]
       interval: 30s
       timeout: 5s
       retries: 3

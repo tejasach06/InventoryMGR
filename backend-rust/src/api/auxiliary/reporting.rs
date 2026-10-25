@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 use crate::api::deps::{AppState, ApiError, Viewer, Csrf};
 use super::{db_error, setting};
+use crate::api::inventory::export::csv_text;
 
 const INVENTORY: &str = "NOT jsonb_path_exists(v.tags, '$[*] ? (@ like_regex \"^(template|backup)$\" flag \"i\")')";
 const REPORTS: &[(&str, &str)] = &[
@@ -37,21 +38,46 @@ fn csv_format() -> String { "csv".into() }
 fn cell(value: &Value) -> String {
     match value { Value::Null => String::new(), Value::String(s) => s.clone(), Value::Bool(b) => if *b { "True".into() } else { "False".into() }, other => other.to_string() }
 }
+fn report_csv(rows: &[Value]) -> Result<Vec<u8>, ApiError> {
+    let mut writer=csv::WriterBuilder::new().terminator(csv::Terminator::CRLF).from_writer(Vec::new());
+    writer.write_record(CSV_COLUMNS).map_err(|e|ApiError::internal(e.to_string()))?;
+    for row in rows {
+        let cells = CSV_COLUMNS.iter().map(|col| match *col {
+            "tags" => row[*col].as_array().map(|items| items.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(",")).unwrap_or_default(),
+            "monitoring_enabled"|"pmp_enabled" => if row[*col].as_bool().unwrap_or(false) { "Yes".into() } else { "No".into() },
+            _ => cell(&row[*col]),
+        }).map(csv_text);
+        writer.write_record(cells).map_err(|e|ApiError::internal(e.to_string()))?;
+    }
+    writer.into_inner().map_err(|e|ApiError::internal(e.to_string()))
+}
 pub async fn report(State(state): State<AppState>, _: Viewer, Path(name): Path<String>, Query(format): Query<Format>) -> Result<Response, ApiError> {
     if format.format != "csv" { return Err(ApiError::validation(vec![json!({"type":"string_pattern_mismatch","loc":["query","format"],"msg":"String should match pattern '^csv$'","input":format.format,"ctx":{"pattern":"^csv$"}})])); }
     let condition = REPORTS.iter().find(|(key,_)| *key==name).map(|(_,cond)| *cond).ok_or_else(|| ApiError::not_found(format!("Unknown report '{name}'. Available: {}", REPORTS.iter().map(|(key,_)| *key).collect::<Vec<_>>().join(", "))))?;
     let order = match name.as_str() { "owner" => "v.business_owner,v.name", "decommission" => "v.decommission_date,v.name", _ => "v.name" };
     let rows = values(&state.pool, format!("SELECT to_jsonb(v) || jsonb_build_object('applications',COALESCE((SELECT string_agg(a.app_name,',' ORDER BY a.app_name) FROM vm_applications a WHERE a.vm_id=v.id),'')) FROM vms v WHERE {condition} ORDER BY {order}")).await?;
-    let cells = rows.iter().map(|row| CSV_COLUMNS.iter().map(|col| match *col {
-        "tags" => row[*col].as_array().map(|items| items.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(",")).unwrap_or_default(),
-        "monitoring_enabled"|"pmp_enabled" => if row[*col].as_bool().unwrap_or(false) { "Yes".into() } else { "No".into() },
-        _ => cell(&row[*col]),
-    }).collect::<Vec<_>>()).collect::<Vec<_>>();
-    let mut writer=csv::WriterBuilder::new().terminator(csv::Terminator::CRLF).from_writer(Vec::new());
-    writer.write_record(CSV_COLUMNS).map_err(|e|ApiError::internal(e.to_string()))?;
-    for row in cells { writer.write_record(row).map_err(|e|ApiError::internal(e.to_string()))?; }
-    let bytes=writer.into_inner().map_err(|e|ApiError::internal(e.to_string()))?;
+    let bytes=report_csv(&rows)?;
     Ok(([(header::CONTENT_TYPE,"text/csv".to_owned()),(header::CONTENT_DISPOSITION,format!("attachment; filename=\"{name}.csv\""))],bytes).into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn focused_report_does_not_emit_formula_cells() {
+        let rows = vec![json!({
+            "name": "  =HYPERLINK(\"https://example.invalid\")",
+            "tags": ["+SUM(1,1)"],
+            "applications": "@SUM(1,1)"
+        })];
+        let bytes = report_csv(&rows).unwrap();
+        let mut reader = csv::Reader::from_reader(bytes.as_slice());
+        let row = reader.records().next().unwrap().unwrap();
+        assert_eq!(&row[0], "'  =HYPERLINK(\"https://example.invalid\")");
+        assert_eq!(&row[23], "'+SUM(1,1)");
+        assert_eq!(&row[24], "'@SUM(1,1)");
+    }
 }
 
 pub async fn dashboard(State(state): State<AppState>, _: Viewer) -> Result<Json<Value>,ApiError> {

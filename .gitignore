@@ -3,7 +3,6 @@
 .env.*.local
 .venv/
 node_modules/
-.devbox/
 .mcp.json
 backend/.mypy_cache/
 backend/.pytest_cache/
@@ -49,6 +48,8 @@ docs/*
 !docs/API.md
 !docs/ALERTS.md
 !docs/PODMAN_QUADLET.md
+!docs/agents/
+!docs/agents/**
 
 # CSV outputs/inputs
 *.csv

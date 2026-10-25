@@ -88,7 +88,7 @@ fn validate_field(r:Resource,field:&str,v:&mut Value,create:bool)->Result<(),Api
  }
  let max=match field{"name" if r.table!="vms"=>Some(255),"export_path"=>Some(500),"sr_id"=>Some(50),"ip_address"=>Some(64),_=>None};
  if let Some(max)=max{if s.chars().count()>max{let mut e=error("string_too_long",format!("String should have at most {max} characters"));e.detail.as_mut().unwrap()[0]["ctx"]=json!({"max_length":max});return Err(e);}if ["name","export_path"].contains(&field)&&s.is_empty(){let mut e=error("string_too_short","String should have at least 1 character".into());e.detail.as_mut().unwrap()[0]["ctx"]=json!({"min_length":1});return Err(e);}}
- if field=="ip_address"{*v=json!(s.trim().split('/').next().unwrap_or("").trim());}
+ if field=="ip_address"{*v=json!(crate::core::ip_utils::normalize_ip(s));}
  Ok(())
 }
 pub fn validate(r: Resource, payload: Value, create: bool) -> Result<Value, ApiError> {

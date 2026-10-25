@@ -1,7 +1,8 @@
-use axum::{body::Body, extract::{Multipart, Path, State}, http::{header, HeaderValue, StatusCode}, response::{IntoResponse, Response}, Json};
+use axum::{body::Body, extract::{FromRequest, FromRequestParts, Multipart, Path, Request, State}, http::{header, HeaderValue, StatusCode}, response::{IntoResponse, Response}, Json};
 use chrono::{DateTime, Timelike, Utc};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use sqlx::{Connection, PgConnection};
 use std::{path::{Path as FsPath, PathBuf}, time::Duration};
 use tokio::{io::AsyncWriteExt, process::Command};
 use uuid::Uuid;
@@ -10,6 +11,42 @@ use super::{db_error, setting};
 
 const LOCK_KEY: i64 = 8_273_641_905;
 const MAX_UPLOAD: u64 = 2 * 1024 * 1024 * 1024;
+const INSTANCE_LOCK_KEY: i64 = 8_273_641_906;
+
+pub async fn initialize_backups(state: &AppState) -> Result<PgConnection, ApiError> {
+    let mut owner = PgConnection::connect(&state.settings.database_url).await.map_err(db_error)?;
+    let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1)")
+        .bind(INSTANCE_LOCK_KEY).fetch_one(&mut owner).await.map_err(db_error)?;
+    if !acquired {
+        return Err(ApiError::internal("Another InventoryMGR instance owns this database; stop it before starting a replacement"));
+    }
+    let live_oid: i64 = sqlx::query_scalar("SELECT oid::bigint FROM pg_database WHERE datname=current_database()")
+        .fetch_one(&mut owner).await.map_err(db_error)?;
+    let candidates: Vec<String> = sqlx::query_scalar("SELECT datname FROM pg_database WHERE datdba=(SELECT oid FROM pg_roles WHERE rolname=current_user)")
+        .fetch_all(&mut owner).await.map_err(db_error)?;
+    for name in candidates.into_iter().filter(|name| staging_name_matches(name, live_oid)) {
+        sqlx::query(sqlx::AssertSqlSafe(format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")))
+            .execute(&mut owner).await.map_err(db_error)?;
+    }
+    let directory = writable_directory(state).await?;
+    let interrupted: Vec<Option<String>> = sqlx::query_scalar("SELECT filename FROM backup_jobs WHERE status='running'")
+        .fetch_all(&state.pool).await.map_err(db_error)?;
+    for name in interrupted.into_iter().flatten().filter(|name| valid_filename(name)) {
+        match tokio::fs::remove_file(directory.join(format!("{name}.partial"))).await {
+            Ok(()) => {},
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+            Err(error) => return Err(ApiError::internal(error.to_string())),
+        }
+    }
+    sqlx::query("UPDATE backup_jobs SET status='failed',error='Backup interrupted by application shutdown',finished_at=now() WHERE status='running'")
+        .execute(&state.pool).await.map_err(db_error)?;
+    Ok(owner)
+}
+
+fn staging_name_matches(name: &str, live_oid: i64) -> bool {
+    name.strip_prefix(&format!("im_restore_{live_oid}_")).is_some_and(|suffix|
+        suffix.len() == 32 && suffix.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)))
+}
 
 fn valid_filename(name: &str) -> bool {
     let Some(rest)=name.strip_prefix("inventorymgr-") else { return false; };
@@ -92,16 +129,18 @@ async fn dump(state: &AppState,kind: &str,user: Option<Uuid>) -> Result<Value,Ap
     let id=Uuid::new_v4();
     let name=backup_filename(now,kind,id);
     let path=writable_directory(state).await?.join(&name);
+    let partial = TempFile(path.with_extension("dump.partial"));
     sqlx::query("INSERT INTO backup_jobs(id,kind,status,filename,user_id,started_at) VALUES($1,$2,'running',$3,$4,$5)")
         .bind(id).bind(kind).bind(name).bind(user).bind(now).execute(&state.pool).await.map_err(db_error)?;
-    let outcome=run(Command::new(executable(state,"pg_dump")).arg("--format=custom").arg("--no-owner").arg("--no-privileges").arg(format!("--file={}",path.display())).arg(&state.settings.database_url),3600,"pg_dump").await;
+    let outcome=run(Command::new(executable(state,"pg_dump")).arg("--format=custom").arg("--no-owner").arg("--no-privileges").arg(format!("--file={}",partial.0.display())).arg(&state.settings.database_url),3600,"pg_dump").await;
     let error=match outcome { Ok(output) if output.status.success()=>None, Ok(output)=>Some({let msg=stderr_tail(&output.stderr); if msg.is_empty(){format!("pg_dump exited with code {}",output.status)}else{msg}}), Err(e)=>Some(e.message) };
     if let Some(message)=error {
         let _=tokio::fs::remove_file(&path).await;
         sqlx::query("UPDATE backup_jobs SET status='failed',error=$2,finished_at=now() WHERE id=$1").bind(id).bind(&message).execute(&state.pool).await.map_err(db_error)?;
         return Err(ApiError::internal(message));
     }
-    let size=tokio::fs::metadata(path).await.map_err(|e|ApiError::internal(e.to_string()))?.len() as i64;
+    let size=tokio::fs::metadata(&partial.0).await.map_err(|e|ApiError::internal(e.to_string()))?.len() as i64;
+    tokio::fs::rename(&partial.0, &path).await.map_err(|e|ApiError::internal(e.to_string()))?;
     sqlx::query("UPDATE backup_jobs SET status='success',size_bytes=$2,finished_at=now() WHERE id=$1").bind(id).bind(size).execute(&state.pool).await.map_err(db_error)?;
     job(state,id).await
 }
@@ -144,6 +183,72 @@ pub async fn settings(State(state): State<AppState>,_: Admin,_: Csrf,Json(payloa
 }
 struct TempFile(PathBuf);
 impl Drop for TempFile { fn drop(&mut self) { let _=std::fs::remove_file(&self.0); } }
+
+struct StagingDatabase {
+    name: String,
+    owner: Option<PgConnection>,
+}
+impl StagingDatabase {
+    async fn remove(&mut self) -> Result<(), ApiError> {
+        if let Some(owner) = self.owner.as_mut() {
+            sqlx::query(sqlx::AssertSqlSafe(format!("DROP DATABASE IF EXISTS {} WITH (FORCE)", self.name)))
+                .execute(owner).await.map_err(db_error)?;
+        }
+        self.owner = None;
+        Ok(())
+    }
+}
+impl Drop for StagingDatabase {
+    fn drop(&mut self) {
+        if let Some(mut owner) = self.owner.take() {
+            let name = std::mem::take(&mut self.name);
+            tokio::spawn(async move {
+                if let Err(error) = sqlx::query(sqlx::AssertSqlSafe(format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"))).execute(&mut owner).await {
+                    tracing::error!(%error, database=%name, "Failed to remove restore staging database");
+                }
+            });
+        }
+    }
+}
+async fn stage_archive(state: &AppState, archive: &FsPath) -> Result<TempFile, ApiError> {
+    let mut url = reqwest::Url::parse(&state.settings.database_url).map_err(|e|ApiError::internal(e.to_string()))?;
+    let live_oid: i64 = sqlx::query_scalar("SELECT oid::bigint FROM pg_database WHERE datname=current_database()")
+        .fetch_one(&state.pool).await.map_err(db_error)?;
+    let name = format!("im_restore_{live_oid}_{}", Uuid::new_v4().simple());
+    let mut stage = StagingDatabase {
+        name,
+        owner: Some(PgConnection::connect(&state.settings.database_url).await.map_err(db_error)?),
+    };
+    sqlx::query(sqlx::AssertSqlSafe(format!("CREATE DATABASE {} TEMPLATE template0", stage.name)))
+        .execute(stage.owner.as_mut().unwrap()).await.map_err(db_error)?;
+    url.set_path(&stage.name);
+    let validation = run(Command::new(executable(state,"pg_restore"))
+        .arg("--single-transaction").arg("--exit-on-error").arg("--no-owner").arg("--no-privileges")
+        .arg(format!("--dbname={url}")).arg(archive),3600,"pg_restore staging").await?;
+    if !validation.status.success() {
+        return Err(ApiError::bad_request(format!("Invalid backup archive: {}",stderr_tail(&validation.stderr))));
+    }
+    let pool = crate::db::create_pool(url.as_str()).await.map_err(db_error)?;
+    let migration = async {
+        let versioned: bool = sqlx::query_scalar("SELECT to_regclass('public.alembic_version') IS NOT NULL")
+            .fetch_one(&pool).await?;
+        if !versioned {
+            return Err(sqlx::Error::Protocol("Backup has no recognized application schema".into()));
+        }
+        crate::db::migrate(&pool).await
+    }.await;
+    pool.close().await;
+    migration.map_err(|e|ApiError::bad_request(format!("Incompatible backup schema: {e}")))?;
+    let prepared = TempFile(std::env::temp_dir().join(format!("tmp{}.dump",Uuid::new_v4())));
+    let output = run(Command::new(executable(state,"pg_dump"))
+        .arg("--format=custom").arg("--no-owner").arg("--no-privileges")
+        .arg(format!("--file={}",prepared.0.display())).arg(url.as_str()),3600,"pg_dump staging").await?;
+    if !output.status.success() {
+        return Err(ApiError::internal(format!("Cannot prepare staged backup: {}",stderr_tail(&output.stderr))));
+    }
+    stage.remove().await?;
+    Ok(prepared)
+}
 async fn drain_connections(state: &AppState) -> Result<(), ApiError> {
     let count = state.pool.size();
     let mut connections = Vec::with_capacity(count as usize);
@@ -158,8 +263,21 @@ async fn drain_connections(state: &AppState) -> Result<(), ApiError> {
 }
 
 #[axum::debug_handler(state = AppState)]
-pub async fn restore(State(state): State<AppState>, user: Admin, _: Csrf, multipart: Multipart) -> Result<Response,ApiError> {
-    let mut multipart = multipart;
+pub async fn restore(State(state): State<AppState>, request: Request) -> Result<Response,ApiError> {
+    let (mut parts, body) = request.into_parts();
+    let token = crate::api::deps::cookie(&parts, &state.settings.session_cookie_name)
+        .ok_or_else(||ApiError::unauthorized("Not authenticated"))?;
+    crate::core::security::decode_session_token(&token, &state.settings.jwt_secret)
+        .map_err(|_|ApiError::unauthorized("Invalid session"))?;
+    Csrf::from_request_parts(&mut parts, &state).await?;
+    {
+        let _shared = state.database_access.read().await;
+        Admin::from_request_parts(&mut parts, &state).await?;
+        Csrf::from_request_parts(&mut parts, &state).await?;
+    }
+    let mut authorization = parts.clone();
+    let mut multipart = Multipart::from_request(Request::from_parts(parts, body), &state).await
+        .map_err(|error|ApiError::new(error.status(), error.body_text()))?;
     let path=TempFile(std::env::temp_dir().join(format!("tmp{}.dump",Uuid::new_v4())));
     let mut file=tokio::fs::OpenOptions::new().write(true).create_new(true).open(&path.0).await.map_err(|e|ApiError::internal(e.to_string()))?;
     let mut confirm=None;
@@ -169,7 +287,14 @@ pub async fn restore(State(state): State<AppState>, user: Admin, _: Csrf, multip
     let mut upload_error=None;
     while let Some(mut field)=multipart.next_field().await.map_err(|e|ApiError::bad_request(e.to_string()))? {
         match field.name() {
-            Some("confirm")=>confirm=Some(field.text().await.map_err(|e|ApiError::bad_request(e.to_string()))?),
+            Some("confirm")=>{
+                let mut value = Vec::with_capacity(7);
+                while let Some(chunk)=field.chunk().await.map_err(|e|ApiError::bad_request(e.to_string()))? {
+                    if value.len() + chunk.len() > 7 { return Err(ApiError::bad_request("Type RESTORE to confirm")); }
+                    value.extend_from_slice(&chunk);
+                }
+                confirm=Some(String::from_utf8(value).map_err(|_|ApiError::bad_request("Type RESTORE to confirm"))?);
+            },
             Some("file")=>{
                 if has_file { return Err(ApiError::bad_request("Only one backup archive may be uploaded")); }
                 has_file=true;
@@ -191,10 +316,10 @@ pub async fn restore(State(state): State<AppState>, user: Admin, _: Csrf, multip
     if let Some(error)=upload_error { return Err(error); }
     file.flush().await.map_err(|e|ApiError::internal(e.to_string()))?;
     drop(file);
-    let validation=run(Command::new(executable(&state,"pg_restore")).arg("--exit-on-error").arg("--file=-").arg(&path.0).stdout(std::process::Stdio::null()),3600,"pg_restore archive validation").await?;
-    if !validation.status.success() {
-        return Err(ApiError::bad_request(format!("Invalid backup archive: {}",stderr_tail(&validation.stderr))));
-    }
+    let prepared = stage_archive(&state, &path.0).await?;
+    let _exclusive = state.database_access.write().await;
+    let user = Admin::from_request_parts(&mut authorization, &state).await?;
+    Csrf::from_request_parts(&mut authorization, &state).await?;
     dump(&state,"pre_restore",Some(user.0.id)).await?;
     drain_connections(&state).await?;
     let started=Utc::now();
@@ -204,7 +329,7 @@ pub async fn restore(State(state): State<AppState>, user: Admin, _: Csrf, multip
     guard.sync_all().await.map_err(|e|ApiError::internal(e.to_string()))?;
     drop(guard);
     block_restore_auth(true);
-    let outcome=run(Command::new(executable(&state,"pg_restore")).arg("--single-transaction").arg("--exit-on-error").arg("--clean").arg("--if-exists").arg("--no-owner").arg("--no-privileges").arg(format!("--dbname={}",state.settings.database_url)).arg(&path.0),3600,"pg_restore").await;
+    let outcome=run(Command::new(executable(&state,"pg_restore")).arg("--single-transaction").arg("--exit-on-error").arg("--clean").arg("--if-exists").arg("--no-owner").arg("--no-privileges").arg(format!("--dbname={}",state.settings.database_url)).arg(&prepared.0),3600,"pg_restore").await;
     let error=match outcome {
         Ok(output) if output.status.success()=>None,
         Ok(output)=>Some(format!("pg_restore failed ({}): {}",output.status,stderr_tail(&output.stderr))),
@@ -260,6 +385,20 @@ pub async fn scheduler_loop(state: AppState) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test] fn staging_names_are_database_scoped_and_strict() {
+        let suffix = "0123456789abcdef0123456789abcdef";
+        assert!(staging_name_matches(&format!("im_restore_4294967295_{suffix}"), 4294967295));
+        assert!(format!("im_restore_4294967295_{suffix}").len() < 63);
+        for name in [
+            format!("im_restore_42_{suffix}"),
+            format!("im_restore_042_{suffix}"),
+            format!("im_restore_43_{suffix}extra"),
+            format!("im_restore_43_{}", suffix.to_uppercase()),
+            "im_restore_43_unrelated".to_string(),
+        ] {
+            assert!(!staging_name_matches(&name, 43));
+        }
+    }
     #[test] fn filenames_are_strict() {
         assert!(valid_filename("inventorymgr-20261009T120000Z-pre_restore.dump"));
         assert!(valid_filename("inventorymgr-20261009T120000Z-manual-0123456789abcdef0123456789abcdef.dump"));

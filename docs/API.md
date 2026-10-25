@@ -1,6 +1,6 @@
 # API Reference
 
-All routes are mounted under `/api` (see `backend/app/api/__init__.py`). Auth is
+All routes are mounted under `/api` (see `backend-rust/src/api/`). Auth is
 JWT-in-cookie (`SESSION_COOKIE_NAME`), CSRF via `X-CSRF-Token` header for
 mutating requests. Roles: `viewer` < `editor` < `admin`.
 
@@ -11,9 +11,13 @@ probe for Compose/Quadlet healthchecks).
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/api/auth/login` | Local or LDAP bind depending on user config; sets session + CSRF cookies. Rate-limited (`slowapi`). |
-| POST | `/api/auth/logout` | Clears session cookie. |
+| GET/POST | `/api/auth/setup` | Query initial setup status or create the first local administrator. |
+| POST | `/api/auth/login` | Local credentials or LDAP bind according to the account's credential source; sets session, refresh, and CSRF cookies. Local accounts never fall back to LDAP. |
+| POST | `/api/auth/refresh` | Refresh a credential-bound session; password reset invalidates the affected user's old access and refresh tokens. |
+| POST | `/api/auth/logout` | Clears authentication cookies. |
 | GET | `/api/auth/me` | Current authenticated user. |
+
+Login ingress is bounded to 300 attempts/minute; account, directory lookup, and resolved-DN password-bind budgets are ten/minute. Email fields accept at most 254 bytes, passwords at most 1,024 characters. Initial and reset passwords require at least eight characters. Legacy tokens without credential binding require a fresh login after upgrade.
 
 ## Users — `/api/users`
 
@@ -27,7 +31,7 @@ CRUD for accounts. Admin-only for create/update/delete; role assignment is
 | GET | `/api/vms` | List/filter VMs. |
 | POST | `/api/vms` | Create. |
 | GET/PATCH/DELETE | `/api/vms/{id}` | Single VM. |
-| PATCH | `/api/vms/bulk` | Bulk edit (see `services/vms_bulk.py`). |
+| POST | `/api/vms/bulk` | Bulk edit (see `backend-rust/src/api/inventory/bulk.rs`). |
 
 Child resources nest under a VM: `/api/vms/{parent_id}/disks`,
 `/api/vms/{parent_id}/networks`, `/api/vms/{parent_id}/applications`,
@@ -79,6 +83,6 @@ Admin-only. List, trigger, download, and restore Postgres dumps
 
 ## Error format
 
-Errors are JSON `{"detail": "..."}` (FastAPI default) or
-`{"detail": {...}}` for structured validation errors. The frontend's
+Errors are JSON `{"detail": "..."}` or
+`{"detail": [...]}` for structured validation errors. The frontend's
 `apiRequest()`/`ApiError` (`frontend/src/api/core.ts`) unwrap this uniformly.

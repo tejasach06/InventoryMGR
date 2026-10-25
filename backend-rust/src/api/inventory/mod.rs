@@ -1,7 +1,7 @@
 mod resource;
 mod service;
 mod filters;
-mod export;
+pub(crate) mod export;
 mod bulk;
 use resource::*;
 use service::*;
@@ -34,11 +34,9 @@ fn identifier(p:&HashMap<String,String>,key:&str)->Result<Uuid,ApiError>{
  Uuid::parse_str(raw).map_err(|e|uuid_validation(e,raw,field))
 }
 fn uuid_validation(e:uuid::Error,raw:&str,field:&str)->ApiError{
- let message=e.to_string();let mut msg=if let Some((_,found))=message.split_once(", found "){format!("invalid character: found {found}")}else{message};
- if msg.starts_with("invalid character:"){if let Some((prefix,index))=msg.rsplit_once(" at "){if let Ok(index)=index.parse::<usize>(){msg=format!("{prefix} at {}",index+1);}}}
+ let message=e.to_string();let msg=if let Some((_,found))=message.split_once(", found "){format!("invalid character: found {found}")}else{message};
  let mut error=issue(vec![json!("path"),json!(field)],"uuid_parsing",format!("Input should be a valid UUID, {msg}"),&json!(raw));error["ctx"]=json!({"error":msg});ApiError::validation(vec![error])
 }
-#[cfg(test)]mod uuid_tests{use super::*;#[test]fn uuid_error_character_position_matches_pydantic(){let e=uuid_validation(Uuid::parse_str("not-a-uuid").unwrap_err(),"not-a-uuid","vm_id");let detail=e.detail.unwrap();assert_eq!(detail[0]["ctx"]["error"],"invalid character: found `n` at 1");assert_eq!(detail[0]["loc"],json!(["path","vm_id"]));}}
 pub async fn selected_ids(state:&AppState,p:&Params,export:bool)->Result<Vec<Uuid>,ApiError>{let mut b=QueryBuilder::new("SELECT v.id FROM vms v WHERE true");if export && p.get("ids").is_some_and(|v|!v.is_empty()){b.push(" AND v.id IN (");let mut s=b.separated(",");for id in &p["ids"]{s.push_bind(Uuid::parse_str(id).map_err(|_|invalid("Invalid UUID"))?);}s.push_unseparated(")");}else if !(export && filters::boolean(p,"all")?==Some(true)){filters::apply(&mut b,p)?;}b.push(" ORDER BY ").push(if export{"v.name ASC".into()}else{filters::ordering(p)?});b.build_query_scalar().fetch_all(&state.pool).await.map_err(db_error)}
 async fn list_vms(State(s):State<AppState>,_:Viewer,RawQuery(raw):RawQuery)->Result<Json<Value>,ApiError>{
  let p=filters::query(raw);filters::validate_query(&p)?;

@@ -18,10 +18,18 @@ Runtime configuration comes from environment variables. See `.env.example`.
 | `APP_ENV` | `development` or `production`. Use `production` only over HTTPS because session cookies require a secure connection. |
 | `DATABASE_URL` | PostgreSQL connection string. |
 | `JWT_SECRET` | Random signing and encryption secret. `just env` generates it. Rotation invalidates sessions and prevents decryption of existing LDAP bind credentials. |
-| `SESSION_COOKIE_NAME` and `CSRF_COOKIE_NAME` | Cookie names. Change them if another application uses the same names on this domain. |
+| `SESSION_COOKIE_NAME` and `CSRF_COOKIE_NAME` | Cookie names. Compose forwards the CSRF name to both services. For native or Quadlet deployment, set the same `CSRF_COOKIE_NAME` in backend and frontend runtime environments. The frontend renders it into page metadata at request time; rebuilding is unnecessary. |
 | `APP_CORS_ORIGINS` | Comma-separated allowed origins. |
 | `BACKUP_DIR` | Backup directory, mounted as `/var/lib/inventorymgr/backups` in the backend container. |
 | `INVENTORYMGR_API_URL` | Backend URL used by the frontend at build time. |
+
+## Authentication
+
+Local credentials never fall back to LDAP. LDAP identities cannot claim an existing local account, even through an email alias. Login throttles canonical directory lookup identities, retains at most 4,096 active identity keys, and caps global ingress at 300 attempts per minute.
+
+Email fields accept at most 254 bytes; passwords accept at most 1,024 characters. New and reset passwords require at least eight characters.
+
+Access and refresh tokens are bound to each user's stored credential verifier. A password reset invalidates both token types for that user without signing out other users. Upgrading from tokens without this binding requires a one-time fresh login. Restore still invalidates all prior sessions.
 
 ## Backups
 
@@ -34,10 +42,20 @@ The unique suffix prevents concurrent manual requests from sharing a destination
 Legacy filenames without the UUID suffix remain readable.
 Labels contain lowercase letters or underscores. All file operations validate the complete filename before resolving its path.
 
-Restore validates the entire archive with `pg_restore` before changing the database or creating the recovery backup.
+Restore requires the database role to have `CREATEDB` and enough disk headroom for a staging database plus a prepared archive. Compose and the supplied PostgreSQL container initialize the application role with this privilege; for an externally managed role, grant it explicitly before using API restore. Restore loads the archive into an isolated `im_restore_<live-DB-OID>_<32 lowercase hex UUID>` database, validates its application revision, applies supported migrations, and prepares a new archive before touching live rows or creating the recovery backup. Unknown revisions return HTTP 400 without invalidating live tokens or changing data.
 The destructive restore runs in one transaction with `--exit-on-error`.
 A failed command returns an error and cannot produce a successful backup job.
 The recovery archive retains the state immediately before restore.
+
+Uploads stream outside the database gate. The administrator and CSRF token are checked before upload and revalidated immediately before exclusive cutover. Ordinary bodies are capped at 2 MiB, CSV multipart uploads at 6 MiB, and restore archives at 2 GiB.
+
+Only one backend instance may own a database at a time. A dedicated advisory connection rejects overlapping processes and remains held through graceful drain. Its connection is probed every five seconds with a two-second timeout; failure stops the server without reconnecting. Detection can take approximately seven seconds plus scheduling delay. This is not instantaneous distributed fencing or an HA deployment contract.
+
+Dumps remain hidden as `.dump.partial` until completed. On startup, interrupted jobs become failed and their partial files are removed. Final archives are not deleted merely because a restored historical job says `running`.
+
+After obtaining ownership, startup reclaims abandoned staging databases only when their exact generated name matches the current live database's OID and their owner is the current PostgreSQL role. Other scopes, owners, malformed names, and old unscoped names are left untouched.
+
+SIGINT and SIGTERM initiate graceful shutdown; allow at least 30 seconds before forced termination.
 
 Session and refresh tokens carry a persisted session-generation identifier.
 Restore rotates this identifier before and after the database operation, so earlier tokens cannot remain valid within the same second.
@@ -56,7 +74,7 @@ Recognized historical Alembic revisions receive the remaining upgrades through h
 `alembic_version.version_num` remains the revision ledger.
 There is no `_sqlx_migrations` ledger.
 Unknown revisions and nonempty unversioned schemas fail startup.
-For PostgreSQL major-version upgrades, see `tools/migrate-postgres-16-to-17.sh`.
+PostgreSQL 16-to-17 upgrades use `tools/migrate-postgres-16-to-17.sh --confirm` during an explicit maintenance window. The script stops and masks application writers before copying the stopped PostgreSQL 16 volume, validates the PostgreSQL 17 candidate in isolation, and compares database and table row counts before promotion. It retains both the immutable PostgreSQL 16 snapshot and the PostgreSQL 17 volume. Before promotion, rollback restores the PostgreSQL 16 Quadlet configuration; after promotion, rollback requires stopping writers and deliberately selecting the retained PostgreSQL 16 snapshot. Review the script's private evidence directory before deleting either volume.
 
 ## CSV import
 
@@ -96,10 +114,10 @@ Run `just verify` and `just audit` before deploying.
 
 The production backend is Rust-only.
 Python under `backend/` is retained as a test-only parity oracle, not a deployment runtime.
-`just setup` prepares it with `uv sync --extra dev`.
+`just setup` prepares it with `uv sync --frozen --extra dev`.
 
 `just verify` builds Rust, runs backend and frontend checks, compares HTTP contracts, checks empty and historical database upgrades, exercises restore concurrency, and runs Playwright.
-Evidence defaults to `.audit/verification`. Set `VERIFY_OUTPUT_DIR` to choose another directory.
+Evidence defaults to a fresh `.audit/verification-<UTC timestamp>` directory. Set `VERIFY_OUTPUT_DIR` to choose another new directory; existing output paths are rejected. `SUCCESS` is written only after every gate passes.
 The three migration startup scenarios include a separate historical-row preservation assertion.
 HTTP operation coverage includes unauthenticated boundary probes and does not by itself prove every successful workflow.
 
@@ -107,3 +125,16 @@ HTTP operation coverage includes unauthenticated boundary probes and does not by
 It creates disposable PostgreSQL and application processes on allocated ports and removes only its own resources.
 It never falls back to the application's `DATABASE_URL`.
 `just build-prod` defaults the frontend backend URL to `http://inventorymgr-backend:8000` for Quadlet networking.
+
+## Dependency policy
+
+Use the previous stable minor line's latest patch where it remains safe and compatible. Keep an already-newer safe line rather than downgrading solely to satisfy that rule. Security fixes and runtime/API compatibility take precedence.
+
+Runtime pins are Rust 1.98.1 (`backend-rust/rust-toolchain.toml`), Node.js 24.22.1 (`.node-version`), pnpm 12.14.0 (`frontend/package.json`), and Python 3.14.7 (`backend/.python-version`). Required uv tool version is `>=0.12.18` (`backend/pyproject.toml`). Lockfiles and frozen/locked installation are required.
+Container base images and PostgreSQL deployment/test images are pinned by manifest digest. Retain the PostgreSQL deployment distribution when refreshing a digest; switching Alpine and glibc distributions can change collation behavior.
+
+Next.js 16.4.3 is a security exception: the preceding minor is affected by critical advisories fixed in 16.4.1. Rust retains jsonwebtoken 9.3.1 to avoid a separate crypto-provider migration and rand_core 0.6.4 to match argon2 0.5's password-hash trait family. These compatibility exceptions passed the dependency advisory scan; this does not establish upstream long-term support.
+
+Application image bases use Debian 13 (Trixie), a security exception to the older distribution baseline after the Debian 12 image scan reported numerous vendor-unfixed findings. Runtime package updates are applied during image builds. The frontend runtime excludes npm, Corepack, and Yarn; its healthcheck uses Node's built-in HTTP client rather than adding curl. The PostgreSQL deployment remains on its pinned Alpine image; this changes application/client images, not the database volume's distribution.
+
+Reaudit after any non-frozen dependency resolution. Do not downgrade a patched package merely to reach N−1.

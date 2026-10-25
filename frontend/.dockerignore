@@ -8,7 +8,6 @@ node_modules
 *.md
 *.log
 *.tmp
-.devbox
 .opencode
 .claude
 .serena

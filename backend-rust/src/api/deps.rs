@@ -1,7 +1,7 @@
 use crate::{
     core::{
         config::Settings,
-        security::{decode_session_token, verify_csrf_token},
+        security::{decode_session_token, verify_credential_fingerprint, verify_csrf_token},
     },
     models::user::User,
 };
@@ -111,6 +111,12 @@ impl FromRequestParts<AppState> for AuthUser {
         let id =
             Uuid::parse_str(&claims.sub).map_err(|_| ApiError::unauthorized("Invalid session"))?;
         let user=sqlx::query_as::<_,User>("SELECT id,email,password_hash,role,is_active,auth_source,preferences,created_at,updated_at FROM users WHERE id=$1").bind(id).fetch_optional(&state.pool).await.map_err(|e|ApiError::internal(e.to_string()))?.filter(|u|u.is_active).ok_or_else(||ApiError::unauthorized("Inactive or missing user"))?;
+        if !verify_credential_fingerprint(
+            &claims.credential, &user.id.to_string(), &user.auth_source,
+            &user.password_hash, &state.settings.jwt_secret,
+        ) {
+            return Err(ApiError::unauthorized("Session invalidated"));
+        }
         validate_session(state, claims.generation.as_deref(), claims.iat).await?;
         Ok(Self(user))
     }
@@ -374,6 +380,11 @@ pub fn validate_fields(
                     None,
                 ))
             }
+            FieldKind::Email if input.as_str().unwrap().len() > 254 => Some((
+                "string_too_long",
+                "Email must be at most 254 bytes".into(),
+                Some(json!({"max_length":254})),
+            )),
             FieldKind::Email if crate::schemas::auth::email(input.as_str().unwrap()).is_err() => {
                 Some((
                     "value_error",
@@ -385,6 +396,11 @@ pub fn validate_fields(
                 "string_too_short",
                 "String should have at least 8 characters".into(),
                 Some(json!({"min_length":8})),
+            )),
+            FieldKind::Password if input.as_str().unwrap().chars().count() > 1024 => Some((
+                "string_too_long",
+                "String should have at most 1024 characters".into(),
+                Some(json!({"max_length":1024})),
             )),
             FieldKind::StrLen(min, _) if input.as_str().unwrap().chars().count() < min => Some((
                 "string_too_short",

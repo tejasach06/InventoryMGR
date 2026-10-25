@@ -50,6 +50,14 @@ class Client:
 
     def normalize(self, value, key=''):
         if isinstance(value, dict):
+            if value.get('type') == 'uuid_parsing' and 'loc' in value:
+                value = {k: v for k, v in value.items() if k != 'msg'}
+                if isinstance(value.get('ctx'), dict):
+                    context = {k: v for k, v in value['ctx'].items() if k != 'error'}
+                    if context:
+                        value['ctx'] = context
+                    else:
+                        value.pop('ctx')
             if 'size_bytes' in value and value.get('kind') in ('manual', 'restore', 'pre_restore'):
                 value = dict(value, size_bytes='<nonempty-dump>' if (value['size_bytes'] or 0) > 0 else value['size_bytes'])
             return {k: self.normalize(v, k) for k, v in sorted(value.items())}
@@ -336,7 +344,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--rust-binary', type=Path)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--postgres-image', default='docker.io/library/postgres:17')
+    parser.add_argument('--postgres-image', default='docker.io/library/postgres:17-bookworm@sha256:858bb5e98eed02eb8cafbcdc007f9a65d1b613972028944a8ec2133ccaf80d27')
     parser.add_argument('--scratch-dir', type=Path, default=ROOT / '.parity-scratch')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)

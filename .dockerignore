@@ -26,7 +26,6 @@ backend/.venv/**
 **/node_modules
 
 # Dev/tooling config
-.devbox/
 .opencode/
 .claude/
 .serena/

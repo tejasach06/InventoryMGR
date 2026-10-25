@@ -5,8 +5,8 @@ connection — all data is user-entered or CSV-imported.
 
 ## Stack
 
-- **Backend**: Rust 1.98 + Axum 0.8 + SQLx 0.9 + Postgres. Python 3.13 under `backend/` is a test-only parity oracle.
-- **Frontend**: Next.js 16 (App Router) + React 19 + TanStack Query + Tailwind 4, nub-managed.
+- **Backend**: Rust 1.98.1 + Axum 0.8 + SQLx 0.9 + PostgreSQL 17. Python 3.14.7 under `backend/` is a test-only parity oracle.
+- **Frontend**: Next.js 16 (App Router) + React 19 + TanStack Query + Tailwind 4, pnpm 12.14.0 on Node.js 24 LTS.
 - **Deploy**: Podman rootless Compose (`docker-compose.yml`) or Quadlet units (`quadlet/`).
 
 ## Layout
@@ -22,11 +22,11 @@ connection — all data is user-entered or CSV-imported.
 ## Setup / run
 
 ```
-just setup          # devbox
-just env             # generate .env from .env.example (JWT_SECRET)
-just up-local        # db-up + cargo build + nub install/build
-just api-dev         # cargo run on :8000
-just web-dev         # next dev on :3000
+just setup          # install from frozen lockfiles; requires host Rust, Node, pnpm, uv
+just env            # generate .env from .env.example (JWT_SECRET)
+just up-local       # requires native PostgreSQL 17 clients for backup and restore
+just api-dev        # cargo run on :8000
+just web-dev        # Next.js development server on :3000
 ```
 
 ## Commands agents will actually need
@@ -36,7 +36,7 @@ just web-dev         # next dev on :3000
 | Backend tests | `just api-test` runs `cargo test --locked` |
 | Backend lint | `cd backend-rust && cargo clippy --locked` |
 | Frontend unit tests | `just web-test` |
-| Frontend lint/typecheck | `cd frontend && nub run --node lint` |
+| Frontend lint/typecheck | `cd frontend && pnpm run lint` |
 | E2E | `just e2e` uses the isolated Rust browser runner |
 | **Full gate before calling anything done** | `just verify` |
 | Migrations | Extend the native SQL revision chain and verify `tools/rust-parity/migrations.py`; preserve recognized Alembic upgrade boundaries |
@@ -72,3 +72,13 @@ just web-dev         # next dev on :3000
 This repo is worked on in ponytail mode: reuse existing helpers/patterns
 before writing new ones, stdlib/native features before deps, no speculative
 abstractions. Match existing file conventions over inventing new ones.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues (uses the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context layout (`GLOSSARY.md` and `docs/adr/` at repo root). See `docs/agents/domain.md`.

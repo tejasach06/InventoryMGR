@@ -134,12 +134,15 @@ async fn service(c: &Config, secret: &str) -> Result<Ldap, String> {
         .map_err(|e| e.to_string())?;
     Ok(ldap)
 }
-async fn find(c: &Config, ldap: &mut Ldap, email: &str) -> Result<Option<SearchEntry>, String> {
+pub fn lookup_filter(c: &Config, email: &str) -> String {
     let username = email.split('@').next().unwrap_or(email);
-    let filter = c
+    c
         .user_filter
         .replace("{username}", &ldap3::ldap_escape(username))
-        .replace("{email}", &ldap3::ldap_escape(email));
+        .replace("{email}", &ldap3::ldap_escape(email))
+}
+async fn find(c: &Config, ldap: &mut Ldap, email: &str) -> Result<Option<SearchEntry>, String> {
+    let filter = lookup_filter(c, email);
     let (results, _) = ldap
         .with_timeout(Duration::from_secs(5))
         .search(
@@ -185,29 +188,32 @@ async fn user_bind(c: &Config, dn: &str, password: &str) -> Result<(), String> {
     let _ = ldap.unbind().await;
     Ok(())
 }
-pub async fn authenticate(
+pub struct ResolvedEntry(SearchEntry);
+impl ResolvedEntry {
+    pub fn dn(&self) -> &str {
+        &self.0.dn
+    }
+}
+pub async fn resolve(c: &Config, secret: &str, email: &str) -> Result<Option<ResolvedEntry>, String> {
+    if !c.enabled {
+        return Ok(None);
+    }
+    let mut ldap = service(c, secret).await?;
+    let entry = find(c, &mut ldap, email).await?;
+    let _ = ldap.unbind().await;
+    Ok(entry.map(ResolvedEntry))
+}
+pub async fn authenticate_resolved(
     state: &AppState,
+    c: &Config,
+    entry: ResolvedEntry,
     email: &str,
     password: &str,
 ) -> Result<Option<User>, ApiError> {
-    let Some(c) = config(state)
-        .await?
-        .filter(|c| c.enabled && !password.is_empty())
-    else {
+    let entry = entry.0;
+    if !c.enabled || password.is_empty() || user_bind(c, &entry.dn, password).await.is_err() {
         return Ok(None);
-    };
-    let result = async {
-        let mut ldap = service(&c, &state.settings.jwt_secret).await?;
-        let entry = find(&c, &mut ldap, email).await?;
-        let _ = ldap.unbind().await;
-        let Some(entry) = entry else { return Ok(None) };
-        user_bind(&c, &entry.dn, password).await?;
-        Ok::<_, String>(Some(entry))
     }
-    .await;
-    let Ok(Some(entry)) = result else {
-        return Ok(None);
-    };
     let email = entry_values(&entry, &c.email_attribute)
         .first()
         .map(String::as_str)
@@ -217,18 +223,15 @@ pub async fn authenticate(
     if email.is_empty() {
         return Ok(None);
     }
-    let role = role(&c, &entry);
+    let role = role(c, &entry);
     let existing = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email=$1")
         .bind(&email)
         .fetch_optional(&state.pool)
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
     if let Some(u) = existing {
-        if !u.is_active {
+        if !u.is_active || u.auth_source != "ldap" {
             return Ok(None);
-        }
-        if u.auth_source != "ldap" {
-            return Ok(Some(u));
         }
         return sqlx::query_as("UPDATE users SET role=$2,updated_at=now() WHERE id=$1 RETURNING *")
             .bind(u.id)
@@ -308,5 +311,16 @@ mod tests {
         };
         assert_eq!(role(&c, &e), UserRole::Admin);
         assert_eq!(role(&Config::default(), &e), UserRole::Viewer);
+    }
+    #[test]
+    fn lookup_identity_follows_configured_username_and_email_substitutions() {
+        let username = Config::default();
+        assert_eq!(lookup_filter(&username, "alice@one.example"), lookup_filter(&username, "alice@two.example"));
+        assert_ne!(lookup_filter(&username, "alice@one.example"), lookup_filter(&username, "bob@one.example"));
+        let email = Config { user_filter: "(mail={email})".into(), ..Config::default() };
+        assert_ne!(lookup_filter(&email, "alice@one.example"), lookup_filter(&email, "alice@two.example"));
+        let both = Config { user_filter: "(&(uid={username})(mail={email}))".into(), ..Config::default() };
+        assert_eq!(lookup_filter(&both, "alice@example.com"), "(&(uid=alice)(mail=alice@example.com))");
+        assert!(!lookup_filter(&username, "a*)(uid=*)@example.com").contains("(uid=*)"));
     }
 }

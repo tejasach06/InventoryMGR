@@ -1,8 +1,7 @@
 export const API_PREFIX = '/api';
-export const CSRF_COOKIE = 'inventorymgr_csrf';
 
 export function readCookie(name: string): string | null {
-  const prefix = `${encodeURIComponent(name)}=`;
+  const prefix = `${name}=`;
   for (const part of document.cookie.split(';')) {
     const value = part.trim();
     if (value.startsWith(prefix)) return decodeURIComponent(value.slice(prefix.length));
@@ -59,7 +58,8 @@ export async function apiRequest<T>(
   }
 
   if (isStateChanging(method)) {
-    const token = readCookie(CSRF_COOKIE);
+    const cookieName = document.querySelector<HTMLMetaElement>('meta[name="inventorymgr-csrf-cookie"]')?.content ?? 'inventorymgr_csrf';
+    const token = readCookie(cookieName);
     if (token) headers.set('X-CSRF-Token', token);
   }
 

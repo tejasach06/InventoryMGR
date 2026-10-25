@@ -38,5 +38,6 @@ pub struct User {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+#[allow(dead_code)]
 pub const USER_COLUMNS: &str =
     "id,email,password_hash,role,is_active,auth_source,preferences,created_at,updated_at";

@@ -79,6 +79,23 @@ describe('apiRequest', () => {
     expect(headerValue(init, 'X-CSRF-Token')).toBe('tok-123');
   });
 
+  it('uses the runtime cookie name instead of another application’s default cookie', async () => {
+    const meta = document.createElement('meta');
+    meta.name = 'inventorymgr-csrf-cookie';
+    meta.content = 'inventorymgr+csrf';
+    document.head.append(meta);
+    document.cookie = 'inventorymgr_csrf=wrong-application';
+    document.cookie = 'inventorymgr+csrf=custom-token';
+    fetchMock.mockResolvedValue(fakeResponse({ status: 204 }));
+    try {
+      await apiRequest('/vms/1', { method: 'DELETE' });
+      expect(headerValue(lastFetchCall()[1], 'X-CSRF-Token')).toBe('custom-token');
+    } finally {
+      meta.remove();
+      document.cookie = 'inventorymgr+csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
+  });
+
   it('omits the CSRF header when no cookie is present', async () => {
     fetchMock.mockResolvedValue(fakeResponse({ status: 200, body: '{}' }));
 
