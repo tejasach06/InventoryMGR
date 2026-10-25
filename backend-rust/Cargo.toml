@@ -30,7 +30,7 @@ csv = "~1.4.0"
 reqwest = { version = "~0.12.28", default-features = false, features = ["rustls-tls", "json"] }
 ldap3 = { version = "~0.12.1", default-features = false, features = ["tls-rustls-ring"] }
 fernet = { version = "~0.2.2", default-features = false, features = ["rustcrypto"] }
-base64 = "~0.22.1"
+base64 = "~0.23.1"
 regex = "~1.13.1"
 parking_lot = "~0.12.5"
 
