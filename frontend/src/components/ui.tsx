@@ -301,40 +301,22 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const confirmRef = useRef<HTMLButtonElement>(null);
-  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    restoreFocusRef.current = document.activeElement as HTMLElement | null;
-    cancelRef.current?.focus();
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onCancel(); return; }
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const next = document.activeElement === cancelRef.current ? confirmRef.current : cancelRef.current;
-        next?.focus();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      restoreFocusRef.current?.focus();
-    };
-  }, [open]);
+  useModalOverlay({ open, onClose: onCancel, containerRef, initialFocusRef: cancelRef });
 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
       <div className="absolute inset-0 bg-[var(--color-scrim)] backdrop-blur-sm animate-fade-in" onClick={onCancel} aria-hidden="true" />
-      <div className="relative w-full max-w-sm rounded-2xl bg-[var(--color-surface)] p-5 shadow-[var(--shadow-overlay)] animate-rise">
+      <div ref={containerRef} className="relative w-full max-w-sm rounded-2xl bg-[var(--color-surface)] p-5 shadow-[var(--shadow-overlay)] animate-rise">
         <h2 id="confirm-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
         <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{body}</p>
         {children}
         <div className="mt-5 flex justify-end gap-2">
           <button ref={cancelRef} type="button" className={secondaryButtonClass} onClick={onCancel} disabled={pending}>Cancel</button>
-          <button ref={confirmRef} type="button" className={tone === 'primary' ? primaryButtonClass : dangerButtonClass} onClick={onConfirm} disabled={pending}>
+          <button type="button" className={tone === 'primary' ? primaryButtonClass : dangerButtonClass} onClick={onConfirm} disabled={pending}>
             {pending ? <Spinner /> : null}{confirmLabel}
           </button>
         </div>

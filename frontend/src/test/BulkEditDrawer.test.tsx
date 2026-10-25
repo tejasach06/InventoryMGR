@@ -58,4 +58,47 @@ describe('BulkEditDrawer', () => {
     await userEvent.selectOptions(screen.getByLabelText('Status'), 'running');
     expect(screen.getByRole('button', { name: 'Apply to 12 VMs' })).toBeEnabled();
   });
+
+  it('resets staged modifications when closed and re-opened', async () => {
+    const { rerender } = render(
+      <BulkEditDrawer
+        open
+        onClose={vi.fn()}
+        targetLabel="12 VMs"
+        onSubmit={vi.fn()}
+        pending={false}
+        suggestions={{}}
+        tagOptions={[]}
+      />,
+    );
+
+    await userEvent.selectOptions(screen.getByLabelText('Status'), 'running');
+    expect(screen.getByRole('button', { name: 'Apply to 12 VMs' })).toBeEnabled();
+
+    rerender(
+      <BulkEditDrawer
+        open={false}
+        onClose={vi.fn()}
+        targetLabel="12 VMs"
+        onSubmit={vi.fn()}
+        pending={false}
+        suggestions={{}}
+        tagOptions={[]}
+      />,
+    );
+
+    rerender(
+      <BulkEditDrawer
+        open
+        onClose={vi.fn()}
+        targetLabel="12 VMs"
+        onSubmit={vi.fn()}
+        pending={false}
+        suggestions={{}}
+        tagOptions={[]}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Apply to 12 VMs' })).toBeDisabled();
+  });
 });

@@ -79,16 +79,39 @@ export function mergeWithDefaults(saved: ColumnConfig[]): ColumnConfig[] {
   return merged;
 }
 
+export function toggleColumnConfig(columns: ColumnConfig[], key: string): ColumnConfig[] {
+  return columns.map((c) => (c.key === key ? { ...c, visible: !c.visible } : c));
+}
+
+export function reorderColumnConfig(columns: ColumnConfig[], fromKey: string, toKey: string): ColumnConfig[] | null {
+  const sorted = [...columns].sort((a, b) => a.order - b.order);
+  const fromIdx = sorted.findIndex((c) => c.key === fromKey);
+  const toIdx = sorted.findIndex((c) => c.key === toKey);
+  if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return null;
+  const reordered = [...sorted];
+  const [moved] = reordered.splice(fromIdx, 1);
+  reordered.splice(toIdx, 0, moved);
+  return reordered.map((c, i) => ({ ...c, order: i }));
+}
+
 export function useColumnPreferences(pageKey: string) {
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const columnsRef = useRef<ColumnConfig[]>(columns);
+  columnsRef.current = columns;
 
   useEffect(() => {
     let cancelled = false;
     settingsApi.getColumnPreferences(pageKey)
-      .then((data) => { if (!cancelled) setColumns(mergeWithDefaults(data.columns)); })
+      .then((data) => {
+        if (!cancelled) {
+          const merged = mergeWithDefaults(data.columns);
+          columnsRef.current = merged;
+          setColumns(merged);
+        }
+      })
       .catch((err) => { if (!cancelled) setError(detailMessage(err)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -104,29 +127,22 @@ export function useColumnPreferences(pageKey: string) {
   }, [pageKey]);
 
   const toggleColumn = useCallback((key: string) => {
-    setColumns((prev) => {
-      const next = prev.map((c) => c.key === key ? { ...c, visible: !c.visible } : c);
-      save(next);
-      return next;
-    });
+    const next = toggleColumnConfig(columnsRef.current, key);
+    columnsRef.current = next;
+    setColumns(next);
+    save(next);
   }, [save]);
 
   const reorderColumns = useCallback((fromKey: string, toKey: string) => {
-    setColumns((prev) => {
-      const sorted = [...prev].sort((a, b) => a.order - b.order);
-      const fromIdx = sorted.findIndex((c) => c.key === fromKey);
-      const toIdx = sorted.findIndex((c) => c.key === toKey);
-      if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return prev;
-      const reordered = [...sorted];
-      const [moved] = reordered.splice(fromIdx, 1);
-      reordered.splice(toIdx, 0, moved);
-      const withNewOrder = reordered.map((c, i) => ({ ...c, order: i }));
-      save(withNewOrder);
-      return withNewOrder;
-    });
+    const next = reorderColumnConfig(columnsRef.current, fromKey, toKey);
+    if (!next) return;
+    columnsRef.current = next;
+    setColumns(next);
+    save(next);
   }, [save]);
 
   const resetToDefault = useCallback(() => {
+    columnsRef.current = DEFAULT_COLUMNS;
     setColumns(DEFAULT_COLUMNS);
     save(DEFAULT_COLUMNS);
   }, [save]);

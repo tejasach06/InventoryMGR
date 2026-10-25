@@ -7,7 +7,7 @@ import { clusters as clustersApi } from '../api/clusters';
 import { detailMessage } from '../api/core';
 import type { ClusterPayload, PhysicalCluster, PhysicalNode } from '../api/types';
 import {
-  Alert, ConfirmDialog, FieldError, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, cardClass, inputClass, labelClass,
+  Alert, ConfirmDialog, FieldError, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, ProgressBar, cardClass, inputClass, labelClass,
   tableClass, tableBodyClass, tableCellClass, monoClass, tableWrapClass,
   dangerButtonClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass,
 } from '../components/ui';
@@ -114,8 +114,8 @@ function RamBar({ used, total }: { used: number | null; total: number }) {
   const pct = total > 0 && used !== null ? Math.min(100, Math.round((used / total) * 100)) : null;
   return (
     <div className="flex items-center gap-3">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-tertiary)]">
-        <div className="h-full rounded-full bg-[var(--color-accent)] transition-all" style={{ width: `${pct ?? 0}%` }} />
+      <div className="flex-1">
+        <ProgressBar value={pct ?? 0} label="RAM usage" colorVar="var(--color-accent)" />
       </div>
       <span className={cn(monoClass, 'w-24 text-right tabular-nums')}>
         {used === null ? '—' : `${used} / ${total} GB`}

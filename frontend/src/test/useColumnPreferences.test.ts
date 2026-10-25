@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '../api/core';
 import { settings as settingsApi } from '../api/settings';
-import { DEFAULT_COLUMNS, mergeWithDefaults, useColumnPreferences } from '../hooks/useColumnPreferences';
+import { DEFAULT_COLUMNS, mergeWithDefaults, reorderColumnConfig, toggleColumnConfig, useColumnPreferences } from '../hooks/useColumnPreferences';
 
 describe('mergeWithDefaults', () => {
   it('appends newly added columns as hidden after saved ones', () => {
@@ -113,5 +113,31 @@ describe('useColumnPreferences', () => {
     act(() => result.current.resetToDefault());
     expect(result.current.columns).toEqual(DEFAULT_COLUMNS);
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('toggleColumnConfig and reorderColumnConfig', () => {
+  it('toggles visibility for the target column cleanly without mutating', () => {
+    const cols = [{ key: 'fqdn', visible: false, order: 0 }];
+    const next = toggleColumnConfig(cols, 'fqdn');
+    expect(next).toEqual([{ key: 'fqdn', visible: true, order: 0 }]);
+    expect(cols[0].visible).toBe(false);
+  });
+
+  it('reorders and assigns sequential order indices', () => {
+    const cols = [
+      { key: 'a', visible: true, order: 0 },
+      { key: 'b', visible: true, order: 1 },
+      { key: 'c', visible: true, order: 2 },
+    ];
+    const reordered = reorderColumnConfig(cols, 'c', 'a');
+    expect(reordered?.map((c) => c.key)).toEqual(['c', 'a', 'b']);
+    expect(reordered?.map((c) => c.order)).toEqual([0, 1, 2]);
+  });
+
+  it('returns null when keys do not exist or are identical', () => {
+    const cols = [{ key: 'a', visible: true, order: 0 }];
+    expect(reorderColumnConfig(cols, 'a', 'a')).toBeNull();
+    expect(reorderColumnConfig(cols, 'a', 'missing')).toBeNull();
   });
 });

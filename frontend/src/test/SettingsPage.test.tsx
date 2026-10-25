@@ -2,6 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+const hoisted = vi.hoisted(() => ({
+  searchParams: new URLSearchParams(),
+  replaceMock: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => hoisted.searchParams,
+  useRouter: () => ({ replace: hoisted.replaceMock }),
+  usePathname: () => '/settings',
+}));
 import type { User } from '../api/types';
 import { SettingsPage } from '../routes/SettingsPage';
 import { buildNavItems } from '../components/AppNav';
@@ -16,6 +26,8 @@ const mockUsers: User[] = [
 beforeEach(() => {
   window.localStorage.clear();
   window.localStorage.setItem('inventorymgr-theme', 'light');
+  hoisted.searchParams = new URLSearchParams();
+  hoisted.replaceMock.mockClear();
 });
 
 afterEach(() => {
@@ -30,6 +42,21 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('tab', { name: 'Appearance' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument();
   });
+  it('opens Users tab when specified in searchParams', () => {
+    hoisted.searchParams = new URLSearchParams('tab=users');
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
+
+    expect(screen.getByRole('tab', { name: 'Users' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('syncs tab changes to the URL with router.replace', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />, { user: makeUser() });
+
+    await user.click(screen.getByRole('tab', { name: 'Users' }));
+    expect(hoisted.replaceMock).toHaveBeenCalledWith('/settings?tab=users');
+  });
+
 
   it('persists Violet after applying its light accent immediately', async () => {
     const setAccent = vi.spyOn(settingsApi, 'setAccent').mockResolvedValue({ accent: 'violet' });

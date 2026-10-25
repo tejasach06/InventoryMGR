@@ -7,21 +7,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { storage as storageApi } from '../api/storage';
 import { detailMessage } from '../api/core';
 import type { ArrayPayload, StorageArrayListItem } from '../api/types';
-import { Alert, Badge, PageHeader, PageTransition, TableSkeleton, EmptyState, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass, monoClass } from '../components/ui';
+import { Alert, Badge, PageHeader, PageTransition, TableSkeleton, EmptyState, ProgressBar, primaryButtonClass, cardClass, tableWrapClass, tableClass, tableHeadClass, tableBodyClass, tableRowClass, tableCellClass, monoClass } from '../components/ui';
 import { cn } from '../lib/classNames';
 import { useCurrentUser } from '../components/AuthContext';
 import { ArrayForm } from '../components/ArrayForm';
 
 function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
+  const colorVar = over ? 'var(--color-criticality-critical)' : 'var(--color-text-secondary)';
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[var(--color-surface-tertiary)]">
-        {pct !== null && (
-          <div
-            className={`h-full rounded-full transition-[width] duration-500 ${over ? 'bg-[var(--color-criticality-critical)]' : 'bg-[var(--color-text-secondary)]'}`}
-            style={{ width: `${Math.min(100, pct)}%` }}
-          />
-        )}
+      <div className="w-24">
+        <ProgressBar value={pct ?? 0} label="Storage usage" colorVar={colorVar} />
       </div>
       <span className={cn(monoClass, 'text-sm tabular-nums text-[var(--color-text-secondary)]')}>{pct === null ? '—' : `${pct}%`}</span>
     </div>

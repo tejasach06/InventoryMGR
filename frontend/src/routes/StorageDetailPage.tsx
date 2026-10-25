@@ -8,7 +8,7 @@ import { settings as settingsApi } from '../api/settings';
 import { detailMessage } from '../api/core';
 import type { ArrayPayload, StorageArray, StorageVolume } from '../api/types';
 import {
-  Alert, ConfirmDialog, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, cardClass, inputClass,
+  Alert, ConfirmDialog, PageHeader, PageTransition, Skeleton, Spinner, RemoveButton, ProgressBar, cardClass, inputClass,
   tableClass, tableBodyClass, tableCellClass, monoClass,
   dangerButtonClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass,
 } from '../components/ui';
@@ -69,11 +69,11 @@ function InlineAddForm({ fields, onSubmit, pending }: {
 }
 
 function UsageBar({ pct, over }: { pct: number | null; over: boolean }) {
+  const colorVar = over ? 'var(--color-criticality-critical)' : 'var(--color-text-secondary)';
   return (
     <div className="flex items-center gap-3">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-tertiary)]">
-        <div className={cn('h-full rounded-full transition-all', over ? 'bg-[var(--color-criticality-critical)]' : 'bg-[var(--color-text-secondary)]')}
-          style={{ width: `${pct === null ? 0 : Math.min(100, pct)}%` }} />
+      <div className="flex-1">
+        <ProgressBar value={pct ?? 0} label="Storage usage" colorVar={colorVar} />
       </div>
       <span className={cn(monoClass, 'w-14 text-right font-semibold tabular-nums')}>
         {pct === null ? '—' : `${pct}%`}

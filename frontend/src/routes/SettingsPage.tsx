@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { settings as settingsApi } from '../api/settings';
 import { detailMessage } from '../api/core';
@@ -154,10 +155,48 @@ function NotificationsPanel() {
   );
 }
 
+const SETTINGS_TABS = ['appearance', 'users', 'notifications', 'ldap', 'backups'] as const;
+type SettingsTab = (typeof SETTINGS_TABS)[number];
+
 export function SettingsPage() {
   const user = useCurrentUser();
-  const [activeTab, setActiveTab] = useState<'appearance' | 'users' | 'notifications' | 'ldap' | 'backups'>('appearance');
+  let searchParams: ReadonlyURLSearchParams | null = null;
+  let router: { replace: (url: string) => void } | null = null;
+  try {
+    searchParams = useSearchParams();
+  } catch {}
+  try {
+    router = useRouter();
+  } catch {}
 
+  const paramTab = searchParams?.get('tab');
+  const initialTab: SettingsTab =
+    paramTab && SETTINGS_TABS.includes(paramTab as SettingsTab) && (user.role === 'admin' || paramTab === 'appearance')
+      ? (paramTab as SettingsTab)
+      : 'appearance';
+
+  const [activeTab, setActiveTabState] = useState<SettingsTab>(initialTab);
+
+  useEffect(() => {
+    const currentParam = searchParams?.get('tab');
+    if (currentParam && SETTINGS_TABS.includes(currentParam as SettingsTab) && (user.role === 'admin' || currentParam === 'appearance')) {
+      setActiveTabState(currentParam as SettingsTab);
+    }
+  }, [searchParams, user.role]);
+
+  const selectTab = (tab: SettingsTab) => {
+    setActiveTabState(tab);
+    if (router && searchParams) {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      if (tab === 'appearance') {
+        nextParams.delete('tab');
+      } else {
+        nextParams.set('tab', tab);
+      }
+      const qs = nextParams.toString();
+      router.replace(qs ? `/settings?${qs}` : '/settings');
+    }
+  };
   return (
     <PageTransition>
       <section className="mx-auto max-w-5xl">
@@ -174,7 +213,7 @@ export function SettingsPage() {
               id="tab-appearance"
               aria-selected={activeTab === 'appearance'}
               aria-controls="panel-appearance"
-              onClick={() => setActiveTab('appearance')}
+              onClick={() => selectTab('appearance')}
               className={cn(
                 '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                 activeTab === 'appearance'
@@ -192,7 +231,7 @@ export function SettingsPage() {
                   id="tab-users"
                   aria-selected={activeTab === 'users'}
                   aria-controls="panel-users"
-                  onClick={() => setActiveTab('users')}
+                  onClick={() => selectTab('users')}
                   className={cn(
                     '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                     activeTab === 'users'
@@ -208,7 +247,7 @@ export function SettingsPage() {
                   id="tab-notifications"
                   aria-selected={activeTab === 'notifications'}
                   aria-controls="panel-notifications"
-                  onClick={() => setActiveTab('notifications')}
+                  onClick={() => selectTab('notifications')}
                   className={cn(
                     '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                     activeTab === 'notifications'
@@ -224,7 +263,7 @@ export function SettingsPage() {
                   id="tab-ldap"
                   aria-selected={activeTab === 'ldap'}
                   aria-controls="panel-ldap"
-                  onClick={() => setActiveTab('ldap')}
+                  onClick={() => selectTab('ldap')}
                   className={cn(
                     '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                     activeTab === 'ldap'
@@ -240,7 +279,7 @@ export function SettingsPage() {
                   id="tab-backups"
                   aria-selected={activeTab === 'backups'}
                   aria-controls="panel-backups"
-                  onClick={() => setActiveTab('backups')}
+                  onClick={() => selectTab('backups')}
                   className={cn(
                     '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                     activeTab === 'backups'

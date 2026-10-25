@@ -8,7 +8,7 @@ import { vms as vmsApi } from '../api/vms';
 import { detailMessage } from '../api/core';
 import type { NetworkRole, Vm } from '../api/types';
 import {
-  Alert, Badge, ConfirmDialog, InlineEmptyState, PageHeader, PageTransition, SectionCard, SectionNav, Skeleton, Spinner,
+  Alert, Badge, ConfirmDialog, InlineEmptyState, PageHeader, PageTransition, SectionCard, SectionNav, Skeleton, Spinner, ProgressBar,
   cardClass, dangerButtonClass, inputClass, labelClass, monoClass, secondaryButtonClass, selectClass,
   tableBodyClass, tableCellClass, tableClass, tableHeadClass, tableRowClass, tableWrapClass,
 } from '../components/ui';
@@ -98,8 +98,8 @@ function HealthScore({ score }: { score: number }) {
   const colorVar = score >= 75 ? 'var(--color-status-running)' : score >= 50 ? 'var(--color-criticality-medium)' : 'var(--color-criticality-critical)';
   return (
     <div className="flex items-center gap-3">
-      <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--color-surface-tertiary)' }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, backgroundColor: colorVar }} />
+      <div className="flex-1">
+        <ProgressBar value={score} label="Health score" colorVar={colorVar} />
       </div>
       <span className="w-10 text-right text-sm font-semibold tabular-nums text-[var(--color-text-secondary)]">{score}%</span>
     </div>

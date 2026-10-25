@@ -177,6 +177,17 @@ describe('InventoryPage', () => {
     expect(hoisted.pushMock).not.toHaveBeenCalled();
   });
 
+  it('corrects page boundary to lastPage with router.replace when result set shrinks', async () => {
+    hoisted.searchParams = new URLSearchParams('page=5');
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList({ total: 10 }));
+    renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'admin' }) });
+
+    await waitFor(() => {
+      expect(hoisted.replaceMock).toHaveBeenCalledWith('/inventory');
+    });
+    expect(hoisted.pushMock).not.toHaveBeenCalled();
+  });
+
   it('seeds the search field from the URL and clears it back to empty', async () => {
     hoisted.searchParams = new URLSearchParams('q=web');
     vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());

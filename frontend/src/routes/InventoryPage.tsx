@@ -114,10 +114,15 @@ export function InventoryPage() {
     };
   }, []);
 
-  function pushView(next: ViewState) {
+  function pushView(next: ViewState, replace = false) {
     setView(next);
     const params = paramsFromFilters(filtersFromParams(searchParams), next);
-    router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
+    const target = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    if (replace) {
+      router.replace(target);
+    } else {
+      router.push(target);
+    }
   }
 
   function handleSort(key: string) {
@@ -266,7 +271,7 @@ export function InventoryPage() {
   useEffect(() => {
     if (!vms.data) return;
     const lastPage = Math.max(1, Math.ceil(total / view.size));
-    if (view.page > lastPage) pushView({ ...view, page: lastPage });
+    if (view.page > lastPage) pushView({ ...view, page: lastPage }, true);
   }, [vms.data, total, view.size, view.page]);
   useEffect(() => {
     if (!bulkSuccess) return;

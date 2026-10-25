@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Drawer, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass } from './ui';
 import { ComboInput } from './ComboInput';
 import { TagInput } from './TagInput';
@@ -56,6 +56,14 @@ export function BulkEditDrawer({
   const [values, setValues] = useState<Record<string, string>>({});
   const [tagsAdd, setTagsAdd] = useState<string[]>([]);
   const [tagsRemove, setTagsRemove] = useState<string[]>([]);
+  useEffect(() => {
+    if (!open) {
+      setValues({});
+      setTagsAdd([]);
+      setTagsRemove([]);
+      setActiveTab('state');
+    }
+  }, [open]);
 
   function set(key: string, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
