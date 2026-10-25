@@ -19,8 +19,7 @@ frontend/package-lock.json
 playwright-report/
 test-results/
 graphify-out/
-.claude/*
-!.claude/settings.json
+.claude/
 data/
 /backups/
 *.log

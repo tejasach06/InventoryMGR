@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability Reporting
+    url: https://github.com/tejasach06/InventoryMGR/security/advisories/new
+    about: Report potential security vulnerabilities privately without opening a public issue.
+  - name: Documentation & Runbook
+    url: https://github.com/tejasach06/InventoryMGR/blob/main/docs/RUNBOOK.md
+    about: Consult operations runbooks, architecture, and deployment procedures.
