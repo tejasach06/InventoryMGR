@@ -170,7 +170,7 @@ export function BackupsPanel() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="backup-hour" className={labelClass}>
-                Run Hour (UTC)
+                Run Hour (Device Local Time)
               </label>
               <select
                 id="backup-hour"
@@ -178,11 +178,16 @@ export function BackupsPanel() {
                 onChange={(e) => setSettingsForm((prev) => ({ ...prev, hour_utc: Number(e.target.value) }))}
                 className={selectClass}
               >
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {String(i).padStart(2, '0')}:00 UTC
-                  </option>
-                ))}
+                {Array.from({ length: 24 }, (_, localHour) => {
+                  const d = new Date();
+                  d.setHours(localHour, 0, 0, 0);
+                  const utcHour = d.getUTCHours();
+                  return (
+                    <option key={localHour} value={utcHour}>
+                      {String(localHour).padStart(2, "0")}:00 Local ({String(utcHour).padStart(2, "0")}:00 UTC)
+                    </option>
+                  );
+                })}
               </select>
             </div>
 

@@ -126,6 +126,76 @@ It creates disposable PostgreSQL and application processes on allocated ports an
 It never falls back to the application's `DATABASE_URL`.
 `just build-prod` defaults the frontend backend URL to `http://inventorymgr-backend:8000` for Quadlet networking.
 
+## Deployment verification
+
+Run from the VM101 checkout:
+
+```bash
+just test-deploy-compose
+just test-deploy-quadlet
+just test-deploy
+```
+
+The combined command builds one backend image and two frontend images, then
+verifies Compose and Quadlet sequentially on Aspire (`tejas@192.168.0.21`). The
+frontend builds use their actual mode-specific backend DNS addresses. Runtime
+testing uses transferred images, not source builds on Aspire or `deploy.sh`.
+
+VM101 needs rootless Podman, Bash, Git, OpenSSL, jq, SSH/SCP, GNU timeout, flock,
+tar, and checksum utilities. Aspire needs rootless Podman, a working Compose
+provider and its Python YAML module, Python 3, OpenSSL, jq, curl, ss, an accessible
+user systemd bus, journalctl, flock, tar, and checksum utilities. Configure
+batch-mode SSH and verified host keys from VM101 to Aspire before running.
+The verifier does not enable lingering, invoke sudo, or change the firewall.
+Aspire must have at least 10 GiB free in its home filesystem.
+
+An exclusive VM101 repository lock and Aspire user lock reject concurrent runs.
+Existing InventoryMGR containers (including stopped ones), units and definitions,
+network, database volume, secrets, fixed image tags, backup directory, or listeners
+on 3000/8000 cause refusal. The verifier never stops those resources or prunes
+host-wide state. Compose uses a unique project, fresh database, fresh credentials,
+private backups, and loopback-only allocated ports. Quadlet uses the unchanged
+production names after checking that they are absent.
+
+Evidence is private under `.audit/deployment-<run-id>/`: source revision and dirty
+state, source checksums, build logs, image identities, Aspire logs, phase results,
+and cleanup results. `SUCCESS` appears only after deployment checks, evidence
+retrieval, and cleanup all succeed. Build limits are 30 minutes per image,
+transfer/load limits are 10 minutes, startup limits are 15 minutes per phase,
+and HTTP requests have five-second limits. Diagnostic commands have 15-second
+limits and retain at most 100 lines / 5 MiB per stream. Build logs are retained
+separately. Secrets are generated per run and redacted from diagnostic output.
+
+Checks include PostgreSQL revision `0024`, PostgreSQL 17 clients, application UID
+1000, actual running image IDs, direct health, frontend availability, API routing
+through the frontend, and 60 seconds of healthy service state without unexpected
+restarts. Compose also restarts against the same database volume. Quadlet starts
+database, backend, and frontend through explicit readiness gates: this does not
+prove that `After=`/`Requires=` alone provides unattended cold-boot readiness.
+
+Failure evidence is captured before cleanup. Quadlet services are stopped before
+their source files, containers, network, volume, secrets, and backup directory
+are removed. Exact resource identities and staged file hashes protect cleanup.
+The original error and cleanup errors are reported separately.
+
+An interrupted host or forced worker termination can leave an ownership manifest
+under `~/.local/state/inventorymgr-deployment-verification/<run-id>/` on Aspire.
+The next run checks worker liveness and refuses stale state rather than deleting
+by name. Inspect the manifest, worker identity, exact resource IDs, and staged
+file checksums before recovery. Preserve evidence; never use a global prune or
+remove all `inventorymgr*` resources by prefix. Uncertain ownership is a cleanup
+failure, not permission to delete.
+
+| Failure | Evidence / action |
+|---|---|
+| Build failed | Read the corresponding VM101 build log and original command status. |
+| Transfer or load failed | Compare archive checksum and image IDs; inspect `image-load.log`. |
+| Frontend API fails | Check the mode-specific build-time rewrite and backend container DNS. |
+| Backup probe fails | Check rootless UID mapping; do not grant world-write access. |
+| Migration fails | Read backend diagnostics and `alembic_version`; do not pre-apply SQL to hide it. |
+| Unit not generated | Read `quadlet-generator.log` and user manager diagnostics. |
+| Cleanup fails | Inspect `ownership.tsv` and recorded IDs; leave pre-existing resources untouched. |
+
 ## Dependency policy
 
 Use the previous stable minor line's latest patch where it remains safe and compatible. Keep an already-newer safe line rather than downgrading solely to satisfy that rule. Security fixes and runtime/API compatibility take precedence.

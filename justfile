@@ -121,6 +121,16 @@ web-test:
 e2e:
 	bash tools/run-rust-e2e.sh
 
+
+test-deploy-compose:
+	bash tools/verify-deployment.sh compose
+
+test-deploy-quadlet:
+	bash tools/verify-deployment.sh quadlet
+
+test-deploy:
+	bash tools/verify-deployment.sh all
+
 verify:
 	#!/usr/bin/env bash
 	set -euo pipefail

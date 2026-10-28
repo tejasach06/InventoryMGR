@@ -13,16 +13,16 @@ systemd-managed Podman containers (rootless). Unit files live in `quadlet/`.
 | `inventorymgr-backend.container` | Rust backend; depends on `inventorymgr-db.service`. |
 | `inventorymgr-frontend.container` | Next.js frontend; depends on `inventorymgr-backend.service`. |
 
-Backend/frontend units pull secrets via Podman secrets
-(`inventorymgr-jwt-secret`, `inventorymgr-database-url`) rather than plaintext
-env vars . see `[Container]` `Secret=` directives.
+The database consumes `inventorymgr-postgres-password`. The backend consumes
+`inventorymgr-jwt-secret` and `inventorymgr-database-url` as environment secrets.
+The frontend has no `Secret=` directives.
 
 ## First-time setup
 
 ```
 just quadlet-secrets    # creates inventorymgr-jwt-secret, -postgres-password,
                          # -database-url Podman secrets (idempotent)
-just build-prod          # builds backend + frontend images in parallel
+just build-prod          # builds backend then frontend
 ```
 
 Then copy `quadlet/*.container`, `*.network`, `*.volume` into
@@ -43,8 +43,13 @@ automatically on `daemon-reload`.
 - Backend health: `HealthCmd=curl -f http://127.0.0.1:8000/api/health`,
   published at `127.0.0.1:8000` only (bind to loopback; front a reverse proxy
   for external access).
-- Frontend depends on backend being healthy before starting.
-- Backup volume mounts to `%h/inventorymgr-backups` on the host.
+- `Requires=` and `After=` order service startup; they do not wait for container
+  health. Wait for database readiness, then backend readiness, before starting
+  the next consumer. Restart policies can conceal a cold-start failure.
+- The backup mount uses `%h/inventorymgr-backups`. The backend runs as container
+  UID/GID 1000. For a new rootless mount, set ownership in the Podman user
+  namespace (`podman unshare chown 1000:1000 <new-directory>`); do not change an
+  existing backup directory or make it world-writable.
 
 ## Rotating secrets
 
@@ -65,3 +70,16 @@ refuses to create one without the other (see `justfile`).
 Use `docker-compose.yml` (`just up`/`just down`) for local/dev and CI E2E.
 Use Quadlet for a systemd-managed host deployment with secrets and
 `Requires=`/`After=` unit ordering instead of Compose's `depends_on`.
+
+## Deployment verification
+
+Run `just test-deploy-quadlet` from VM101 to build images and verify the unchanged
+checked-in units under Aspire's existing rootless user. The verifier refuses
+occupied fixed names or ports, creates fresh secrets and storage, checks image
+identity and frontend API routing, captures diagnostics, and stops units before
+removing only its own resources. This uses explicit readiness-gated startup; it
+does not prove unattended boot ordering.
+
+`just test-deploy` verifies Compose first, cleans it up, then verifies Quadlet.
+See [the runbook](./RUNBOOK.md#deployment-verification) for prerequisites and
+failure recovery.

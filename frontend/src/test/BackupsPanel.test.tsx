@@ -236,7 +236,7 @@ describe('BackupsPanel', () => {
     });
 
     await user.click(screen.getByLabelText('Enable automated nightly backups'));
-    await user.selectOptions(screen.getByLabelText('Run Hour (UTC)'), '5');
+    await user.selectOptions(screen.getByLabelText('Run Hour (Device Local Time)'), '5');
     await user.clear(screen.getByLabelText('Retention (dumps kept)'));
     await user.type(screen.getByLabelText('Retention (dumps kept)'), '30');
 

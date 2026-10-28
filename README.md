@@ -1,9 +1,27 @@
-# InventoryMGR
+# InventoryMGR Blueprint
 
-Manual VM, storage, and hardware inventory tracker. Postgres-backed, no
-hypervisor connection — all data is user-entered or CSV-imported (Proxmox/VMware
-exports).
+## System Overview
+Manual VM, storage, and hardware inventory tracker. Postgres-backed, no hypervisor connection — all data is user-entered or CSV-imported (Proxmox/VMware exports).
 
+## Subdirectories & System Boundaries
+- [backend](backend/README.md): Python 3.14 parity reference oracle and contract test suite
+- [backend-rust](backend-rust/README.md): Core Axum 0.8 / SQLx 0.9 / PostgreSQL 17 high-performance production API service and domain logic
+- [frontend](frontend/README.md): Next.js 16 / React 19 / TanStack Query web interface and operator dashboard
+- [tools](tools/README.md): E2E test runners, parity verifiers, and risk-acceptance validation scripts
+
+## Global Invariants
+- Authentication: JWT session-cookie auth with role-based access control (`admin`/`editor`/`viewer`); admin-only settings.
+- Data Integrity: Synchronous SQL predicates flag inventory issues, excluding template and backup tagged VMs.
+- Operational Decoupling: Zero hypervisor runtime dependencies; strictly manual entry or CSV-driven import reconciliation.
+
+## Global Side Effects
+- Storage: PostgreSQL 17 transactional database updates, Alembic/SQLx migrations, and pg_dump backups.
+- Network: Local HTTP REST API (:8000), frontend Next.js server (:3000), and optional LDAP bind connections.
+
+## System Verification
+- Run: `just verify`
+
+---
 ## Features
 
 - **VM inventory** — CRUD for VMs with disks, networks, applications; bulk edit;
@@ -82,10 +100,19 @@ Frontend: http://127.0.0.1:3000 · API: http://127.0.0.1:8000/api/health
 | E2E | `just e2e` |
 | Full gate before calling anything done | `just verify` |
 | Security audit | `just audit` |
+| Compose image deployment on Aspire | `just test-deploy-compose` |
+| Quadlet image deployment on Aspire | `just test-deploy-quadlet` |
+| Both deployment modes, sequentially | `just test-deploy` |
 
 `just setup` installs the Python 3.14.7 parity oracle in `backend/.venv` and builds Rust. Production runs only Rust.
 `just verify` runs all Cargo tests, including the Podman-backed LDAP/authentication regressions, frontend checks, the HTTP parity suite, three migration startup scenarios with a historical-row preservation assertion, restore concurrency, and the isolated Playwright runner.
 `just e2e` creates a disposable Postgres container and starts freshly built backend and frontend processes on allocated ports. It ignores application database URLs, sets a non-default CSRF cookie name after building to exercise runtime configuration, and cleans up only resources it owns. Direct Playwright invocation without the runner is rejected.
+
+Deployment verification builds in the VM101 checkout and transfers the exact
+images to `tejas@192.168.0.21` (Aspire). It refuses existing InventoryMGR resources
+instead of stopping or replacing them. See the
+[deployment verification runbook](docs/RUNBOOK.md#deployment-verification) for
+SSH and host prerequisites, private evidence, and cleanup behavior.
 
 
 ## Documentation
