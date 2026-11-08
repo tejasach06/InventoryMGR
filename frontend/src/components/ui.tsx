@@ -258,12 +258,14 @@ export function Drawer({
   title,
   children,
   footer,
+  fullscreen = false,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
   footer?: ReactNode;
+  fullscreen?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -272,7 +274,7 @@ export function Drawer({
   return (
     <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
       <div className="absolute inset-0 animate-fade-in bg-[var(--color-scrim)] backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div ref={panelRef} className="relative ml-auto flex w-full max-w-xl animate-rise flex-col overflow-hidden rounded-l-2xl bg-[var(--color-surface)] shadow-[var(--shadow-overlay)]">
+      <div ref={panelRef} className={`relative ml-auto flex w-full animate-rise flex-col overflow-hidden bg-[var(--color-surface)] shadow-[var(--shadow-overlay)] ${fullscreen ? '' : 'max-w-xl rounded-l-2xl'}`}>
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
           <h2 id="drawer-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
           <button ref={closeRef} type="button" onClick={onClose} className="rounded-lg p-2 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-tertiary)]" aria-label="Close">

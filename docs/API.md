@@ -57,6 +57,14 @@ classified `create`/`update`/`unchanged`/`decommission`/`conflict`/`invalid`) �
 commit. See `docs/RUNBOOK.md`/`AGENTS.md` for the CSV format and Proxmox
 identity-matching rule.
 
+## VM export — `GET /api/vms/export`
+
+Takes the list filters plus `ids` (repeatable) or `all=true`, and:
+
+- `columns` — comma-separated, ordered export columns (VM scalar fields, `disks`, `private_ip`, `public_ip`, `backup_ip`, `applications`). Omitted = all. Unknown or duplicate names return 422.
+- `format` — `csv` (default), `xlsx`, or `json` (preview: `{total, columns, rows}` with the first 5 VMs).
+- `disk_layout` — `joined` (default, one cell per VM) or `rows` (one row per disk, VM fields repeated).
+
 ## Reports — `/api/reports`
 
 CSV/XLSX export of inventory fields.

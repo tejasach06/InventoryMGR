@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { vms as vmsApi } from '../api/vms';
+import { ExportDrawer } from '../components/ExportDrawer';
+import { COMMON_COLUMNS } from '../lib/exportOptions';
+import { emptyFilters } from '../lib/inventoryFilters';
 import { dashboard as dashboardApi } from '../api/dashboard';
 import { detailMessage } from '../api/core';
 import { Alert, EmptyState, PageHeader, PageTransition, ProgressBar, Skeleton, monoClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
@@ -37,19 +40,16 @@ function DownloadIcon() {
 }
 
 export function ReportsPage() {
+  const [exportOpen, setExportOpen] = useState(false);
   const summaryQ = useQuery({ queryKey: ['reports', 'summary'], queryFn: dashboardApi.getReportSummary });
   const total = summaryQ.data?.total_vms ?? 0;
   const counts = summaryQ.data?.counts ?? {};
   return (
     <PageTransition>
       <PageHeader title="Reports" context="Exports" description="Download focused fleet views with server-verified counts." actions={
-        <a
-          href={vmsApi.exportVmsUrl(new URLSearchParams('all=true'))}
-          download="vm-inventory.csv"
-          className={secondaryButtonClass}
-        >
+        <button type="button" onClick={() => setExportOpen(true)} className={secondaryButtonClass}>
           <DownloadIcon /> Export all VMs
-        </a>
+        </button>
       } />
 
       {summaryQ.isError ? <Alert>{detailMessage(summaryQ.error)}</Alert> : null}
@@ -85,6 +85,7 @@ export function ReportsPage() {
           </p>
         </>
       )}
+      <ExportDrawer open={exportOpen} onClose={() => setExportOpen(false)} filters={emptyFilters()} selectedIds={[]} initialColumns={COMMON_COLUMNS} />
     </PageTransition>
   );
 }

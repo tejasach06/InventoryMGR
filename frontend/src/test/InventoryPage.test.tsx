@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vms as vmsApi } from '../api/vms';
 import { ApiError } from '../api/core';
@@ -223,15 +223,24 @@ describe('InventoryPage', () => {
     expect(lastCall.get('sort')).toBe('name');
     expect(lastCall.get('dir')).toBe('asc');
   });
-  it('renders Export CSV and Export Excel links', async () => {
-    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(makeVmList());
+  it('opens the export drawer, previews with list columns and drops a deselected column', async () => {
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(
+      makeVmList({ items: [makeVm({ id: 'vm-01-id', name: 'vm-01' })], total: 1 }),
+    );
+    const preview = vi.spyOn(vmsApi, 'exportPreview').mockResolvedValue({ total: 1, columns: ['name'], rows: [['vm-01']] });
     renderWithProviders(<InventoryPage />, { user: makeUser({ role: 'viewer' }) });
-    await screen.findByRole('button', { name: 'Filters' });
-    await userEvent.setup().click(screen.getByText('Export'));
-    const csvLink = screen.getByRole('link', { name: 'CSV' });
-    const excelLink = screen.getByRole('link', { name: 'Excel' });
-    expect(csvLink).toHaveAttribute('href', expect.stringContaining('/api/vms/export'));
-    expect(excelLink).toHaveAttribute('href', expect.stringContaining('format=xlsx'));
+    await userEvent.click(await screen.findByLabelText('Select vm-01'));
+    await userEvent.click(within(screen.getByRole('toolbar', { name: 'Bulk actions' })).getByRole('button', { name: 'Export' }));
+
+    expect(await screen.findByText(/Preview — 1 VM/)).toBeInTheDocument();
+    const first = preview.mock.calls[0][0];
+    expect(first.getAll('ids')).toEqual(['vm-01-id']);
+    expect(first.get('columns')).toContain('cpu_cores,memory_mb');
+    expect(first.get('format')).toBe('json');
+
+    const dialog = screen.getByRole('dialog', { name: 'Export VMs' });
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Name' }));
+    expect(preview.mock.calls.at(-1)![0].get('columns')).not.toMatch(/^name|,name/);
   });
   it('sends ids when editing a page selection', async () => {
     vi.spyOn(vmsApi, 'listVms').mockResolvedValue(

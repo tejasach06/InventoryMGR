@@ -397,3 +397,9 @@ export interface BackupsOverview {
   jobs: BackupJob[];
   settings: BackupSettings;
 }
+
+export interface ExportPreview {
+  total: number;
+  columns: string[];
+  rows: string[][];
+}

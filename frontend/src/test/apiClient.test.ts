@@ -1,3 +1,5 @@
+import { columnsFromList, exportParams } from '../lib/exportOptions';
+import { emptyFilters } from '../lib/inventoryFilters';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { vms as vmsApi } from '../api/vms';
 import { clusters as clustersApi } from '../api/clusters';
@@ -388,12 +390,21 @@ describe('api client methods', () => {
     expect(init.method).toBe('POST');
     expect(init.body).toBe(JSON.stringify({ vm_ids: null }));
   });
-  it('builds export URLs for csv and xlsx formats', () => {
-    expect(vmsApi.exportVmsUrl(new URLSearchParams({ q: 'test' }))).toBe('/api/vms/export?q=test');
-    expect(vmsApi.exportVmsUrl(new URLSearchParams({ q: 'test' }), 'xlsx')).toBe('/api/vms/export?q=test&format=xlsx');
-    expect(vmsApi.exportSelectedUrl(['id1', 'id2'])).toBe('/api/vms/export?ids=id1&ids=id2');
-    expect(vmsApi.exportSelectedUrl(['id1', 'id2'], 'xlsx')).toBe('/api/vms/export?ids=id1&ids=id2&format=xlsx');
-    expect(vmsApi.exportVmsUrl()).toBe('/api/vms/export');
+  it('builds export params per scope, columns, format and disk layout', () => {
+    const filters = { ...emptyFilters(), q: ['test'] };
+    const base = { ids: ['id1', 'id2'], filters, columns: ['name', 'disks'], format: 'csv' as const, diskLayout: 'joined' as const };
+    expect(exportParams({ ...base, scope: 'filtered' }).toString()).toBe('q=test&columns=name%2Cdisks');
+    expect(exportParams({ ...base, scope: 'selected', format: 'xlsx' }).toString()).toBe('ids=id1&ids=id2&columns=name%2Cdisks&format=xlsx');
+    expect(exportParams({ ...base, scope: 'all', diskLayout: 'rows' }).toString()).toBe('all=true&columns=name%2Cdisks&disk_layout=rows');
+    expect(vmsApi.exportUrl(new URLSearchParams({ all: 'true' }))).toBe('/api/vms/export?all=true');
     expect(dashboardApi.reportUrl('linux')).toBe('/api/reports/linux?format=csv');
+  });
+  it('maps list columns to export columns in list order', () => {
+    const prefs = [
+      { key: 'resources', visible: true, order: 1 },
+      { key: 'name', visible: true, order: 0 },
+      { key: 'fqdn', visible: false, order: 2 },
+    ];
+    expect(columnsFromList(prefs)).toEqual(['name', 'cpu_cores', 'memory_mb']);
   });
 });

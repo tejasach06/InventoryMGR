@@ -1,5 +1,5 @@
 import { API_PREFIX, apiRequest } from './core';
-import type { Application, AuditLogEntry, BulkPatch, BulkResult, Disk, DueVm, DuplicateIp, Network, Vm, VmList, VmPayload } from './types';
+import type { Application, AuditLogEntry, BulkPatch, BulkResult, Disk, DueVm, DuplicateIp, ExportPreview, Network, Vm, VmList, VmPayload } from './types';
 
 export const vms = {
   listVms: (params: URLSearchParams) => apiRequest<VmList>(`/vms?${params.toString()}`),
@@ -14,16 +14,9 @@ export const vms = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  exportVmsUrl: (params?: URLSearchParams, format: 'csv' | 'xlsx' = 'csv') => {
-    const query = new URLSearchParams(params ?? undefined);
-    if (format !== 'csv') query.set('format', format);
-    return query.toString() ? `${API_PREFIX}/vms/export?${query.toString()}` : `${API_PREFIX}/vms/export`;
-  },
-  exportSelectedUrl: (ids: string[], format: 'csv' | 'xlsx' = 'csv') => {
-    const query = new URLSearchParams(ids.map((id) => ['ids', id]));
-    if (format !== 'csv') query.set('format', format);
-    return `${API_PREFIX}/vms/export?${query.toString()}`;
-  },
+  exportUrl: (params: URLSearchParams) => `${API_PREFIX}/vms/export?${params.toString()}`,
+  exportPreview: (params: URLSearchParams) =>
+    apiRequest<ExportPreview>(`/vms/export?${params.toString()}`),
   listVmOwners: () => apiRequest<string[]>('/vms/owners'),
   listVmClusters: () => apiRequest<string[]>('/vms/clusters'),
   listVmNodes: () => apiRequest<string[]>('/vms/nodes'),

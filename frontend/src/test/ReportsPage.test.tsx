@@ -18,7 +18,7 @@ describe('ReportsPage', () => {
     renderWithProviders(<ReportsPage />);
 
     expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Export all VMs/ })).toHaveAttribute('href', '/api/vms/export?all=true');
+    expect(screen.getByRole('button', { name: /Export all VMs/ })).toBeInTheDocument();
     expect(screen.getByText('Linux Inventory')).toBeInTheDocument();
     expect(screen.getByText('Windows Inventory')).toBeInTheDocument();
     expect(await screen.findByText('10 VMs across 8 report views')).toBeInTheDocument();

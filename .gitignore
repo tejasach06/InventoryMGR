@@ -73,3 +73,4 @@ target/
 .omp/
 **/.omp/
 frontend/login-failure.png
+/memory/

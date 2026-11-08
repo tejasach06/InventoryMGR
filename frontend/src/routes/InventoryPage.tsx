@@ -23,6 +23,8 @@ import {
 } from '../components/ui';
 import { useColumnPreferences } from '../hooks/useColumnPreferences';
 import { InventoryToolbar } from '../components/InventoryToolbar';
+import { ExportDrawer } from '../components/ExportDrawer';
+import { columnsFromList } from '../lib/exportOptions';
 import { PaginationFooter } from '../components/PaginationFooter';
 import {
   PAGE_SIZE_STORAGE_KEY,
@@ -69,7 +71,7 @@ export function InventoryPage() {
   const [pendingPatch, setPendingPatch] = useState<BulkPatch | null>(null);
   const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
   const queryClient = useQueryClient();
-  const exportRef = useRef<HTMLDetailsElement>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
 
   const updateVmCellMutation = useMutation({
@@ -95,24 +97,6 @@ export function InventoryPage() {
     setFilters(filtersFromParams(searchParams));
     setView(viewFromParams(searchParams));
   }, [searchParams]);
-
-  useEffect(() => {
-    function closeExport() {
-      if (exportRef.current) exportRef.current.open = false;
-    }
-    function handleMouseDown(e: MouseEvent) {
-      if (!exportRef.current?.contains(e.target as Node)) closeExport();
-    }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') closeExport();
-    }
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
 
   function pushView(next: ViewState, replace = false) {
     setView(next);
@@ -165,10 +149,6 @@ export function InventoryPage() {
     () => queryParamsFor(filtersFromParams(searchParams), viewFromParams(searchParams)),
     [searchParams],
   );
-  function exportSelected(format: 'csv' | 'xlsx' = 'csv') {
-    if (selectedIds.size === 0) return;
-    window.location.href = vmsApi.exportSelectedUrl([...selectedIds], format);
-  }
   const vms = useQuery({ queryKey: ['vms', queryParams.toString()], queryFn: () => vmsApi.listVms(queryParams) });
   const suggestionsQuery = useQuery({ queryKey: ['vm-suggestions'], queryFn: vmsApi.listVmSuggestions });
   const clustersQuery = useQuery({ queryKey: ['vm-clusters'], queryFn: vmsApi.listVmClusters });
@@ -290,13 +270,7 @@ export function InventoryPage() {
           description="Search, compare, and update the documented fleet."
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <details ref={exportRef} className="relative">
-                <summary className={`${secondaryButtonClass} cursor-pointer list-none`}>Export</summary>
-                <div className="absolute right-0 z-20 mt-2 grid min-w-44 gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-overlay)]">
-                  <a href={vmsApi.exportVmsUrl(queryParams, 'csv')} download="vm-inventory.csv" className="rounded-md px-3 py-2 text-sm hover:bg-[var(--color-surface-tertiary)]">CSV</a>
-                  <a href={vmsApi.exportVmsUrl(queryParams, 'xlsx')} download="vm-inventory.xlsx" className="rounded-md px-3 py-2 text-sm hover:bg-[var(--color-surface-tertiary)]">Excel</a>
-                </div>
-              </details>
+              <button type="button" className={secondaryButtonClass} onClick={() => setExportOpen(true)}>Export</button>
               {canCreateVm && <Link className={primaryButtonClass} href="/inventory/new">New VM</Link>}
             </div>
           }
@@ -420,11 +394,8 @@ export function InventoryPage() {
               </button>
             )}
             <div className="h-4 w-px bg-[var(--color-text-inverse)]/20" aria-hidden="true" />
-            <button type="button" onClick={() => exportSelected('csv')} className="text-sm font-medium text-[var(--color-text-inverse)]/90 hover:text-[var(--color-text-inverse)] transition-colors">
-              CSV
-            </button>
-            <button type="button" onClick={() => exportSelected('xlsx')} className="text-sm font-medium text-[var(--color-text-inverse)]/90 hover:text-[var(--color-text-inverse)] transition-colors">
-              Excel
+            <button type="button" onClick={() => setExportOpen(true)} className="text-sm font-medium text-[var(--color-text-inverse)]/90 hover:text-[var(--color-text-inverse)] transition-colors">
+              Export
             </button>
             <button type="button" onClick={() => { setSelectedIds(new Set()); setSelectAllMatching(false); }} className="text-sm font-medium text-[var(--color-text-inverse)]/60 hover:text-[var(--color-text-inverse)] transition-colors">
               Clear
@@ -432,6 +403,13 @@ export function InventoryPage() {
           </div>
         </div>
       )}
+      <ExportDrawer
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        filters={filters}
+        selectedIds={selectAllMatching ? [] : [...selectedIds]}
+        initialColumns={columnsFromList(colPrefs)}
+      />
 
       <BulkEditDrawer
         open={bulkOpen}
