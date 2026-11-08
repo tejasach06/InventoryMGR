@@ -1,0 +1,53 @@
+name: images
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-push:
+    # VM101 self-hosted runner (Podman only, no hosted runners).
+    runs-on: [self-hosted, linux, vm101]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: backend, context: backend-rust }
+          - { name: frontend, context: frontend }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push ${{ matrix.name }}
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER,,}/inventorymgr-${{ matrix.name }}"
+          tags=("sha-${SHA::12}")
+          if [ "$IS_TAG" = true ]; then tags+=("$REF_NAME"); else tags+=(latest); fi
+
+          podman build --pull -t "$image:${tags[0]}" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=$SHA" \
+            "${{ matrix.context }}"
+          echo "$GH_TOKEN" | podman login ghcr.io -u "$GH_ACTOR" --password-stdin
+          for t in "${tags[@]}"; do
+            podman tag "$image:${tags[0]}" "$image:$t"
+            podman push "$image:$t"
+          done
+          podman logout ghcr.io
