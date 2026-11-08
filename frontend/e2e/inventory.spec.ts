@@ -3,16 +3,6 @@ import { expect, Page, test } from '@playwright/test';
 const adminEmail = process.env.INVENTORYMGR_INITIAL_ADMIN_EMAIL ?? 'admin@example.local';
 const adminPassword = process.env.INVENTORYMGR_INITIAL_ADMIN_PASSWORD ?? 'change-me-before-use';
 
-async function setupInitialAdmin(page: Page) {
-  await page.goto('/login');
-  await expect(page.getByRole('heading', { name: 'Create admin account' })).toBeVisible();
-  await page.getByLabel('Email').fill(adminEmail);
-  await page.getByLabel('Password', { exact: true }).fill(adminPassword);
-  await page.getByLabel('Confirm password').fill(adminPassword);
-  await page.getByRole('button', { name: 'Create admin account' }).click();
-  await expect(page).toHaveURL(/\/inventory$/);
-}
-
 async function loginAsAdmin(page: Page) {
   await page.goto('/login');
   const setupButton = page.getByRole('button', { name: 'Create admin account' });
