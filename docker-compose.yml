@@ -17,6 +17,7 @@ services:
       timeout: 5s
       retries: 5
   backend:
+    image: ghcr.io/tejasach06/inventorymgr-backend:${IMAGE_TAG:-latest}
     build:
       context: ./backend-rust
       dockerfile: Dockerfile
@@ -52,6 +53,7 @@ services:
         - action: rebuild
           path: backend-rust
   frontend:
+    image: ghcr.io/tejasach06/inventorymgr-frontend:${IMAGE_TAG:-latest}
     build:
       context: ./frontend
       dockerfile: Dockerfile
