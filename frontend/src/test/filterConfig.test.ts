@@ -61,4 +61,13 @@ describe('filterConfig', () => {
     expect(chipTypeFor('health')).toBe('status');
     expect(chipTypeFor('owner')).toBe('status');
   });
+
+  it('includes undefined as a selectable os_family option labelled Undefined', () => {
+    const cfg = advancedFilterConfig.os_family;
+    expect(cfg.kind).toBe('multiSelect');
+    if (cfg.kind === 'multiSelect') {
+      expect(cfg.options).toContain('undefined');
+      expect(cfg.labels?.['undefined']).toBe('Undefined');
+    }
+  });
 });

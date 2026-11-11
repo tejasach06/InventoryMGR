@@ -15,13 +15,12 @@ from app.db.models import (
     Criticality,
     Environment,
     NetworkRole,
-    OsFamily,
     Platform,
     Vm,
     VmApplication,
     VmStatus,
 )
-from app.schemas.vms import VmBulkRequest, VmBulkResult, VmCreate, VmList, VmRead, VmUpdate
+from app.schemas.vms import OsFamilyFilterValue, VmBulkRequest, VmBulkResult, VmCreate, VmList, VmRead, VmUpdate
 from app.services.csv_import import IP_ROLE_HEADERS
 from app.services.vm_filters import SORT_PATTERN, FilterOperator, apply_vm_filters, list_vms
 from app.services.vm_mutations import (
@@ -62,7 +61,7 @@ class VmFilterParams:
     monitoring_enabled_op: FilterOperator = FilterOperator.eq
     node: Annotated[list[str] | None, Query()] = None
     node_op: FilterOperator = FilterOperator.eq
-    os_family: Annotated[list[OsFamily] | None, Query()] = None
+    os_family: Annotated[list[OsFamilyFilterValue] | None, Query()] = None
     os_family_op: FilterOperator = FilterOperator.eq
     owner: Annotated[list[str] | None, Query()] = None
     owner_op: FilterOperator = FilterOperator.eq

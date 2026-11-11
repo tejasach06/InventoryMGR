@@ -253,13 +253,14 @@ export function DashboardPage() {
 
   const runningCount = byStatus.running ?? 0;
   const poweredOffCount = byStatus.powered_off ?? 0;
-  const otherCount = Math.max(0, total - runningCount - poweredOffCount);
+  const unknownCount = byStatus.unknown ?? 0;
 
   const powerSegments: Segment[] = [
     { label: 'Running', value: runningCount, color: 'var(--color-status-running)' },
     { label: 'Powered off', value: poweredOffCount, color: 'var(--color-status-powered_off)' },
-    { label: 'Other', value: otherCount, color: 'var(--color-status-unknown)' },
+    { label: 'Decommissioned', value: byStatus.decommissioned ?? 0, color: 'var(--color-status-decommissioned)' },
   ];
+  if (unknownCount > 0) powerSegments.push({ label: 'Unknown', value: unknownCount, color: 'var(--color-status-unknown)' });
 
   const envBars = Object.entries(byEnv)
     .sort((a, b) => b[1] - a[1])

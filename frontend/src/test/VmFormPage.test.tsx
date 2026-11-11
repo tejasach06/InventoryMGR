@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VmFormPage } from '../routes/VmFormPage';
 import { vms as vmsApi } from '../api/vms';
@@ -17,6 +17,7 @@ vi.mock('next/navigation', () => ({
 function fillRequiredCreateFields() {
   fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'test-vm' } });
   fireEvent.change(screen.getByLabelText(/^Cluster/), { target: { value: 'cluster-x' } });
+  fireEvent.change(screen.getByLabelText(/^Status/), { target: { value: 'running' } });
   fireEvent.change(screen.getByLabelText(/^Memory GB/), { target: { value: '4' } });
   fireEvent.change(screen.getByLabelText('Disk 1 size'), { target: { value: '50' } });
 }
@@ -47,6 +48,12 @@ describe('VmFormPage', () => {
     expect(screen.getByLabelText(/^Memory GB/)).toBeInTheDocument();
     expect(screen.getByLabelText('Disk 1 size')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save VM' })).toBeInTheDocument();
+    const status = screen.getByLabelText(/^Status/);
+    expect(status).toHaveValue('');
+    expect(within(status).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Select a status', 'running', 'powered_off', 'decommissioned',
+    ]);
+    expect(within(status).getByRole('option', { name: 'Select a status' })).toBeDisabled();
   });
 
   it('shows validation errors and does not submit when required fields are blank', async () => {
@@ -58,6 +65,7 @@ describe('VmFormPage', () => {
 
     expect(await screen.findByText('Name is required.')).toBeInTheDocument();
     expect(screen.getByText('Cluster is required.')).toBeInTheDocument();
+    expect(screen.getByText('Select a status.')).toBeInTheDocument();
     expect(createSpy).not.toHaveBeenCalled();
   });
 
@@ -75,7 +83,31 @@ describe('VmFormPage', () => {
     const payload = createSpy.mock.calls[0][0];
     expect(payload.name).toBe('test-vm');
     expect(payload.memory_mb).toBe(4096);
+    expect(payload.status).toBe('running');
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/inventory/vm-99'));
+  });
+
+  it('lists Linux, Windows, Undefined in order and creates an unset family after clearing Linux', async () => {
+    const createSpy = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm());
+    renderWithProviders(<VmFormPage mode="create" />);
+    await screen.findByRole('heading', { name: 'New VM' });
+
+    const family = screen.getByLabelText('OS family');
+    expect(within(family).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Linux', 'Windows', 'Undefined',
+    ]);
+    expect(family).toHaveValue('');
+    expect(family).toHaveDisplayValue('Undefined');
+
+    fillRequiredCreateFields();
+    fireEvent.change(family, { target: { value: 'linux' } });
+    expect(family).toHaveDisplayValue('Linux');
+    fireEvent.change(family, { target: { value: '' } });
+    expect(family).toHaveDisplayValue('Undefined');
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+
+    await waitFor(() => expect(createSpy).toHaveBeenCalledTimes(1));
+    expect(createSpy.mock.calls[0][0].os_family).toBeNull();
   });
 
   it('defaults an IP row to the private role and submits the chosen role', async () => {
@@ -162,8 +194,34 @@ describe('VmFormPage', () => {
     expect(createSpy.mock.calls[0][0].backup_location).toBe('Veeam Cloud Connect');
   });
 
-  it('pre-populates the form in edit mode and submits via updateVm', async () => {
-    const vm = makeVm({ id: 'vm-1', name: 'web-01' });
+  it('requires replacing a legacy unknown status before saving an edit', async () => {
+    const vm = makeVm({ status: 'unknown' });
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
+    const updateSpy = vi.spyOn(vmsApi, 'updateVm').mockResolvedValue(vm);
+    renderWithProviders(<VmFormPage mode="edit" />);
+
+    const status = await screen.findByLabelText(/^Status/);
+    await waitFor(() => expect(status).toHaveValue('unknown'));
+    expect(status).toHaveDisplayValue('Unknown (select a status)');
+    expect(within(status).getByRole('option', { name: 'Unknown (select a status)' })).toBeDisabled();
+    expect(within(status).getAllByRole('option').filter((option) => !option.hasAttribute('disabled'))
+      .map((option) => option.getAttribute('value'))).toEqual(['running', 'powered_off', 'decommissioned']);
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+    expect(await screen.findByText('Select a status.')).toBeInTheDocument();
+    expect(updateSpy).not.toHaveBeenCalled();
+
+    fireEvent.change(status, { target: { value: 'powered_off' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
+    expect(updateSpy.mock.calls[0][1].status).toBe('powered_off');
+  });
+
+  it.each([
+    ['linux', 'Linux'],
+    ['windows', 'Windows'],
+    [null, 'Undefined'],
+  ] as const)('pre-populates OS family %s and clears it via updateVm', async (osFamily, label) => {
+    const vm = makeVm({ id: 'vm-1', name: 'web-01', os_family: osFamily });
     vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
     const updateSpy = vi.spyOn(vmsApi, 'updateVm').mockResolvedValue(vm);
     renderWithProviders(<VmFormPage mode="edit" />);
@@ -171,12 +229,19 @@ describe('VmFormPage', () => {
     const nameInput = await screen.findByLabelText(/^Name/);
     await waitFor(() => expect(nameInput).toHaveValue('web-01'));
 
+    const family = screen.getByLabelText('OS family');
+    expect(family).toHaveValue(osFamily ?? '');
+    expect(family).toHaveDisplayValue(label);
+    fireEvent.change(family, { target: { value: '' } });
+    expect(family).toHaveDisplayValue('Undefined');
+
     fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
 
     await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
     expect(updateSpy.mock.calls[0][0]).toBe('vm-1');
     expect(updateSpy.mock.calls[0][1].name).toBe('web-01');
     expect(updateSpy.mock.calls[0][1].memory_mb).toBe(8192);
+    expect(updateSpy.mock.calls[0][1].os_family).toBeNull();
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/inventory/vm-1'));
   });
 

@@ -247,8 +247,8 @@ def test_preview_does_not_match_proxmox_when_vmid_differs(db_session: Session) -
         cluster="pve-cluster-a",
     )
     content = (
-        b"name,platform,cluster,external_id,datacenter,node\n"
-        b"Migrated App,pve,pve-cluster-a,202,dc-a,pve-01\n"
+        b"name,platform,cluster,external_id,datacenter,node,status\n"
+        b"Migrated App,pve,pve-cluster-a,202,dc-a,pve-01,running\n"
     )
 
     batch = create_preview_batch(db_session, filename="inventory.csv", content=content, user=editor)
@@ -302,8 +302,8 @@ def test_preview_does_not_match_vmware_when_cluster_differs(db_session: Session)
         cluster="vc-cluster-a",
     )
     content = (
-        b"name,platform,cluster,external_id,datacenter,node\n"
-        b"Moved Guest,vmware,vc-cluster-b,vm-101,dc-a,esx-01\n"
+        b"name,platform,cluster,external_id,datacenter,node,status\n"
+        b"Moved Guest,vmware,vc-cluster-b,vm-101,dc-a,esx-01,running\n"
     )
 
     batch = create_preview_batch(db_session, filename="inventory.csv", content=content, user=editor)
@@ -318,11 +318,11 @@ def test_preview_flags_intrafile_duplicates_with_platform_identity_rules(
 ) -> None:
     editor = create_user(db_session, email="csv-duplicate@example.com", role=UserRole.editor)
     content = (
-        b"name,platform,cluster,external_id,datacenter,node\n"
-        b"Duplicate App,pve,pve-cluster-a,101,dc-a,pve-01\n"
-        b"duplicate app,pve,PVE-Cluster-A,101,dc-z,pve-99\n"
-        b"Duplicate Guest,vmware,vc-cluster-a,vm-101,dc-a,esx-01\n"
-        b"duplicate guest,vmware,VC-Cluster-A,vm-202,dc-z,esx-99\n"
+        b"name,platform,cluster,external_id,datacenter,node,status\n"
+        b"Duplicate App,pve,pve-cluster-a,101,dc-a,pve-01,running\n"
+        b"duplicate app,pve,PVE-Cluster-A,101,dc-z,pve-99,running\n"
+        b"Duplicate Guest,vmware,vc-cluster-a,vm-101,dc-a,esx-01,running\n"
+        b"duplicate guest,vmware,VC-Cluster-A,vm-202,dc-z,esx-99,running\n"
     )
 
     batch = create_preview_batch(db_session, filename="inventory.csv", content=content, user=editor)
@@ -683,7 +683,7 @@ def test_full_inventory_scope_by_cluster_and_platform(db_session: Session) -> No
     create_vm_row(db_session, editor, name="a2", platform="proxmox", cluster="PROD-A", status="running")
 
     # CSV has row only for cluster prod-a / vmware naming nonexistent VM
-    content = b"name,platform,cluster\nnonexistent,vmware,prod-a\n"
+    content = b"name,platform,cluster,status\nnonexistent,vmware,prod-a,running\n"
     batch = create_preview_batch(
         db_session,
         filename="full_scoped.csv",
@@ -703,7 +703,7 @@ def test_full_inventory_scope_case_insensitive_cluster(db_session: Session) -> N
     a2 = create_vm_row(db_session, editor, name="a2", platform="proxmox", cluster="prod-a", status="running")
 
     # CSV cluster PROD-A with proxmox
-    content = b"name,platform,cluster\nnonexistent,proxmox,PROD-A\n"
+    content = b"name,platform,cluster,status\nnonexistent,proxmox,PROD-A,running\n"
     batch = create_preview_batch(
         db_session,
         filename="full_scoped_case.csv",
@@ -856,3 +856,70 @@ def test_import_never_disables_a_curated_flag(db_session: Session) -> None:
     reloaded = db_session.scalar(select(Vm).where(Vm.id == vm.id))
     assert reloaded is not None
     assert reloaded.monitoring_enabled is True
+
+
+@pytest.mark.parametrize("content", [
+    b"name,platform,cluster\nnew-vm,vmware,c1\n",
+    b"name,platform,cluster,status\nnew-vm,vmware,c1,\n",
+    b"name,platform,cluster,status\nnew-vm,vmware,c1,unknown\n",
+])
+def test_preview_rejects_missing_or_unknown_create_status(db_session, content):
+    editor = create_user(db_session, email="csv-invalid-status@example.com", role=UserRole.editor)
+    batch = create_preview_batch(db_session, filename="status.csv", content=content, user=editor)
+    assert batch.summary["invalid"] == 1
+    assert batch.rows[0].action == ImportAction.invalid
+    assert batch.rows[0].errors[0]["field"] == "status"
+    with pytest.raises(HTTPException) as exc_info:
+        commit_batch(db_session, batch_id=batch.id, user=editor)
+    assert exc_info.value.status_code == 409
+
+
+@pytest.mark.parametrize("status", ["running", "powered_off", "decommissioned"])
+def test_csv_create_preserves_selected_status(db_session, status):
+    editor = create_user(db_session, email="csv-create-status@example.com", role=UserRole.editor)
+    content = f"name,platform,cluster,status\nnew-vm,vmware,c1,{status}\n".encode()
+    batch = create_preview_batch(db_session, filename="status.csv", content=content, user=editor)
+    assert batch.rows[0].action == ImportAction.create
+    assert commit_batch(db_session, batch_id=batch.id, user=editor)["created"] == 1
+    assert db_session.scalar(select(Vm).where(Vm.name == "new-vm")).status == status
+
+
+@pytest.mark.parametrize("content", [
+    b"name,platform,cluster,node\nlegacy-vm,vmware,c1,moved\n",
+    b"name,platform,cluster,node,status\nlegacy-vm,vmware,c1,moved,\n",
+])
+def test_csv_blank_update_status_preserves_historical_unknown(db_session, content):
+    editor = create_user(db_session, email="csv-update-status@example.com", role=UserRole.editor)
+    vm = create_vm_row(
+        db_session, editor, name="legacy-vm", platform="vmware", cluster="c1",
+        node="original", status="unknown",
+    )
+    batch = create_preview_batch(db_session, filename="status.csv", content=content, user=editor)
+    assert batch.rows[0].action == ImportAction.update
+    assert "status" not in batch.rows[0].normalized
+    assert "status" not in batch.rows[0].changes
+    assert commit_batch(db_session, batch_id=batch.id, user=editor)["updated"] == 1
+    db_session.refresh(vm)
+    assert vm.node == "moved"
+    assert vm.status == VmStatus.unknown
+
+
+@pytest.mark.parametrize("action", [ImportAction.create, ImportAction.update, ImportAction.unchanged])
+@pytest.mark.parametrize("value", ["unknown", None])
+def test_stale_preview_status_blocks_entire_batch(db_session, action, value):
+    editor = create_user(db_session, email="csv-stale-status@example.com", role=UserRole.editor)
+    batch = create_preview_batch(
+        db_session, filename="stale.csv",
+        content=b"name,platform,cluster,status\nfirst-new,vmware,c1,running\nsecond-new,vmware,c1,powered_off\n",
+        user=editor,
+    )
+    stale = batch.rows[1]
+    stale.action = action
+    stale.normalized = {**stale.normalized, "status": value}
+    db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        commit_batch(db_session, batch_id=batch.id, user=editor)
+    assert exc_info.value.status_code == 422
+    assert "status" in exc_info.value.detail
+    assert db_session.scalar(select(Vm).where(Vm.name == "first-new")) is None

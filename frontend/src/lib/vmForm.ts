@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Vm, VmPayload } from '../api/types';
 
 export const platforms = ['proxmox', 'vmware'] as const;
-export const statuses = ['running', 'powered_off', 'decommissioned', 'unknown'] as const;
+export const statuses = ['running', 'powered_off', 'decommissioned'] as const;
 export const criticalities = ['low', 'medium', 'high', 'critical'] as const;
 export const environments = ['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'] as const;
 export const vmTypes = ['permanent', 'temporary'] as const;
@@ -37,7 +37,7 @@ export const vmFormSchema = z.object({
   node: optionalText,
   external_id: optionalText,
   sr_id: optionalText,
-  status: z.enum(statuses),
+  status: z.enum(statuses, { error: 'Select a status.' }),
   environment: z.enum(environments),
   criticality: z.enum(criticalities),
   vm_type: z.enum(vmTypes),
@@ -79,7 +79,7 @@ export interface VmFormValues {
   node: string;
   external_id: string;
   sr_id: string;
-  status: typeof statuses[number];
+  status: Vm['status'] | '';
   environment: typeof environments[number];
   criticality: typeof criticalities[number];
   vm_type: typeof vmTypes[number];
@@ -113,7 +113,7 @@ export function splitList(value: string): string[] {
 export function emptyVmFormValues(): VmFormValues {
   return {
     name: '', fqdn: '', platform: 'proxmox', datacenter: '', cluster: '',
-    node: '', external_id: '', sr_id: '', status: 'unknown', environment: 'production',
+    node: '', external_id: '', sr_id: '', status: '', environment: 'production',
     criticality: 'medium', vm_type: 'permanent', cpu_cores: 0, memory_mb: 0,
     os_family: '', os_distribution: '', os_version: '',
     owner: '', business_owner: '',

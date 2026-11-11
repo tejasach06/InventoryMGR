@@ -16,7 +16,7 @@ export const advancedFilterConfig: Record<AdvancedFilterName, AdvancedFieldConfi
   environment: { kind: 'multiSelect', options: ['production', 'staging', 'uat', 'testing', 'development', 'dr', 'sandbox'] as const },
   cluster: { kind: 'dynamicMultiSelect' },
   node: { kind: 'dynamicMultiSelect' },
-  os_family: { kind: 'multiSelect', options: ['linux', 'windows'] as const },
+  os_family: { kind: 'multiSelect', options: ['linux', 'windows', 'undefined'] as const, labels: { undefined: 'Undefined' } },
   owner: { kind: 'dynamicMultiSelect' },
   application: { kind: 'dynamicMultiSelect' },
   tag: { kind: 'dynamicMultiSelect' },

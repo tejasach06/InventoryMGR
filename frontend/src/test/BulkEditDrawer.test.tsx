@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BulkEditDrawer } from '../components/BulkEditDrawer';
@@ -24,6 +24,17 @@ describe('BulkEditDrawer', () => {
   it('labels the apply button with the target', () => {
     open();
     expect(screen.getByRole('button', { name: 'Apply to 12 VMs' })).toBeInTheDocument();
+  });
+
+  it.each(['running', 'powered_off', 'decommissioned'])('only offers writable statuses and submits %s', async (status) => {
+    const onSubmit = open();
+    const select = screen.getByLabelText('Status');
+    expect(select).toHaveValue('');
+    expect(within(select).getAllByRole('option').map((option) => option.getAttribute('value')))
+      .toEqual(['', 'running', 'powered_off', 'decommissioned']);
+    await userEvent.selectOptions(select, status);
+    await userEvent.click(screen.getByRole('button', { name: 'Apply to 12 VMs' }));
+    expect(onSubmit).toHaveBeenCalledWith({ status });
   });
 
   it('sends only the fields the user touched', async () => {

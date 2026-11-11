@@ -202,14 +202,13 @@ PLATFORM_ALIASES = {
     "vcenter": "vmware",
 }
 ENUM_VALUES = {
-    "status": {"running", "powered_off", "decommissioned", "unknown"},
+    "status": {"running", "powered_off", "decommissioned"},
     "environment": {"production", "development", "testing", "uat", "dr", "staging", "sandbox"},
     "criticality": {"low", "medium", "high", "critical"},
     "os_family": {"linux", "windows"},
     "vm_type": {"permanent", "temporary"},
 }
 DEFAULTS: dict[str, Any] = {
-    "status": "unknown",
     "environment": "production",
     "cpu_cores": 0,
     "memory_mb": 0,
@@ -638,7 +637,10 @@ def create_preview_batch(
                 )
                 match = find_matching_vm(db, normalized)
                 if match is None:
-                    action = ImportAction.create
+                    if "status" not in normalized:
+                        errors.append(_error("status", "is required and cannot be blank"))
+                    else:
+                        action = ImportAction.create
                 else:
                     target_vm_id = match.id
                     matched_vm_ids.add(match.id)
@@ -940,6 +942,22 @@ def commit_batch(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Import contains invalid or conflicting rows",
+        )
+    for row in batch.rows:
+        if row.action not in {ImportAction.create, ImportAction.update, ImportAction.unchanged}:
+            continue
+        normalized = row.normalized or {}
+        if "status" not in normalized:
+            if row.action != ImportAction.create:
+                continue
+            message = "is required and cannot be blank"
+        elif isinstance(normalized["status"], str) and normalized["status"] in ENUM_VALUES["status"]:
+            continue
+        else:
+            message = "must be one of running, powered_off, decommissioned"
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Row {row.row_number} failed to import: status {message}",
         )
     decommission_rows = [r for r in batch.rows if r.action == ImportAction.decommission]
     candidate_total = int(batch.summary.get("decommission_candidate_total", 0))

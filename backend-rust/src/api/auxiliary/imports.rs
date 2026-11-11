@@ -53,13 +53,30 @@ fn ips(raw: &Value,key: &str,errors: &mut Vec<Value>) -> Vec<String> {
     for part in parts(text(raw,key)){let ip=part.split('/').next().unwrap_or("").trim();if ip.is_empty(){continue;}if ip.contains(':'){errors.push(error(key,"must be IP addresses separated by ;"));return Vec::new();}result.push(ip.into());}
     result
 }
+fn status_error(normalized:&Value,create:bool)->Option<Value>{
+    match normalized.get("status"){
+        Some(Value::String(status)) if ["running","powered_off","decommissioned"].contains(&status.as_str())=>None,
+        None if !create=>None,
+        None=>Some(error("status","is required and cannot be blank")),
+        _=>Some(error("status","must be one of running, powered_off, decommissioned")),
+    }
+}
+fn validate_staged_status(rows:&[Value])->Result<(),ApiError>{
+    for row in rows{
+        let action=text(row,"action");
+        if matches!(action,"create"|"update"|"unchanged"){
+            if let Some(error)=status_error(&row["normalized"],action=="create"){return Err(ApiError::new(StatusCode::UNPROCESSABLE_ENTITY,format!("Row {} failed to import: status {}",row["row_number"],text(&error,"message"))));}
+        }
+    }
+    Ok(())
+}
 fn normalize(raw: &Value) -> (Option<Value>,Vec<Value>) {
     let mut normalized=Map::new();let mut errors=Vec::new();
     for key in ["name","platform","cluster"] {let value=text(raw,key); if value.is_empty(){errors.push(error(key,"is required and cannot be blank"));}normalized.insert(key.into(),json!(value));}
     let platform=text(raw,"platform").to_lowercase();
     if !platform.is_empty(){let value=match platform.as_str(){"pve"|"proxmox"=>Some("proxmox"),"vmware"|"vcenter"|"vsphere"=>Some("vmware"),_=>None};if let Some(value)=value{normalized.insert("platform".into(),json!(value));}else{errors.push(error("platform","must be one of proxmox, pve, vmware, vsphere, vcenter"));}}
-    let enums:[(&str,&[&str]);5]=[("status",&["decommissioned","powered_off","running","unknown"]),("environment",&["development","dr","production","sandbox","staging","testing","uat"]),("criticality",&["critical","high","low","medium"]),("os_family",&["linux","windows"]),("vm_type",&["permanent","temporary"])];
-    for (key,allowed) in enums {let value=text(raw,key).to_lowercase();if value.is_empty(){continue;}if allowed.contains(&value.as_str()){normalized.insert(key.into(),json!(value));}else{errors.push(error(key,format!("must be one of {}",allowed.join(", "))));}}
+    let enums:[(&str,&[&str]);5]=[("status",&["decommissioned","powered_off","running"]),("environment",&["development","dr","production","sandbox","staging","testing","uat"]),("criticality",&["critical","high","low","medium"]),("os_family",&["linux","windows"]),("vm_type",&["permanent","temporary"])];
+    for (key,allowed) in enums {let value=text(raw,key).trim().to_lowercase();if value.is_empty(){continue;}if allowed.contains(&value.as_str()){normalized.insert(key.into(),json!(value));}else{errors.push(error(key,format!("must be one of {}",allowed.join(", "))));}}
     for key in ["cpu_cores","memory_mb"]{let value=text(raw,key);if value.is_empty(){continue;}match value.parse::<i64>(){Ok(n) if n>=0=>{normalized.insert(key.into(),json!(n));},_=>errors.push(error(key,"must be an integer >= 0"))}}
     for key in BOOLS{let value=text(raw,key).to_lowercase();if value.is_empty(){continue;}match value.as_str(){"true"|"yes"|"1"=>{normalized.insert((*key).into(),json!(true));},"false"|"no"|"0"=>{normalized.insert((*key).into(),json!(false));},_=>errors.push(error(key,"must be one of true, false, yes, no, 1, 0"))}}
     for key in DATES{let value=text(raw,key);if value.is_empty(){continue;}if let Some(date)=parse_date(value){normalized.insert((*key).into(),json!(date.to_string()));}else{errors.push(error(key,"must be ISO date YYYY-MM-DD"));}}
@@ -164,6 +181,7 @@ pub async fn preview(State(state):State<AppState>,user:Editor,_:Csrf,mut multipa
             if !seen.insert(key.clone()){action="conflict";errors=vec![error("identity","duplicate CSV identity")];}
             else{scopes.insert((text(normalized,"cluster").trim().to_lowercase(),text(normalized,"platform").to_owned()));
                 if let Some(vm)=matches.get(&key){let vm_id=Uuid::parse_str(text(vm,"id")).map_err(|e|ApiError::internal(e.to_string()))?;target=Some(vm_id);matched.insert(vm_id);changes=diff(normalized,vm,raw);action=if changes.as_object().unwrap().is_empty(){"unchanged"}else{"update"};for field in changes.as_object().unwrap().keys(){let count=field_changes.get(field).and_then(Value::as_i64).unwrap_or(0);field_changes.insert(field.clone(),json!(count+1));}}
+                else if let Some(error)=status_error(normalized,true){errors.push(error);}
                 else{action="create";}
             }
         }
@@ -202,7 +220,7 @@ async fn write_vm(connection:&mut PgConnection,vm:Option<&Value>,normalized:&Val
         sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE vms SET {} WHERE id=$3",assignments.join(",")))).bind(values).bind(user).bind(id).execute(connection).await.map_err(mutation_error)?;
         Ok(id)
     }else{
-        let id=Uuid::new_v4();let mut values=json!({"status":"unknown","environment":"production","cpu_cores":0,"memory_mb":0,"criticality":"medium","vm_type":"permanent","monitoring_enabled":false,"ha_enabled":false,"backup_enabled":false,"pmp_enabled":false,"tags":[],"os_family":null});
+        let id=Uuid::new_v4();let mut values=json!({"environment":"production","cpu_cores":0,"memory_mb":0,"criticality":"medium","vm_type":"permanent","monitoring_enabled":false,"ha_enabled":false,"backup_enabled":false,"pmp_enabled":false,"tags":[],"os_family":null});
         values.as_object_mut().unwrap().extend(normalized.as_object().unwrap().clone());
         let columns=COLUMNS.join(",");let selected=COLUMNS.iter().map(|key|format!("r.{key}")).collect::<Vec<_>>().join(",");
         sqlx::query(sqlx::AssertSqlSafe(format!("INSERT INTO vms(id,{columns},created_by_id,updated_by_id,created_at,updated_at,health_score) SELECT $2,{selected},$3,$3,now(),now(),0 FROM jsonb_populate_record(NULL::vms,$1) r")))
@@ -240,6 +258,7 @@ pub async fn commit(State(state):State<AppState>,user:Editor,_:Csrf,Path(id):Pat
     if text(&batch,"status")!="previewed"{return Err(ApiError::new(StatusCode::CONFLICT,"Import batch is not previewed"));}
     let rows=batch["rows"].as_array().unwrap();
     if rows.iter().any(|row|matches!(text(row,"action"),"invalid"|"conflict")){return Err(ApiError::new(StatusCode::CONFLICT,"Import contains invalid or conflicting rows"));}
+    validate_staged_status(rows)?;
     let decommission=rows.iter().filter(|row|text(row,"action")=="decommission").count();
     let total=batch["summary"]["decommission_candidate_total"].as_u64().unwrap_or(0) as usize;
     if decommission>0 && total>0 && decommission*2>total && !payload.as_ref().is_some_and(|p|p.confirm_decommission){return Err(ApiError::new(StatusCode::CONFLICT,format!("This import would decommission {decommission} of {total} VMs (over half the inventory). Re-submit with confirm_decommission to proceed.")));}
@@ -282,6 +301,30 @@ pub async fn template(_:Viewer)->Result<Response,ApiError>{
 #[cfg(test)]
 mod tests{
     use super::*;
+    #[test] fn csv_status_accepts_three_values_rejects_unknown(){
+        for status in ["running","powered_off","decommissioned"]{let (normalized,errors)=normalize(&json!({"name":"one","platform":"vmware","cluster":"c","status":status}));assert!(errors.is_empty());let normalized=normalized.unwrap();assert_eq!(normalized["status"],status);assert!(status_error(&normalized,true).is_none());}
+        for status in ["unknown"," UNKNOWN ","null"]{let (normalized,errors)=normalize(&json!({"name":"one","platform":"vmware","cluster":"c","status":status}));assert!(normalized.is_none());assert_eq!(errors[0]["field"],"status");}
+        assert!(status_error(&json!({"status":null}),false).is_some());
+    }
+    #[test] fn missing_new_status_is_invalid_blank_existing_update_omits_status(){
+        for status in [None,Some(""),Some("   ")]{
+            let mut raw=json!({"name":"one","platform":"vmware","cluster":"c","owner":"new"});if let Some(status)=status{raw["status"]=json!(status);}
+            let (normalized,errors)=normalize(&raw);assert!(errors.is_empty());let normalized=normalized.unwrap();
+            assert_eq!(status_error(&normalized,true).unwrap()["field"],"status");assert!(status_error(&normalized,false).is_none());
+            for status in ["running","unknown"]{let vm=json!({"status":status,"owner":null});let values=updates(&normalized,&vm);assert!(values.get("status").is_none());assert_eq!(values["owner"],"new");}
+        }
+    }
+    #[test] fn old_preview_status_is_revalidated_before_any_writes(){
+        let valid=json!({"row_number":2,"action":"create","normalized":{"status":"running"}});
+        for action in ["create","update","unchanged"]{
+            for status in [json!("unknown"),Value::Null,json!("invalid")]{
+                let stale=json!({"row_number":3,"action":action,"normalized":{"status":status}});
+                let e=validate_staged_status(&[valid.clone(),stale]).unwrap_err();assert_eq!(e.status,StatusCode::UNPROCESSABLE_ENTITY);assert!(e.message.contains("Row 3"));
+            }
+        }
+        assert!(validate_staged_status(&[valid.clone(),json!({"row_number":3,"action":"create","normalized":{}})]).is_err());
+        assert!(validate_staged_status(&[valid,json!({"action":"update","normalized":{}}),json!({"action":"unchanged","normalized":{}}),json!({"action":"decommission","normalized":null})]).is_ok());
+    }
     #[test] fn supplied_blanks_do_not_override(){let raw=json!({"name":"one","platform":"PVE","cluster":"c","monitoring_enabled":"","business_owner":""});let (normalized,errors)=normalize(&raw);assert!(errors.is_empty());let normalized=normalized.unwrap();assert_eq!(normalized["platform"],"proxmox");assert!(normalized.get("monitoring_enabled").is_none());assert!(normalized.get("business_owner").is_none());}
     #[test] fn protected_values_gap_fill_only(){let normalized=json!({"name":"new","business_owner":"csv","monitoring_enabled":true,"environment":"testing"});let vm=json!({"name":"old","business_owner":"curated","monitoring_enabled":false,"environment":"production"});let values=updates(&normalized,&vm);assert!(values.get("business_owner").is_none());assert!(values.get("environment").is_none());assert_eq!(values["monitoring_enabled"],true);assert_eq!(values["name"],"new");}
     #[test] fn ip_retarget_preserves_extra_addresses_and_role_precedence(){let vm=json!({"networks":[{"id":"1","role":"private","ip_address":"10.0.0.1","sort_order":0},{"id":"2","role":"private","ip_address":"10.0.0.2","sort_order":1}]});let raw=json!({"private_ip":"10.0.0.3/24;10.0.0.3","public_ip":"10.0.0.3;10.0.0.4"});let plans=ip_plans(&vm,&raw);assert_eq!(plans[0].retargets.len(),1);assert_eq!(plans[0].retargets[0].1,"10.0.0.3");assert_eq!(plans[1].inserts,vec!["10.0.0.4"]);}

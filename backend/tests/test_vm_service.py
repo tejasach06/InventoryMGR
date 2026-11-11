@@ -1,3 +1,5 @@
+import pytest
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -164,3 +166,27 @@ def test_list_vms_preserves_search_relations_filters_and_semantic_sort(
     )
     assert total == 4
     assert [vm.id for vm in ordered] == [critical.id, high.id, medium.id, low.id]
+
+
+@pytest.mark.parametrize(
+    ("values", "operator", "expected"),
+    [
+        (["undefined"], FilterOperator.eq, {"null-os-vm"}),
+        (["undefined"], FilterOperator.neq, {"linux-vm", "windows-vm"}),
+        (["linux"], FilterOperator.eq, {"linux-vm"}),
+        (["linux"], FilterOperator.neq, {"null-os-vm", "windows-vm"}),
+        (["linux", "undefined"], FilterOperator.eq, {"linux-vm", "null-os-vm"}),
+        (["linux", "undefined"], FilterOperator.neq, {"windows-vm"}),
+        (["undefined"], FilterOperator.contains, {"null-os-vm"}),
+    ],
+)
+def test_list_vms_undefined_os_family_filter(db_session: Session, values, operator, expected) -> None:
+    editor = create_user(db_session, email="os-family-filter@example.com", role=UserRole.editor)
+    for family, name in [("linux", "linux-vm"), ("windows", "windows-vm"), (None, "null-os-vm")]:
+        create_vm_row(db_session, editor, name=name, os_family=family)
+
+    result, total = list_vms(
+        db_session, {"os_family": values, "os_family_op": operator}, limit=20, offset=0
+    )
+    assert total == len(expected)
+    assert {vm.name for vm in result} == expected

@@ -57,6 +57,7 @@ describe('VmFormPage vm_type / decommission_date gating', () => {
 
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'temp-vm' } });
     fireEvent.change(screen.getByLabelText(/^Cluster/), { target: { value: 'cluster-a' } });
+    fireEvent.change(screen.getByLabelText(/^Status/), { target: { value: 'running' } });
     fireEvent.change(screen.getByLabelText('VM Type'), { target: { value: 'temporary' } });
     fireEvent.submit(screen.getByLabelText(/^Name/).closest('form') as HTMLFormElement);
 

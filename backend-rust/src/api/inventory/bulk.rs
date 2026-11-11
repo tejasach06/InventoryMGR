@@ -22,8 +22,7 @@ pub fn validate_bulk(payload:&Value)->Result<BulkRequest,ApiError>{
   if !lists.split_whitespace().chain(bools.split_whitespace()).chain(["q","health"]).any(|a|a==k){collect(ApiError::validation(vec![issue(loc,"extra_forbidden","Extra inputs are not permitted",v)]));continue;}if v.is_null(){continue;}
   if lists.split_whitespace().any(|a|a==k){match strings(v,loc){Ok(values)=>{
    if ["platform","status","environment","criticality","os_family","ip_role"].contains(&k.as_str()){for(i,value)in values.iter().enumerate(){
-    let field=if k=="ip_role"{"role"}else{k.as_str()};let r=Resource{table:"bulk",fields:if k=="ip_role"{"role"}else{VM.fields},..VM};
-    if let Err(mut e)=validate(r,json!({field:value}),false){if let Some(Value::Array(errors))=&mut e.detail{for error in errors{error["loc"]=json!(["body","filters",k,i]);}}collect(e);}
+    if let Err(mut e)=filters::check_filter_enum(k,&value){if let Some(Value::Array(errors))=&mut e.detail{for error in errors{error["loc"]=json!(["body","filters",k,i]);}}collect(e);}
    }}
    params.insert(k.clone(),values);
   },Err(e)=>collect(e)}}else if bools.split_whitespace().any(|a|a==k){match coerce_bool(v){Some(b)=>{params.insert(k.clone(),vec![b.to_string()]);},None=>collect(prefix_error(field_error(k,"bool_parsing","Input should be a valid boolean",v),&[json!("filters")]))}}else if let Some(s)=v.as_str(){params.insert(k.clone(),vec![s.into()]);}else{collect(ApiError::validation(vec![issue(loc,"string_type","Input should be a valid string",v)]));}
@@ -46,4 +45,6 @@ pub fn validate_bulk(payload:&Value)->Result<BulkRequest,ApiError>{
  #[test]fn rejects_entire_patch_without_targets(){let e=validate_bulk(&json!({"filters":{},"patch":{"owner":"valid","monitoring_enabled":"maybe","tags_add":["valid",3]}})).err().unwrap();let d=e.detail.unwrap();assert_eq!(d.as_array().unwrap().len(),2);assert!(d.as_array().unwrap().iter().any(|e|e["loc"]==json!(["body","patch","tags_add",1])));}
  #[test]fn coerces_boolean_before_selection(){let r=validate_bulk(&json!({"filters":{"monitoring_enabled":"YES"},"patch":{"monitoring_enabled":1,"tags_add":[" x "]}})).unwrap();assert_eq!(r.patch,json!({"monitoring_enabled":true}));assert_eq!(r.params["monitoring_enabled"],vec!["true"]);assert_eq!(r.adds,vec![" x "]);}
  #[test]fn rejects_filter_and_tag_nulls(){assert!(validate_bulk(&json!({"filters":{"cluster":"x"},"patch":{"tags_remove":null}})).is_err());}
+ #[test]fn bulk_filter_os_family_undefined_accepted(){let r=validate_bulk(&json!({"filters":{"os_family":["undefined"]},"patch":{"status":"running"}})).unwrap();assert_eq!(r.params["os_family"],vec!["undefined"]);}
+ #[test]fn bulk_filter_os_family_invalid_rejected(){let e=validate_bulk(&json!({"filters":{"os_family":["bsd"]},"patch":{"status":"running"}})).err().unwrap();let d=e.detail.unwrap();assert_eq!(d[0]["loc"],json!(["body","filters","os_family",0]));}
 }

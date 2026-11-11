@@ -48,6 +48,7 @@ fn date_value(v:&Value)->Option<chrono::NaiveDate>{
 fn validate_field(r:Resource,field:&str,v:&mut Value,create:bool)->Result<(),ApiError>{
  let error=|kind:&str,msg:String|field_error(field,kind,msg,v);
  if v.is_null(){
+  if field=="status"&&(r.table=="vms"||r.table=="bulk"){return Err(error("enum","Input should be a valid enum value".into()));}
   let defaults:Value=serde_json::from_str(r.defaults).unwrap();
   if create&&(r.required.split_whitespace().any(|f|f==field)||defaults.get(field).is_some()) {
    let(kind,msg)=if INTEGERS.split_whitespace().any(|f|f==field){("int_type","Input should be a valid integer")}else if field.ends_with("_enabled"){("bool_type","Input should be a valid boolean")}else if field=="ip_addresses"{("list_type","Input should be a valid list")}else if field=="tags"{("list_type","Input should be a valid list")}else if ["platform","status","environment","criticality","vm_type","role","vendor"].contains(&field){("enum","Input should be a valid enum value")}else{("string_type","Input should be a valid string")};
@@ -81,7 +82,7 @@ fn validate_field(r:Resource,field:&str,v:&mut Value,create:bool)->Result<(),Api
  }
  if field.ends_with("_date")||field=="last_verified_at"{let date=date_value(v).ok_or_else(||error("date_from_datetime_parsing","Input should be a valid date or datetime".into()))?;*v=json!(date.to_string());return Ok(());}
  let s=v.as_str().ok_or_else(||error("string_type","Input should be a valid string".into()))?;
- let choices=match field{"platform"=>Some("proxmox vmware"),"environment"=>Some("production development testing uat dr staging sandbox"),"criticality"=>Some("low medium high critical"),"vm_type"=>Some("permanent temporary"),"os_family"=>Some("linux windows"),"role"=>Some("private public backup"),"vendor"=>Some("synology netapp"),"status" if r.table=="vms"||r.table=="bulk"=>Some("running powered_off decommissioned unknown"),_=>None};
+ let choices=match field{"platform"=>Some("proxmox vmware"),"environment"=>Some("production development testing uat dr staging sandbox"),"criticality"=>Some("low medium high critical"),"vm_type"=>Some("permanent temporary"),"os_family"=>Some("linux windows"),"role"=>Some("private public backup"),"vendor"=>Some("synology netapp"),"status" if r.table=="vms"||r.table=="bulk"=>Some("running powered_off decommissioned"),_=>None};
  if let Some(choices)=choices {
   let s=if r.table=="vms"{s.trim().to_lowercase()}else{s.into()};let mut names:Vec<_>=choices.split_whitespace().map(|c|format!("'{c}'")).collect();let last=names.pop().unwrap();let expected=if names.is_empty(){last}else{format!("{} or {last}",names.join(", "))};
   if !choices.split_whitespace().any(|c|c==s){let mut e=field_error(field,"enum",format!("Input should be {expected}"),&json!(s));e.detail.as_mut().unwrap()[0]["ctx"]=json!({"expected":expected});return Err(e);}*v=json!(s);return Ok(());
@@ -119,6 +120,24 @@ pub fn validate_vm_request(payload:&Value,create:bool)->Result<(),ApiError>{
 #[cfg(test)]
 mod tests {
  use super::*;
+  #[test] fn status_writes_accept_only_three_values(){
+   let bulk=Resource{table:"bulk",..VM};
+   for resource in [VM,bulk]{
+    for status in ["running","powered_off","decommissioned"]{assert_eq!(validate(resource,json!({"status":status}),false).unwrap()["status"],status);}
+    for status in [json!("unknown"),Value::Null]{let e=validate(resource,json!({"status":status}),false).unwrap_err();assert_eq!(e.detail.unwrap()[0]["loc"],json!(["body","status"]));}
+   }
+  }
+  #[test] fn create_requires_status_patch_omission_preserves_it(){
+   let mut payload=json!({"name":"one","platform":"vmware","cluster":"c","criticality":"medium","cpu_cores":1,"memory_mb":1024});
+   let e=validate(VM,payload.clone(),true).unwrap_err();assert_eq!(e.detail.unwrap(),json!([{"type":"missing","loc":["body","status"],"msg":"Field required","input":payload}]));
+   for status in ["running","powered_off","decommissioned"]{payload["status"]=json!(status);assert_eq!(validate(VM,payload.clone(),true).unwrap()["status"],status);}
+   for status in [json!("unknown"),Value::Null]{payload["status"]=status;assert!(validate(VM,payload.clone(),true).is_err());}
+   let mut existing=json!({"status":"unknown"});existing.as_object_mut().unwrap().extend(validate(VM,json!({"owner":"new"}),false).unwrap().as_object().unwrap().clone());assert_eq!(existing["status"],"unknown");
+  }
+  #[test] fn inherited_unknown_clone_status_is_rejected(){
+   let clone=json!({"name":"legacy-copy","external_id":null,"platform":"vmware","cluster":"c","status":"unknown","criticality":"medium","cpu_cores":1,"memory_mb":1024});
+   let e=validate(VM,clone,true).unwrap_err();assert_eq!(e.detail.unwrap()[0]["loc"],json!(["body","status"]));
+  }
  #[test] fn absent_and_null_are_distinct(){assert_eq!(validate(VM,json!({}),false).unwrap(),json!({}));assert_eq!(validate(VM,json!({"owner":null}),false).unwrap(),json!({"owner":null}));}
  #[test] fn normalize_vm_strings_tags_enums(){let v=validate(VM,json!({"name":" x ","platform":" VMWARE ","owner":" ","tags":[" a ",42," "]}),false).unwrap();assert_eq!(v,json!({"name":"x","platform":"vmware","owner":null,"tags":["a"]}));}
  #[test] fn reject_invalid_capacity_and_identity(){assert!(validate(VM,json!({"name":" "}),false).is_err());assert!(validate(DISK,json!({"disk_name":"d","size_gb":-1}),true).is_err());assert!(validate(ARRAY,json!({"name":"a","vendor":"unknown"}),true).is_err());}

@@ -1,5 +1,5 @@
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from app.schemas.clusters import PhysicalClusterCreate, PhysicalNodeCreate
 from app.schemas.ldap import LdapConfigUpdate
@@ -9,12 +9,62 @@ from app.schemas.settings import AppSettingsUpdate
 from app.schemas.storage import ArrayCreate, LunCreate, VolumeCreate
 from app.schemas.users import UserCreate
 from app.schemas.vms import (
+    VmBulkFilters,
     DiskCreate,
     NetworkCreate,
     VmBulkRequest,
     VmBulkUpdate,
     VmCreate,
+    VmRead,
+    VmUpdate,
 )
+
+from .conftest import create_user, create_vm_row
+
+
+VM_REQUIRED_FIELDS = {
+    "name": "status-vm",
+    "platform": "proxmox",
+    "cluster": "test-cluster",
+    "cpu_cores": 2,
+    "memory_mb": 1024,
+    "criticality": "low",
+}
+
+
+@pytest.mark.parametrize("status", ["running", "powered_off", "decommissioned"])
+def test_vm_writable_statuses(status):
+    assert VmCreate(**VM_REQUIRED_FIELDS, status=status).status == status
+    assert VmUpdate(status=status).status == status
+    assert VmBulkUpdate(status=status).status == status
+
+
+@pytest.mark.parametrize("status", ["unknown", " UNKNOWN ", "", None])
+def test_vm_writes_reject_invalid_status(status):
+    for schema, fields in [
+        (VmCreate, VM_REQUIRED_FIELDS),
+        (VmUpdate, {}),
+        (VmBulkUpdate, {}),
+    ]:
+        with pytest.raises(ValidationError):
+            schema(**fields, status=status)
+
+
+def test_vm_status_required_only_on_create():
+    with pytest.raises(ValidationError) as exc_info:
+        VmCreate(**VM_REQUIRED_FIELDS)
+    assert exc_info.value.errors()[0]["loc"] == ("status",)
+    assert VmUpdate(owner="ops").model_dump(exclude_unset=True) == {"owner": "ops"}
+    assert VmBulkUpdate(owner="ops").model_dump(exclude_unset=True) == {"owner": "ops"}
+
+
+def test_vm_read_and_filters_preserve_historical_unknown(db_session):
+    user = create_user(db_session, email="historical-status@example.com")
+    vm = create_vm_row(db_session, user, status="unknown", os_family=None)
+    response = VmRead.model_validate(vm)
+    assert response.model_dump(mode="json")["status"] == "unknown"
+    assert response.os_family is None
+    assert VmBulkFilters(status=["unknown"]).status == ["unknown"]
 
 
 def test_vm_create_schema():
@@ -97,3 +147,26 @@ def test_notifications_pref():
     # Notifications
     notif = DuplicateIpRead(ip_address="1.1.1.1", occurrences=2, vms=[])
     assert notif.ip_address == "1.1.1.1"
+
+
+def test_vm_bulk_filters_os_family_validation():
+    assert VmBulkFilters(os_family=["linux", "windows"]).os_family == ["linux", "windows"]
+    assert VmBulkFilters(os_family=["undefined"]).os_family == ["undefined"]
+    assert VmBulkFilters(os_family=["linux", "undefined"]).os_family == ["linux", "undefined"]
+
+    with pytest.raises(ValidationError) as exc_info:
+        VmBulkFilters(os_family=["bogus"])
+    errors = exc_info.value.errors()
+    assert len(errors) == 1
+    assert errors[0]["type"] == "enum"
+
+
+def test_os_family_query_filter_does_not_widen_saved_family():
+    from app.api.routes.vms import VmFilterParams
+
+    adapter = TypeAdapter(VmFilterParams)
+    assert adapter.validate_python({"os_family": ["undefined"]}).os_family == ["undefined"]
+    with pytest.raises(ValidationError):
+        adapter.validate_python({"os_family": ["bogus"]})
+    with pytest.raises(ValidationError):
+        VmUpdate(os_family="undefined")

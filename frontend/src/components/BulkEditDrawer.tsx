@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { statuses } from '../lib/vmForm';
 import { Alert, Drawer, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass } from './ui';
 import { ComboInput } from './ComboInput';
 import { TagInput } from './TagInput';
@@ -9,7 +10,7 @@ export type BulkPatch = Record<string, string | boolean | string[]>;
 const UNCHANGED = '';
 
 const SELECT_FIELDS = [
-  { key: 'status', label: 'Status', options: ['running', 'powered_off', 'decommissioned', 'unknown'] },
+  { key: 'status', label: 'Status', options: statuses },
   { key: 'environment', label: 'Environment', options: ['production', 'development', 'testing', 'uat', 'dr', 'staging', 'sandbox'] },
   { key: 'criticality', label: 'Criticality', options: ['critical', 'high', 'medium', 'low'] },
   { key: 'vm_type', label: 'VM type', options: ['permanent', 'temporary'] },

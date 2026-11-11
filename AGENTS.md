@@ -75,6 +75,13 @@ abstractions. Match existing file conventions over inventing new ones.
 
 ## Agent skills
 
+### Codebase research
+
+When Graphify is installed and an existing graph is available, query it first
+for code relationships and change impact. Verify graph results against current
+source because the graph may be stale. Graphify files are local-only; if the
+skill, CLI, or graph is unavailable, use focused source searches instead.
+
 ### Issue tracker
 
 GitHub Issues (uses the `gh` CLI). See `docs/agents/issue-tracker.md`.

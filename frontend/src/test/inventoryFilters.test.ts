@@ -48,4 +48,12 @@ describe('inventory URL state', () => {
     });
     expect(params.toString()).toBe('page=3&size=25&sort=updated_at&dir=desc');
   });
+
+  it('serializes os_family undefined to URL and round-trips via emptyFilterState shape', () => {
+    const params = paramsFromFilters(
+      { ...emptyFilterState, os_family: ['linux', 'undefined'] },
+      { page: 1, size: DEFAULT_PAGE_SIZE, sort: null, dir: 'asc' },
+    );
+    expect(params.toString()).toBe('os_family=linux&os_family=undefined');
+  });
 });

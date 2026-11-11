@@ -1,7 +1,8 @@
 import uuid
 from collections.abc import Sequence
 from datetime import date, datetime
-from typing import Any
+from enum import StrEnum
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -25,6 +26,22 @@ from app.schemas.vm_children import (
     NetworkRead,
     NetworkUpdate,  # noqa: F401
 )
+
+
+class OsFamilyFilterValue(StrEnum):
+    linux = "linux"
+    windows = "windows"
+    undefined = "undefined"
+
+
+VmWriteStatus = Literal[VmStatus.running, VmStatus.powered_off, VmStatus.decommissioned]
+
+
+def _reject_null_status(value: VmWriteStatus | None) -> VmWriteStatus:
+    if value is None:
+        raise ValueError("status cannot be null")
+    return value
+
 
 STRING_FIELDS = {
     "external_id",
@@ -119,7 +136,7 @@ class VmBase(BaseModel):
         return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
-class VmCreate(VmBase):
+class VmRequired(VmBase):
     name: str
     platform: Platform
     cluster: str
@@ -136,14 +153,22 @@ class VmCreate(VmBase):
     tags: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def reject_blank_required(self) -> "VmCreate":
+    def reject_blank_required(self) -> "VmRequired":
         for field in REQUIRED_STRINGS:
             if not getattr(self, field):
                 raise ValueError(f"{field} is required and cannot be blank")
         return self
 
 
+class VmCreate(VmRequired):
+    status: VmWriteStatus
+
+
 class VmUpdate(VmBase):
+    status: VmWriteStatus | None = None
+
+    _validate_status = field_validator("status")(_reject_null_status)
+
     @model_validator(mode="after")
     def reject_supplied_blank_required(self) -> "VmUpdate":
         for field in REQUIRED_STRINGS:
@@ -171,7 +196,7 @@ class AuditLogRead(BaseModel):
     changed_at: datetime
 
 
-class VmRead(VmCreate):
+class VmRead(VmRequired):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -245,7 +270,7 @@ class VmBulkFilters(BaseModel):
     criticality: list[Criticality] | None = None
     monitoring_enabled: bool | None = None
     node: list[str] | None = None
-    os_family: list[OsFamily] | None = None
+    os_family: list[OsFamilyFilterValue] | None = None
     owner: list[str] | None = None
     pmp_enabled: bool | None = None
     tag: list[str] | None = None
@@ -267,7 +292,9 @@ class VmBulkUpdate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    status: VmStatus | None = None
+    status: VmWriteStatus | None = None
+
+    _validate_status = field_validator("status")(_reject_null_status)
     environment: Environment | None = None
     criticality: Criticality | None = None
     vm_type: VmType | None = None

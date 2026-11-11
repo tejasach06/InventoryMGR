@@ -54,9 +54,14 @@ function SelectInput({ name, label, values, errors, onChange, options, required 
   return (
     <div>
       <label className={labelClass} htmlFor={String(name)}>{label}{required && <span aria-hidden="true"> *</span>}</label>
-      <select className={selectClass} id={String(name)} name={String(name)} value={String(values[name])}
+      <select className={selectClass} id={String(name)} name={String(name)} value={String(values[name])} required={required}
         onChange={(e) => onChange(name, e.target.value)}
         aria-describedby={errors[name] ? errorId : undefined} aria-invalid={Boolean(errors[name])}>
+        {name === 'status' && (
+          <option value={values.status === 'unknown' ? 'unknown' : ''} disabled>
+            {values.status === 'unknown' ? 'Unknown (select a status)' : 'Select a status'}
+          </option>
+        )}
         {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
       </select>
       <FieldError id={errorId} message={errors[name]} />
@@ -410,9 +415,9 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
               <div>
                 <label className={labelClass} htmlFor="os_family">OS family</label>
                 <select className={selectClass} id="os_family" name="os_family" value={values.os_family} onChange={(e) => setField('os_family', e.target.value)}>
-                  <option value="">—</option>
                   <option value="linux">Linux</option>
                   <option value="windows">Windows</option>
+                  <option value="">Undefined</option>
                 </select>
               </div>
               <FormCombo name="os_distribution" label="Operating system" values={values} errors={errors} onChange={setField}

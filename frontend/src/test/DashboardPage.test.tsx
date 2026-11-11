@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, within } from '@testing-library/react';
 
 import type { DashboardStats, StorageArrayListItem, VmList } from '../api/types';
 import { DashboardPage } from '../routes/DashboardPage';
@@ -96,6 +96,55 @@ describe('DashboardPage', () => {
     expect(screen.getByText('stale-vm-0')).toBeInTheDocument();
     expect(screen.getByText('stale-vm-4')).toBeInTheDocument();
     expect(screen.queryByText('stale-vm-5')).not.toBeInTheDocument();
+  });
+
+  it.each<Record<string, number>>([{}, { unknown: 0 }])('shows reported power states without Unknown for %j', async (unknown) => {
+    vi.spyOn(dashboardApi, 'getDashboard').mockResolvedValue({
+      ...stats, total: 861,
+      by_status: { running: 729, powered_off: 95, decommissioned: 37, ...unknown },
+    });
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(emptyVms);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([]);
+    renderWithProviders(<DashboardPage />);
+
+    const section = (await screen.findByRole('heading', { name: 'Power state' })).closest('section')!;
+    expect(within(section).getByText('Running').closest('li')).toHaveTextContent(/Running\s*729/);
+    expect(within(section).getByText('Powered off').closest('li')).toHaveTextContent(/Powered off\s*95/);
+    expect(within(section).getByText('Decommissioned').closest('li')).toHaveTextContent(/Decommissioned\s*37/);
+    const donut = within(section).getByRole('img', { name: 'Power state distribution' });
+    expect(donut.querySelector('text')).toHaveTextContent('861');
+    expect(donut.querySelector('circle[stroke="var(--color-status-decommissioned)"]')).toBeInTheDocument();
+    expect(within(section).queryByText('Other')).not.toBeInTheDocument();
+    expect(within(section).queryByText('Unknown')).not.toBeInTheDocument();
+    expect(donut.querySelector('circle[stroke="var(--color-status-unknown)"]')).not.toBeInTheDocument();
+  });
+
+  it('shows only the reported Unknown count and color', async () => {
+    vi.spyOn(dashboardApi, 'getDashboard').mockResolvedValue({
+      ...stats, total: 900,
+      by_status: { running: 729, powered_off: 95, decommissioned: 37, unknown: 5 },
+    });
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(emptyVms);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([]);
+    renderWithProviders(<DashboardPage />);
+
+    const section = (await screen.findByRole('heading', { name: 'Power state' })).closest('section')!;
+    expect(within(section).getByText('Unknown').closest('li')).toHaveTextContent(/Unknown\s*5/);
+    expect(within(section).getByRole('img').querySelector('circle[stroke="var(--color-status-unknown)"]')).toBeInTheDocument();
+    expect(within(section).queryByText('Other')).not.toBeInTheDocument();
+  });
+
+  it('keeps zero Running and Powered off legend entries without Unknown slices', async () => {
+    vi.spyOn(dashboardApi, 'getDashboard').mockResolvedValue(stats);
+    vi.spyOn(vmsApi, 'listVms').mockResolvedValue(emptyVms);
+    vi.spyOn(storageApi, 'listArrays').mockResolvedValue([]);
+    renderWithProviders(<DashboardPage />);
+
+    const section = (await screen.findByRole('heading', { name: 'Power state' })).closest('section')!;
+    expect(within(section).getByText('Running').closest('li')).toHaveTextContent(/Running\s*0/);
+    expect(within(section).getByText('Powered off').closest('li')).toHaveTextContent(/Powered off\s*0/);
+    expect(within(section).queryByText('Unknown')).not.toBeInTheDocument();
+    expect(within(section).getByRole('img').querySelectorAll('circle[stroke="var(--color-status-unknown)"]')).toHaveLength(0);
   });
 
   it('renders all clear state when all alert lists are empty', async () => {

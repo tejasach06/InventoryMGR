@@ -134,6 +134,7 @@ describe('VmFormPage IP rows', () => {
 
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'multi' } });
     fireEvent.change(screen.getByLabelText(/^Cluster/), { target: { value: 'cluster-a' } });
+    fireEvent.change(screen.getByLabelText(/^Status/), { target: { value: 'running' } });
     fireEvent.change(screen.getByLabelText(/^CPU cores/), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText(/^Memory GB/), { target: { value: '4' } });
     fireEvent.submit(screen.getByLabelText(/^Name/).closest('form') as HTMLFormElement);
@@ -151,6 +152,7 @@ describe('VmFormPage disk/network detail fields', () => {
 
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'multi' } });
     fireEvent.change(screen.getByLabelText(/^Cluster/), { target: { value: 'cluster-a' } });
+    fireEvent.change(screen.getByLabelText(/^Status/), { target: { value: 'running' } });
     fireEvent.change(screen.getByLabelText(/^CPU cores/), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText(/^Memory GB/), { target: { value: '4' } });
 

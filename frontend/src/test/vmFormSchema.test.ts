@@ -1,7 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultVmFormValues, validateVmFormInput } from '../lib/vmForm';
+import { createDefaultVmFormValues, validateVmFormInput, vmFormSchema } from '../lib/vmForm';
 
 describe('vmFormSchema', () => {
+  it.each(['', 'unknown', null, undefined])('rejects unwritable status %s', (status) => {
+    const parsed = vmFormSchema.safeParse({
+      ...createDefaultVmFormValues(), name: 'vm', cluster: 'cluster', status,
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) expect(parsed.error.issues).toContainEqual(
+      expect.objectContaining({ path: ['status'], message: 'Select a status.' }),
+    );
+  });
+
+  it.each(['running', 'powered_off', 'decommissioned'] as const)('accepts status %s', (status) => {
+    const parsed = validateVmFormInput({
+      ...createDefaultVmFormValues(), name: 'vm', cluster: 'cluster', status,
+    });
+    expect(parsed.ok).toBe(true);
+    expect(parsed.data?.status).toBe(status);
+  });
+
   it('normalizes valid form values into the API payload shape', () => {
     const parsed = validateVmFormInput({
       ...createDefaultVmFormValues(),
