@@ -312,6 +312,16 @@ class VmBulkUpdate(BaseModel):
     last_verified_at: date | None = None
     tags_add: list[str] = []
     tags_remove: list[str] = []
+    applications_add: list[str] = []
+    applications_remove: list[str] = []
+
+    @field_validator("applications_add", "applications_remove")
+    @classmethod
+    def _clean_app_names(cls, value: list[str]) -> list[str]:
+        names = [name.strip() for name in value]
+        if any(len(name) > 255 for name in names):
+            raise ValueError("application names must be 255 characters or fewer")
+        return [name for name in names if name]
 
 
 class VmBulkRequest(BaseModel):

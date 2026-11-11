@@ -3,7 +3,7 @@ use crate::api::deps::ApiError;
 use serde_json::{json,Value};
 use uuid::Uuid;
 use sqlx::QueryBuilder;
-pub struct BulkRequest {pub params:Params,pub explicit_ids:bool,pub patch:Value,pub adds:Vec<String>,pub removes:Vec<String>}
+pub struct BulkRequest {pub params:Params,pub explicit_ids:bool,pub patch:Value,pub adds:Vec<String>,pub removes:Vec<String>,pub app_adds:Vec<String>,pub app_removes:Vec<String>}
 fn strings(v:&Value,loc:Vec<Value>)->Result<Vec<String>,ApiError>{
  let a=v.as_array().ok_or_else(||ApiError::validation(vec![issue(loc.clone(),"list_type","Input should be a valid list",v)]))?;
  let mut result=Vec::new();let mut errors=Vec::new();for(i,v)in a.iter().enumerate(){if let Some(s)=v.as_str(){result.push(s.into());}else{let mut loc=loc.clone();loc.push(json!(i));errors.push(issue(loc,"string_type","Input should be a valid string",v));}}
@@ -27,10 +27,11 @@ pub fn validate_bulk(payload:&Value)->Result<BulkRequest,ApiError>{
    params.insert(k.clone(),values);
   },Err(e)=>collect(e)}}else if bools.split_whitespace().any(|a|a==k){match coerce_bool(v){Some(b)=>{params.insert(k.clone(),vec![b.to_string()]);},None=>collect(prefix_error(field_error(k,"bool_parsing","Input should be a valid boolean",v),&[json!("filters")]))}}else if let Some(s)=v.as_str(){params.insert(k.clone(),vec![s.into()]);}else{collect(ApiError::validation(vec![issue(loc,"string_type","Input should be a valid string",v)]));}
  }}else{collect(field_error("filters","model_attributes_type","Input should be a valid dictionary",v));}}
- let mut patch=json!({});let mut adds=Vec::new();let mut removes=Vec::new();
+ let mut patch=json!({});let mut adds=Vec::new();let mut removes=Vec::new();let mut app_adds=Vec::new();let mut app_removes=Vec::new();
  if let Some(v)=payload.get("patch"){if let Some(obj)=v.as_object(){for(k,v)in obj{
-  if !"status environment criticality vm_type cluster node datacenter owner business_owner technical_owner pmp_enabled monitoring_enabled backup_enabled ha_enabled backup_location last_verified_at tags_add tags_remove".split_whitespace().any(|a|a==k){collect(prefix_error(field_error(k,"extra_forbidden","Extra inputs are not permitted",v),&[json!("patch")]));continue;}
+  if !"status environment criticality vm_type cluster node datacenter owner business_owner technical_owner pmp_enabled monitoring_enabled backup_enabled ha_enabled backup_location last_verified_at tags_add tags_remove applications_add applications_remove".split_whitespace().any(|a|a==k){collect(prefix_error(field_error(k,"extra_forbidden","Extra inputs are not permitted",v),&[json!("patch")]));continue;}
   if ["tags_add","tags_remove"].contains(&k.as_str()){match strings(v,vec![json!("body"),json!("patch"),json!(k)]){Ok(tags)=>if k=="tags_add"{adds=tags}else{removes=tags},Err(e)=>collect(e)}continue;}
+  if ["applications_add","applications_remove"].contains(&k.as_str()){match strings(v,vec![json!("body"),json!("patch"),json!(k)]){Ok(names)=>{let mut clean=Vec::new();for(i,n)in names.iter().enumerate(){let n=n.trim();if n.chars().count()>255{collect(ApiError::validation(vec![issue(vec![json!("body"),json!("patch"),json!(k),json!(i)],"string_too_long","String should have at most 255 characters",&json!(n))]));}else if !n.is_empty(){clean.push(n.to_owned());}}if k=="applications_add"{app_adds=clean}else{app_removes=clean}},Err(e)=>collect(e)}continue;}
   let r=Resource{table:"bulk",..VM};match validate(r,json!({k:v}),false){Ok(value)=>patch[k]=value[k].clone(),Err(e)=>collect(prefix_error(e,&[json!("patch")]))}
  }}else{collect(field_error("patch","model_attributes_type","Input should be a valid dictionary",v));}}else{collect(field_error("patch","missing","Field required",payload));}
  drop(collect);
@@ -39,7 +40,7 @@ pub fn validate_bulk(payload:&Value)->Result<BulkRequest,ApiError>{
  if explicit_ids&&params.get("ids").is_none_or(Vec::is_empty){return Err(ApiError::validation(vec![issue(vec![json!("body")],"value_error","Value error, ids must not be empty",payload)]));}
  if payload["patch"].as_object().is_none_or(|p|p.is_empty()){return Err(ApiError::validation(vec![issue(vec![json!("body")],"value_error","Value error, patch must set at least one field",payload)]));}
  if !explicit_ids{let mut q=QueryBuilder::new("SELECT id FROM vms v WHERE true");filters::apply(&mut q,&params).map_err(|e|if e.detail.is_some(){prefix_error(e,&[json!("filters")])}else{field_error("filters","value_error",format!("Value error, {}",e.message),&payload["filters"])})?;}
- Ok(BulkRequest{params,explicit_ids,patch,adds,removes})
+ Ok(BulkRequest{params,explicit_ids,patch,adds,removes,app_adds,app_removes})
 }
 #[cfg(test)] mod tests {use super::*;
  #[test]fn rejects_entire_patch_without_targets(){let e=validate_bulk(&json!({"filters":{},"patch":{"owner":"valid","monitoring_enabled":"maybe","tags_add":["valid",3]}})).err().unwrap();let d=e.detail.unwrap();assert_eq!(d.as_array().unwrap().len(),2);assert!(d.as_array().unwrap().iter().any(|e|e["loc"]==json!(["body","patch","tags_add",1])));}
@@ -47,4 +48,6 @@ pub fn validate_bulk(payload:&Value)->Result<BulkRequest,ApiError>{
  #[test]fn rejects_filter_and_tag_nulls(){assert!(validate_bulk(&json!({"filters":{"cluster":"x"},"patch":{"tags_remove":null}})).is_err());}
  #[test]fn bulk_filter_os_family_undefined_accepted(){let r=validate_bulk(&json!({"filters":{"os_family":["undefined"]},"patch":{"status":"running"}})).unwrap();assert_eq!(r.params["os_family"],vec!["undefined"]);}
  #[test]fn bulk_filter_os_family_invalid_rejected(){let e=validate_bulk(&json!({"filters":{"os_family":["bsd"]},"patch":{"status":"running"}})).err().unwrap();let d=e.detail.unwrap();assert_eq!(d[0]["loc"],json!(["body","filters","os_family",0]));}
+ #[test]fn bulk_applications_are_trimmed_and_blanks_dropped(){let r=validate_bulk(&json!({"ids":["00000000-0000-0000-0000-000000000001"],"patch":{"applications_add":[" Nginx ",""," "],"applications_remove":["Old"]}})).unwrap();assert_eq!(r.app_adds,vec!["Nginx"]);assert_eq!(r.app_removes,vec!["Old"]);assert!(r.patch.as_object().unwrap().is_empty());}
+ #[test]fn bulk_application_name_over_255_rejected(){let e=validate_bulk(&json!({"ids":["00000000-0000-0000-0000-000000000001"],"patch":{"applications_add":["a".repeat(256)]}})).err().unwrap();assert_eq!(e.detail.unwrap()[0]["loc"],json!(["body","patch","applications_add",0]));}
 }

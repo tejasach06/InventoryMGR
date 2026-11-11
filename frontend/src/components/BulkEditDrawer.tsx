@@ -56,12 +56,16 @@ export function BulkEditDrawer({
   const [activeTab, setActiveTab] = useState<'state' | 'infra' | 'ops' | 'tags'>('state');
   const [values, setValues] = useState<Record<string, string>>({});
   const [tagsAdd, setTagsAdd] = useState<string[]>([]);
+  const [appsAdd, setAppsAdd] = useState<string[]>([]);
+  const [appsRemove, setAppsRemove] = useState<string[]>([]);
   const [tagsRemove, setTagsRemove] = useState<string[]>([]);
   useEffect(() => {
     if (!open) {
       setValues({});
       setTagsAdd([]);
       setTagsRemove([]);
+      setAppsAdd([]);
+      setAppsRemove([]);
       setActiveTab('state');
     }
   }, [open]);
@@ -78,6 +82,8 @@ export function BulkEditDrawer({
   }
   if (tagsAdd.length > 0) patch.tags_add = tagsAdd;
   if (tagsRemove.length > 0) patch.tags_remove = tagsRemove;
+  if (appsAdd.length > 0) patch.applications_add = appsAdd;
+  if (appsRemove.length > 0) patch.applications_remove = appsRemove;
   const stagedKeys = Object.keys(patch);
   const hasChanges = stagedKeys.length > 0;
 
@@ -85,7 +91,7 @@ export function BulkEditDrawer({
   const stateStaged = SELECT_FIELDS.some((f) => values[f.key] && values[f.key] !== UNCHANGED);
   const infraStaged = TEXT_FIELDS.some((f) => values[f.key] && values[f.key] !== UNCHANGED);
   const opsStaged = FLAG_FIELDS.some((f) => values[f.key] && values[f.key] !== UNCHANGED) || (values.last_verified_at && values.last_verified_at !== UNCHANGED);
-  const tagsStaged = tagsAdd.length > 0 || tagsRemove.length > 0;
+  const tagsStaged = tagsAdd.length > 0 || tagsRemove.length > 0 || appsAdd.length > 0 || appsRemove.length > 0;
 
   return (
     <Drawer
@@ -252,6 +258,14 @@ export function BulkEditDrawer({
               <div>
                 <label className={labelClass} htmlFor="bulk-tags-remove">Remove tags</label>
                 <TagInput id="bulk-tags-remove" value={tagsRemove} options={tagOptions} onChange={setTagsRemove} />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="bulk-apps-add">Add applications</label>
+                <TagInput id="bulk-apps-add" value={appsAdd} options={suggestions.applications ?? []} onChange={setAppsAdd} normalize={(raw) => raw.trim()} />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="bulk-apps-remove">Remove applications</label>
+                <TagInput id="bulk-apps-remove" value={appsRemove} options={suggestions.applications ?? []} onChange={setAppsRemove} normalize={(raw) => raw.trim()} />
               </div>
             </div>
           </fieldset>

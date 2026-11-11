@@ -74,7 +74,8 @@ async fn bulk(State(s):State<AppState>,u:Editor,_csrf:Csrf,ValidatedJson(payload
    let mut tags:Vec<String>=old["tags"].as_array().unwrap().iter().filter_map(Value::as_str).filter(|t|!request.removes.iter().any(|r|r.eq_ignore_ascii_case(t))).map(str::to_owned).collect();
    let existing=tags.clone();for t in &request.adds{if !existing.iter().any(|e|e.eq_ignore_ascii_case(t)){tags.push(t.clone());}}values["tags"]=json!(tags);
   }
-  match mutate_vm(&s.pool,Some(id),values,u.0.id).await{Ok(_)=>updated+=1,Err(e)=>failed.push(json!({"id":id,"message":if e.message.is_empty(){e.detail.map(|v|v.to_string()).unwrap_or_default()}else{e.message}}))}
+  let outcome=match mutate_vm(&s.pool,Some(id),values,u.0.id).await{Ok(_)=>if request.app_adds.is_empty()&&request.app_removes.is_empty(){Ok(())}else{bulk_applications(&s.pool,id,&request.app_adds,&request.app_removes).await},Err(e)=>Err(e)};
+  match outcome{Ok(())=>updated+=1,Err(e)=>failed.push(json!({"id":id,"message":if e.message.is_empty(){e.detail.map(|v|v.to_string()).unwrap_or_default()}else{e.message}}))}
  }
  Ok(Json(json!({"updated":updated,"failed":failed})))
 }

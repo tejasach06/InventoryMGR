@@ -9,11 +9,13 @@ export function TagInput({
   value,
   options,
   onChange,
+  normalize,
 }: {
   id: string;
   value: string[];
   options: string[];
   onChange: (tags: string[]) => void;
+  normalize?: (raw: string) => string;
 }) {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -28,6 +30,7 @@ export function TagInput({
   const listOpen = open && matches.length > 0;
 
   function normalizeTag(raw: string): string {
+    if (normalize) return normalize(raw);
     return raw
       .trim()
       .toLowerCase()

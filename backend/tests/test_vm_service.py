@@ -190,3 +190,82 @@ def test_list_vms_undefined_os_family_filter(db_session: Session, values, operat
     )
     assert total == len(expected)
     assert {vm.name for vm in result} == expected
+
+
+def _bulk_apps(db_session: Session, vm, editor, **patch):
+    from app.schemas.vms import VmBulkRequest, VmBulkUpdate
+    from app.services.vms_bulk import bulk_update_vms
+
+    result = bulk_update_vms(
+        db_session,
+        payload=VmBulkRequest(ids=[vm.id], patch=VmBulkUpdate(**patch)),
+        user=editor,
+    )
+    assert result == {"updated": 1, "failed": []}
+    return {
+        (app.app_name, app.app_owner, app.description)
+        for app in db_session.scalars(
+            select(VmApplication).where(VmApplication.vm_id == vm.id)
+        )
+    }
+
+
+def test_bulk_applications_add_skips_existing(db_session: Session) -> None:
+    editor = create_user(db_session, email="bulk-app-add@example.com", role=UserRole.editor)
+    vm = create_vm_row(db_session, editor, name="bulk-app-add")
+    db_session.add(VmApplication(vm_id=vm.id, app_name="Nginx", app_owner="web-team"))
+    db_session.commit()
+
+    apps = _bulk_apps(db_session, vm, editor, applications_add=[" nginx ", "Redis", "redis", " "])
+
+    assert apps == {("Nginx", "web-team", None), ("Redis", None, None)}
+
+
+def test_bulk_applications_remove_is_case_insensitive_and_preserves_others(
+    db_session: Session,
+) -> None:
+    editor = create_user(db_session, email="bulk-app-rm@example.com", role=UserRole.editor)
+    vm = create_vm_row(db_session, editor, name="bulk-app-rm")
+    db_session.add_all(
+        [
+            VmApplication(vm_id=vm.id, app_name="Nginx", app_owner="web-team"),
+            VmApplication(vm_id=vm.id, app_name="Postgres", app_owner="dba", description="db"),
+        ]
+    )
+    db_session.commit()
+
+    apps = _bulk_apps(db_session, vm, editor, applications_remove=["NGINX", "missing"])
+
+    assert apps == {("Postgres", "dba", "db")}
+
+
+def test_bulk_applications_add_first_raises_health(db_session: Session) -> None:
+    editor = create_user(db_session, email="bulk-app-first@example.com", role=UserRole.editor)
+    vm = create_vm_row(db_session, editor, name="bulk-app-first")
+    base = update_vm(db_session, vm, VmUpdate(), editor).health_score
+
+    _bulk_apps(db_session, vm, editor, applications_add=["Nginx"])
+    db_session.refresh(vm)
+    assert vm.health_score == base + 20
+
+
+def test_bulk_applications_remove_last_drops_health_points(db_session: Session) -> None:
+    editor = create_user(db_session, email="bulk-app-last@example.com", role=UserRole.editor)
+    vm = create_vm_row(db_session, editor, name="bulk-app-last")
+    db_session.add(VmApplication(vm_id=vm.id, app_name="Nginx"))
+    db_session.commit()
+    with_app = update_vm(db_session, vm, VmUpdate(), editor).health_score
+
+    assert _bulk_apps(db_session, vm, editor, applications_remove=["nginx"]) == set()
+    db_session.refresh(vm)
+    assert vm.health_score == with_app - 20
+
+
+def test_bulk_applications_validation() -> None:
+    from pydantic import ValidationError
+
+    from app.schemas.vms import VmBulkUpdate
+
+    assert VmBulkUpdate(applications_add=["  a  ", "", "  "]).applications_add == ["a"]
+    with pytest.raises(ValidationError):
+        VmBulkUpdate(applications_remove=["x" * 256])

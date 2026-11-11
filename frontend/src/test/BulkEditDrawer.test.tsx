@@ -62,6 +62,20 @@ describe('BulkEditDrawer', () => {
     });
   });
 
+  it('sends application additions and removals separately', async () => {
+    const onSubmit = open();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Tags' }));
+    await userEvent.type(screen.getByLabelText('Add applications'), 'Nginx,My App{enter}');
+    await userEvent.type(screen.getByLabelText('Remove applications'), 'Legacy App{enter}');
+    await userEvent.click(screen.getByRole('button', { name: 'Apply to 12 VMs' }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      applications_add: ['Nginx', 'My App'],
+      applications_remove: ['Legacy App'],
+    });
+  });
+
   it('keeps apply disabled until something changes', async () => {
     open();
     expect(screen.getByRole('button', { name: 'Apply to 12 VMs' })).toBeDisabled();
