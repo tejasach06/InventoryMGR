@@ -33,13 +33,12 @@ def get_session_payload(request: Request) -> dict:
         ) from exc
 
 
-def get_current_user(db: DbSession, request: Request) -> User:
-    payload = get_session_payload(request)
+def user_from_payload(db: Session, payload: dict, invalid_detail: str) -> User:
     try:
         user_id = uuid.UUID(str(payload.get("sub")))
     except (TypeError, ValueError) as exc:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=invalid_detail
         ) from exc
     user = db.get(User, user_id)
     if user is None or not user.is_active:
@@ -52,6 +51,10 @@ def get_current_user(db: DbSession, request: Request) -> User:
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Session invalidated"
         )
     return user
+
+
+def get_current_user(db: DbSession, request: Request) -> User:
+    return user_from_payload(db, get_session_payload(request), "Invalid session")
 
 
 def require_csrf(

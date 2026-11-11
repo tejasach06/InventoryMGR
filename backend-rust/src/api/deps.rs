@@ -101,24 +101,31 @@ impl FromRequestParts<AppState> for Csrf {
     }
 }
 pub struct AuthUser(pub User);
+pub async fn user_from_claims(
+    state: &AppState, sub: &str, credential: &str, generation: Option<&str>, iat: i64,
+    invalid: &str,
+) -> Result<User, ApiError> {
+    let id = Uuid::parse_str(sub).map_err(|_| ApiError::unauthorized(invalid))?;
+    let user=sqlx::query_as::<_,User>("SELECT id,email,password_hash,role,is_active,auth_source,preferences,created_at,updated_at FROM users WHERE id=$1").bind(id).fetch_optional(&state.pool).await.map_err(|e|ApiError::internal(e.to_string()))?.filter(|u|u.is_active).ok_or_else(||ApiError::unauthorized("Inactive or missing user"))?;
+    if !verify_credential_fingerprint(
+        credential, &user.id.to_string(), &user.auth_source,
+        &user.password_hash, &state.settings.jwt_secret,
+    ) {
+        return Err(ApiError::unauthorized("Session invalidated"));
+    }
+    validate_session(state, generation, iat).await?;
+    Ok(user)
+}
 impl FromRequestParts<AppState> for AuthUser {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, ApiError> {
         let token = cookie(parts, &state.settings.session_cookie_name)
             .ok_or_else(|| ApiError::unauthorized("Not authenticated"))?;
-        let claims = decode_session_token(&token, &state.settings.jwt_secret)
+        let c = decode_session_token(&token, &state.settings.jwt_secret)
             .map_err(|_| ApiError::unauthorized("Invalid session"))?;
-        let id =
-            Uuid::parse_str(&claims.sub).map_err(|_| ApiError::unauthorized("Invalid session"))?;
-        let user=sqlx::query_as::<_,User>("SELECT id,email,password_hash,role,is_active,auth_source,preferences,created_at,updated_at FROM users WHERE id=$1").bind(id).fetch_optional(&state.pool).await.map_err(|e|ApiError::internal(e.to_string()))?.filter(|u|u.is_active).ok_or_else(||ApiError::unauthorized("Inactive or missing user"))?;
-        if !verify_credential_fingerprint(
-            &claims.credential, &user.id.to_string(), &user.auth_source,
-            &user.password_hash, &state.settings.jwt_secret,
-        ) {
-            return Err(ApiError::unauthorized("Session invalidated"));
-        }
-        validate_session(state, claims.generation.as_deref(), claims.iat).await?;
-        Ok(Self(user))
+        user_from_claims(state, &c.sub, &c.credential, c.generation.as_deref(), c.iat, "Invalid session")
+            .await
+            .map(Self)
     }
 }
 pub const RESTORE_AUTH_MARKER: &str = ".restore-auth-blocked";

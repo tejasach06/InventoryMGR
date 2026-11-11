@@ -1,10 +1,10 @@
 use crate::{
-    api::deps::{header_cookie, session_generation, validate_session, ApiError, AppState, AuthUser, Csrf},
+    api::deps::{header_cookie, session_generation, user_from_claims, ApiError, AppState, AuthUser, Csrf},
     core::{
         ldap,
         security::{
             create_refresh_token, create_session_token, decode_refresh_token, derive_csrf_token,
-            credential_fingerprint, hash_password, verify_credential_fingerprint, verify_password,
+            credential_fingerprint, hash_password, verify_password,
         },
     },
     models::user::User,
@@ -236,22 +236,11 @@ async fn refresh(State(state): State<AppState>, headers: HeaderMap) -> Result<Re
     if claims.r#type != "refresh" {
         return Err(ApiError::unauthorized("Invalid refresh token"));
     }
-    let id = Uuid::parse_str(&claims.sub)
-        .map_err(|_| ApiError::unauthorized("Invalid refresh token"))?;
-    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id=$1")
-        .bind(id)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(db)?
-        .filter(|u| u.is_active)
-        .ok_or_else(|| ApiError::unauthorized("Inactive or missing user"))?;
-    if !verify_credential_fingerprint(
-        &claims.credential, &user.id.to_string(), &user.auth_source,
-        &user.password_hash, &state.settings.jwt_secret,
-    ) {
-        return Err(ApiError::unauthorized("Session invalidated"));
-    }
-    validate_session(&state, claims.generation.as_deref(), claims.iat).await?;
+    let user = user_from_claims(
+        &state, &claims.sub, &claims.credential, claims.generation.as_deref(), claims.iat,
+        "Invalid refresh token",
+    )
+    .await?;
     Ok((
         cookies(&state, &user, claims.persist).await?,
         Json(LoginResponse { user: user.into() }),

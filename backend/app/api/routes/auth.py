@@ -1,11 +1,9 @@
-import uuid
-
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import func, select, text
 
-from app.api.deps import Csrf, CurrentUser, DbSession
+from app.api.deps import Csrf, CurrentUser, DbSession, user_from_payload
 from app.core.config import get_settings
 from app.core.security import (
     create_refresh_token,
@@ -18,7 +16,7 @@ from app.core.security import (
 from app.db.models import User, UserRole
 from app.schemas.auth import LoginRequest, LoginResponse, SetupAdminRequest, SetupStatusResponse
 from app.schemas.users import UserRead
-from app.services import app_settings, ldap_auth
+from app.services import ldap_auth
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
@@ -173,23 +171,8 @@ def refresh(request: Request, response: Response, db: DbSession) -> LoginRespons
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
-    try:
-        user_id = uuid.UUID(str(payload.get("sub")))
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
-        ) from exc
     persist = bool(payload.get("persist"))
-    user = db.get(User, user_id)
-    if user is None or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive or missing user"
-        )
-    epoch = app_settings.get_session_epoch(db)
-    if epoch and int(payload.get("iat", 0)) < epoch:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Session invalidated"
-        )
+    user = user_from_payload(db, payload, "Invalid refresh token")
     token = create_session_token(str(user.id), user.role.value)
     csrf = derive_csrf_token(token)
     new_refresh = create_refresh_token(str(user.id), persist=persist)
