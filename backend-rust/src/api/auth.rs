@@ -1,5 +1,5 @@
 use crate::{
-    api::deps::{header_cookie, session_generation, user_from_claims, ApiError, AppState, AuthUser, Csrf},
+    api::deps::{header_cookie, revoke_user_sessions, user_generation, user_from_claims, ApiError, AppState, AuthUser, Csrf},
     core::{
         ldap,
         security::{
@@ -108,8 +108,8 @@ async fn setup_status(
 fn db(e: sqlx::Error) -> ApiError {
     ApiError::internal(e.to_string())
 }
-pub async fn cookies(state: &AppState, user: &User, persist: bool) -> Result<HeaderMap, ApiError> {
-    let generation = session_generation(state).await?;
+pub async fn cookies(state: &AppState, user: &User, persist: bool, generation: Option<String>) -> Result<HeaderMap, ApiError> {
+    let generation = match generation { Some(g) => g, None => user_generation(state, user.id).await? };
     let subject = user.id.to_string();
     let credential = credential_fingerprint(
         &subject, &user.auth_source, &user.password_hash, &state.settings.jwt_secret,
@@ -181,7 +181,7 @@ async fn setup_admin(
     tx.commit().await.map_err(db)?;
     Ok((
         StatusCode::CREATED,
-        cookies(&state, &user, true).await?,
+        cookies(&state, &user, true, None).await?,
         Json(LoginResponse { user: user.into() }),
     )
         .into_response())
@@ -223,7 +223,7 @@ async fn login(
     }
     .ok_or_else(|| ApiError::unauthorized("Invalid email or password"))?;
     Ok((
-        cookies(&state, &user, payload.remember).await?,
+        cookies(&state, &user, payload.remember, None).await?,
         Json(LoginResponse { user: user.into() }),
     )
         .into_response())
@@ -233,7 +233,8 @@ async fn refresh(State(state): State<AppState>, headers: HeaderMap) -> Result<Re
         .ok_or_else(|| ApiError::unauthorized("No refresh token"))?;
     let claims = decode_refresh_token(&token, &state.settings.jwt_secret)
         .map_err(|_| ApiError::unauthorized("Invalid refresh token"))?;
-    if claims.r#type != "refresh" {
+    // Generationless (pre-revocation) refresh tokens cannot be bound to a logout, so force a fresh login.
+    if claims.r#type != "refresh" || claims.generation.is_none() {
         return Err(ApiError::unauthorized("Invalid refresh token"));
     }
     let user = user_from_claims(
@@ -242,12 +243,13 @@ async fn refresh(State(state): State<AppState>, headers: HeaderMap) -> Result<Re
     )
     .await?;
     Ok((
-        cookies(&state, &user, claims.persist).await?,
+        cookies(&state, &user, claims.persist, claims.generation.clone()).await?,
         Json(LoginResponse { user: user.into() }),
     )
         .into_response())
 }
-async fn logout(State(state): State<AppState>, _: AuthUser, _csrf: Csrf) -> Response {
+async fn logout(State(state): State<AppState>, AuthUser(user): AuthUser, _csrf: Csrf) -> Result<Response, ApiError> {
+    revoke_user_sessions(&state.pool, user.id).await?;
     let secure = if state.settings.secure_cookies {
         "; Secure"
     } else {
@@ -270,7 +272,7 @@ async fn logout(State(state): State<AppState>, _: AuthUser, _csrf: Csrf) -> Resp
         headers.append(header::SET_COOKIE, HeaderValue::from_str(&cookie).unwrap());
     }
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
-    (StatusCode::NO_CONTENT, headers).into_response()
+    Ok((StatusCode::NO_CONTENT, headers).into_response())
 }
 async fn me(AuthUser(user): AuthUser) -> Json<UserRead> {
     Json(user.into())

@@ -264,6 +264,50 @@ async fn ldap_custom_or_filter_charges_resolved_dn_before_password_bind() {
 
 #[tokio::test]
 #[ignore = "requires Podman; creates and removes its own PostgreSQL 17 container"]
+async fn logout_revokes_both_tokens_only_for_the_logged_out_user() {
+    let (_database, state) = Database::start().await;
+    let mut admin = Browser::default();
+    assert_eq!(admin.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await.0, StatusCode::CREATED);
+    assert_eq!(admin.request(&state, "POST", "/users", Some(json!({"email":"alice@example.com","password":"original-password","role":"viewer"}))).await.0, StatusCode::CREATED);
+    let mut alice = Browser::default();
+    assert_eq!(alice.login(&state, "alice@example.com", "original-password").await, StatusCode::OK);
+    let mut stolen_session = alice.clone();
+    let mut stolen_refresh = alice.clone();
+    assert_eq!(alice.request(&state, "POST", "/auth/logout", None).await.0, StatusCode::NO_CONTENT);
+    assert_eq!(stolen_session.request(&state, "GET", "/auth/me", None).await.0, StatusCode::UNAUTHORIZED, "old access token survived logout");
+    assert_eq!(stolen_refresh.request(&state, "POST", "/auth/refresh", None).await.0, StatusCode::UNAUTHORIZED, "old refresh token survived logout");
+    assert_eq!(admin.request(&state, "GET", "/auth/me", None).await.0, StatusCode::OK);
+    assert_eq!(admin.request(&state, "POST", "/auth/refresh", None).await.0, StatusCode::OK);
+    assert_eq!(alice.login(&state, "alice@example.com", "original-password").await, StatusCode::OK);
+    assert_eq!(alice.request(&state, "GET", "/auth/me", None).await.0, StatusCode::OK);
+    assert_eq!(alice.request(&state, "POST", "/auth/refresh", None).await.0, StatusCode::OK);
+}
+
+#[tokio::test]
+#[ignore = "requires Podman; creates and removes its own PostgreSQL 17 container"]
+async fn generationless_legacy_tokens_do_not_survive_logout() {
+    let (_database, state) = Database::start().await;
+    let mut admin = Browser::default();
+    assert_eq!(admin.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await.0, StatusCode::CREATED);
+    assert_eq!(admin.request(&state, "POST", "/users", Some(json!({"email":"alice@example.com","password":"original-password","role":"viewer"}))).await.0, StatusCode::CREATED);
+    let mut alice = Browser::default();
+    assert_eq!(alice.login(&state, "alice@example.com", "original-password").await, StatusCode::OK);
+    let (id, hash): (uuid::Uuid, String) = sqlx::query_as("SELECT id,password_hash FROM users WHERE email='alice@example.com'").fetch_one(&state.pool).await.unwrap();
+    let secret = &state.settings.jwt_secret;
+    let credential = crate::core::security::credential_fingerprint(&id.to_string(), "local", &hash, secret);
+    let key = jsonwebtoken::EncodingKey::from_secret(secret.as_bytes());
+    let now = chrono::Utc::now().timestamp();
+    let session = jsonwebtoken::encode(&jsonwebtoken::Header::default(), &crate::core::security::SessionClaims { sub: id.to_string(), role: "viewer".into(), exp: now + 600, iat: now, generation: None, credential: credential.clone() }, &key).unwrap();
+    let refresh = jsonwebtoken::encode(&jsonwebtoken::Header::default(), &crate::core::security::RefreshClaims { sub: id.to_string(), r#type: "refresh".into(), persist: true, exp: now + 600, iat: now, generation: None, credential }, &key).unwrap();
+    let mut legacy = Browser { cookie: format!("{}={session}; inventorymgr_refresh={refresh}", state.settings.session_cookie_name), csrf: String::new() };
+    assert_eq!(legacy.request(&state, "GET", "/auth/me", None).await.0, StatusCode::OK, "legacy session still accepted before logout");
+    assert_eq!(legacy.request(&state, "POST", "/auth/refresh", None).await.0, StatusCode::UNAUTHORIZED, "generationless refresh must be rejected");
+    assert_eq!(alice.request(&state, "POST", "/auth/logout", None).await.0, StatusCode::NO_CONTENT);
+    assert_eq!(legacy.request(&state, "GET", "/auth/me", None).await.0, StatusCode::UNAUTHORIZED, "legacy session survived logout");
+}
+
+#[tokio::test]
+#[ignore = "requires Podman; creates and removes its own PostgreSQL 17 container"]
 async fn password_reset_revokes_both_tokens_only_for_the_reset_user() {
     let (_database, state) = Database::start().await;
     let mut admin = Browser::default();

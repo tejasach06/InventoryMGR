@@ -113,7 +113,7 @@ pub async fn user_from_claims(
     ) {
         return Err(ApiError::unauthorized("Session invalidated"));
     }
-    validate_session(state, generation, iat).await?;
+    validate_session(state, user.id, generation, iat).await?;
     Ok(user)
 }
 impl FromRequestParts<AppState> for AuthUser {
@@ -152,14 +152,20 @@ fn session_matches(token: Option<&str>, current: Option<&str>, issued: i64, epoc
         None => epoch == 0 || issued > epoch,
     }
 }
-pub async fn validate_session(state: &AppState, generation: Option<&str>, issued: i64) -> Result<(), ApiError> {
+fn user_key(user: Uuid) -> String { format!("session_user_{user}") }
+pub async fn validate_session(state: &AppState, user: Uuid, generation: Option<&str>, issued: i64) -> Result<(), ApiError> {
     auth_available(state)?;
-    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key,value FROM app_settings WHERE key IN ('session_generation','session_epoch')")
-        .fetch_all(&state.pool).await.map_err(|e| ApiError::internal(e.to_string()))?;
-    let current = settings.iter().find(|(key,_)| key == "session_generation").map(|(_,value)| value.as_str());
+    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key,value FROM app_settings WHERE key IN ('session_generation','session_epoch',$1)")
+        .bind(user_key(user)).fetch_all(&state.pool).await.map_err(|e| ApiError::internal(e.to_string()))?;
+    let find = |name: &str| settings.iter().find(|(key,_)| key == name).map(|(_,value)| value.as_str());
+    // A per-user nonce (set on logout) is appended; users who never logged out keep the plain global value.
+    let current = find("session_generation").map(|g| match find(&user_key(user)) { Some(n) => format!("{g}:{n}"), None => g.to_owned() });
+    let current = current.as_deref();
     let epoch = settings.iter().find(|(key,_)| key == "session_epoch").map(|(_,value)| value.parse::<i64>())
         .transpose().map_err(|_| ApiError::internal("Invalid session epoch"))?.unwrap_or(0);
-    if !session_matches(generation,current,issued,epoch) {
+    // Generationless legacy tokens cannot carry the nonce, so a logout must reject them too.
+    let logged_out_legacy = generation.is_none() && find(&user_key(user)).is_some();
+    if logged_out_legacy || !session_matches(generation,current,issued,epoch) {
         return Err(ApiError::unauthorized("Session invalidated"));
     }
     Ok(())
@@ -175,6 +181,17 @@ pub async fn session_generation(state: &AppState) -> Result<String, ApiError> {
         .bind(Uuid::new_v4().to_string()).execute(pool).await.map_err(|e| ApiError::internal(e.to_string()))?;
     sqlx::query_scalar("SELECT value FROM app_settings WHERE key='session_generation'")
         .fetch_one(pool).await.map_err(|e| ApiError::internal(e.to_string()))
+}
+pub async fn user_generation(state: &AppState, user: Uuid) -> Result<String, ApiError> {
+    let global = session_generation(state).await?;
+    let nonce = sqlx::query_scalar::<_, String>("SELECT value FROM app_settings WHERE key=$1")
+        .bind(user_key(user)).fetch_optional(&state.pool).await.map_err(|e| ApiError::internal(e.to_string()))?;
+    Ok(nonce.map_or(global.clone(), |n| format!("{global}:{n}")))
+}
+pub async fn revoke_user_sessions(pool: &PgPool, user: Uuid) -> Result<(), ApiError> {
+    sqlx::query("INSERT INTO app_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value")
+        .bind(user_key(user)).bind(Uuid::new_v4().to_string()).execute(pool).await.map_err(|e| ApiError::internal(e.to_string()))?;
+    Ok(())
 }
 pub async fn invalidate_sessions(pool: &PgPool) -> Result<(), ApiError> {
     sqlx::query("INSERT INTO app_settings(key,value) VALUES('session_generation',$1),('session_epoch',$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value")
