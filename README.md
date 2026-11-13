@@ -41,7 +41,7 @@ Manual VM, storage, and hardware inventory tracker. Postgres-backed, no hypervis
 | Layer | Tech |
 |---|---|
 | Backend | Rust 1.98.1, Axum 0.8, SQLx 0.9, PostgreSQL 17 |
-| Frontend | Next.js 16, React 19, TanStack Query, Tailwind 4, pnpm 12.14.0, Node.js 24.22.1 LTS |
+| Frontend | Next.js 16, React 19, TanStack Query, Tailwind 4, pnpm 12.14.0, Node.js 24.22.3 LTS |
 | Parity harness | Rust (`tools/parity/`); frozen HTTP/migration baselines |
 | Deploy | Podman rootless Compose or Quadlet units (`quadlet/`) |
 
@@ -60,7 +60,7 @@ docs/                                                   # runbook, API reference
 
 ## Quickstart
 
-Install Rust 1.98.1, Node.js 24.22.1, pnpm 12.14.0, OpenSSL, Podman with Compose,
+Install Rust 1.98.1, Node.js 24.22.3, pnpm 12.14.0, OpenSSL, Podman with Compose,
 and `just` before running setup. The repository pins Rust, pnpm, and
 container build runtimes; `just setup` checks for the host tools and installs
 dependencies from frozen lockfiles and Playwright's Chromium payload. Linux hosts

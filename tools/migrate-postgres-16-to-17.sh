@@ -17,10 +17,11 @@ done
 QUADLET_DIR="${HOME}/.config/containers/systemd"
 OLD_VOLUME=inventorymgr-pgdata
 NEW_VOLUME=inventorymgr-pgdata-pg17
-TARGET_IMAGE=docker.io/library/postgres:17-alpine@sha256:eee6c6e1b0894fa4fe0075eb054af9fd1cf39a35321c2d4110626cfe506411fb
+TARGET_IMAGE=localhost/inventorymgr-postgres:latest
 OVERRIDE_DIR="${QUADLET_DIR}/inventorymgr-db.container.d"
 OVERRIDE="${OVERRIDE_DIR}/99-pg17-migration.conf"
 [[ -f "${QUADLET_DIR}/inventorymgr-db.container" ]] || die "Expected user database Quadlet not found."
+podman image exists "$TARGET_IMAGE" || die "Build $TARGET_IMAGE first with just build-prod."
 [[ ! -e "$OVERRIDE" && ! -L "$OVERRIDE" ]] || die "Migration override already exists; review the previous run before retrying."
 exec 9>"${QUADLET_DIR}/.inventorymgr-pg-migration.lock"
 flock -n 9 || die "Another migration holds the maintenance lock."

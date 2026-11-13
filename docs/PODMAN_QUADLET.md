@@ -9,7 +9,7 @@ systemd-managed Podman containers (rootless). Unit files live in `quadlet/`.
 |---|---|
 | `inventorymgr.network` | Shared Podman network for the three services. |
 | `inventorymgr-pgdata.volume` | Named volume for Postgres data. |
-| `inventorymgr-db.container` | `postgres:17-alpine`. |
+| `inventorymgr-db.container` | `localhost/inventorymgr-postgres:latest` (official `postgres:17-alpine` with rebuilt `gosu`; see `postgres/Dockerfile`). |
 | `inventorymgr-backend.container` | Rust backend; depends on `inventorymgr-db.service`. |
 | `inventorymgr-frontend.container` | Next.js frontend; depends on `inventorymgr-backend.service`. |
 
@@ -22,7 +22,7 @@ The frontend has no `Secret=` directives.
 ```
 just quadlet-secrets    # creates inventorymgr-jwt-secret, -postgres-password,
                          # -database-url Podman secrets (idempotent)
-just build-prod          # builds backend then frontend
+just build-prod          # builds postgres, backend, then frontend
 ```
 
 Then copy `quadlet/*.container`, `*.network`, `*.volume` into
