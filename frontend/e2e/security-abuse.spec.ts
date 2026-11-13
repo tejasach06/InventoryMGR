@@ -23,13 +23,15 @@ async function mut(c: APIRequestContext, method: 'post' | 'patch', url: string, 
   const headers = { 'X-CSRF-Token': token ?? (await csrf(c)) };
   return method === 'post' ? c.post(url, { data, headers }) : c.patch(url, { data, headers });
 }
-async function login(email: string) {
+async function login(email: string, password = pw) {
   const c = await ctx();
-  expect((await c.post('/api/auth/login', { data: { email, password: pw } })).status()).toBe(200);
+  expect((await c.post('/api/auth/login', { data: { email, password } })).status()).toBe(200);
   return c;
 }
 
 test('1 bootstrap race: exactly one admin wins, loser is 4xx', async () => {
+  // The race is only meaningful on an empty database; earlier specs in a full run already created the admin.
+  const fresh = (await (await ctx()).get('/api/auth/setup').then((r) => r.json())).setup_required === true;
   const a = await ctx();
   const b = await ctx();
   const [ra, rb] = await Promise.all([
@@ -38,9 +40,19 @@ test('1 bootstrap race: exactly one admin wins, loser is 4xx', async () => {
   ]);
   const codes = [ra.status(), rb.status()];
   expect(codes.every((s) => s < 500), `no 5xx: ${codes}`).toBe(true);
-  expect(codes.filter((s) => s < 300).length, `exactly one winner: ${codes}`).toBe(1);
-  const winner = ra.status() < 300 ? mail('admin-a') : mail('admin-b');
-  admin = await login(winner);
+  if (fresh) {
+    expect(codes.filter((s) => s < 300).length, `exactly one winner: ${codes}`).toBe(1);
+    admin = await login(ra.status() < 300 ? mail('admin-a') : mail('admin-b'));
+  } else {
+    expect(codes.every((s) => s >= 400), `setup closed, both rejected: ${codes}`).toBe(true);
+    // Act through a dedicated admin so later specs keep their shared admin's sessions and password.
+    const shared = await login(
+      process.env.INVENTORYMGR_INITIAL_ADMIN_EMAIL ?? 'admin@example.local',
+      process.env.INVENTORYMGR_INITIAL_ADMIN_PASSWORD ?? 'change-me-before-use',
+    );
+    expect((await mut(shared, 'post', '/api/users', { email: mail('admin'), password: pw, role: 'admin' })).status()).toBeLessThan(300);
+    admin = await login(mail('admin'));
+  }
   for (const r of ['viewer', 'editor']) {
     const res = await mut(admin, 'post', '/api/users', { email: mail(r), password: pw, role: r });
     expect(res.status()).toBeLessThan(300);

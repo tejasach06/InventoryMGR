@@ -1,0 +1,2513 @@
+{
+  "enums": [
+    {
+      "typname": "criticality",
+      "enumlabel": "low",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "criticality",
+      "enumlabel": "medium",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "criticality",
+      "enumlabel": "high",
+      "enumsortorder": 3
+    },
+    {
+      "typname": "criticality",
+      "enumlabel": "critical",
+      "enumsortorder": 4
+    },
+    {
+      "typname": "dropdown_category",
+      "enumlabel": "cpu",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "dropdown_category",
+      "enumlabel": "datacenter",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "dropdown_category",
+      "enumlabel": "disk",
+      "enumsortorder": 3
+    },
+    {
+      "typname": "dropdown_category",
+      "enumlabel": "os",
+      "enumsortorder": 4
+    },
+    {
+      "typname": "dropdown_category",
+      "enumlabel": "cluster",
+      "enumsortorder": 5
+    },
+    {
+      "typname": "environment",
+      "enumlabel": "production",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "environment",
+      "enumlabel": "development",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "environment",
+      "enumlabel": "testing",
+      "enumsortorder": 3
+    },
+    {
+      "typname": "environment",
+      "enumlabel": "uat",
+      "enumsortorder": 4
+    },
+    {
+      "typname": "environment",
+      "enumlabel": "dr",
+      "enumsortorder": 5
+    },
+    {
+      "typname": "environment",
+      "enumlabel": "staging",
+      "enumsortorder": 6
+    },
+    {
+      "typname": "environment",
+      "enumlabel": "sandbox",
+      "enumsortorder": 7
+    },
+    {
+      "typname": "import_action",
+      "enumlabel": "create",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "import_action",
+      "enumlabel": "update",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "import_action",
+      "enumlabel": "unchanged",
+      "enumsortorder": 2.5
+    },
+    {
+      "typname": "import_action",
+      "enumlabel": "conflict",
+      "enumsortorder": 3
+    },
+    {
+      "typname": "import_action",
+      "enumlabel": "invalid",
+      "enumsortorder": 4
+    },
+    {
+      "typname": "import_action",
+      "enumlabel": "decommission",
+      "enumsortorder": 5
+    },
+    {
+      "typname": "import_status",
+      "enumlabel": "previewed",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "import_status",
+      "enumlabel": "committed",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "import_status",
+      "enumlabel": "cancelled",
+      "enumsortorder": 3
+    },
+    {
+      "typname": "network_role",
+      "enumlabel": "private",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "network_role",
+      "enumlabel": "public",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "network_role",
+      "enumlabel": "backup",
+      "enumsortorder": 3
+    },
+    {
+      "typname": "os_family",
+      "enumlabel": "linux",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "os_family",
+      "enumlabel": "windows",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "platform",
+      "enumlabel": "proxmox",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "platform",
+      "enumlabel": "vmware",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "storage_vendor",
+      "enumlabel": "synology",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "storage_vendor",
+      "enumlabel": "netapp",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "user_role",
+      "enumlabel": "admin",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "user_role",
+      "enumlabel": "editor",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "user_role",
+      "enumlabel": "viewer",
+      "enumsortorder": 3
+    },
+    {
+      "typname": "vm_status",
+      "enumlabel": "running",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "vm_status",
+      "enumlabel": "powered_off",
+      "enumsortorder": 2
+    },
+    {
+      "typname": "vm_status",
+      "enumlabel": "decommissioned",
+      "enumsortorder": 3
+    },
+    {
+      "typname": "vm_status",
+      "enumlabel": "unknown",
+      "enumsortorder": 4
+    },
+    {
+      "typname": "vm_type",
+      "enumlabel": "permanent",
+      "enumsortorder": 1
+    },
+    {
+      "typname": "vm_type",
+      "enumlabel": "temporary",
+      "enumsortorder": 2
+    }
+  ],
+  "columns": [
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "alembic_version",
+      "column_name": "version_num",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "app_settings",
+      "column_name": "key",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "app_settings",
+      "column_name": "value",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "audit_log",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "audit_log",
+      "column_name": "vm_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "audit_log",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "audit_log",
+      "column_name": "field_name",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "audit_log",
+      "column_name": "old_value",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "audit_log",
+      "column_name": "new_value",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "audit_log",
+      "column_name": "changed_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "backup_jobs",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "backup_jobs",
+      "column_name": "kind",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "backup_jobs",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "backup_jobs",
+      "column_name": "filename",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "int8",
+      "data_type": "bigint",
+      "table_name": "backup_jobs",
+      "column_name": "size_bytes",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "backup_jobs",
+      "column_name": "error",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "backup_jobs",
+      "column_name": "user_id",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "backup_jobs",
+      "column_name": "started_at",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "ordinal_position": 8
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "backup_jobs",
+      "column_name": "finished_at",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 9
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "csv_import_batches",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "csv_import_batches",
+      "column_name": "filename",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "csv_import_batches",
+      "column_name": "created_by_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "import_status",
+      "data_type": "USER-DEFINED",
+      "table_name": "csv_import_batches",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "csv_import_batches",
+      "column_name": "summary",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "csv_import_batches",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "csv_import_batches",
+      "column_name": "committed_at",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "csv_import_batches",
+      "column_name": "field_changes",
+      "is_nullable": "NO",
+      "column_default": "'{}'::jsonb",
+      "ordinal_position": 8
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "csv_import_batches",
+      "column_name": "ignored_columns",
+      "is_nullable": "NO",
+      "column_default": "'[]'::jsonb",
+      "ordinal_position": 9
+    },
+    {
+      "udt_name": "bool",
+      "data_type": "boolean",
+      "table_name": "csv_import_batches",
+      "column_name": "full_inventory",
+      "is_nullable": "NO",
+      "column_default": "false",
+      "ordinal_position": 10
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "csv_import_rows",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "csv_import_rows",
+      "column_name": "batch_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "csv_import_rows",
+      "column_name": "row_number",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "csv_import_rows",
+      "column_name": "raw",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "csv_import_rows",
+      "column_name": "normalized",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "import_action",
+      "data_type": "USER-DEFINED",
+      "table_name": "csv_import_rows",
+      "column_name": "action",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "csv_import_rows",
+      "column_name": "target_vm_id",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "csv_import_rows",
+      "column_name": "errors",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 8
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "csv_import_rows",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 9
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "csv_import_rows",
+      "column_name": "changes",
+      "is_nullable": "NO",
+      "column_default": "'{}'::jsonb",
+      "ordinal_position": 10
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "csv_import_rows",
+      "column_name": "warnings",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 11
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "decommission_acks",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "decommission_acks",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "decommission_acks",
+      "column_name": "vm_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "date",
+      "data_type": "date",
+      "table_name": "decommission_acks",
+      "column_name": "acked_date",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "decommission_acks",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "decommission_acks",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "dropdown_options",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "dropdown_category",
+      "data_type": "USER-DEFINED",
+      "table_name": "dropdown_options",
+      "column_name": "category",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "dropdown_options",
+      "column_name": "value",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "dropdown_options",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "dropdown_options",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "os_family",
+      "data_type": "USER-DEFINED",
+      "table_name": "dropdown_options",
+      "column_name": "family",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "ldap_config",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "nextval('ldap_config_id_seq'::regclass)",
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "bool",
+      "data_type": "boolean",
+      "table_name": "ldap_config",
+      "column_name": "enabled",
+      "is_nullable": "NO",
+      "column_default": "false",
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "ldap_config",
+      "column_name": "server_uri",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "bool",
+      "data_type": "boolean",
+      "table_name": "ldap_config",
+      "column_name": "start_tls",
+      "is_nullable": "NO",
+      "column_default": "false",
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "bool",
+      "data_type": "boolean",
+      "table_name": "ldap_config",
+      "column_name": "verify_tls",
+      "is_nullable": "NO",
+      "column_default": "true",
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "ldap_config",
+      "column_name": "bind_dn",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "ldap_config",
+      "column_name": "bind_password_encrypted",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "ldap_config",
+      "column_name": "user_base_dn",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 8
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "ldap_config",
+      "column_name": "user_filter",
+      "is_nullable": "NO",
+      "column_default": "'(uid={username})'::character varying",
+      "ordinal_position": 9
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "ldap_config",
+      "column_name": "email_attribute",
+      "is_nullable": "NO",
+      "column_default": "'mail'::character varying",
+      "ordinal_position": 10
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "ldap_config",
+      "column_name": "group_attribute",
+      "is_nullable": "NO",
+      "column_default": "'memberOf'::character varying",
+      "ordinal_position": 11
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "ldap_config",
+      "column_name": "admin_group_dn",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 12
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "ldap_config",
+      "column_name": "editor_group_dn",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 13
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "ldap_config",
+      "column_name": "viewer_group_dn",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 14
+    },
+    {
+      "udt_name": "user_role",
+      "data_type": "USER-DEFINED",
+      "table_name": "ldap_config",
+      "column_name": "default_role",
+      "is_nullable": "NO",
+      "column_default": "'viewer'::user_role",
+      "ordinal_position": 15
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "ldap_config",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 16
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "ldap_config",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 17
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "physical_clusters",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "physical_clusters",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "physical_clusters",
+      "column_name": "description",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "physical_clusters",
+      "column_name": "notes",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "physical_clusters",
+      "column_name": "created_by_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "physical_clusters",
+      "column_name": "updated_by_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "physical_clusters",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "physical_clusters",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 8
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "physical_nodes",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "physical_nodes",
+      "column_name": "cluster_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "physical_nodes",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "physical_nodes",
+      "column_name": "cpu_model",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "physical_nodes",
+      "column_name": "cpu_cores",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "physical_nodes",
+      "column_name": "cpu_threads",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "physical_nodes",
+      "column_name": "ram_total_gb",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "physical_nodes",
+      "column_name": "ram_used_gb",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 8
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "physical_nodes",
+      "column_name": "storage_usable_gb",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 9
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "physical_nodes",
+      "column_name": "datacenter",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 10
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "physical_nodes",
+      "column_name": "rack",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 11
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "physical_nodes",
+      "column_name": "rack_unit",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 12
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "physical_nodes",
+      "column_name": "ip_addresses",
+      "is_nullable": "NO",
+      "column_default": "'[]'::jsonb",
+      "ordinal_position": 13
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "physical_nodes",
+      "column_name": "notes",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 14
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "physical_nodes",
+      "column_name": "sort_order",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 15
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "physical_nodes",
+      "column_name": "created_by_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 16
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "physical_nodes",
+      "column_name": "updated_by_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 17
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "physical_nodes",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "ordinal_position": 18
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "physical_nodes",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "ordinal_position": 19
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "storage_arrays",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "storage_arrays",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "storage_vendor",
+      "data_type": "USER-DEFINED",
+      "table_name": "storage_arrays",
+      "column_name": "vendor",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "storage_arrays",
+      "column_name": "model",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "storage_arrays",
+      "column_name": "mgmt_host",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "storage_arrays",
+      "column_name": "datacenter",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "storage_arrays",
+      "column_name": "description",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "storage_arrays",
+      "column_name": "total_capacity_gb",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 8
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "storage_arrays",
+      "column_name": "used_capacity_gb",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 9
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "storage_arrays",
+      "column_name": "notes",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 10
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "storage_arrays",
+      "column_name": "created_by_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 11
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "storage_arrays",
+      "column_name": "updated_by_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 12
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "storage_arrays",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 13
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "storage_arrays",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 14
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "storage_luns",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "storage_luns",
+      "column_name": "volume_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "storage_luns",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "storage_luns",
+      "column_name": "size_gb",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "storage_luns",
+      "column_name": "used_gb",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "storage_luns",
+      "column_name": "target_iqn",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "storage_luns",
+      "column_name": "cluster",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "storage_luns",
+      "column_name": "status",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 8
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "storage_luns",
+      "column_name": "sort_order",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 9
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "storage_nfs_shares",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "storage_nfs_shares",
+      "column_name": "volume_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "storage_nfs_shares",
+      "column_name": "export_path",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "storage_nfs_shares",
+      "column_name": "used_gb",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "storage_nfs_shares",
+      "column_name": "allowed_clients",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "storage_nfs_shares",
+      "column_name": "notes",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "storage_nfs_shares",
+      "column_name": "sort_order",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "storage_volumes",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "storage_volumes",
+      "column_name": "array_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "storage_volumes",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "storage_volumes",
+      "column_name": "capacity_gb",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "storage_volumes",
+      "column_name": "used_gb",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "storage_volumes",
+      "column_name": "notes",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "storage_volumes",
+      "column_name": "sort_order",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "users",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "users",
+      "column_name": "email",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "users",
+      "column_name": "password_hash",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "user_role",
+      "data_type": "USER-DEFINED",
+      "table_name": "users",
+      "column_name": "role",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "bool",
+      "data_type": "boolean",
+      "table_name": "users",
+      "column_name": "is_active",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "users",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "users",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "users",
+      "column_name": "preferences",
+      "is_nullable": "NO",
+      "column_default": "'{}'::jsonb",
+      "ordinal_position": 8
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "users",
+      "column_name": "auth_source",
+      "is_nullable": "NO",
+      "column_default": "'local'::character varying",
+      "ordinal_position": 9
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "vm_applications",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "vm_applications",
+      "column_name": "vm_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vm_applications",
+      "column_name": "app_name",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vm_applications",
+      "column_name": "app_owner",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "vm_applications",
+      "column_name": "description",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "vm_disks",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "vm_disks",
+      "column_name": "vm_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vm_disks",
+      "column_name": "disk_name",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vm_disks",
+      "column_name": "storage_name",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "vm_disks",
+      "column_name": "size_gb",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vm_disks",
+      "column_name": "storage_type",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "vm_disks",
+      "column_name": "sort_order",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "vm_networks",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "vm_networks",
+      "column_name": "vm_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vm_networks",
+      "column_name": "ip_address",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "vm_networks",
+      "column_name": "sort_order",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "network_role",
+      "data_type": "USER-DEFINED",
+      "table_name": "vm_networks",
+      "column_name": "role",
+      "is_nullable": "NO",
+      "column_default": "'private'::network_role",
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "vms",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "external_id",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 3
+    },
+    {
+      "udt_name": "platform",
+      "data_type": "USER-DEFINED",
+      "table_name": "vms",
+      "column_name": "platform",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 4
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "datacenter",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 5
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "cluster",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 6
+    },
+    {
+      "udt_name": "vm_status",
+      "data_type": "USER-DEFINED",
+      "table_name": "vms",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 7
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "vms",
+      "column_name": "cpu_cores",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 8
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "vms",
+      "column_name": "memory_mb",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 9
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "owner",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 13
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "vms",
+      "column_name": "description",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 14
+    },
+    {
+      "udt_name": "bool",
+      "data_type": "boolean",
+      "table_name": "vms",
+      "column_name": "ha_enabled",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 16
+    },
+    {
+      "udt_name": "criticality",
+      "data_type": "USER-DEFINED",
+      "table_name": "vms",
+      "column_name": "criticality",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 17
+    },
+    {
+      "udt_name": "jsonb",
+      "data_type": "jsonb",
+      "table_name": "vms",
+      "column_name": "tags",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 19
+    },
+    {
+      "udt_name": "date",
+      "data_type": "date",
+      "table_name": "vms",
+      "column_name": "last_verified_at",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 20
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "vms",
+      "column_name": "created_by_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 21
+    },
+    {
+      "udt_name": "uuid",
+      "data_type": "uuid",
+      "table_name": "vms",
+      "column_name": "updated_by_id",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 22
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "vms",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 23
+    },
+    {
+      "udt_name": "timestamptz",
+      "data_type": "timestamp with time zone",
+      "table_name": "vms",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 24
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "sr_id",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 25
+    },
+    {
+      "udt_name": "os_family",
+      "data_type": "USER-DEFINED",
+      "table_name": "vms",
+      "column_name": "os_family",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 26
+    },
+    {
+      "udt_name": "bool",
+      "data_type": "boolean",
+      "table_name": "vms",
+      "column_name": "backup_enabled",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 27
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "fqdn",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 28
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "node",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 29
+    },
+    {
+      "udt_name": "environment",
+      "data_type": "USER-DEFINED",
+      "table_name": "vms",
+      "column_name": "environment",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 30
+    },
+    {
+      "udt_name": "bool",
+      "data_type": "boolean",
+      "table_name": "vms",
+      "column_name": "monitoring_enabled",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 31
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "os_distribution",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 32
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "os_version",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 33
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "business_owner",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 34
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "technical_owner",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 35
+    },
+    {
+      "udt_name": "date",
+      "data_type": "date",
+      "table_name": "vms",
+      "column_name": "last_patch_date",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 37
+    },
+    {
+      "udt_name": "date",
+      "data_type": "date",
+      "table_name": "vms",
+      "column_name": "last_vuln_scan_date",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 38
+    },
+    {
+      "udt_name": "text",
+      "data_type": "text",
+      "table_name": "vms",
+      "column_name": "security_remarks",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 39
+    },
+    {
+      "udt_name": "date",
+      "data_type": "date",
+      "table_name": "vms",
+      "column_name": "decommission_date",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 40
+    },
+    {
+      "udt_name": "int4",
+      "data_type": "integer",
+      "table_name": "vms",
+      "column_name": "health_score",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "ordinal_position": 41
+    },
+    {
+      "udt_name": "vm_type",
+      "data_type": "USER-DEFINED",
+      "table_name": "vms",
+      "column_name": "vm_type",
+      "is_nullable": "NO",
+      "column_default": "'permanent'::vm_type",
+      "ordinal_position": 42
+    },
+    {
+      "udt_name": "bool",
+      "data_type": "boolean",
+      "table_name": "vms",
+      "column_name": "pmp_enabled",
+      "is_nullable": "NO",
+      "column_default": "false",
+      "ordinal_position": 43
+    },
+    {
+      "udt_name": "varchar",
+      "data_type": "character varying",
+      "table_name": "vms",
+      "column_name": "backup_location",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 44
+    }
+  ],
+  "indexes": [
+    {
+      "indexdef": "CREATE UNIQUE INDEX alembic_version_pkc ON public.alembic_version USING btree (version_num)",
+      "indexname": "alembic_version_pkc",
+      "tablename": "alembic_version"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX app_settings_pkey ON public.app_settings USING btree (key)",
+      "indexname": "app_settings_pkey",
+      "tablename": "app_settings"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX audit_log_pkey ON public.audit_log USING btree (id)",
+      "indexname": "audit_log_pkey",
+      "tablename": "audit_log"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_audit_log_powered_off ON public.audit_log USING btree (vm_id, changed_at DESC) WHERE (((field_name)::text = 'status'::text) AND (new_value = 'powered_off'::text))",
+      "indexname": "ix_audit_log_powered_off",
+      "tablename": "audit_log"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_audit_log_vm_id_changed_at ON public.audit_log USING btree (vm_id, changed_at)",
+      "indexname": "ix_audit_log_vm_id_changed_at",
+      "tablename": "audit_log"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX backup_jobs_pkey ON public.backup_jobs USING btree (id)",
+      "indexname": "backup_jobs_pkey",
+      "tablename": "backup_jobs"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_backup_jobs_started_at ON public.backup_jobs USING btree (started_at)",
+      "indexname": "ix_backup_jobs_started_at",
+      "tablename": "backup_jobs"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX csv_import_batches_pkey ON public.csv_import_batches USING btree (id)",
+      "indexname": "csv_import_batches_pkey",
+      "tablename": "csv_import_batches"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX csv_import_rows_pkey ON public.csv_import_rows USING btree (id)",
+      "indexname": "csv_import_rows_pkey",
+      "tablename": "csv_import_rows"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX uq_csv_import_rows_batch_row ON public.csv_import_rows USING btree (batch_id, row_number)",
+      "indexname": "uq_csv_import_rows_batch_row",
+      "tablename": "csv_import_rows"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX decommission_acks_pkey ON public.decommission_acks USING btree (id)",
+      "indexname": "decommission_acks_pkey",
+      "tablename": "decommission_acks"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX uq_decommission_ack_user_vm ON public.decommission_acks USING btree (user_id, vm_id)",
+      "indexname": "uq_decommission_ack_user_vm",
+      "tablename": "decommission_acks"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX dropdown_options_pkey ON public.dropdown_options USING btree (id)",
+      "indexname": "dropdown_options_pkey",
+      "tablename": "dropdown_options"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX uq_dropdown_category_value ON public.dropdown_options USING btree (category, value)",
+      "indexname": "uq_dropdown_category_value",
+      "tablename": "dropdown_options"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX ldap_config_pkey ON public.ldap_config USING btree (id)",
+      "indexname": "ldap_config_pkey",
+      "tablename": "ldap_config"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX physical_clusters_pkey ON public.physical_clusters USING btree (id)",
+      "indexname": "physical_clusters_pkey",
+      "tablename": "physical_clusters"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX physical_nodes_pkey ON public.physical_nodes USING btree (id)",
+      "indexname": "physical_nodes_pkey",
+      "tablename": "physical_nodes"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX storage_arrays_pkey ON public.storage_arrays USING btree (id)",
+      "indexname": "storage_arrays_pkey",
+      "tablename": "storage_arrays"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX storage_luns_pkey ON public.storage_luns USING btree (id)",
+      "indexname": "storage_luns_pkey",
+      "tablename": "storage_luns"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX storage_nfs_shares_pkey ON public.storage_nfs_shares USING btree (id)",
+      "indexname": "storage_nfs_shares_pkey",
+      "tablename": "storage_nfs_shares"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX storage_volumes_pkey ON public.storage_volumes USING btree (id)",
+      "indexname": "storage_volumes_pkey",
+      "tablename": "storage_volumes"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_users_email ON public.users USING btree (email)",
+      "indexname": "ix_users_email",
+      "tablename": "users"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)",
+      "indexname": "users_email_key",
+      "tablename": "users"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)",
+      "indexname": "users_pkey",
+      "tablename": "users"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vm_applications_vm_id ON public.vm_applications USING btree (vm_id)",
+      "indexname": "ix_vm_applications_vm_id",
+      "tablename": "vm_applications"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX uq_vm_applications_vm_app ON public.vm_applications USING btree (vm_id, app_name)",
+      "indexname": "uq_vm_applications_vm_app",
+      "tablename": "vm_applications"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX vm_applications_pkey ON public.vm_applications USING btree (id)",
+      "indexname": "vm_applications_pkey",
+      "tablename": "vm_applications"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vm_disks_vm_id ON public.vm_disks USING btree (vm_id)",
+      "indexname": "ix_vm_disks_vm_id",
+      "tablename": "vm_disks"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX vm_disks_pkey ON public.vm_disks USING btree (id)",
+      "indexname": "vm_disks_pkey",
+      "tablename": "vm_disks"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vm_networks_vm_id ON public.vm_networks USING btree (vm_id)",
+      "indexname": "ix_vm_networks_vm_id",
+      "tablename": "vm_networks"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX vm_networks_pkey ON public.vm_networks USING btree (id)",
+      "indexname": "vm_networks_pkey",
+      "tablename": "vm_networks"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vms_cluster ON public.vms USING btree (cluster)",
+      "indexname": "ix_vms_cluster",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vms_criticality ON public.vms USING btree (criticality)",
+      "indexname": "ix_vms_criticality",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vms_environment ON public.vms USING btree (environment)",
+      "indexname": "ix_vms_environment",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vms_health_score ON public.vms USING btree (health_score)",
+      "indexname": "ix_vms_health_score",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vms_monitoring_enabled ON public.vms USING btree (monitoring_enabled)",
+      "indexname": "ix_vms_monitoring_enabled",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vms_platform ON public.vms USING btree (platform)",
+      "indexname": "ix_vms_platform",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vms_pmp_enabled ON public.vms USING btree (pmp_enabled)",
+      "indexname": "ix_vms_pmp_enabled",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vms_status ON public.vms USING btree (status)",
+      "indexname": "ix_vms_status",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE INDEX ix_vms_vm_type ON public.vms USING btree (vm_type)",
+      "indexname": "ix_vms_vm_type",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX uq_vms_platform_external_id ON public.vms USING btree (platform, external_id) WHERE ((external_id IS NOT NULL) AND (platform <> 'proxmox'::platform))",
+      "indexname": "uq_vms_platform_external_id",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX uq_vms_platform_name_without_external_id ON public.vms USING btree (platform, lower((name)::text)) WHERE (external_id IS NULL)",
+      "indexname": "uq_vms_platform_name_without_external_id",
+      "tablename": "vms"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX vms_pkey ON public.vms USING btree (id)",
+      "indexname": "vms_pkey",
+      "tablename": "vms"
+    }
+  ],
+  "constraints": [
+    {
+      "conname": "alembic_version_pkc",
+      "definition": "PRIMARY KEY (version_num)",
+      "table_name": "alembic_version"
+    },
+    {
+      "conname": "app_settings_pkey",
+      "definition": "PRIMARY KEY (key)",
+      "table_name": "app_settings"
+    },
+    {
+      "conname": "audit_log_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "audit_log"
+    },
+    {
+      "conname": "audit_log_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "table_name": "audit_log"
+    },
+    {
+      "conname": "audit_log_vm_id_fkey",
+      "definition": "FOREIGN KEY (vm_id) REFERENCES vms(id) ON DELETE CASCADE",
+      "table_name": "audit_log"
+    },
+    {
+      "conname": "backup_jobs_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "backup_jobs"
+    },
+    {
+      "conname": "backup_jobs_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "table_name": "backup_jobs"
+    },
+    {
+      "conname": "csv_import_batches_created_by_id_fkey",
+      "definition": "FOREIGN KEY (created_by_id) REFERENCES users(id)",
+      "table_name": "csv_import_batches"
+    },
+    {
+      "conname": "csv_import_batches_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "csv_import_batches"
+    },
+    {
+      "conname": "csv_import_rows_batch_id_fkey",
+      "definition": "FOREIGN KEY (batch_id) REFERENCES csv_import_batches(id)",
+      "table_name": "csv_import_rows"
+    },
+    {
+      "conname": "csv_import_rows_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "csv_import_rows"
+    },
+    {
+      "conname": "csv_import_rows_target_vm_id_fkey",
+      "definition": "FOREIGN KEY (target_vm_id) REFERENCES vms(id) ON DELETE SET NULL",
+      "table_name": "csv_import_rows"
+    },
+    {
+      "conname": "uq_csv_import_rows_batch_row",
+      "definition": "UNIQUE (batch_id, row_number)",
+      "table_name": "csv_import_rows"
+    },
+    {
+      "conname": "decommission_acks_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "decommission_acks"
+    },
+    {
+      "conname": "decommission_acks_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "table_name": "decommission_acks"
+    },
+    {
+      "conname": "decommission_acks_vm_id_fkey",
+      "definition": "FOREIGN KEY (vm_id) REFERENCES vms(id) ON DELETE CASCADE",
+      "table_name": "decommission_acks"
+    },
+    {
+      "conname": "uq_decommission_ack_user_vm",
+      "definition": "UNIQUE (user_id, vm_id)",
+      "table_name": "decommission_acks"
+    },
+    {
+      "conname": "dropdown_options_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "dropdown_options"
+    },
+    {
+      "conname": "uq_dropdown_category_value",
+      "definition": "UNIQUE (category, value)",
+      "table_name": "dropdown_options"
+    },
+    {
+      "conname": "ck_ldap_config_singleton",
+      "definition": "CHECK ((id = 1))",
+      "table_name": "ldap_config"
+    },
+    {
+      "conname": "ldap_config_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "ldap_config"
+    },
+    {
+      "conname": "ck_physical_clusters_name_nonempty",
+      "definition": "CHECK ((length(btrim((name)::text)) > 0))",
+      "table_name": "physical_clusters"
+    },
+    {
+      "conname": "physical_clusters_created_by_id_fkey",
+      "definition": "FOREIGN KEY (created_by_id) REFERENCES users(id)",
+      "table_name": "physical_clusters"
+    },
+    {
+      "conname": "physical_clusters_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "physical_clusters"
+    },
+    {
+      "conname": "physical_clusters_updated_by_id_fkey",
+      "definition": "FOREIGN KEY (updated_by_id) REFERENCES users(id)",
+      "table_name": "physical_clusters"
+    },
+    {
+      "conname": "ck_physical_nodes_cpu_cores_nonnegative",
+      "definition": "CHECK ((cpu_cores >= 0))",
+      "table_name": "physical_nodes"
+    },
+    {
+      "conname": "ck_physical_nodes_cpu_threads_nonnegative",
+      "definition": "CHECK ((cpu_threads >= 0))",
+      "table_name": "physical_nodes"
+    },
+    {
+      "conname": "ck_physical_nodes_name_nonempty",
+      "definition": "CHECK ((length(btrim((name)::text)) > 0))",
+      "table_name": "physical_nodes"
+    },
+    {
+      "conname": "ck_physical_nodes_ram_total_nonnegative",
+      "definition": "CHECK ((ram_total_gb >= 0))",
+      "table_name": "physical_nodes"
+    },
+    {
+      "conname": "ck_physical_nodes_storage_nonnegative",
+      "definition": "CHECK ((storage_usable_gb >= 0))",
+      "table_name": "physical_nodes"
+    },
+    {
+      "conname": "physical_nodes_cluster_id_fkey",
+      "definition": "FOREIGN KEY (cluster_id) REFERENCES physical_clusters(id) ON DELETE CASCADE",
+      "table_name": "physical_nodes"
+    },
+    {
+      "conname": "physical_nodes_created_by_id_fkey",
+      "definition": "FOREIGN KEY (created_by_id) REFERENCES users(id)",
+      "table_name": "physical_nodes"
+    },
+    {
+      "conname": "physical_nodes_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "physical_nodes"
+    },
+    {
+      "conname": "physical_nodes_updated_by_id_fkey",
+      "definition": "FOREIGN KEY (updated_by_id) REFERENCES users(id)",
+      "table_name": "physical_nodes"
+    },
+    {
+      "conname": "ck_storage_arrays_name_nonempty",
+      "definition": "CHECK ((length(btrim((name)::text)) > 0))",
+      "table_name": "storage_arrays"
+    },
+    {
+      "conname": "storage_arrays_created_by_id_fkey",
+      "definition": "FOREIGN KEY (created_by_id) REFERENCES users(id)",
+      "table_name": "storage_arrays"
+    },
+    {
+      "conname": "storage_arrays_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "storage_arrays"
+    },
+    {
+      "conname": "storage_arrays_updated_by_id_fkey",
+      "definition": "FOREIGN KEY (updated_by_id) REFERENCES users(id)",
+      "table_name": "storage_arrays"
+    },
+    {
+      "conname": "storage_luns_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "storage_luns"
+    },
+    {
+      "conname": "storage_luns_volume_id_fkey",
+      "definition": "FOREIGN KEY (volume_id) REFERENCES storage_volumes(id) ON DELETE CASCADE",
+      "table_name": "storage_luns"
+    },
+    {
+      "conname": "storage_nfs_shares_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "storage_nfs_shares"
+    },
+    {
+      "conname": "storage_nfs_shares_volume_id_fkey",
+      "definition": "FOREIGN KEY (volume_id) REFERENCES storage_volumes(id) ON DELETE CASCADE",
+      "table_name": "storage_nfs_shares"
+    },
+    {
+      "conname": "storage_volumes_array_id_fkey",
+      "definition": "FOREIGN KEY (array_id) REFERENCES storage_arrays(id) ON DELETE CASCADE",
+      "table_name": "storage_volumes"
+    },
+    {
+      "conname": "storage_volumes_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "storage_volumes"
+    },
+    {
+      "conname": "users_email_key",
+      "definition": "UNIQUE (email)",
+      "table_name": "users"
+    },
+    {
+      "conname": "users_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "users"
+    },
+    {
+      "conname": "uq_vm_applications_vm_app",
+      "definition": "UNIQUE (vm_id, app_name)",
+      "table_name": "vm_applications"
+    },
+    {
+      "conname": "vm_applications_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "vm_applications"
+    },
+    {
+      "conname": "vm_applications_vm_id_fkey",
+      "definition": "FOREIGN KEY (vm_id) REFERENCES vms(id) ON DELETE CASCADE",
+      "table_name": "vm_applications"
+    },
+    {
+      "conname": "vm_disks_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "vm_disks"
+    },
+    {
+      "conname": "vm_disks_vm_id_fkey",
+      "definition": "FOREIGN KEY (vm_id) REFERENCES vms(id) ON DELETE CASCADE",
+      "table_name": "vm_disks"
+    },
+    {
+      "conname": "vm_networks_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "vm_networks"
+    },
+    {
+      "conname": "vm_networks_vm_id_fkey",
+      "definition": "FOREIGN KEY (vm_id) REFERENCES vms(id) ON DELETE CASCADE",
+      "table_name": "vm_networks"
+    },
+    {
+      "conname": "ck_vms_cluster_nonempty",
+      "definition": "CHECK ((length(btrim((cluster)::text)) > 0))",
+      "table_name": "vms"
+    },
+    {
+      "conname": "ck_vms_cpu_cores_nonnegative",
+      "definition": "CHECK ((cpu_cores >= 0))",
+      "table_name": "vms"
+    },
+    {
+      "conname": "ck_vms_memory_mb_nonnegative",
+      "definition": "CHECK ((memory_mb >= 0))",
+      "table_name": "vms"
+    },
+    {
+      "conname": "ck_vms_name_nonempty",
+      "definition": "CHECK ((length(btrim((name)::text)) > 0))",
+      "table_name": "vms"
+    },
+    {
+      "conname": "vms_created_by_id_fkey",
+      "definition": "FOREIGN KEY (created_by_id) REFERENCES users(id)",
+      "table_name": "vms"
+    },
+    {
+      "conname": "vms_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "vms"
+    },
+    {
+      "conname": "vms_updated_by_id_fkey",
+      "definition": "FOREIGN KEY (updated_by_id) REFERENCES users(id)",
+      "table_name": "vms"
+    }
+  ]
+}

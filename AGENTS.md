@@ -5,7 +5,7 @@ connection — all data is user-entered or CSV-imported.
 
 ## Stack
 
-- **Backend**: Rust 1.98.1 + Axum 0.8 + SQLx 0.9 + PostgreSQL 17. Python 3.14.7 under `backend/` is a test-only parity oracle.
+- **Backend**: Rust 1.98.1 + Axum 0.8 + SQLx 0.9 + PostgreSQL 17. The regression harness (`tools/parity/`) is also Rust.
 - **Frontend**: Next.js 16 (App Router) + React 19 + TanStack Query + Tailwind 4, pnpm 12.14.0 on Node.js 24 LTS.
 - **Deploy**: Podman rootless Compose (`docker-compose.yml`) or Quadlet units (`quadlet/`).
 
@@ -13,7 +13,6 @@ connection — all data is user-entered or CSV-imported.
 
 - `backend-rust/src/{core,db,schemas,models,api}` contains the native backend. `api/{accounts,inventory,auxiliary}` owns route groups.
 - `backend-rust/migrations/0001_inventory_schema.sql` contains the native Alembic-compatible revision chain. `alembic_version` remains the ledger at head `0024`.
-- `backend/` and `backend/tests/` are retained historical Python parity tooling, not production code.
 - `frontend/src/{app,routes,components,hooks,lib,api}` — routes are page-level,
   components are shared, `api/` holds typed fetch wrappers, `lib/` is pure
   helpers.
@@ -22,7 +21,7 @@ connection — all data is user-entered or CSV-imported.
 ## Setup / run
 
 ```
-just setup          # install from frozen lockfiles; requires host Rust, Node, pnpm, uv
+just setup          # install from frozen lockfiles; requires host Rust, Node, pnpm, OpenSSL, Podman
 just env            # generate .env from .env.example (JWT_SECRET)
 just up-local       # requires native PostgreSQL 17 clients for backup and restore
 just api-dev        # cargo run on :8000
@@ -39,14 +38,14 @@ just web-dev        # Next.js development server on :3000
 | Frontend lint/typecheck | `cd frontend && pnpm run lint` |
 | E2E | `just e2e` uses the isolated Rust browser runner |
 | **Full gate before calling anything done** | `just verify` |
-| Migrations | Extend the native SQL revision chain and verify `tools/rust-parity/migrations.py`; preserve recognized Alembic upgrade boundaries |
+| Migrations | Extend the native SQL revision chain and verify `cd tools/parity && cargo run --locked --bin parity -- migrations --rust-binary <path> --output <dir>`; preserve recognized Alembic upgrade boundaries |
 
 ## Conventions an agent must not violate
 
-1. **Native migrations preserve historical revisions.** Maintain the SQL revision chain and the `alembic_version` marker. Do not edit historical Python Alembic files. Test empty and historical upgrade paths.
+1. **Native migrations preserve historical revisions.** Maintain the SQL revision chain and the `alembic_version` marker. Test empty and historical upgrade paths against the frozen baselines in `tools/parity/`.
 2. **Backend layering is one-directional.** Keep shared core, database, model, and schema code independent of route handlers. Follow the existing Rust module ownership.
-3. **Gitignore lies about some tracked dirs.** `backend/tests/`,
-   `frontend/src/test/`, `frontend/e2e/` are gitignored but contain tracked
+3. **Gitignore lies about some tracked dirs.** `frontend/src/test/`,
+   `frontend/e2e/` are gitignored but contain tracked
    files (ignore only blocks *new* careless adds). `git add` a file in one of
    these with `git add -f <specific file>` — never `-f <directory>` (drags in
    `__pycache__`/build junk).
