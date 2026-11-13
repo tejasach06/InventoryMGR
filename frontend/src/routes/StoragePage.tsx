@@ -1,5 +1,6 @@
 'use client';
 
+import { canEditInventory } from '../lib/permissions';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -32,7 +33,7 @@ export function StoragePage() {
   const qc = useQueryClient();
   const router = useRouter();
   const user = useCurrentUser();
-  const canEdit = user.role === 'editor' || user.role === 'admin';
+  const canEdit = canEditInventory(user.role);
   const [showForm, setShowForm] = useState(false);
 
   const arraysQ = useQuery({ queryKey: ['arrays'], queryFn: () => storageApi.listArrays() });

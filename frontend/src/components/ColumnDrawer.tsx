@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Drawer, secondaryButtonClass } from './ui';
 import { cn } from '../lib/classNames';
-import { COLUMN_LABELS, type ColumnConfig } from '../hooks/useColumnPreferences';
+import { COLUMN_LABELS, type ColumnConfig } from '../lib/columns';
 
 export function ColumnDrawer({
   open,

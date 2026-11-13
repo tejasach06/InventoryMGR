@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { BulkPatch } from '../api/types';
 import { statuses } from '../lib/vmForm';
 import { Alert, Drawer, inputClass, labelClass, primaryButtonClass, secondaryButtonClass, selectClass } from './ui';
 import { ComboInput } from './ComboInput';
 import { TagInput } from './TagInput';
-export type BulkPatch = Record<string, string | boolean | string[]>;
-
 const UNCHANGED = '';
 
 const SELECT_FIELDS = [

@@ -1,5 +1,6 @@
 'use client';
 
+import { canEditInventory } from '../lib/permissions';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -393,7 +394,7 @@ export function VmDetailPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vms'] }); router.push('/inventory'); },
   });
   const user = useCurrentUser();
-  const canEdit = user.role === 'editor' || user.role === 'admin';
+  const canEdit = canEditInventory(user.role);
   const canDelete = user.role === 'admin';
   const [confirmClone, setConfirmClone] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);

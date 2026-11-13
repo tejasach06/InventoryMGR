@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import { InventoryToolbar } from '../components/InventoryToolbar';
 import { emptyFilterState } from '../components/filters/filterConfig';
-import type { ColumnConfig } from '../hooks/useColumnPreferences';
+import type { ColumnConfig } from '../lib/columns';
 import type { Filters } from '../lib/inventoryFilters';
 import { vms as vmsApi } from '../api/vms';
 
