@@ -1,5 +1,6 @@
 'use client';
 
+import { canEditInventory } from '../lib/permissions';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
@@ -298,7 +299,7 @@ export function StorageDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const user = useCurrentUser();
-  const canEdit = user.role === 'editor' || user.role === 'admin';
+  const canEdit = canEditInventory(user.role);
 
   const arrayQ = useQuery({ queryKey: ['array', id], queryFn: () => storageApi.getArray(id) });
   const optionsQ = useQuery({ queryKey: ['dropdown-options'], queryFn: () => settingsApi.getDropdownOptions() });

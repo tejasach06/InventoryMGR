@@ -26,6 +26,19 @@ use std::{
     time::{Duration, Instant},
 };
 use uuid::Uuid;
+impl crate::api::deps::JsonSchema for LoginRequest {
+    const FIELDS: &'static [(&'static str, bool, crate::api::deps::FieldKind)] = &[
+        ("email", true, crate::api::deps::FieldKind::Email),
+        ("password", true, crate::api::deps::FieldKind::StrLen(0, 1024)),
+        ("remember", false, crate::api::deps::FieldKind::Bool),
+    ];
+}
+impl crate::api::deps::JsonSchema for SetupAdminRequest {
+    const FIELDS: &'static [(&'static str, bool, crate::api::deps::FieldKind)] = &[
+        ("email", true, crate::api::deps::FieldKind::Email),
+        ("password", true, crate::api::deps::FieldKind::Password),
+    ];
+}
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/auth/setup", get(setup_status).post(setup_admin))
@@ -204,7 +217,7 @@ async fn login(
         }
         Some(u) if !u.is_active || u.auth_source != "ldap" => None,
         _ => {
-            if let Some(config) = ldap::config(&state).await?.filter(|c| c.enabled) {
+            if let Some(config) = ldap::config(&state.pool).await?.filter(|c| c.enabled) {
                 rate(&state, ldap::lookup_filter(&config, &email), "ldap-login", 10)?;
                 if payload.password.is_empty() {
                     None
@@ -212,7 +225,7 @@ async fn login(
                     ldap::resolve(&config, &state.settings.jwt_secret, &email).await
                 {
                     rate(&state, entry.dn().to_owned(), "ldap-bind", 10)?;
-                    ldap::authenticate_resolved(&state, &config, entry, &email, &payload.password).await?
+                    ldap::authenticate_resolved(&state.pool, &config, entry, &email, &payload.password).await?
                 } else {
                     None
                 }

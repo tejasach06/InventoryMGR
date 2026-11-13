@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePathname } from 'next/navigation';
 import { AppNav, buildNavItems, canSeeUsers } from '../components/AppNav';
 import type { ImportBatch } from '../api/types';
+import { canEditInventory } from '../lib/permissions';
 import { summarizePreview } from '../routes/ImportCsvPage';
 import { ThemeProvider, ThemeSegmented, ThemeSelect, THEME_STORAGE_KEY, resolveThemePreference } from '../components/ThemeProvider';
 
@@ -84,6 +85,12 @@ describe('CSV preview summary rendering', () => {
 });
 
 describe('role-based navigation', () => {
+  it('allows editors and admins to change inventory', () => {
+    expect(canEditInventory('admin')).toBe(true);
+    expect(canEditInventory('editor')).toBe(true);
+    expect(canEditInventory('viewer')).toBe(false);
+  });
+
   it('allows only admins to see user management', () => {
     expect(canSeeUsers('admin')).toBe(true);
     expect(canSeeUsers('editor')).toBe(false);

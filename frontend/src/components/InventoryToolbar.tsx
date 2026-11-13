@@ -7,7 +7,7 @@ import { ColumnDrawer } from './ColumnDrawer';
 import { ActiveFilterChips } from './filters/ActiveFilterChips';
 import { FilterDrawer } from './filters/FilterDrawer';
 import { emptyFilterState } from './filters/filterConfig';
-import type { ColumnConfig } from '../hooks/useColumnPreferences';
+import type { ColumnConfig } from '../lib/columns';
 import type { Filters, FilterName } from '../lib/inventoryFilters';
 
 type OpenDrawer = 'none' | 'filters' | 'columns';

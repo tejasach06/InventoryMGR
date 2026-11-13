@@ -20,6 +20,7 @@ const run = "self-check";
 const password = 'test-password-"\\';
 const jwt = 'test-jwt-"\\';
 const work = "/tmp/compose self-check";
+const dbTag = "localhost/test-postgres:self-check";
 const backendTag = "localhost/test-backend:self-check";
 const frontendTag = "localhost/test-frontend:self-check";
 const ports = [21001, 21002, 21003];
@@ -41,12 +42,11 @@ for (const stale of [false, true]) {
     service.ports = [`127.0.0.1:${ports[index]}:${port}`];
     service.labels = labels;
     delete service.develop;
-    if (name !== "db") {
-      delete service.build;
-      service.pull_policy = "never";
-    }
+    delete service.build;
+    service.pull_policy = "never";
   }
   const { db, backend, frontend } = expected.services;
+  db.image = dbTag;
   db.environment = { POSTGRES_USER: "inventorymgr", POSTGRES_DB: "inventorymgr", POSTGRES_PASSWORD: password };
   db.healthcheck.test = ["CMD-SHELL", "pg_isready -U inventorymgr"];
   backend.image = backendTag;
@@ -64,7 +64,7 @@ for (const stale of [false, true]) {
 
   const transformed = spawnSync("jq", [
     "--arg", "run", run, "--arg", "password", password, "--arg", "jwt", jwt,
-    "--arg", "work", work, "--arg", "backend_tag", backendTag, "--arg", "frontend_tag", frontendTag,
+    "--arg", "work", work, "--arg", "db_tag", dbTag, "--arg", "backend_tag", backendTag, "--arg", "frontend_tag", frontendTag,
     "--argjson", "ports", JSON.stringify(ports), filter[1],
   ], { input: JSON.stringify(input), encoding: "utf8" });
   assert.ifError(transformed.error);

@@ -15,6 +15,7 @@ BACKEND=
 COMPOSE_FRONTEND=
 QUADLET_FRONTEND=
 DB_IMAGE=
+DB_TAG=
 OWNED_CONTAINERS=()
 OWNED_FILES=()
 OWNED_SECRETS=()
@@ -48,7 +49,7 @@ fixed_preflight() {
     for name in inventorymgr-jwt-secret inventorymgr-postgres-password inventorymgr-database-url; do
         ! podman secret exists "$name" || fail "Secret already exists: $name"
     done
-    for name in localhost/inventorymgr-backend:latest localhost/inventorymgr-frontend:latest; do
+    for name in localhost/inventorymgr-postgres:latest localhost/inventorymgr-backend:latest localhost/inventorymgr-frontend:latest; do
         ! podman image exists "$name" || fail "Image tag already exists: $name"
     done
     [[ ! -e $HOME/inventorymgr-backups && ! -L $HOME/inventorymgr-backups ]] || fail 'Backup directory already exists'
@@ -295,6 +296,7 @@ check_services() {
         state=$(podman inspect "$name" --format '{{.State.Status}} {{.State.Health.Status}} {{.RestartCount}}')
         [[ $state == 'running healthy 0' ]] || return 1
     done
+    [[ $(podman inspect "$DB" --format '{{.Image}}') == "$DB_IMAGE" ]] || fail 'Database image identity mismatch'
     [[ $(podman inspect "$API" --format '{{.Image}}') == "$BACKEND" ]] || fail 'Backend image identity mismatch'
     expected=$COMPOSE_FRONTEND; [[ $CURRENT == compose ]] || expected=$QUADLET_FRONTEND
     [[ $(podman inspect "$WEB" --format '{{.Image}}') == "$expected" ]] || fail 'Frontend image identity mismatch'
@@ -341,7 +343,7 @@ run_compose() {
     printf '%s\n' "${ports[@]}" > "$WORK/ports"
     # compose.yml holds JSON (valid YAML) so jq can rewrite it without a YAML library on the worker.
     jq --arg run "$RUN" --arg password "$password" --arg jwt "$jwt" --arg work "$WORK" \
-        --arg backend_tag "$BACKEND_TAG" --arg frontend_tag "$COMPOSE_TAG" \
+        --arg db_tag "$DB_TAG" --arg backend_tag "$BACKEND_TAG" --arg frontend_tag "$COMPOSE_TAG" \
         --argjson ports "$(printf '%s\n' "${ports[@]}" | jq -sc .)" '
         $run as $r
         | .services |= (
@@ -350,7 +352,9 @@ run_compose() {
                     .ports = ["127.0.0.1:\($ports[$e.key]):\($e.value[1])"]
                     | .labels = {"inventorymgr.verification.run": $r}
                     | del(.develop)
-                    | if $e.value[0] != "db" then del(.build) | .pull_policy = "never" else . end)))
+                    | del(.build)
+                    | .pull_policy = "never")))
+        | .services.db.image = $db_tag
         | .services.backend.image = $backend_tag
         | .services.frontend.image = $frontend_tag
         | .services.db.environment = {POSTGRES_USER: "inventorymgr", POSTGRES_DB: "inventorymgr", POSTGRES_PASSWORD: $password}
@@ -416,10 +420,10 @@ run_quadlet() {
     podman unshare chown 1000:1000 "$HOME/inventorymgr-backups"
     bounded 30s podman run --rm --pull=never --network none --entrypoint /bin/sh \
         -v "$HOME/inventorymgr-backups:/probe:Z" "$BACKEND_TAG" -c 'test "$(id -u)" = 1000 && touch /probe/.write-probe && rm /probe/.write-probe'
-    for name in backend frontend; do
+    for name in postgres backend frontend; do
         path=localhost/inventorymgr-$name:latest
         ! podman image exists "$path" || fail "Image collision: $path"
-        id=$BACKEND; [[ $name != frontend ]] || id=$QUADLET_FRONTEND
+        id=$BACKEND; [[ $name != frontend ]] || id=$QUADLET_FRONTEND; [[ $name != postgres ]] || id=$DB_IMAGE
         podman tag "$id" "$path"; OWNED_IMAGES+=("$path|$id"); record image "$path" "$id"
     done
     generator=$(command -v podman-system-generator || true)
@@ -485,18 +489,14 @@ worker() {
     sha256sum -c "$WORK/images.sha256" > "$WORK/evidence/archive-checksum.txt"
     bounded 600s podman load --input "$WORK/images.tar" > "$WORK/evidence/image-load.log" 2>&1
     local tag id expected
-    for tag in "$BACKEND_TAG" "${COMPOSE_TAG:-}" "${QUADLET_TAG:-}"; do
+    for tag in "$DB_TAG" "$BACKEND_TAG" "${COMPOSE_TAG:-}" "${QUADLET_TAG:-}"; do
         [[ -n $tag ]] || continue
         id=$(image_id "$tag")
-        expected=$BACKEND; [[ $tag != "${COMPOSE_TAG:-}" ]] || expected=$COMPOSE_FRONTEND; [[ $tag != "${QUADLET_TAG:-}" ]] || expected=$QUADLET_FRONTEND
+        expected=$BACKEND; [[ $tag != "$DB_TAG" ]] || expected=$DB_IMAGE; [[ $tag != "${COMPOSE_TAG:-}" ]] || expected=$COMPOSE_FRONTEND; [[ $tag != "${QUADLET_TAG:-}" ]] || expected=$QUADLET_FRONTEND
         [[ $id == "$expected" ]] || fail "Transferred image mismatch: $tag"
         OWNED_IMAGES+=("$tag|$id"); record image "$tag" "$id"
     done
-    export BACKEND_TAG COMPOSE_TAG QUADLET_TAG
-    if ! podman image exists "$DB_IMAGE"; then
-        bounded 600s podman pull "$DB_IMAGE" > "$WORK/evidence/postgres-pull.log" 2>&1
-        OWNED_IMAGES+=("$DB_IMAGE|$(image_id "$DB_IMAGE")")
-    fi
+    export DB_TAG BACKEND_TAG COMPOSE_TAG QUADLET_TAG
     [[ $MODE == quadlet ]] || run_compose
     [[ $MODE == compose ]] || run_quadlet
     phase complete 'Deployment checks passed; final cleanup and baseline comparison follow'
@@ -535,7 +535,7 @@ controller_finish() {
 }
 
 source_checksums() {
-    git -C "$ROOT" ls-files -z --cached --others --exclude-standard -- backend-rust frontend docker-compose.yml quadlet \
+    git -C "$ROOT" ls-files -z --cached --others --exclude-standard -- backend-rust frontend postgres docker-compose.yml quadlet \
         | sort -zu | (cd "$ROOT" && xargs -0 sha256sum)
 }
 
@@ -571,7 +571,11 @@ controller() {
     phase build 'Building backend runtime image'
     bounded 1800s podman build --label "$RUN_LABEL=$RUN" -t "$BACKEND_TAG" "$ROOT/backend-rust" > "$WORK/backend-build.log" 2>&1
     BACKEND=$(image_id "$BACKEND_TAG")
-    local tags=("$BACKEND_TAG")
+    DB_TAG=localhost/inventorymgr-verify-postgres:$RUN
+    phase build 'Building PostgreSQL runtime image'
+    bounded 1800s podman build --label "$RUN_LABEL=$RUN" -t "$DB_TAG" "$ROOT/postgres" > "$WORK/postgres-build.log" 2>&1
+    DB_IMAGE=$(image_id "$DB_TAG")
+    local tags=("$BACKEND_TAG" "$DB_TAG")
     if [[ $MODE != quadlet ]]; then
         COMPOSE_TAG=localhost/inventorymgr-verify-compose:$RUN
         phase build 'Building Compose frontend runtime image'
@@ -586,12 +590,11 @@ controller() {
     fi
     source_checksums > "$WORK/source-after.sha256"
     cmp -s "$WORK/source-before.sha256" "$WORK/source-after.sha256" || fail 'Source changed during image builds'
-    DB_IMAGE=$(awk -F= '/^Image=.*postgres/ {print $2}' "$ROOT/quadlet/inventorymgr-db.container")
-    [[ $DB_IMAGE == docker.io/library/postgres:17-alpine@sha256:* ]] || fail 'Pinned PostgreSQL image not found'
+    grep -qx 'Image=localhost/inventorymgr-postgres:latest' "$ROOT/quadlet/inventorymgr-db.container" || fail 'Quadlet PostgreSQL image not found'
     cp "$ROOT/tools/verify-deployment.sh" "$WORK/stage/worker.sh"
     node "$ROOT/tools/compose-to-json.mjs" "$ROOT/docker-compose.yml" > "$WORK/stage/docker-compose.json"
     cp -r "$ROOT/quadlet" "$WORK/stage/quadlet"
-    for tool in BACKEND BACKEND_TAG COMPOSE_FRONTEND COMPOSE_TAG QUADLET_FRONTEND QUADLET_TAG DB_IMAGE; do
+    for tool in BACKEND BACKEND_TAG COMPOSE_FRONTEND COMPOSE_TAG QUADLET_FRONTEND QUADLET_TAG DB_IMAGE DB_TAG; do
         printf '%s=%q\n' "$tool" "${!tool}" >> "$WORK/stage/images.env"
     done
     cp "$WORK/stage/images.env" "$WORK/image-identities.env"

@@ -39,6 +39,7 @@ env:
 build-prod:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	podman build -t localhost/inventorymgr-postgres:latest ./postgres
 	podman build -t localhost/inventorymgr-backend:latest ./backend-rust
 	podman build -t localhost/inventorymgr-frontend:latest --build-arg "INVENTORYMGR_API_URL=${INVENTORYMGR_API_URL:-http://inventorymgr-backend:8000}" ./frontend
 

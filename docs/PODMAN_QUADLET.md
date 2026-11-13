@@ -9,7 +9,7 @@ systemd-managed Podman containers (rootless). Unit files live in `quadlet/`.
 |---|---|
 | `inventorymgr.network` | Shared Podman network for the three services. |
 | `inventorymgr-pgdata.volume` | Named volume for Postgres data. |
-| `inventorymgr-db.container` | `postgres:17-alpine`. |
+| `inventorymgr-db.container` | `localhost/inventorymgr-postgres:latest` (official `postgres:17-alpine` with rebuilt `gosu`; see `postgres/Dockerfile`). |
 | `inventorymgr-backend.container` | Rust backend; depends on `inventorymgr-db.service`. |
 | `inventorymgr-frontend.container` | Next.js frontend; depends on `inventorymgr-backend.service`. |
 
@@ -22,7 +22,7 @@ The frontend has no `Secret=` directives.
 ```
 just quadlet-secrets    # creates inventorymgr-jwt-secret, -postgres-password,
                          # -database-url Podman secrets (idempotent)
-just build-prod          # builds backend then frontend
+just build-prod          # builds postgres, backend, then frontend
 ```
 
 Then copy `quadlet/*.container`, `*.network`, `*.volume` into
@@ -67,7 +67,9 @@ refuses to create one without the other (see `justfile`).
 
 ## Compose vs. Quadlet
 
-Use `docker-compose.yml` (`just up`/`just down`) for local/dev and CI E2E.
+Use `docker-compose.yml` (`just up`/`just down`) for local and development.
+The E2E gate uses the isolated Rust browser runner, which manages its own
+PostgreSQL container.
 Use Quadlet for a systemd-managed host deployment with secrets and
 `Requires=`/`After=` unit ordering instead of Compose's `depends_on`.
 

@@ -1,7 +1,6 @@
 use crate::{
     api::deps::{ApiError, AppState, AuthUser, Csrf},
     models::user::User,
-    schemas::auth::validation,
 };
 use axum::{
     extract::{Path, State},
@@ -79,9 +78,6 @@ async fn set_accent(
     _csrf: Csrf,
     crate::api::deps::ValidatedJson(p): crate::api::deps::ValidatedJson<Accent>,
 ) -> Result<Json<Accent>, ApiError> {
-    if !ACCENTS.contains(&p.accent.as_str()) {
-        return Err(validation("Invalid accent"));
-    }
     store(&s, &u, "accent_color", json!(p.accent)).await?;
     Ok(Json(p))
 }
@@ -142,10 +138,10 @@ async fn set_columns(
         if !COLUMNS.iter().any(|(k, _, _)| *k == c.key)
             && !matches!(c.key.as_str(), "ip_address" | "os")
         {
-            return Err(validation(format!("Unknown column key: {}", c.key)));
+            return Err(ApiError::invalid(format!("Unknown column key: {}", c.key)));
         }
         if !seen.insert(&c.key) {
-            return Err(validation(format!("Duplicate column key: {}", c.key)));
+            return Err(ApiError::invalid(format!("Duplicate column key: {}", c.key)));
         }
     }
     store(&s, &u, &format!("columns_{page}"), json!(p.columns)).await?;

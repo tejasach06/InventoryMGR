@@ -24,6 +24,7 @@ jobs:
         include:
           - { name: backend, context: backend-rust }
           - { name: frontend, context: frontend }
+          - { name: postgres, context: postgres }
     steps:
       - uses: actions/checkout@v7
 

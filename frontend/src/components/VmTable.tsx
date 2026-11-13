@@ -16,7 +16,7 @@ import {
   tableRowClass,
   tableWrapClass,
 } from './ui';
-import { COLUMN_LABELS } from '../hooks/useColumnPreferences';
+import { COLUMN_LABELS } from '../lib/columns';
 import { SORTABLE_COLUMNS, humanize } from '../lib/inventoryFilters';
 import { formatMemory } from '../lib/units';
 import { cn } from '../lib/classNames';

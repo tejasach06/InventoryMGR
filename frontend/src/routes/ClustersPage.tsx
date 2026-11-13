@@ -1,5 +1,6 @@
 'use client';
 
+import { canEditInventory } from '../lib/permissions';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -16,7 +17,7 @@ export function ClustersPage() {
   const qc = useQueryClient();
   const router = useRouter();
   const user = useCurrentUser();
-  const canEdit = user.role === 'editor' || user.role === 'admin';
+  const canEdit = canEditInventory(user.role);
   const [showForm, setShowForm] = useState(false);
 
   const clustersQ = useQuery({ queryKey: ['clusters'], queryFn: () => clustersApi.listClusters() });
