@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 umask 077
 
-TARGET=tejas@192.168.0.21
+TARGET=${DEPLOY_VERIFY_TARGET:-tejas@192.168.0.21}
 SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
 RUN_LABEL=inventorymgr.verification.run
 PHASE=preflight
@@ -67,11 +67,10 @@ fixed_preflight() {
 remote_preflight() {
     local tool free_kb
     [[ $(id -un) == tejas ]] || fail 'Aspire worker must run as tejas'
-    for tool in podman systemctl journalctl curl jq python3 openssl ss flock timeout sha256sum tar; do need "$tool"; done
+    for tool in podman systemctl journalctl curl jq openssl ss flock timeout sha256sum tar; do need "$tool"; done
     [[ $(podman info --format '{{.Host.Security.Rootless}}') == true ]] || fail 'Rootless Podman required'
     systemctl --user show-environment >/dev/null || fail 'User systemd bus unavailable; provision the login session first'
     bounded 30s podman compose version >/dev/null 2>&1 || fail 'Podman Compose provider unavailable'
-    python3 -c 'import yaml' || fail 'Compose configuration requires the provider Python YAML module'
     fixed_preflight
     free_kb=$(df -Pk "$HOME" | awk 'NR==2 {print $4}')
     (( free_kb >= 10485760 )) || fail 'At least 10 GiB free in Aspire home is required'
@@ -331,36 +330,38 @@ run_compose() {
     phase compose 'Starting transferred images with a private Compose project'
     CURRENT=compose
     mkdir "$WORK/backups"
-    python3 - "$WORK" "$RUN" <<'PY'
-import os, pathlib, secrets, socket, sys, yaml
-work=pathlib.Path(sys.argv[1]); run=sys.argv[2]
-cfg=yaml.safe_load((work/'docker-compose.yml').read_text())
-sockets=[]
-for _ in range(3):
-    s=socket.socket(); s.bind(('127.0.0.1',0)); sockets.append(s)
-ports=[s.getsockname()[1] for s in sockets]
-password=secrets.token_hex(32); jwt=secrets.token_hex(32)
-(work/'credentials').write_text(password+'\n'+jwt+'\n')
-for service,port in zip(('db','backend','frontend'),ports):
-    c=cfg['services'][service]
-    c['ports']=[f'127.0.0.1:{port}:{dict(db=5432,backend=8000,frontend=3000)[service]}']
-    c['labels']={'inventorymgr.verification.run':run}
-    c.pop('develop',None)
-    if service!='db':
-        c.pop('build',None)
-        c['image']=os.environ['BACKEND_TAG' if service=='backend' else 'COMPOSE_TAG']
-        c['pull_policy']='never'
-cfg['services']['db']['environment']={'POSTGRES_USER':'inventorymgr','POSTGRES_DB':'inventorymgr','POSTGRES_PASSWORD':password}
-cfg['services']['db']['healthcheck']['test']=['CMD-SHELL','pg_isready -U inventorymgr']
-b=cfg['services']['backend']; b['userns_mode']='keep-id:uid=1000,gid=1000'
-b['environment']={'APP_ENV':'development','DATABASE_URL':f'postgresql://inventorymgr:{password}@db:5432/inventorymgr','JWT_SECRET':jwt,'BACKUP_DIR':'/var/lib/inventorymgr/backups','SESSION_COOKIE_NAME':f'imgr_{run}','CSRF_COOKIE_NAME':f'csrf_{run}'}
-b['volumes']=[str(work/'backups')+':/var/lib/inventorymgr/backups:z']
-f=cfg['services']['frontend']; f['environment']={'INVENTORYMGR_API_URL':'http://backend:8000','CSRF_COOKIE_NAME':f'csrf_{run}'}
-cfg['volumes']['pgdata']={'labels':{'inventorymgr.verification.run':run}}
-cfg['networks']={'default':{'labels':{'inventorymgr.verification.run':run}}}
-(work/'compose.yml').write_text(yaml.safe_dump(cfg,sort_keys=False))
-(work/'ports').write_text('\n'.join(map(str,ports)))
-PY
+    local password jwt
+    ports=()
+    while (( ${#ports[@]} < 3 )); do
+        local candidate=$((20000 + RANDOM % 40000))
+        [[ " ${ports[*]} " == *" $candidate "* ]] || [[ -n $(ss -Htln "sport = :$candidate") ]] || ports+=("$candidate")
+    done
+    password=$(openssl rand -hex 32); jwt=$(openssl rand -hex 32)
+    printf '%s\n%s\n' "$password" "$jwt" > "$WORK/credentials"
+    printf '%s\n' "${ports[@]}" > "$WORK/ports"
+    # compose.yml holds JSON (valid YAML) so jq can rewrite it without a YAML library on the worker.
+    jq --arg run "$RUN" --arg password "$password" --arg jwt "$jwt" --arg work "$WORK" \
+        --arg backend_tag "$BACKEND_TAG" --arg frontend_tag "$COMPOSE_TAG" \
+        --argjson ports "$(printf '%s\n' "${ports[@]}" | jq -sc .)" '
+        $run as $r
+        | .services |= (
+            reduce ([["db",5432],["backend",8000],["frontend",3000]] | to_entries[]) as $e (.;
+                .[$e.value[0]] |= (
+                    .ports = ["127.0.0.1:\($ports[$e.key]):\($e.value[1])"]
+                    | .labels = {"inventorymgr.verification.run": $r}
+                    | del(.develop)
+                    | if $e.value[0] != "db" then del(.build) | .pull_policy = "never" else . end)))
+        | .services.backend.image = $backend_tag
+        | .services.frontend.image = $frontend_tag
+        | .services.db.environment = {POSTGRES_USER: "inventorymgr", POSTGRES_DB: "inventorymgr", POSTGRES_PASSWORD: $password}
+        | .services.db.healthcheck.test = ["CMD-SHELL", "pg_isready -U inventorymgr"]
+        | .services.backend.userns_mode = "keep-id:uid=1000,gid=1000"
+        | .services.backend.environment = {APP_ENV: "development", DATABASE_URL: "postgresql://inventorymgr:\($password)@db:5432/inventorymgr", JWT_SECRET: $jwt, BACKUP_DIR: "/var/lib/inventorymgr/backups", SESSION_COOKIE_NAME: "imgr_\($r)", CSRF_COOKIE_NAME: "csrf_\($r)"}
+        | .services.backend.volumes = ["\($work)/backups:/var/lib/inventorymgr/backups:z"]
+        | .services.frontend.environment = {INVENTORYMGR_API_URL: "http://backend:8000", CSRF_COOKIE_NAME: "csrf_\($r)"}
+        | .volumes.pgdata = {labels: {"inventorymgr.verification.run": $r}}
+        | .networks = {default: {labels: {"inventorymgr.verification.run": $r}}}
+    ' "$WORK/docker-compose.json" > "$WORK/compose.yml"
     mapfile -t SECRETS < "$WORK/credentials"
     mapfile -t ports < "$WORK/ports"
     API_PORT=${ports[1]}; WEB_PORT=${ports[2]}
@@ -548,7 +549,7 @@ controller() {
     ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
     cd "$ROOT"
     local tool
-    for tool in podman ssh scp flock timeout git jq openssl sha256sum tar; do need "$tool"; done
+    for tool in podman ssh scp flock timeout git jq node openssl sha256sum tar; do need "$tool"; done
     [[ $(podman info --format '{{.Host.Security.Rootless}}') == true ]] || fail 'Rootless Podman required on VM101'
     mkdir -p "$ROOT/.audit"
     exec 8> "$ROOT/.audit/deployment-verification.lock"
@@ -588,7 +589,7 @@ controller() {
     DB_IMAGE=$(awk -F= '/^Image=.*postgres/ {print $2}' "$ROOT/quadlet/inventorymgr-db.container")
     [[ $DB_IMAGE == docker.io/library/postgres:17-alpine@sha256:* ]] || fail 'Pinned PostgreSQL image not found'
     cp "$ROOT/tools/verify-deployment.sh" "$WORK/stage/worker.sh"
-    cp "$ROOT/docker-compose.yml" "$WORK/stage/docker-compose.yml"
+    node "$ROOT/tools/compose-to-json.mjs" "$ROOT/docker-compose.yml" > "$WORK/stage/docker-compose.json"
     cp -r "$ROOT/quadlet" "$WORK/stage/quadlet"
     for tool in BACKEND BACKEND_TAG COMPOSE_FRONTEND COMPOSE_TAG QUADLET_FRONTEND QUADLET_TAG DB_IMAGE; do
         printf '%s=%q\n' "$tool" "${!tool}" >> "$WORK/stage/images.env"

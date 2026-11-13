@@ -4,7 +4,7 @@
 Manual VM, storage, and hardware inventory tracker. Postgres-backed, no hypervisor connection — all data is user-entered or CSV-imported (Proxmox/VMware exports).
 
 ## Subdirectories & System Boundaries
-- [backend](backend/README.md): Python 3.14 parity reference oracle and contract test suite
+- [tools/parity](tools/parity): Rust regression harness (HTTP contracts, migrations, restore concurrency) and pg-bridge
 - [backend-rust](backend-rust/README.md): Core Axum 0.8 / SQLx 0.9 / PostgreSQL 17 high-performance production API service and domain logic
 - [frontend](frontend/README.md): Next.js 16 / React 19 / TanStack Query web interface and operator dashboard
 - [tools](tools/README.md): E2E test runners, parity verifiers, and risk-acceptance validation scripts
@@ -42,7 +42,7 @@ Manual VM, storage, and hardware inventory tracker. Postgres-backed, no hypervis
 |---|---|
 | Backend | Rust 1.98.1, Axum 0.8, SQLx 0.9, PostgreSQL 17 |
 | Frontend | Next.js 16, React 19, TanStack Query, Tailwind 4, pnpm 12.14.0, Node.js 24.22.1 LTS |
-| Reference oracle | Python 3.14.7 under `backend/`; contract tests only |
+| Parity harness | Rust (`tools/parity/`); frozen HTTP/migration baselines |
 | Deploy | Podman rootless Compose or Quadlet units (`quadlet/`) |
 
 ## Layout
@@ -50,7 +50,7 @@ Manual VM, storage, and hardware inventory tracker. Postgres-backed, no hypervis
 ```
 backend-rust/src/{core,db,models,schemas,api}    # Axum handlers and SQLx queries
 backend-rust/migrations/                                # Native Alembic-compatible SQL revision chain
-backend/                                                # Python 3.14 parity reference
+tools/parity/                                           # Rust parity harness + frozen baselines
 frontend/src/{app,routes,components,hooks,lib,api}
 frontend/src/test/                                      # vitest unit tests
 frontend/e2e/                                           # Playwright
@@ -60,8 +60,8 @@ docs/                                                   # runbook, API reference
 
 ## Quickstart
 
-Install Rust 1.98.1, Node.js 24.22.1, pnpm 12.14.0, uv (>=0.12.18, e.g. 0.12.24), Podman with Compose,
-and `just` before running setup. The repository pins Rust, Python, pnpm, and
+Install Rust 1.98.1, Node.js 24.22.1, pnpm 12.14.0, OpenSSL, Podman with Compose,
+and `just` before running setup. The repository pins Rust, pnpm, and
 container build runtimes; `just setup` checks for the host tools and installs
 dependencies from frozen lockfiles and Playwright's Chromium payload. Linux hosts
 also need Playwright's Chromium system libraries; provision these before browser
@@ -70,12 +70,12 @@ required host privileges). Install cargo-audit 0.22.2 for `just audit`, for exam
 with `cargo install cargo-audit --version 0.22.2 --locked`. No shell environment
 manager is required. For native `just up-local`, install PostgreSQL 17 `pg_dump`
 and `pg_restore` clients. `just up` instead builds containers with matching
-PostgreSQL clients. The Python oracle is test-only.
+PostgreSQL clients. OpenSSL generates secrets; Node.js runs the e2e port picker and deployment verifier.
 
 Native Rust builds also require a system C linker (`cc`); setup checks it before installing dependencies.
 
 ```
-just setup          # frozen frontend, oracle, and Rust dependencies
+just setup          # frozen frontend, parity harness, and Rust dependencies
 just env            # generate .env from .env.example (JWT_SECRET)
 just up-local       # requires PostgreSQL 17 clients; local backend and frontend
 just api-dev        # cargo run on :8000
@@ -104,7 +104,7 @@ Frontend: http://127.0.0.1:3000 · API: http://127.0.0.1:8000/api/health
 | Quadlet image deployment on Aspire | `just test-deploy-quadlet` |
 | Both deployment modes, sequentially | `just test-deploy` |
 
-`just setup` installs the Python 3.14.7 parity oracle in `backend/.venv` and builds Rust. Production runs only Rust.
+`just setup` builds the Rust parity harness (`tools/parity`) and the backend. No Python is required anywhere.
 `just verify` runs all Cargo tests, including the Podman-backed LDAP/authentication regressions, frontend checks, the HTTP parity suite, three migration startup scenarios with a historical-row preservation assertion, restore concurrency, and the isolated Playwright runner.
 `just e2e` creates a disposable Postgres container and starts freshly built backend and frontend processes on allocated ports. It ignores application database URLs, sets a non-default CSRF cookie name after building to exercise runtime configuration, and cleans up only resources it owns. Direct Playwright invocation without the runner is rejected.
 

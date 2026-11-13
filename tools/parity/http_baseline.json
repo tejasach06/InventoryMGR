@@ -1,0 +1,6929 @@
+[
+  {
+    "case": "GET /api/health",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "status": "ok"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/auth/setup",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "setup_required": true
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/setup",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "input": {},
+          "loc": [
+            "body",
+            "email"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        },
+        {
+          "input": {},
+          "loc": [
+            "body",
+            "password"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/setup",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "min_length": 8
+          },
+          "input": "short",
+          "loc": [
+            "body",
+            "password"
+          ],
+          "msg": "String should have at least 8 characters",
+          "type": "string_too_short"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/login",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "input": {},
+          "loc": [
+            "body",
+            "email"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        },
+        {
+          "input": {},
+          "loc": [
+            "body",
+            "password"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/refresh",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "No refresh token"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/users",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/users",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/users/{user_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/users/{user_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/vms",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/owners",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/clusters",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/nodes",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/applications",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/tags",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/suggestions",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/export",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/vms/bulk",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/{vm_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/vms/{vm_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/vms/{vm_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/vms/{vm_id}/clone",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/{parent_id}/disks",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/vms/{parent_id}/disks",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/vms/{parent_id}/disks/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/vms/{parent_id}/disks/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/{parent_id}/networks",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/vms/{parent_id}/networks",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/vms/{parent_id}/networks/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/vms/{parent_id}/networks/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/{parent_id}/applications",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/vms/{parent_id}/applications",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/vms/{parent_id}/applications/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/vms/{parent_id}/applications/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/vms/{vm_id}/audit",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/dashboard",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/reports/summary",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/reports/{report_name}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/imports/preview",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/imports/template",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/imports/{batch_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/imports/{batch_id}/commit",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/settings/options",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/settings/app",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/settings/app",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/settings/ldap",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated put /api/settings/ldap",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/settings/ldap/test",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/storage/arrays",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/storage/arrays",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/storage/arrays/{array_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/storage/arrays/{array_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/storage/arrays/{array_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/storage/arrays/{parent_id}/volumes",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/storage/arrays/{parent_id}/volumes",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/storage/arrays/{parent_id}/volumes/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/storage/arrays/{parent_id}/volumes/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/storage/volumes/{parent_id}/luns",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/storage/volumes/{parent_id}/luns",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/storage/volumes/{parent_id}/luns/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/storage/volumes/{parent_id}/luns/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/storage/volumes/{parent_id}/shares",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/storage/volumes/{parent_id}/shares",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/storage/volumes/{parent_id}/shares/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/storage/volumes/{parent_id}/shares/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/clusters",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/clusters",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/clusters/{cluster_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/clusters/{cluster_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/clusters/{cluster_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/clusters/{parent_id}/nodes",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/clusters/{parent_id}/nodes",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/clusters/{parent_id}/nodes/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/clusters/{parent_id}/nodes/{item_id}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/user/accent",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated put /api/user/accent",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/user/preferences/{page_key}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated put /api/user/preferences/{page_key}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/notifications/decommissions",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/notifications/decommissions/ack",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/notifications/duplicate-ips",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/backups",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/backups",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated get /api/backups/{filename}/download",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated delete /api/backups/{filename}",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated patch /api/backups/settings",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "unauthenticated post /api/backups/restore",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/setup",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "user": {
+        "auth_source": "local",
+        "created_at": "<timestamp>",
+        "email": "admin@parity.test",
+        "id": "<uuid:0>",
+        "is_active": true,
+        "role": "admin",
+        "updated_at": "<timestamp>"
+      }
+    },
+    "cookies": {
+      "inventorymgr_session": {
+        "path": "/",
+        "httponly": true,
+        "samesite": "lax"
+      },
+      "inventorymgr_csrf": {
+        "path": "/",
+        "samesite": "lax"
+      },
+      "inventorymgr_refresh": {
+        "path": "/api/auth/refresh",
+        "max-age": "604800",
+        "httponly": true,
+        "samesite": "strict"
+      }
+    },
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/setup",
+    "status": 409,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Setup has already been completed"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/auth/me",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "auth_source": "local",
+      "created_at": "<timestamp>",
+      "email": "admin@parity.test",
+      "id": "<uuid:0>",
+      "is_active": true,
+      "role": "admin",
+      "updated_at": "<timestamp>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/login",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Invalid email or password"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/users",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "auth_source": "local",
+      "created_at": "<timestamp>",
+      "email": "editor@parity.test",
+      "id": "<uuid:1>",
+      "is_active": true,
+      "role": "editor",
+      "updated_at": "<timestamp>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/users",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "auth_source": "local",
+      "created_at": "<timestamp>",
+      "email": "viewer@parity.test",
+      "id": "<uuid:2>",
+      "is_active": true,
+      "role": "viewer",
+      "updated_at": "<timestamp>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/users",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "auth_source": "local",
+        "created_at": "<timestamp>",
+        "email": "admin@parity.test",
+        "id": "<uuid:0>",
+        "is_active": true,
+        "role": "admin",
+        "updated_at": "<timestamp>"
+      },
+      {
+        "auth_source": "local",
+        "created_at": "<timestamp>",
+        "email": "editor@parity.test",
+        "id": "<uuid:1>",
+        "is_active": true,
+        "role": "editor",
+        "updated_at": "<timestamp>"
+      },
+      {
+        "auth_source": "local",
+        "created_at": "<timestamp>",
+        "email": "viewer@parity.test",
+        "id": "<uuid:2>",
+        "is_active": true,
+        "role": "viewer",
+        "updated_at": "<timestamp>"
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/users",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "input": {},
+          "loc": [
+            "body",
+            "email"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        },
+        {
+          "input": {},
+          "loc": [
+            "body",
+            "password"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        },
+        {
+          "input": {},
+          "loc": [
+            "body",
+            "role"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/users",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "expected": "'admin', 'editor' or 'viewer'"
+          },
+          "input": "unknown",
+          "loc": [
+            "body",
+            "role"
+          ],
+          "msg": "Input should be 'admin', 'editor' or 'viewer'",
+          "type": "enum"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/settings/app",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "ge": 1
+          },
+          "input": 0,
+          "loc": [
+            "body",
+            "decommission_notify_days"
+          ],
+          "msg": "Input should be greater than or equal to 1",
+          "type": "greater_than_equal"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PUT /api/settings/ldap",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "input": {},
+          "loc": [
+            "body",
+            "enabled"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        },
+        {
+          "input": {},
+          "loc": [
+            "body",
+            "server_uri"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        },
+        {
+          "input": {},
+          "loc": [
+            "body",
+            "user_base_dn"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/users/<uuid:1>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "auth_source": "local",
+      "created_at": "<timestamp>",
+      "email": "editor@parity.test",
+      "id": "<uuid:1>",
+      "is_active": true,
+      "role": "editor",
+      "updated_at": "<timestamp>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PUT /api/user/accent",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "accent": "blue"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PUT /api/user/accent",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "expected": "'orange', 'blue', 'violet', 'emerald', 'rose' or 'amber'"
+          },
+          "input": "invalid",
+          "loc": [
+            "body",
+            "accent"
+          ],
+          "msg": "Input should be 'orange', 'blue', 'violet', 'emerald', 'rose' or 'amber'",
+          "type": "literal_error"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PUT /api/user/accent",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Invalid CSRF token"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PUT /api/user/preferences/inventory",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "columns": [
+        {
+          "key": "ip_address",
+          "order": 0,
+          "visible": true
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/user/preferences/inventory",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "columns": [
+        {
+          "key": "private_ip",
+          "order": 0,
+          "visible": true
+        },
+        {
+          "key": "name",
+          "order": 1,
+          "visible": false
+        },
+        {
+          "key": "platform",
+          "order": 2,
+          "visible": false
+        },
+        {
+          "key": "cluster",
+          "order": 3,
+          "visible": false
+        },
+        {
+          "key": "status",
+          "order": 4,
+          "visible": false
+        },
+        {
+          "key": "resources",
+          "order": 5,
+          "visible": false
+        },
+        {
+          "key": "criticality",
+          "order": 6,
+          "visible": false
+        },
+        {
+          "key": "updated_at",
+          "order": 7,
+          "visible": false
+        },
+        {
+          "key": "fqdn",
+          "order": 8,
+          "visible": false
+        },
+        {
+          "key": "environment",
+          "order": 9,
+          "visible": false
+        },
+        {
+          "key": "vm_type",
+          "order": 10,
+          "visible": false
+        },
+        {
+          "key": "datacenter",
+          "order": 11,
+          "visible": false
+        },
+        {
+          "key": "node",
+          "order": 12,
+          "visible": false
+        },
+        {
+          "key": "os_family",
+          "order": 13,
+          "visible": false
+        },
+        {
+          "key": "owner",
+          "order": 14,
+          "visible": false
+        },
+        {
+          "key": "business_owner",
+          "order": 15,
+          "visible": false
+        },
+        {
+          "key": "technical_owner",
+          "order": 16,
+          "visible": false
+        },
+        {
+          "key": "pmp_enabled",
+          "order": 17,
+          "visible": false
+        },
+        {
+          "key": "monitoring_enabled",
+          "order": 18,
+          "visible": false
+        },
+        {
+          "key": "backup_enabled",
+          "order": 19,
+          "visible": false
+        },
+        {
+          "key": "ha_enabled",
+          "order": 20,
+          "visible": false
+        },
+        {
+          "key": "health_score",
+          "order": 21,
+          "visible": false
+        },
+        {
+          "key": "tags",
+          "order": 22,
+          "visible": false
+        },
+        {
+          "key": "created_at",
+          "order": 23,
+          "visible": false
+        },
+        {
+          "key": "public_ip",
+          "order": 24,
+          "visible": false
+        },
+        {
+          "key": "backup_ip",
+          "order": 25,
+          "visible": false
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/user/accent",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "accent": "blue"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/settings/app",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "decommission_notify_days": 42,
+      "storage_usage_warn_pct": 75
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PUT /api/settings/ldap",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "admin_group_dn": null,
+      "bind_dn": null,
+      "bind_password_set": false,
+      "default_role": "viewer",
+      "editor_group_dn": null,
+      "email_attribute": "mail",
+      "enabled": false,
+      "group_attribute": "memberOf",
+      "server_uri": "ldap://127.0.0.1:1",
+      "start_tls": false,
+      "user_base_dn": "dc=parity,dc=test",
+      "user_filter": "(uid={username})",
+      "verify_tls": true,
+      "viewer_group_dn": null
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/settings/ldap/test",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "input": null,
+          "loc": [
+            "body"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/settings/app",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "decommission_notify_days": 42,
+      "storage_usage_warn_pct": 75
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/settings/options",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "cluster": [],
+      "cpu": [
+        "12",
+        "2",
+        "4",
+        "6"
+      ],
+      "datacenter": [
+        "DC",
+        "IDC",
+        "Office",
+        "RD"
+      ],
+      "disk": [
+        "100",
+        "150",
+        "50"
+      ],
+      "os": [
+        "Linux",
+        "Windows"
+      ],
+      "os_by_family": {
+        "linux": [],
+        "windows": []
+      }
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/settings/ldap",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "admin_group_dn": null,
+      "bind_dn": null,
+      "bind_password_set": false,
+      "default_role": "viewer",
+      "editor_group_dn": null,
+      "email_attribute": "mail",
+      "enabled": false,
+      "group_attribute": "memberOf",
+      "server_uri": "ldap://127.0.0.1:1",
+      "start_tls": false,
+      "user_base_dn": "dc=parity,dc=test",
+      "user_filter": "(uid={username})",
+      "verify_tls": true,
+      "viewer_group_dn": null
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "applications": [],
+      "backup_enabled": false,
+      "backup_location": null,
+      "business_owner": null,
+      "cluster": "parity-cluster",
+      "cpu_cores": 4,
+      "created_at": "<timestamp>",
+      "created_by_id": "<uuid:0>",
+      "criticality": "high",
+      "datacenter": null,
+      "decommission_date": null,
+      "description": null,
+      "disks": [
+        {
+          "disk_name": "boot",
+          "id": "<uuid:3>",
+          "size_gb": 32,
+          "sort_order": 0,
+          "storage_name": null,
+          "storage_type": null,
+          "vm_id": "<uuid:4>"
+        }
+      ],
+      "environment": "production",
+      "external_id": null,
+      "fqdn": null,
+      "ha_enabled": false,
+      "health_score": 45,
+      "id": "<uuid:4>",
+      "last_patch_date": null,
+      "last_verified_at": null,
+      "last_vuln_scan_date": null,
+      "memory_mb": 8192,
+      "monitoring_enabled": false,
+      "name": "parity-vm-2",
+      "networks": [
+        {
+          "id": "<uuid:5>",
+          "ip_address": "192.0.2.10",
+          "role": "private",
+          "sort_order": 0,
+          "vm_id": "<uuid:4>"
+        }
+      ],
+      "node": null,
+      "os_distribution": null,
+      "os_family": "linux",
+      "os_version": null,
+      "owner": "ops",
+      "platform": "proxmox",
+      "pmp_enabled": false,
+      "security_remarks": null,
+      "sr_id": null,
+      "status": "running",
+      "tags": [
+        "parity"
+      ],
+      "technical_owner": null,
+      "updated_at": "<timestamp>",
+      "updated_by_id": "<uuid:0>",
+      "vm_type": "permanent"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/<uuid:4>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "applications": [],
+      "backup_enabled": false,
+      "backup_location": null,
+      "business_owner": null,
+      "cluster": "parity-cluster",
+      "cpu_cores": 4,
+      "created_at": "<timestamp>",
+      "created_by_id": "<uuid:0>",
+      "criticality": "high",
+      "datacenter": null,
+      "decommission_date": null,
+      "description": null,
+      "disks": [
+        {
+          "disk_name": "boot",
+          "id": "<uuid:3>",
+          "size_gb": 32,
+          "sort_order": 0,
+          "storage_name": null,
+          "storage_type": null,
+          "vm_id": "<uuid:4>"
+        }
+      ],
+      "environment": "production",
+      "external_id": null,
+      "fqdn": null,
+      "ha_enabled": false,
+      "health_score": 45,
+      "id": "<uuid:4>",
+      "last_patch_date": null,
+      "last_verified_at": null,
+      "last_vuln_scan_date": null,
+      "memory_mb": 8192,
+      "monitoring_enabled": false,
+      "name": "parity-vm-2",
+      "networks": [
+        {
+          "id": "<uuid:5>",
+          "ip_address": "192.0.2.10",
+          "role": "private",
+          "sort_order": 0,
+          "vm_id": "<uuid:4>"
+        }
+      ],
+      "node": null,
+      "os_distribution": null,
+      "os_family": "linux",
+      "os_version": null,
+      "owner": "ops",
+      "platform": "proxmox",
+      "pmp_enabled": false,
+      "security_remarks": null,
+      "sr_id": null,
+      "status": "running",
+      "tags": [
+        "parity"
+      ],
+      "technical_owner": null,
+      "updated_at": "<timestamp>",
+      "updated_by_id": "<uuid:0>",
+      "vm_type": "permanent"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/vms/<uuid:4>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "applications": [],
+      "backup_enabled": false,
+      "backup_location": null,
+      "business_owner": null,
+      "cluster": "parity-cluster",
+      "cpu_cores": 4,
+      "created_at": "<timestamp>",
+      "created_by_id": "<uuid:0>",
+      "criticality": "high",
+      "datacenter": null,
+      "decommission_date": null,
+      "description": null,
+      "disks": [
+        {
+          "disk_name": "boot",
+          "id": "<uuid:3>",
+          "size_gb": 32,
+          "sort_order": 0,
+          "storage_name": null,
+          "storage_type": null,
+          "vm_id": "<uuid:4>"
+        }
+      ],
+      "environment": "production",
+      "external_id": null,
+      "fqdn": null,
+      "ha_enabled": false,
+      "health_score": 55,
+      "id": "<uuid:4>",
+      "last_patch_date": null,
+      "last_verified_at": null,
+      "last_vuln_scan_date": null,
+      "memory_mb": 8192,
+      "monitoring_enabled": true,
+      "name": "parity-vm-2",
+      "networks": [
+        {
+          "id": "<uuid:5>",
+          "ip_address": "192.0.2.10",
+          "role": "private",
+          "sort_order": 0,
+          "vm_id": "<uuid:4>"
+        }
+      ],
+      "node": null,
+      "os_distribution": null,
+      "os_family": "linux",
+      "os_version": null,
+      "owner": "new-owner",
+      "platform": "proxmox",
+      "pmp_enabled": false,
+      "security_remarks": null,
+      "sr_id": null,
+      "status": "running",
+      "tags": [
+        "parity"
+      ],
+      "technical_owner": null,
+      "updated_at": "<timestamp>",
+      "updated_by_id": "<uuid:0>",
+      "vm_type": "permanent"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "input": null,
+          "loc": [
+            "body",
+            "name"
+          ],
+          "msg": "Input should be a valid string",
+          "type": "string_type"
+        },
+        {
+          "input": {
+            "cpu_cores": -1,
+            "name": ""
+          },
+          "loc": [
+            "body",
+            "platform"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        },
+        {
+          "input": {
+            "cpu_cores": -1,
+            "name": ""
+          },
+          "loc": [
+            "body",
+            "cluster"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        },
+        {
+          "input": {
+            "cpu_cores": -1,
+            "name": ""
+          },
+          "loc": [
+            "body",
+            "status"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        },
+        {
+          "ctx": {
+            "ge": 0
+          },
+          "input": -1,
+          "loc": [
+            "body",
+            "cpu_cores"
+          ],
+          "msg": "Input should be greater than or equal to 0",
+          "type": "greater_than_equal"
+        },
+        {
+          "input": {
+            "cpu_cores": -1,
+            "name": ""
+          },
+          "loc": [
+            "body",
+            "memory_mb"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        },
+        {
+          "input": {
+            "cpu_cores": -1,
+            "name": ""
+          },
+          "loc": [
+            "body",
+            "criticality"
+          ],
+          "msg": "Field required",
+          "type": "missing"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/vms/<uuid:4>",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "expected": "'running', 'powered_off' or 'decommissioned'"
+          },
+          "input": "not-a-status",
+          "loc": [
+            "body",
+            "status"
+          ],
+          "msg": "Input should be 'running', 'powered_off' or 'decommissioned'",
+          "type": "enum"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/not-a-uuid",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "input": "not-a-uuid",
+          "loc": [
+            "path",
+            "vm_id"
+          ],
+          "type": "uuid_parsing"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms/<uuid:4>/clone",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "applications": [],
+      "backup_enabled": false,
+      "backup_location": null,
+      "business_owner": null,
+      "cluster": "parity-cluster",
+      "cpu_cores": 4,
+      "created_at": "<timestamp>",
+      "created_by_id": "<uuid:0>",
+      "criticality": "high",
+      "datacenter": null,
+      "decommission_date": null,
+      "description": null,
+      "disks": [
+        {
+          "disk_name": "boot",
+          "id": "<uuid:6>",
+          "size_gb": 32,
+          "sort_order": 0,
+          "storage_name": null,
+          "storage_type": null,
+          "vm_id": "<uuid:7>"
+        }
+      ],
+      "environment": "production",
+      "external_id": null,
+      "fqdn": null,
+      "ha_enabled": false,
+      "health_score": 55,
+      "id": "<uuid:7>",
+      "last_patch_date": null,
+      "last_verified_at": null,
+      "last_vuln_scan_date": null,
+      "memory_mb": 8192,
+      "monitoring_enabled": true,
+      "name": "parity-vm-2-copy",
+      "networks": [
+        {
+          "id": "<uuid:8>",
+          "ip_address": "192.0.2.10",
+          "role": "private",
+          "sort_order": 0,
+          "vm_id": "<uuid:7>"
+        }
+      ],
+      "node": null,
+      "os_distribution": null,
+      "os_family": "linux",
+      "os_version": null,
+      "owner": "new-owner",
+      "platform": "proxmox",
+      "pmp_enabled": false,
+      "security_remarks": null,
+      "sr_id": null,
+      "status": "running",
+      "tags": [
+        "parity"
+      ],
+      "technical_owner": null,
+      "updated_at": "<timestamp>",
+      "updated_by_id": "<uuid:0>",
+      "vm_type": "permanent"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms/<uuid:4>/disks",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "disk_name": "data",
+      "id": "<uuid:9>",
+      "size_gb": 64,
+      "sort_order": 0,
+      "storage_name": null,
+      "storage_type": null,
+      "vm_id": "<uuid:4>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/<uuid:4>/disks",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "disk_name": "boot",
+        "id": "<uuid:3>",
+        "size_gb": 32,
+        "sort_order": 0,
+        "storage_name": null,
+        "storage_type": null,
+        "vm_id": "<uuid:4>"
+      },
+      {
+        "disk_name": "data",
+        "id": "<uuid:9>",
+        "size_gb": 64,
+        "sort_order": 0,
+        "storage_name": null,
+        "storage_type": null,
+        "vm_id": "<uuid:4>"
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/vms/<uuid:4>/disks/<uuid:9>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "disk_name": "data",
+      "id": "<uuid:9>",
+      "size_gb": 128,
+      "sort_order": 0,
+      "storage_name": null,
+      "storage_type": null,
+      "vm_id": "<uuid:4>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/vms/<uuid:4>/disks/<uuid:9>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms/<uuid:4>/networks",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "id": "<uuid:10>",
+      "ip_address": "192.0.2.11",
+      "role": "public",
+      "sort_order": 0,
+      "vm_id": "<uuid:4>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/<uuid:4>/networks",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "id": "<uuid:5>",
+        "ip_address": "192.0.2.10",
+        "role": "private",
+        "sort_order": 0,
+        "vm_id": "<uuid:4>"
+      },
+      {
+        "id": "<uuid:10>",
+        "ip_address": "192.0.2.11",
+        "role": "public",
+        "sort_order": 0,
+        "vm_id": "<uuid:4>"
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/vms/<uuid:4>/networks/<uuid:10>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "id": "<uuid:10>",
+      "ip_address": "192.0.2.11",
+      "role": "backup",
+      "sort_order": 0,
+      "vm_id": "<uuid:4>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/vms/<uuid:4>/networks/<uuid:10>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms/<uuid:4>/applications",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "app_name": "parity-app",
+      "app_owner": "ops",
+      "description": null,
+      "id": "<uuid:11>",
+      "vm_id": "<uuid:4>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/<uuid:4>/applications",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "app_name": "parity-app",
+        "app_owner": "ops",
+        "description": null,
+        "id": "<uuid:11>",
+        "vm_id": "<uuid:4>"
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/vms/<uuid:4>/applications/<uuid:11>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "app_name": "parity-app",
+      "app_owner": "ops",
+      "description": "updated",
+      "id": "<uuid:11>",
+      "vm_id": "<uuid:4>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/vms/<uuid:4>/applications/<uuid:11>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms/bulk",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "failed": [],
+      "updated": 1
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms/bulk",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "failed": [],
+      "updated": 2
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms/bulk",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "input": "forbidden",
+          "loc": [
+            "body",
+            "patch",
+            "name"
+          ],
+          "msg": "Extra inputs are not permitted",
+          "type": "extra_forbidden"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:6>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:7>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2-copy",
+          "networks": [
+            {
+              "id": "<uuid:8>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "parity"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        },
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:3>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:4>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2",
+          "networks": [
+            {
+              "id": "<uuid:5>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "bulk"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        }
+      ],
+      "limit": 50,
+      "offset": 0,
+      "total": 2
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms?limit=1&offset=1&sort=name&dir=desc",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:3>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:4>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2",
+          "networks": [
+            {
+              "id": "<uuid:5>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "bulk"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        }
+      ],
+      "limit": 1,
+      "offset": 1,
+      "total": 2
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms?status=running&status=stopped",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "expected": "'running', 'powered_off' or 'decommissioned'"
+          },
+          "input": "stopped",
+          "loc": [
+            "query",
+            "status",
+            1
+          ],
+          "msg": "Input should be 'running', 'powered_off' or 'decommissioned'",
+          "type": "enum"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms?q=bulk-owner",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:6>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:7>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2-copy",
+          "networks": [
+            {
+              "id": "<uuid:8>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "parity"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        },
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:3>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:4>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2",
+          "networks": [
+            {
+              "id": "<uuid:5>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "bulk"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        }
+      ],
+      "limit": 50,
+      "offset": 0,
+      "total": 2
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms?cluster=parity-cluster",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:6>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:7>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2-copy",
+          "networks": [
+            {
+              "id": "<uuid:8>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "parity"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        },
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:3>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:4>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2",
+          "networks": [
+            {
+              "id": "<uuid:5>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "bulk"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        }
+      ],
+      "limit": 50,
+      "offset": 0,
+      "total": 2
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms?missing_ip=true",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "items": [],
+      "limit": 50,
+      "offset": 0,
+      "total": 0
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms?platform=invalid",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "expected": "'proxmox' or 'vmware'"
+          },
+          "input": "invalid",
+          "loc": [
+            "query",
+            "platform",
+            0
+          ],
+          "msg": "Input should be 'proxmox' or 'vmware'",
+          "type": "enum"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms?limit=-1",
+    "status": 422,
+    "content_type": "application/json",
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "ge": 1
+          },
+          "input": "-1",
+          "loc": [
+            "query",
+            "limit"
+          ],
+          "msg": "Input should be greater than or equal to 1",
+          "type": "greater_than_equal"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/clusters",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      "parity-cluster"
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/nodes",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/owners",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      "bulk-owner"
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/tags",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      "bulk",
+      "parity"
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/applications",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/suggestions",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "backup_location": [],
+      "business_owner": [],
+      "datacenter": [],
+      "os_distribution": [],
+      "os_version": [],
+      "technical_owner": []
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/<uuid:4>/audit?limit=50",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "changed_at": "<timestamp>",
+        "field_name": "owner",
+        "id": "<uuid:12>",
+        "new_value": "bulk-owner",
+        "old_value": "new-owner",
+        "user": {
+          "email": "admin@parity.test",
+          "id": "<uuid:0>"
+        },
+        "user_id": "<uuid:0>",
+        "vm_id": "<uuid:4>"
+      },
+      {
+        "changed_at": "<timestamp>",
+        "field_name": "tags",
+        "id": "<uuid:13>",
+        "new_value": "['bulk']",
+        "old_value": "['parity']",
+        "user": {
+          "email": "admin@parity.test",
+          "id": "<uuid:0>"
+        },
+        "user_id": "<uuid:0>",
+        "vm_id": "<uuid:4>"
+      },
+      {
+        "changed_at": "<timestamp>",
+        "field_name": "monitoring_enabled",
+        "id": "<uuid:14>",
+        "new_value": "True",
+        "old_value": "False",
+        "user": {
+          "email": "admin@parity.test",
+          "id": "<uuid:0>"
+        },
+        "user_id": "<uuid:0>",
+        "vm_id": "<uuid:4>"
+      },
+      {
+        "changed_at": "<timestamp>",
+        "field_name": "owner",
+        "id": "<uuid:15>",
+        "new_value": "new-owner",
+        "old_value": "ops",
+        "user": {
+          "email": "admin@parity.test",
+          "id": "<uuid:0>"
+        },
+        "user_id": "<uuid:0>",
+        "vm_id": "<uuid:4>"
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/export?format=csv",
+    "status": 200,
+    "content_type": "text/csv",
+    "body": [
+      [
+        "name",
+        "external_id",
+        "fqdn",
+        "platform",
+        "datacenter",
+        "sr_id",
+        "cluster",
+        "node",
+        "status",
+        "environment",
+        "criticality",
+        "vm_type",
+        "cpu_cores",
+        "memory_mb",
+        "os_family",
+        "os_distribution",
+        "os_version",
+        "owner",
+        "business_owner",
+        "technical_owner",
+        "pmp_enabled",
+        "monitoring_enabled",
+        "backup_enabled",
+        "backup_location",
+        "ha_enabled",
+        "tags",
+        "last_patch_date",
+        "last_vuln_scan_date",
+        "security_remarks",
+        "decommission_date",
+        "last_verified_at",
+        "description",
+        "health_score",
+        "created_at",
+        "updated_at",
+        "disks",
+        "private_ip",
+        "public_ip",
+        "backup_ip",
+        "applications"
+      ],
+      [
+        "parity-vm-2",
+        "",
+        "",
+        "proxmox",
+        "",
+        "",
+        "parity-cluster",
+        "",
+        "running",
+        "production",
+        "high",
+        "permanent",
+        "4",
+        "8192",
+        "linux",
+        "",
+        "",
+        "bulk-owner",
+        "",
+        "",
+        "false",
+        "true",
+        "false",
+        "",
+        "false",
+        "bulk",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "55",
+        "<timestamp>",
+        "<timestamp>",
+        "boot:32",
+        "192.0.2.10",
+        "",
+        "",
+        ""
+      ],
+      [
+        "parity-vm-2-copy",
+        "",
+        "",
+        "proxmox",
+        "",
+        "",
+        "parity-cluster",
+        "",
+        "running",
+        "production",
+        "high",
+        "permanent",
+        "4",
+        "8192",
+        "linux",
+        "",
+        "",
+        "bulk-owner",
+        "",
+        "",
+        "false",
+        "true",
+        "false",
+        "",
+        "false",
+        "parity",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "55",
+        "<timestamp>",
+        "<timestamp>",
+        "boot:32",
+        "192.0.2.10",
+        "",
+        "",
+        ""
+      ]
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms/export?format=xlsx",
+    "status": 200,
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "body": {
+      "rows": [
+        {
+          "A": "name",
+          "AA": "last_patch_date",
+          "AB": "last_vuln_scan_date",
+          "AC": "security_remarks",
+          "AD": "decommission_date",
+          "AE": "last_verified_at",
+          "AF": "description",
+          "AG": "health_score",
+          "AH": "created_at",
+          "AI": "updated_at",
+          "AJ": "disks",
+          "AK": "private_ip",
+          "AL": "public_ip",
+          "AM": "backup_ip",
+          "AN": "applications",
+          "B": "external_id",
+          "C": "fqdn",
+          "D": "platform",
+          "E": "datacenter",
+          "F": "sr_id",
+          "G": "cluster",
+          "H": "node",
+          "I": "status",
+          "J": "environment",
+          "K": "criticality",
+          "L": "vm_type",
+          "M": "cpu_cores",
+          "N": "memory_mb",
+          "O": "os_family",
+          "P": "os_distribution",
+          "Q": "os_version",
+          "R": "owner",
+          "S": "business_owner",
+          "T": "technical_owner",
+          "U": "pmp_enabled",
+          "V": "monitoring_enabled",
+          "W": "backup_enabled",
+          "X": "backup_location",
+          "Y": "ha_enabled",
+          "Z": "tags"
+        },
+        {
+          "A": "parity-vm-2",
+          "AG": "55",
+          "AH": "<timestamp>",
+          "AI": "<timestamp>",
+          "AJ": "boot:32",
+          "AK": "192.0.2.10",
+          "AL": "",
+          "AM": "",
+          "AN": "",
+          "D": "proxmox",
+          "G": "parity-cluster",
+          "I": "running",
+          "J": "production",
+          "K": "high",
+          "L": "permanent",
+          "M": "4",
+          "N": "8192",
+          "O": "linux",
+          "R": "bulk-owner",
+          "U": "false",
+          "V": "true",
+          "W": "false",
+          "Y": "false",
+          "Z": "bulk"
+        },
+        {
+          "A": "parity-vm-2-copy",
+          "AG": "55",
+          "AH": "<timestamp>",
+          "AI": "<timestamp>",
+          "AJ": "boot:32",
+          "AK": "192.0.2.10",
+          "AL": "",
+          "AM": "",
+          "AN": "",
+          "D": "proxmox",
+          "G": "parity-cluster",
+          "I": "running",
+          "J": "production",
+          "K": "high",
+          "L": "permanent",
+          "M": "4",
+          "N": "8192",
+          "O": "linux",
+          "R": "bulk-owner",
+          "U": "false",
+          "V": "true",
+          "W": "false",
+          "Y": "false",
+          "Z": "parity"
+        }
+      ]
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/clusters",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "created_at": "<timestamp>",
+      "description": null,
+      "id": "<uuid:16>",
+      "name": "physical-parity",
+      "nodes": [],
+      "notes": null,
+      "updated_at": "<timestamp>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/clusters",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "description": null,
+        "id": "<uuid:16>",
+        "name": "physical-parity",
+        "node_count": 0,
+        "total_ram_gb": 0,
+        "total_storage_gb": 0
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/clusters/<uuid:16>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "created_at": "<timestamp>",
+      "description": null,
+      "id": "<uuid:16>",
+      "name": "physical-parity",
+      "nodes": [],
+      "notes": null,
+      "updated_at": "<timestamp>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/clusters/<uuid:16>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "created_at": "<timestamp>",
+      "description": "updated",
+      "id": "<uuid:16>",
+      "name": "physical-parity",
+      "nodes": [],
+      "notes": null,
+      "updated_at": "<timestamp>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/clusters/<uuid:16>/nodes",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "cluster_id": "<uuid:16>",
+      "cpu_cores": 8,
+      "cpu_model": null,
+      "cpu_threads": 0,
+      "datacenter": null,
+      "id": "<uuid:17>",
+      "ip_addresses": [],
+      "name": "node-1",
+      "notes": null,
+      "rack": null,
+      "rack_unit": null,
+      "ram_total_gb": 64,
+      "ram_used_gb": null,
+      "sort_order": 0,
+      "storage_usable_gb": 0
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/clusters/<uuid:16>/nodes",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "cluster_id": "<uuid:16>",
+        "cpu_cores": 8,
+        "cpu_model": null,
+        "cpu_threads": 0,
+        "datacenter": null,
+        "id": "<uuid:17>",
+        "ip_addresses": [],
+        "name": "node-1",
+        "notes": null,
+        "rack": null,
+        "rack_unit": null,
+        "ram_total_gb": 64,
+        "ram_used_gb": null,
+        "sort_order": 0,
+        "storage_usable_gb": 0
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/clusters/<uuid:16>/nodes/<uuid:17>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "cluster_id": "<uuid:16>",
+      "cpu_cores": 16,
+      "cpu_model": null,
+      "cpu_threads": 0,
+      "datacenter": null,
+      "id": "<uuid:17>",
+      "ip_addresses": [],
+      "name": "node-1",
+      "notes": null,
+      "rack": null,
+      "rack_unit": null,
+      "ram_total_gb": 64,
+      "ram_used_gb": null,
+      "sort_order": 0,
+      "storage_usable_gb": 0
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/clusters/<uuid:16>/nodes/<uuid:17>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/storage/arrays",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "created_at": "<timestamp>",
+      "datacenter": null,
+      "description": null,
+      "id": "<uuid:18>",
+      "mgmt_host": null,
+      "model": null,
+      "name": "parity-array",
+      "notes": null,
+      "over_threshold": true,
+      "total_capacity_gb": 1000,
+      "updated_at": "<timestamp>",
+      "used_capacity_gb": 800,
+      "used_pct": 80.0,
+      "vendor": "netapp",
+      "volumes": []
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/storage/arrays",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "datacenter": null,
+        "id": "<uuid:18>",
+        "lun_count": 0,
+        "name": "parity-array",
+        "over_threshold": true,
+        "share_count": 0,
+        "total_capacity_gb": 1000,
+        "used_capacity_gb": 800,
+        "used_pct": 80.0,
+        "vendor": "netapp",
+        "volume_count": 0
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/storage/arrays/<uuid:18>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "created_at": "<timestamp>",
+      "datacenter": null,
+      "description": null,
+      "id": "<uuid:18>",
+      "mgmt_host": null,
+      "model": null,
+      "name": "parity-array",
+      "notes": null,
+      "over_threshold": true,
+      "total_capacity_gb": 1000,
+      "updated_at": "<timestamp>",
+      "used_capacity_gb": 800,
+      "used_pct": 80.0,
+      "vendor": "netapp",
+      "volumes": []
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/storage/arrays/<uuid:18>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "created_at": "<timestamp>",
+      "datacenter": null,
+      "description": "updated",
+      "id": "<uuid:18>",
+      "mgmt_host": null,
+      "model": null,
+      "name": "parity-array",
+      "notes": null,
+      "over_threshold": true,
+      "total_capacity_gb": 1000,
+      "updated_at": "<timestamp>",
+      "used_capacity_gb": 800,
+      "used_pct": 80.0,
+      "vendor": "netapp",
+      "volumes": []
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/storage/arrays/<uuid:18>/volumes",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "array_id": "<uuid:18>",
+      "capacity_gb": 0,
+      "id": "<uuid:19>",
+      "name": "parity-vol",
+      "notes": null,
+      "sort_order": 0,
+      "used_gb": 0
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/storage/arrays/<uuid:18>/volumes",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "array_id": "<uuid:18>",
+        "capacity_gb": 0,
+        "id": "<uuid:19>",
+        "name": "parity-vol",
+        "notes": null,
+        "sort_order": 0,
+        "used_gb": 0
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/storage/arrays/<uuid:18>/volumes/<uuid:19>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "array_id": "<uuid:18>",
+      "capacity_gb": 0,
+      "id": "<uuid:19>",
+      "name": "renamed-vol",
+      "notes": null,
+      "sort_order": 0,
+      "used_gb": 0
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/storage/volumes/<uuid:19>/luns",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "cluster": null,
+      "id": "<uuid:20>",
+      "name": "lun-1",
+      "size_gb": 50,
+      "sort_order": 0,
+      "status": null,
+      "target_iqn": null,
+      "used_gb": null,
+      "volume_id": "<uuid:19>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/storage/volumes/<uuid:19>/luns",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "cluster": null,
+        "id": "<uuid:20>",
+        "name": "lun-1",
+        "size_gb": 50,
+        "sort_order": 0,
+        "status": null,
+        "target_iqn": null,
+        "used_gb": null,
+        "volume_id": "<uuid:19>"
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/storage/volumes/<uuid:19>/luns/<uuid:20>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "cluster": null,
+      "id": "<uuid:20>",
+      "name": "lun-1",
+      "size_gb": 60,
+      "sort_order": 0,
+      "status": null,
+      "target_iqn": null,
+      "used_gb": null,
+      "volume_id": "<uuid:19>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/storage/volumes/<uuid:19>/luns/<uuid:20>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/storage/volumes/<uuid:19>/shares",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "allowed_clients": null,
+      "export_path": "/parity",
+      "id": "<uuid:21>",
+      "notes": null,
+      "sort_order": 0,
+      "used_gb": null,
+      "volume_id": "<uuid:19>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/storage/volumes/<uuid:19>/shares",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "allowed_clients": null,
+        "export_path": "/parity",
+        "id": "<uuid:21>",
+        "notes": null,
+        "sort_order": 0,
+        "used_gb": null,
+        "volume_id": "<uuid:19>"
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/storage/volumes/<uuid:19>/shares/<uuid:21>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "allowed_clients": null,
+      "export_path": "/parity",
+      "id": "<uuid:21>",
+      "notes": "updated",
+      "sort_order": 0,
+      "used_gb": null,
+      "volume_id": "<uuid:19>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/storage/volumes/<uuid:19>/shares/<uuid:21>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/dashboard",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "by_criticality": {
+        "high": 2
+      },
+      "by_environment": {
+        "production": 2
+      },
+      "by_os_family": {
+        "linux": 2
+      },
+      "by_status": {
+        "running": 2
+      },
+      "decommission_overdue": [],
+      "development": 0,
+      "duplicate_ip": [
+        {
+          "days": 0,
+          "detail": "192.0.2.10",
+          "environment": "production",
+          "id": "<uuid:4>",
+          "name": "parity-vm-2"
+        },
+        {
+          "days": 0,
+          "detail": "192.0.2.10",
+          "environment": "production",
+          "id": "<uuid:7>",
+          "name": "parity-vm-2-copy"
+        }
+      ],
+      "linux": 2,
+      "missing_ip": [],
+      "powered_off": 0,
+      "production": 2,
+      "shutdown_stale": [],
+      "test_uat": 0,
+      "total": 2,
+      "total_disk_gb": 64.0,
+      "total_memory_gb": 16.0,
+      "total_vcpu": 8,
+      "windows": 0,
+      "without_applications": 2,
+      "without_monitoring": 0
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "applications": [],
+      "backup_enabled": false,
+      "backup_location": null,
+      "business_owner": null,
+      "cluster": "parity-cluster",
+      "cpu_cores": 4,
+      "created_at": "<timestamp>",
+      "created_by_id": "<uuid:0>",
+      "criticality": "high",
+      "datacenter": null,
+      "decommission_date": "2000-01-01",
+      "description": null,
+      "disks": [
+        {
+          "disk_name": "boot",
+          "id": "<uuid:22>",
+          "size_gb": 32,
+          "sort_order": 0,
+          "storage_name": null,
+          "storage_type": null,
+          "vm_id": "<uuid:23>"
+        }
+      ],
+      "environment": "production",
+      "external_id": null,
+      "fqdn": null,
+      "ha_enabled": false,
+      "health_score": 0,
+      "id": "<uuid:23>",
+      "last_patch_date": null,
+      "last_verified_at": null,
+      "last_vuln_scan_date": null,
+      "memory_mb": 8192,
+      "monitoring_enabled": false,
+      "name": "tmpl-excluded",
+      "networks": [],
+      "node": null,
+      "os_distribution": null,
+      "os_family": "linux",
+      "os_version": null,
+      "owner": "ops",
+      "platform": "proxmox",
+      "pmp_enabled": false,
+      "security_remarks": null,
+      "sr_id": null,
+      "status": "running",
+      "tags": [
+        "Template"
+      ],
+      "technical_owner": null,
+      "updated_at": "<timestamp>",
+      "updated_by_id": "<uuid:0>",
+      "vm_type": "permanent"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/vms",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "applications": [],
+      "backup_enabled": false,
+      "backup_location": null,
+      "business_owner": null,
+      "cluster": "parity-cluster",
+      "cpu_cores": 4,
+      "created_at": "<timestamp>",
+      "created_by_id": "<uuid:0>",
+      "criticality": "high",
+      "datacenter": null,
+      "decommission_date": "2000-01-01",
+      "description": null,
+      "disks": [
+        {
+          "disk_name": "boot",
+          "id": "<uuid:24>",
+          "size_gb": 32,
+          "sort_order": 0,
+          "storage_name": null,
+          "storage_type": null,
+          "vm_id": "<uuid:25>"
+        }
+      ],
+      "environment": "production",
+      "external_id": null,
+      "fqdn": null,
+      "ha_enabled": false,
+      "health_score": 45,
+      "id": "<uuid:25>",
+      "last_patch_date": null,
+      "last_verified_at": null,
+      "last_vuln_scan_date": null,
+      "memory_mb": 8192,
+      "monitoring_enabled": false,
+      "name": "backup-excluded",
+      "networks": [],
+      "node": null,
+      "os_distribution": null,
+      "os_family": "linux",
+      "os_version": null,
+      "owner": "ops",
+      "platform": "proxmox",
+      "pmp_enabled": false,
+      "security_remarks": null,
+      "sr_id": null,
+      "status": "running",
+      "tags": [
+        "BACKUP"
+      ],
+      "technical_owner": null,
+      "updated_at": "<timestamp>",
+      "updated_by_id": "<uuid:0>",
+      "vm_type": "permanent"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/dashboard",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "by_criticality": {
+        "high": 2
+      },
+      "by_environment": {
+        "production": 2
+      },
+      "by_os_family": {
+        "linux": 2
+      },
+      "by_status": {
+        "running": 2
+      },
+      "decommission_overdue": [],
+      "development": 0,
+      "duplicate_ip": [
+        {
+          "days": 0,
+          "detail": "192.0.2.10",
+          "environment": "production",
+          "id": "<uuid:4>",
+          "name": "parity-vm-2"
+        },
+        {
+          "days": 0,
+          "detail": "192.0.2.10",
+          "environment": "production",
+          "id": "<uuid:7>",
+          "name": "parity-vm-2-copy"
+        }
+      ],
+      "linux": 2,
+      "missing_ip": [],
+      "powered_off": 0,
+      "production": 2,
+      "shutdown_stale": [],
+      "test_uat": 0,
+      "total": 2,
+      "total_disk_gb": 64.0,
+      "total_memory_gb": 16.0,
+      "total_vcpu": 8,
+      "windows": 0,
+      "without_applications": 2,
+      "without_monitoring": 0
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms?q=excluded&missing_ip=true",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "items": [],
+      "limit": 50,
+      "offset": 0,
+      "total": 0
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms?q=excluded",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": "2000-01-01",
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:24>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:25>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 45,
+          "id": "<uuid:25>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": false,
+          "name": "backup-excluded",
+          "networks": [],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "ops",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "BACKUP"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        },
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": "2000-01-01",
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:22>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:23>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 0,
+          "id": "<uuid:23>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": false,
+          "name": "tmpl-excluded",
+          "networks": [],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "ops",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "Template"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        }
+      ],
+      "limit": 50,
+      "offset": 0,
+      "total": 2
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/notifications/decommissions",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/vms/<uuid:23>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/vms/<uuid:25>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/reports/summary",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "counts": {
+        "applications": 0,
+        "decommission": 0,
+        "linux": 2,
+        "monitoring": 2,
+        "owner": 0,
+        "pmp_access": 0,
+        "production": 2,
+        "windows": 0
+      },
+      "total_vms": 2
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/reports/linux?format=csv",
+    "status": 200,
+    "content_type": "text/csv",
+    "body": [
+      [
+        "name",
+        "external_id",
+        "sr_id",
+        "fqdn",
+        "platform",
+        "cluster",
+        "node",
+        "environment",
+        "status",
+        "criticality",
+        "cpu_cores",
+        "memory_mb",
+        "os_family",
+        "os_distribution",
+        "os_version",
+        "business_owner",
+        "technical_owner",
+        "pmp_enabled",
+        "monitoring_enabled",
+        "last_patch_date",
+        "last_vuln_scan_date",
+        "decommission_date",
+        "description",
+        "tags",
+        "applications"
+      ],
+      [
+        "parity-vm-2",
+        "",
+        "",
+        "",
+        "proxmox",
+        "parity-cluster",
+        "",
+        "production",
+        "running",
+        "high",
+        "4",
+        "8192",
+        "linux",
+        "",
+        "",
+        "",
+        "",
+        "No",
+        "Yes",
+        "",
+        "",
+        "",
+        "",
+        "bulk",
+        ""
+      ],
+      [
+        "parity-vm-2-copy",
+        "",
+        "",
+        "",
+        "proxmox",
+        "parity-cluster",
+        "",
+        "production",
+        "running",
+        "high",
+        "4",
+        "8192",
+        "linux",
+        "",
+        "",
+        "",
+        "",
+        "No",
+        "Yes",
+        "",
+        "",
+        "",
+        "",
+        "parity",
+        ""
+      ]
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/reports/windows?format=csv",
+    "status": 200,
+    "content_type": "text/csv",
+    "body": [
+      [
+        "name",
+        "external_id",
+        "sr_id",
+        "fqdn",
+        "platform",
+        "cluster",
+        "node",
+        "environment",
+        "status",
+        "criticality",
+        "cpu_cores",
+        "memory_mb",
+        "os_family",
+        "os_distribution",
+        "os_version",
+        "business_owner",
+        "technical_owner",
+        "pmp_enabled",
+        "monitoring_enabled",
+        "last_patch_date",
+        "last_vuln_scan_date",
+        "decommission_date",
+        "description",
+        "tags",
+        "applications"
+      ]
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/reports/missing?format=csv",
+    "status": 404,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Unknown report 'missing'. Available: linux, windows, production, monitoring, applications, owner, pmp_access, decommission"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/notifications/decommissions",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/notifications/duplicate-ips",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "ip_address": "192.0.2.10",
+        "occurrences": 2,
+        "vms": [
+          {
+            "name": "parity-vm-2",
+            "vm_id": "<uuid:4>"
+          },
+          {
+            "name": "parity-vm-2-copy",
+            "vm_id": "<uuid:7>"
+          }
+        ]
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/notifications/decommissions/ack",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/imports/template",
+    "status": 200,
+    "content_type": "text/csv",
+    "body": [
+      [
+        "name",
+        "external_id",
+        "fqdn",
+        "sr_id",
+        "platform",
+        "datacenter",
+        "cluster",
+        "node",
+        "status",
+        "environment",
+        "criticality",
+        "vm_type",
+        "cpu_cores",
+        "memory_mb",
+        "disks",
+        "storage_name",
+        "storage_type",
+        "os_family",
+        "os_distribution",
+        "os_version",
+        "private_ip",
+        "public_ip",
+        "backup_ip",
+        "owner",
+        "business_owner",
+        "technical_owner",
+        "applications",
+        "monitoring_enabled",
+        "pmp_enabled",
+        "ha_enabled",
+        "backup_enabled",
+        "backup_location",
+        "tags",
+        "last_patch_date",
+        "last_vuln_scan_date",
+        "last_verified_at",
+        "decommission_date",
+        "security_remarks",
+        "description"
+      ],
+      [
+        "SAMPLE-web-01",
+        "VM-1001",
+        "web-01.corp.local",
+        "SR-2481",
+        "proxmox",
+        "DC-Mumbai",
+        "pve-cluster-01",
+        "pve-node-03",
+        "running",
+        "production",
+        "high",
+        "permanent",
+        "4",
+        "8192",
+        "os:100;data:500",
+        "SAMPLE-SAN-01",
+        "ssd",
+        "linux",
+        "ubuntu",
+        "22.04",
+        "10.20.30.41",
+        "",
+        "",
+        "infra-team",
+        "Retail Ops",
+        "A. Sharma",
+        "nginx:web-team;postgres:dba-team",
+        "true",
+        "true",
+        "true",
+        "true",
+        "Veeam-Repo-01",
+        "web;tier1",
+        "2026-07-14",
+        "2026-07-01",
+        "2026-07-20",
+        "",
+        "",
+        "Sample row - delete before importing"
+      ],
+      [
+        "SAMPLE-test-02",
+        "VM-1002",
+        "test-02.corp.local",
+        "SR-2492",
+        "vmware",
+        "DC-Pune",
+        "vc-cluster-02",
+        "esxi-node-11",
+        "powered_off",
+        "testing",
+        "low",
+        "temporary",
+        "2",
+        "4096",
+        "os:60",
+        "",
+        "",
+        "windows",
+        "",
+        "2022",
+        "10.20.31.52",
+        "",
+        "",
+        "qa-team",
+        "QA",
+        "R. Iyer",
+        "iis",
+        "false",
+        "false",
+        "false",
+        "false",
+        "",
+        "sandbox",
+        "2026-06-02",
+        "",
+        "",
+        "2026-09-30",
+        "",
+        "Sample row - delete before importing"
+      ]
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/imports/preview",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "committed_at": null,
+      "created_at": "<timestamp>",
+      "created_by_id": "<uuid:0>",
+      "field_changes": {},
+      "filename": "parity.csv",
+      "full_inventory": false,
+      "id": "<uuid:26>",
+      "ignored_columns": [],
+      "rows": [
+        {
+          "action": "create",
+          "changes": {},
+          "created_at": "<timestamp>",
+          "errors": [],
+          "id": "<uuid:27>",
+          "normalized": {
+            "cluster": "parity-cluster",
+            "cpu_cores": 2,
+            "criticality": "low",
+            "memory_mb": 2048,
+            "name": "imported-parity",
+            "platform": "proxmox",
+            "status": "running"
+          },
+          "raw": {
+            "cluster": "parity-cluster",
+            "cpu_cores": "2",
+            "criticality": "low",
+            "memory_mb": "2048",
+            "name": "imported-parity",
+            "platform": "proxmox",
+            "status": "running"
+          },
+          "row_number": 2,
+          "target_vm_id": null,
+          "warnings": []
+        }
+      ],
+      "status": "previewed",
+      "summary": {
+        "conflict": 0,
+        "create": 1,
+        "decommission": 0,
+        "invalid": 0,
+        "unchanged": 0,
+        "update": 0
+      }
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/imports/<uuid:26>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "committed_at": null,
+      "created_at": "<timestamp>",
+      "created_by_id": "<uuid:0>",
+      "field_changes": {},
+      "filename": "parity.csv",
+      "full_inventory": false,
+      "id": "<uuid:26>",
+      "ignored_columns": [],
+      "rows": [
+        {
+          "action": "create",
+          "changes": {},
+          "created_at": "<timestamp>",
+          "errors": [],
+          "id": "<uuid:27>",
+          "normalized": {
+            "cluster": "parity-cluster",
+            "cpu_cores": 2,
+            "criticality": "low",
+            "memory_mb": 2048,
+            "name": "imported-parity",
+            "platform": "proxmox",
+            "status": "running"
+          },
+          "raw": {
+            "cluster": "parity-cluster",
+            "cpu_cores": "2",
+            "criticality": "low",
+            "memory_mb": "2048",
+            "name": "imported-parity",
+            "platform": "proxmox",
+            "status": "running"
+          },
+          "row_number": 2,
+          "target_vm_id": null,
+          "warnings": []
+        }
+      ],
+      "status": "previewed",
+      "summary": {
+        "conflict": 0,
+        "create": 1,
+        "decommission": 0,
+        "invalid": 0,
+        "unchanged": 0,
+        "update": 0
+      }
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/imports/<uuid:26>/commit",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "created": 1,
+      "decommissioned": 0,
+      "updated": 0
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/imports/<uuid:26>/commit",
+    "status": 409,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Import batch is not previewed"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/imports/preview",
+    "status": 400,
+    "content_type": "application/json",
+    "body": {
+      "detail": "CSV upload must use text/csv content type"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/backups",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "backups": [],
+      "jobs": [],
+      "settings": {
+        "enabled": false,
+        "hour_utc": 2,
+        "retention": 7
+      }
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/backups/settings",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "enabled": false,
+      "hour_utc": 3,
+      "retention": 2
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/backups/missing.dump/download",
+    "status": 404,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Backup not found"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/backups/missing.dump",
+    "status": 404,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Backup not found"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/backups/restore",
+    "status": 400,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Type RESTORE to confirm"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/backups",
+    "status": 201,
+    "content_type": "application/json",
+    "body": {
+      "error": null,
+      "filename": "inventorymgr-<timestamp>-manual.dump",
+      "finished_at": "<timestamp>",
+      "id": "<uuid:28>",
+      "kind": "manual",
+      "size_bytes": "<nonempty-dump>",
+      "started_at": "<timestamp>",
+      "status": "success",
+      "user_id": "<uuid:0>"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/backups/inventorymgr-<timestamp>-manual.dump/download",
+    "status": 200,
+    "content_type": "application/octet-stream",
+    "body": {
+      "nonempty": true,
+      "postgres_dump": true
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/backups/inventorymgr-<timestamp>-manual.dump",
+    "status": 204,
+    "content_type": "",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/login",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "user": {
+        "auth_source": "local",
+        "created_at": "<timestamp>",
+        "email": "viewer@parity.test",
+        "id": "<uuid:2>",
+        "is_active": true,
+        "role": "viewer",
+        "updated_at": "<timestamp>"
+      }
+    },
+    "cookies": {
+      "inventorymgr_session": {
+        "path": "/",
+        "httponly": true,
+        "samesite": "lax"
+      },
+      "inventorymgr_csrf": {
+        "path": "/",
+        "samesite": "lax"
+      },
+      "inventorymgr_refresh": {
+        "path": "/api/auth/refresh",
+        "httponly": true,
+        "samesite": "strict"
+      }
+    },
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/refresh",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "user": {
+        "auth_source": "local",
+        "created_at": "<timestamp>",
+        "email": "viewer@parity.test",
+        "id": "<uuid:2>",
+        "is_active": true,
+        "role": "viewer",
+        "updated_at": "<timestamp>"
+      }
+    },
+    "cookies": {
+      "inventorymgr_session": {
+        "path": "/",
+        "httponly": true,
+        "samesite": "lax"
+      },
+      "inventorymgr_csrf": {
+        "path": "/",
+        "samesite": "lax"
+      },
+      "inventorymgr_refresh": {
+        "path": "/api/auth/refresh",
+        "httponly": true,
+        "samesite": "strict"
+      }
+    },
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/users",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Insufficient permissions"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/settings/ldap",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Insufficient permissions"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/backups",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Insufficient permissions"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 2,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "low",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 0,
+          "id": "<uuid:29>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 2048,
+          "monitoring_enabled": false,
+          "name": "imported-parity",
+          "networks": [],
+          "node": null,
+          "os_distribution": null,
+          "os_family": null,
+          "os_version": null,
+          "owner": null,
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        },
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:6>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:7>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2-copy",
+          "networks": [
+            {
+              "id": "<uuid:8>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "parity"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        },
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:3>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:4>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2",
+          "networks": [
+            {
+              "id": "<uuid:5>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "bulk"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        }
+      ],
+      "limit": 50,
+      "offset": 0,
+      "total": 3
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/clusters",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "description": "updated",
+        "id": "<uuid:16>",
+        "name": "physical-parity",
+        "node_count": 0,
+        "total_ram_gb": 0,
+        "total_storage_gb": 0
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/storage/arrays",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "datacenter": null,
+        "id": "<uuid:18>",
+        "lun_count": 0,
+        "name": "parity-array",
+        "over_threshold": true,
+        "share_count": 0,
+        "total_capacity_gb": 1000,
+        "used_capacity_gb": 800,
+        "used_pct": 80.0,
+        "vendor": "netapp",
+        "volume_count": 1
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/vms/<uuid:4>",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Insufficient permissions"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/vms/<uuid:4>",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Insufficient permissions"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/vms/<uuid:4>",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Insufficient permissions"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PUT /api/user/accent",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "accent": "violet"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/logout",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {
+      "inventorymgr_session": {
+        "expires": "<timestamp>",
+        "path": "/",
+        "max-age": "0",
+        "samesite": "lax"
+      },
+      "inventorymgr_csrf": {
+        "expires": "<timestamp>",
+        "path": "/",
+        "max-age": "0",
+        "samesite": "lax"
+      },
+      "inventorymgr_refresh": {
+        "expires": "<timestamp>",
+        "path": "/api/auth/refresh",
+        "max-age": "0",
+        "samesite": "strict"
+      }
+    },
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/auth/me",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/login",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "user": {
+        "auth_source": "local",
+        "created_at": "<timestamp>",
+        "email": "editor@parity.test",
+        "id": "<uuid:1>",
+        "is_active": true,
+        "role": "editor",
+        "updated_at": "<timestamp>"
+      }
+    },
+    "cookies": {
+      "inventorymgr_session": {
+        "path": "/",
+        "httponly": true,
+        "samesite": "lax"
+      },
+      "inventorymgr_csrf": {
+        "path": "/",
+        "samesite": "lax"
+      },
+      "inventorymgr_refresh": {
+        "path": "/api/auth/refresh",
+        "max-age": "604800",
+        "httponly": true,
+        "samesite": "strict"
+      }
+    },
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/refresh",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "user": {
+        "auth_source": "local",
+        "created_at": "<timestamp>",
+        "email": "editor@parity.test",
+        "id": "<uuid:1>",
+        "is_active": true,
+        "role": "editor",
+        "updated_at": "<timestamp>"
+      }
+    },
+    "cookies": {
+      "inventorymgr_session": {
+        "path": "/",
+        "httponly": true,
+        "samesite": "lax"
+      },
+      "inventorymgr_csrf": {
+        "path": "/",
+        "samesite": "lax"
+      },
+      "inventorymgr_refresh": {
+        "path": "/api/auth/refresh",
+        "max-age": "604800",
+        "httponly": true,
+        "samesite": "strict"
+      }
+    },
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/users",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Insufficient permissions"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/settings/ldap",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Insufficient permissions"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/backups",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Insufficient permissions"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 2,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "low",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 0,
+          "id": "<uuid:29>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 2048,
+          "monitoring_enabled": false,
+          "name": "imported-parity",
+          "networks": [],
+          "node": null,
+          "os_distribution": null,
+          "os_family": null,
+          "os_version": null,
+          "owner": null,
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        },
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:6>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:7>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2-copy",
+          "networks": [
+            {
+              "id": "<uuid:8>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "parity"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        },
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:3>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:4>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2",
+          "networks": [
+            {
+              "id": "<uuid:5>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "bulk"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        }
+      ],
+      "limit": 50,
+      "offset": 0,
+      "total": 3
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/clusters",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "description": "updated",
+        "id": "<uuid:16>",
+        "name": "physical-parity",
+        "node_count": 0,
+        "total_ram_gb": 0,
+        "total_storage_gb": 0
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/storage/arrays",
+    "status": 200,
+    "content_type": "application/json",
+    "body": [
+      {
+        "datacenter": null,
+        "id": "<uuid:18>",
+        "lun_count": 0,
+        "name": "parity-array",
+        "over_threshold": true,
+        "share_count": 0,
+        "total_capacity_gb": 1000,
+        "used_capacity_gb": 800,
+        "used_pct": 80.0,
+        "vendor": "netapp",
+        "volume_count": 1
+      }
+    ],
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/vms/<uuid:4>",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "applications": [],
+      "backup_enabled": false,
+      "backup_location": null,
+      "business_owner": null,
+      "cluster": "parity-cluster",
+      "cpu_cores": 4,
+      "created_at": "<timestamp>",
+      "created_by_id": "<uuid:0>",
+      "criticality": "high",
+      "datacenter": null,
+      "decommission_date": null,
+      "description": "editor",
+      "disks": [
+        {
+          "disk_name": "boot",
+          "id": "<uuid:3>",
+          "size_gb": 32,
+          "sort_order": 0,
+          "storage_name": null,
+          "storage_type": null,
+          "vm_id": "<uuid:4>"
+        }
+      ],
+      "environment": "production",
+      "external_id": null,
+      "fqdn": null,
+      "ha_enabled": false,
+      "health_score": 65,
+      "id": "<uuid:4>",
+      "last_patch_date": null,
+      "last_verified_at": null,
+      "last_vuln_scan_date": null,
+      "memory_mb": 8192,
+      "monitoring_enabled": true,
+      "name": "parity-vm-2",
+      "networks": [
+        {
+          "id": "<uuid:5>",
+          "ip_address": "192.0.2.10",
+          "role": "private",
+          "sort_order": 0,
+          "vm_id": "<uuid:4>"
+        }
+      ],
+      "node": null,
+      "os_distribution": null,
+      "os_family": "linux",
+      "os_version": null,
+      "owner": "bulk-owner",
+      "platform": "proxmox",
+      "pmp_enabled": false,
+      "security_remarks": null,
+      "sr_id": null,
+      "status": "running",
+      "tags": [
+        "bulk"
+      ],
+      "technical_owner": null,
+      "updated_at": "<timestamp>",
+      "updated_by_id": "<uuid:1>",
+      "vm_type": "permanent"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PATCH /api/vms/<uuid:4>",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Invalid CSRF token"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/vms/<uuid:4>",
+    "status": 403,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Insufficient permissions"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "PUT /api/user/accent",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "accent": "violet"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/logout",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {
+      "inventorymgr_session": {
+        "expires": "<timestamp>",
+        "path": "/",
+        "max-age": "0",
+        "samesite": "lax"
+      },
+      "inventorymgr_csrf": {
+        "expires": "<timestamp>",
+        "path": "/",
+        "max-age": "0",
+        "samesite": "lax"
+      },
+      "inventorymgr_refresh": {
+        "expires": "<timestamp>",
+        "path": "/api/auth/refresh",
+        "max-age": "0",
+        "samesite": "strict"
+      }
+    },
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/auth/me",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/login",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "user": {
+        "auth_source": "local",
+        "created_at": "<timestamp>",
+        "email": "admin@parity.test",
+        "id": "<uuid:0>",
+        "is_active": true,
+        "role": "admin",
+        "updated_at": "<timestamp>"
+      }
+    },
+    "cookies": {
+      "inventorymgr_session": {
+        "path": "/",
+        "httponly": true,
+        "samesite": "lax"
+      },
+      "inventorymgr_csrf": {
+        "path": "/",
+        "samesite": "lax"
+      },
+      "inventorymgr_refresh": {
+        "path": "/api/auth/refresh",
+        "httponly": true,
+        "samesite": "strict"
+      }
+    },
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/storage/arrays/<uuid:18>/volumes/<uuid:19>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/storage/arrays/<uuid:18>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/clusters/<uuid:16>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/vms/<uuid:7>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/vms/<uuid:4>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "DELETE /api/users/<uuid:2>",
+    "status": 204,
+    "content_type": "application/json",
+    "body": "",
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/backups/restore",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "error": null,
+      "filename": "<restore-upload>.dump",
+      "finished_at": "<timestamp>",
+      "id": "<uuid:30>",
+      "kind": "restore",
+      "size_bytes": "<nonempty-dump>",
+      "started_at": "<timestamp>",
+      "status": "success",
+      "user_id": "<uuid:0>"
+    },
+    "cookies": {
+      "inventorymgr_session": {
+        "expires": "<timestamp>",
+        "path": "/",
+        "max-age": "0",
+        "samesite": "lax"
+      },
+      "inventorymgr_csrf": {
+        "expires": "<timestamp>",
+        "path": "/",
+        "max-age": "0",
+        "samesite": "lax"
+      },
+      "inventorymgr_refresh": {
+        "expires": "<timestamp>",
+        "path": "/api/auth/refresh",
+        "max-age": "0",
+        "samesite": "strict"
+      }
+    },
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/auth/me",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "Not authenticated"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/refresh",
+    "status": 401,
+    "content_type": "application/json",
+    "body": {
+      "detail": "No refresh token"
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "POST /api/auth/login",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "user": {
+        "auth_source": "local",
+        "created_at": "<timestamp>",
+        "email": "admin@parity.test",
+        "id": "<uuid:0>",
+        "is_active": true,
+        "role": "admin",
+        "updated_at": "<timestamp>"
+      }
+    },
+    "cookies": {
+      "inventorymgr_session": {
+        "path": "/",
+        "httponly": true,
+        "samesite": "lax"
+      },
+      "inventorymgr_csrf": {
+        "path": "/",
+        "samesite": "lax"
+      },
+      "inventorymgr_refresh": {
+        "path": "/api/auth/refresh",
+        "httponly": true,
+        "samesite": "strict"
+      }
+    },
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  },
+  {
+    "case": "GET /api/vms",
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 2,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "low",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 0,
+          "id": "<uuid:29>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 2048,
+          "monitoring_enabled": false,
+          "name": "imported-parity",
+          "networks": [],
+          "node": null,
+          "os_distribution": null,
+          "os_family": null,
+          "os_version": null,
+          "owner": null,
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        },
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:6>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:7>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2-copy",
+          "networks": [
+            {
+              "id": "<uuid:8>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:7>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "parity"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        },
+        {
+          "applications": [],
+          "backup_enabled": false,
+          "backup_location": null,
+          "business_owner": null,
+          "cluster": "parity-cluster",
+          "cpu_cores": 4,
+          "created_at": "<timestamp>",
+          "created_by_id": "<uuid:0>",
+          "criticality": "high",
+          "datacenter": null,
+          "decommission_date": null,
+          "description": null,
+          "disks": [
+            {
+              "disk_name": "boot",
+              "id": "<uuid:3>",
+              "size_gb": 32,
+              "sort_order": 0,
+              "storage_name": null,
+              "storage_type": null,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "environment": "production",
+          "external_id": null,
+          "fqdn": null,
+          "ha_enabled": false,
+          "health_score": 55,
+          "id": "<uuid:4>",
+          "last_patch_date": null,
+          "last_verified_at": null,
+          "last_vuln_scan_date": null,
+          "memory_mb": 8192,
+          "monitoring_enabled": true,
+          "name": "parity-vm-2",
+          "networks": [
+            {
+              "id": "<uuid:5>",
+              "ip_address": "192.0.2.10",
+              "role": "private",
+              "sort_order": 0,
+              "vm_id": "<uuid:4>"
+            }
+          ],
+          "node": null,
+          "os_distribution": null,
+          "os_family": "linux",
+          "os_version": null,
+          "owner": "bulk-owner",
+          "platform": "proxmox",
+          "pmp_enabled": false,
+          "security_remarks": null,
+          "sr_id": null,
+          "status": "running",
+          "tags": [
+            "bulk"
+          ],
+          "technical_owner": null,
+          "updated_at": "<timestamp>",
+          "updated_by_id": "<uuid:0>",
+          "vm_type": "permanent"
+        }
+      ],
+      "limit": 50,
+      "offset": 0,
+      "total": 3
+    },
+    "cookies": {},
+    "headers": {
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+    }
+  }
+]

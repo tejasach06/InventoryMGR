@@ -4,14 +4,8 @@
 .venv/
 node_modules/
 .mcp.json
-backend/.mypy_cache/
-backend/.pytest_cache/
-backend/.ruff_cache/
-backend/.coverage
-backend/coverage.json
 __pycache__/
 *.pyc
-backend/htmlcov/
 frontend/dist/
 frontend/coverage/
 frontend/.next/
@@ -33,8 +27,6 @@ frontend/playwright-report/
 .serena
 *.tsbuildinfo
 .pi/
-.pytest_cache/
-.ruff_cache/
 .worktrees/
 .impeccable/
 .superpowers/

@@ -4,12 +4,12 @@ export PATH := env("HOME") + "/.cargo/bin:" + env("HOME") + "/.local/bin:" + env
 setup:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	for tool in rustc cargo cc uv node pnpm podman; do
+	for tool in rustc cargo cc openssl node pnpm podman; do
 	    command -v "$tool" >/dev/null || { echo "Install $tool before running just setup (see README.md)" >&2; exit 1; }
 	done
 	(cd frontend && pnpm install --frozen-lockfile --strict-peer-dependencies)
 	(cd frontend && pnpm exec playwright install chromium --no-shell)
-	(cd backend && uv sync --frozen --extra dev)
+	(cd tools/parity && env -u CARGO_TARGET_DIR cargo build --locked)
 	(cd backend-rust && cargo build --locked)
 
 db-up:
@@ -32,7 +32,7 @@ env:
 	    echo ".env exists, leaving it alone"
 	else
 	    umask 077
-	    sed "s|^JWT_SECRET=.*|JWT_SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))')|" .env.example > .env
+	    sed "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -hex 32)|" .env.example > .env
 	    echo "wrote .env with a generated JWT_SECRET"
 	fi
 
@@ -49,7 +49,7 @@ quadlet-secrets:
 	if secret_exists inventorymgr-jwt-secret; then
 		echo "inventorymgr-jwt-secret exists — leaving it alone"
 	else
-		python3 -c 'import secrets; print(secrets.token_hex(32))' | podman secret create inventorymgr-jwt-secret - >/dev/null
+		openssl rand -hex 32 | podman secret create inventorymgr-jwt-secret - >/dev/null
 		echo "created inventorymgr-jwt-secret"
 	fi
 	pg_exists=0
@@ -59,7 +59,7 @@ quadlet-secrets:
 	if [ "$pg_exists" -eq 1 ] && [ "$dburl_exists" -eq 1 ]; then
 		echo "database secrets exist — leaving them alone"
 	elif [ "$pg_exists" -eq 0 ] && [ "$dburl_exists" -eq 0 ]; then
-		postgres_password="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+		postgres_password="$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')"
 		printf '%s' "$postgres_password" | podman secret create inventorymgr-postgres-password - >/dev/null
 		printf 'postgresql://inventorymgr:%s@inventorymgr-db:5432/inventorymgr' "$postgres_password" | podman secret create inventorymgr-database-url - >/dev/null
 		echo "created inventorymgr-postgres-password and inventorymgr-database-url"
@@ -144,14 +144,14 @@ verify:
 	pnpm run test
 	cd ..
 	rust_binary="$CARGO_TARGET_DIR/debug/inventorymgr-backend"
-	python_bin="$repo_root/backend/.venv/bin/python"
-	test -x "$python_bin" || { echo "Run just setup to initialize the test-only Python oracle" >&2; exit 1; }
+	(cd tools/parity && env -u CARGO_TARGET_DIR cargo build --locked)
+	parity_bin="$repo_root/tools/parity/target/debug/parity"
 	evidence="${VERIFY_OUTPUT_DIR:-$repo_root/.audit/verification-$(date -u +%Y%m%dT%H%M%SZ)}"
 	test ! -e "$evidence" || { echo "Verification output already exists: $evidence" >&2; exit 1; }
 	mkdir -p "$evidence"
-	"$python_bin" tools/rust-parity/verify.py --rust-binary "$rust_binary" --output "$evidence/http" --scratch-dir "$evidence/scratch"
-	"$python_bin" tools/rust-parity/migrations.py --rust-binary "$rust_binary" --output "$evidence/migrations"
-	"$python_bin" tools/rust-parity/restore_concurrency.py --rust-binary "$rust_binary" --output "$evidence/restore-concurrency"
+	"$parity_bin" http --rust-binary "$rust_binary" --output "$evidence/http" --scratch-dir "$evidence/scratch"
+	"$parity_bin" migrations --rust-binary "$rust_binary" --output "$evidence/migrations"
+	"$parity_bin" restore-concurrency --rust-binary "$rust_binary" --output "$evidence/restore-concurrency"
 	bash tools/run-rust-e2e.sh
 	printf 'verified_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$evidence/SUCCESS"
 
@@ -162,11 +162,7 @@ audit:
 	(cd frontend && pnpm audit)
 	echo "=== Backend (cargo audit) ==="
 	(cd backend-rust && cargo audit)
-	echo "=== Python oracle (pip-audit 2.9.0) ==="
-	requirements="$(mktemp)"
-	trap 'rm -f "$requirements"' EXIT
-	(cd backend && uv export --locked --all-extras --no-emit-project --no-hashes --format requirements-txt) > "$requirements"
-	uvx --python 3.14.7 --from pip-audit==2.9.0 pip-audit --disable-pip --no-deps -r "$requirements"
+	(cd tools/parity && env -u CARGO_TARGET_DIR cargo audit)
 	echo "=== TypeScript typecheck ==="
 	(cd frontend && pnpm run typecheck)
 	echo "=== Accepted risks check ==="

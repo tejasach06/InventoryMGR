@@ -9,7 +9,7 @@ ENV INVENTORYMGR_API_URL=${INVENTORYMGR_API_URL}
 WORKDIR /app
 
 # Install the repository-pinned package manager and frozen dependencies.
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack enable && corepack pnpm install --frozen-lockfile --strict-peer-dependencies
 
 # Copy source code

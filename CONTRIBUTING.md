@@ -13,7 +13,7 @@ This project and everyone participating in it is governed by the [Code of Conduc
 - **Rust**: 1.98.1 (pinned in `backend-rust/rust-toolchain.toml`)
 - **Node.js**: 24 LTS (pinned in `.node-version`)
 - **pnpm**: 12.14.0 (for frontend packages)
-- **uv**: Python package runner (>=0.12.18, for test oracle only)
+- **OpenSSL**: Generates secrets for `just env`/`just e2e`
 - **just**: Command runner (`cargo install just` or system package)
 - **Podman / Docker**: With compose support for running the local test database
 

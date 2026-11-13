@@ -113,8 +113,7 @@ Healthchecks target `127.0.0.1`.
 Run `just verify` and `just audit` before deploying.
 
 The production backend is Rust-only.
-Python under `backend/` is retained as a test-only parity oracle, not a deployment runtime.
-`just setup` prepares it with `uv sync --frozen --extra dev`.
+The Rust regression harness lives in `tools/parity/`; `just setup` builds it.
 
 `just verify` builds Rust, runs backend and frontend checks, compares HTTP contracts, checks empty and historical database upgrades, exercises restore concurrency, and runs Playwright.
 Evidence defaults to a fresh `.audit/verification-<UTC timestamp>` directory. Set `VERIFY_OUTPUT_DIR` to choose another new directory; existing output paths are rejected. `SUCCESS` is written only after every gate passes.
@@ -141,9 +140,9 @@ verifies Compose and Quadlet sequentially on Aspire (`tejas@192.168.0.21`). The
 frontend builds use their actual mode-specific backend DNS addresses. Runtime
 testing uses transferred images, not source builds on Aspire or `deploy.sh`.
 
-VM101 needs rootless Podman, Bash, Git, OpenSSL, jq, SSH/SCP, GNU timeout, flock,
-tar, and checksum utilities. Aspire needs rootless Podman, a working Compose
-provider and its Python YAML module, Python 3, OpenSSL, jq, curl, ss, an accessible
+VM101 needs rootless Podman, Bash, Git, Node.js (with `pnpm install` run in `frontend/`),
+OpenSSL, jq, SSH/SCP, GNU timeout, flock, tar, and checksum utilities. Aspire needs
+rootless Podman, a working Compose provider, OpenSSL, jq, curl, ss, an accessible
 user systemd bus, journalctl, flock, tar, and checksum utilities. Configure
 batch-mode SSH and verified host keys from VM101 to Aspire before running.
 The verifier does not enable lingering, invoke sudo, or change the firewall.
@@ -200,7 +199,7 @@ failure, not permission to delete.
 
 Use the previous stable minor line's latest patch where it remains safe and compatible. Keep an already-newer safe line rather than downgrading solely to satisfy that rule. Security fixes and runtime/API compatibility take precedence.
 
-Runtime pins are Rust 1.98.1 (`backend-rust/rust-toolchain.toml`), Node.js 24.22.1 (`.node-version`), pnpm 12.14.0 (`frontend/package.json`), and Python 3.14.7 (`backend/.python-version`). Required uv tool version is `>=0.12.18` (`backend/pyproject.toml`). Lockfiles and frozen/locked installation are required.
+Runtime pins are Rust 1.98.1 (`backend-rust/rust-toolchain.toml`, `tools/parity/rust-toolchain.toml`), Node.js 24.22.1 (`.node-version`), and pnpm 12.14.0 (`frontend/package.json`). Lockfiles and frozen/locked installation are required.
 Container base images and PostgreSQL deployment/test images are pinned by manifest digest. Retain the PostgreSQL deployment distribution when refreshing a digest; switching Alpine and glibc distributions can change collation behavior.
 
 Next.js 16.4.3 is a security exception: the preceding minor is affected by critical advisories fixed in 16.4.1. Rust retains jsonwebtoken 9.3.1 to avoid a separate crypto-provider migration and rand_core 0.6.4 to match argon2 0.5's password-hash trait family. These compatibility exceptions passed the dependency advisory scan; this does not establish upstream long-term support.

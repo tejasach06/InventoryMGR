@@ -6,8 +6,9 @@ cd "$REPO_ROOT"
 export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 work="$(mktemp -d)"
 mkdir -p "$work/pg-bin"
+(cd tools/parity && env -u CARGO_TARGET_DIR cargo build --locked --bin pg-bridge)
 for tool in pg_dump pg_restore; do
-  install -m 700 tools/rust-parity/pg_bridge.py "$work/pg-bin/$tool"
+  install -m 700 tools/parity/target/debug/pg-bridge "$work/pg-bin/$tool"
 done
 container="inventorymgr-e2e-$(basename "$work" | tr '[:upper:]' '[:lower:]')"
 backend_pid=""
@@ -45,9 +46,9 @@ export TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:$db_port/inventorymgr_
 export PG_BIN_DIR="$work/pg-bin" PARITY_PG_CONTAINER="$container"
 export PARITY_PG_URL="postgresql://postgres@127.0.0.1:5432/inventorymgr_e2e"
 export DATABASE_URL="$TEST_DATABASE_URL" APP_ENV=test HOST=127.0.0.1
-export JWT_SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+export JWT_SECRET="$(openssl rand -hex 32)"
 export BACKUP_DIR="$work/backups"
-read -r backend_port frontend_port < <(python3 -c 'import socket; a=socket.socket(); b=socket.socket(); a.bind(("127.0.0.1",0)); b.bind(("127.0.0.1",0)); print(a.getsockname()[1], b.getsockname()[1])')
+read -r backend_port frontend_port < <(node -e 'const n=require("net");const mk=c=>{const s=n.createServer();s.listen(0,"127.0.0.1",()=>c(s));};mk(a=>mk(b=>{console.log(a.address().port,b.address().port);a.close();b.close();}));')
 export INVENTORYMGR_API_URL="http://127.0.0.1:$backend_port"
 export BASE_URL="http://127.0.0.1:$frontend_port"
 export INVENTORYMGR_E2E_RUNNER=1

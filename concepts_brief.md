@@ -24,7 +24,7 @@ An evaluation across six specialized architectural lenses (Design Critic, Codeba
    Dynamic queries across multiple tables currently lack SQL comment marginalia, and the database error converter (`db_error`) swallows SQL details without structured `tracing::error!` logging. In a multi-engineer environment, cross-domain join failures would misdirect production triage to the VM module when the underlying failure is an unannounced storage migration or lock.
 
 5. **Top-Level Layout Invariants**:
-   Production Rust code resides in `backend-rust/`. `backend/` is a test-only Python parity oracle. The single database migration ledger (`alembic_version` head `0024`), connection pool configuration, and verification gate (`just verify`) must remain unified.
+   Production Rust code resides in `backend-rust/`. `tools/parity/` is the Rust regression harness with frozen baselines. The single database migration ledger (`alembic_version` head `0024`), connection pool configuration, and verification gate (`just verify`) must remain unified.
 
 ## Goals vs. Non-Goals
 
