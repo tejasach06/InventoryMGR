@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Providers } from '../app/providers';
 import { auth as authApi } from '../api/auth';
 import { ApiError } from '../api/core';
 import AuthenticatedLayout from '../app/(app)/layout';
@@ -15,6 +17,39 @@ vi.mock('next/navigation', () => ({
 
 beforeEach(() => {
   replaceMock.mockReset();
+});
+
+function RejectedRequest({ mutation, error }: { mutation: boolean; error: Error }) {
+  const client = useQueryClient();
+  const request = async () => { throw error; };
+  const action = useMutation({ mutationFn: request });
+  return <button onClick={() => {
+    if (mutation) action.mutate();
+    else void client.fetchQuery({ queryKey: ['inventory'], queryFn: request }).catch(() => {});
+  }}>Load inventory</button>;
+}
+
+describe('expired sessions with a cached account', () => {
+  it.each([false, true])('redirects after a rejected request (mutation=%s)', async (mutation) => {
+    vi.spyOn(authApi, 'me').mockResolvedValue(makeUser());
+    render(<Providers><AuthenticatedLayout>
+      <RejectedRequest mutation={mutation} error={new ApiError(401, 'Not authenticated')} />
+    </AuthenticatedLayout></Providers>);
+    fireEvent.click(await screen.findByText('Load inventory'));
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/login'));
+    expect(screen.queryByText('Load inventory')).toBeNull();
+  });
+
+  it.each([new ApiError(403, 'Forbidden'), new Error('Network request failed')])('keeps the session after %s', async (error) => {
+    vi.spyOn(authApi, 'me').mockResolvedValue(makeUser());
+    render(<Providers><AuthenticatedLayout>
+      <RejectedRequest mutation={false} error={error} />
+    </AuthenticatedLayout></Providers>);
+    fireEvent.click(await screen.findByText('Load inventory'));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(replaceMock).not.toHaveBeenCalled();
+    expect(screen.getByText('Load inventory')).toBeInTheDocument();
+  });
 });
 
 afterEach(() => {
