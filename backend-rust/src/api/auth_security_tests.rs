@@ -50,7 +50,8 @@ impl Drop for Database {
 struct Browser { cookie: String, csrf: String }
 impl Browser {
     async fn request(&mut self, state: &AppState, method: &str, path: &str, payload: Option<Value>) -> (StatusCode, Value) {
-        let app = router().merge(crate::api::accounts::router()).with_state(state.clone());
+        let app = router().merge(crate::api::accounts::router())
+            .merge(crate::api::inventory::router()).merge(crate::api::auxiliary::router()).with_state(state.clone());
         let mut request = Request::builder().method(method).uri(path).header(header::COOKIE, &self.cookie).header("x-csrf-token", &self.csrf);
         let body = if let Some(payload) = payload {
             request = request.header(header::CONTENT_TYPE, "application/json");
@@ -71,6 +72,58 @@ impl Browser {
     }
 }
 
+#[tokio::test]
+#[ignore = "requires Podman; creates and removes its own PostgreSQL 17 container"]
+async fn duplicate_ip_alerts_only_include_running_vms_with_exact_addresses() {
+    let (_database, state) = Database::start().await;
+    let mut admin = Browser::default();
+    assert_eq!(admin.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await.0, StatusCode::CREATED);
+    let mut ids = Vec::new();
+    for (name, status, ip) in [
+        ("running-short", "running", "10.0.21.11"),
+        ("running-long", "running", "10.0.21.111"),
+        ("shutdown", "powered_off", "10.0.21.11"),
+    ] {
+        let (status_code, vm) = admin.request(&state, "POST", "/vms", Some(json!({
+            "name":name,"platform":"vmware","cluster":"test","status":status,
+            "criticality":"medium","cpu_cores":1,"memory_mb":1024,
+            "networks":[{"ip_address":ip,"role":"private"}],
+        }))).await;
+        assert_eq!(status_code, StatusCode::CREATED, "{vm}");
+        ids.push(vm["id"].as_str().unwrap().to_owned());
+    }
+    for (path, field) in [("/dashboard", "duplicate_ip"), ("/vms?duplicate_ip=true", "items")] {
+        let (status, body) = admin.request(&state, "GET", path, None).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body[field], json!([]), "{path} must ignore shutdown VMs and match full IPs");
+    }
+    let (status, body) = admin.request(&state, "GET", "/notifications/duplicate-ips", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, json!([]));
+    let (status, body) = admin.request(&state, "PATCH", &format!("/vms/{}", ids[1]), Some(json!({"networks":[{"ip_address":"10.0.21.11","role":"private"}]}))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    for (path, field) in [("/dashboard", "duplicate_ip"), ("/vms?duplicate_ip=true", "items")] {
+        let (status, body) = admin.request(&state, "GET", path, None).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let mut actual: Vec<_> = body[field].as_array().unwrap().iter().map(|vm| vm["id"].as_str().unwrap()).collect();
+        actual.sort_unstable();
+        let mut expected = vec![ids[0].as_str(), ids[1].as_str()];
+        expected.sort_unstable();
+        assert_eq!(actual, expected, "{path} must only flag the two running VMs");
+        if path == "/dashboard" {
+            assert!(body[field].as_array().unwrap().iter().all(|vm| vm["detail"] == "10.0.21.11"));
+        }
+    }
+    let (status, body) = admin.request(&state, "GET", "/vms?duplicate_ip=false", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["items"].as_array().unwrap().len(), 1);
+    assert_eq!(body["items"][0]["id"], ids[2]);
+    let (status, body) = admin.request(&state, "GET", "/notifications/duplicate-ips", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body.as_array().unwrap().len(), 1);
+    assert_eq!(body[0]["ip_address"], "10.0.21.11");
+    assert_eq!(body[0]["occurrences"], 2);
+}
 // Minimal external LDAP adapter: exercise ldap3's real search and password binds.
 struct Directory {
     task: tokio::task::JoinHandle<()>,
