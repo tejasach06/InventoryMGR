@@ -29,6 +29,7 @@ pub struct ApiError {
     pub detail: Option<serde_json::Value>,
 }
 impl ApiError {
+    pub fn invalid(message: impl Into<String>) -> Self { Self::new(StatusCode::UNPROCESSABLE_ENTITY, message) }
     pub fn new(status: StatusCode, message: impl Into<String>) -> Self {
         Self {
             status,
@@ -67,6 +68,14 @@ impl IntoResponse for ApiError {
             json!({"detail":self.detail.unwrap_or(json!(self.message))})
         };
         (self.status, Json(body)).into_response()
+    }
+}
+impl From<crate::core::error::Error> for ApiError {
+    fn from(error: crate::core::error::Error) -> Self {
+        match error {
+            crate::core::error::Error::Invalid(message) => Self::invalid(message),
+            crate::core::error::Error::Internal(message) => Self::internal(message),
+        }
     }
 }
 pub fn cookie(parts: &Parts, name: &str) -> Option<String> {
@@ -272,6 +281,17 @@ impl JsonSchema for serde_json::Value {
 mod tests {
     use super::*;
     use axum::extract::FromRequest;
+    #[test]
+    fn core_errors_map_at_the_http_boundary() {
+        let invalid = ApiError::from(crate::core::error::Error::Invalid("bad input".into()));
+        assert_eq!(invalid.status, StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(invalid.message, "bad input");
+        assert!(invalid.detail.is_none());
+
+        let internal = ApiError::from(crate::core::error::Error::Internal("database".into()));
+        assert_eq!(internal.status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(internal.message, "database");
+    }
     #[test]
     fn generation_invalidates_tokens_even_in_the_same_second() {
         assert!(session_matches(Some("before"), Some("before"), 42, 42));

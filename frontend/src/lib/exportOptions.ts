@@ -1,4 +1,4 @@
-import { type ColumnConfig } from '../hooks/useColumnPreferences';
+import { type ColumnConfig } from './columns';
 import { DEFAULT_PAGE_SIZE, paramsFromFilters, type Filters } from './inventoryFilters';
 
 // shortcut: mirrors SCALARS + DERIVED in backend-rust/src/api/inventory/export.rs;

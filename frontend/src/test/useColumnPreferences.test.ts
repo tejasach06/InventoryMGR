@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '../api/core';
 import { settings as settingsApi } from '../api/settings';
-import { DEFAULT_COLUMNS, mergeWithDefaults, reorderColumnConfig, toggleColumnConfig, useColumnPreferences } from '../hooks/useColumnPreferences';
+import { DEFAULT_COLUMNS, mergeWithDefaults, reorderColumnConfig, toggleColumnConfig } from '../lib/columns';
+import { useColumnPreferences } from '../hooks/useColumnPreferences';
 
 describe('mergeWithDefaults', () => {
   it('appends newly added columns as hidden after saved ones', () => {

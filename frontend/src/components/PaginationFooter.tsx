@@ -2,7 +2,7 @@
 
 import { selectClass } from './ui';
 
-export const PAGE_SIZES = [25, 50, 100, 200] as const;
+import { PAGE_SIZES } from '../lib/inventoryFilters';
 
 export function PaginationFooter({
   total,

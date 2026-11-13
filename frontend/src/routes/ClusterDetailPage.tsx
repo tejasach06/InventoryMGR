@@ -1,5 +1,6 @@
 'use client';
 
+import { canEditInventory } from '../lib/permissions';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
@@ -205,7 +206,7 @@ export function ClusterDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const user = useCurrentUser();
-  const canEdit = user.role === 'editor' || user.role === 'admin';
+  const canEdit = canEditInventory(user.role);
 
   const clusterQ = useQuery({ queryKey: ['cluster', id], queryFn: () => clustersApi.getCluster(id) });
   const cluster = clusterQ.data;

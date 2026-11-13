@@ -1,5 +1,6 @@
 'use client';
 
+import { canEditInventory } from '../lib/permissions';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -7,7 +8,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { vms as vmsApi } from '../api/vms';
 import { detailMessage } from '../api/core';
 import type { BulkResult, VmPayload } from '../api/types';
-import { BulkEditDrawer, BulkPatch } from '../components/BulkEditDrawer';
+import { BulkEditDrawer } from '../components/BulkEditDrawer';
+import type { BulkPatch } from '../api/types';
 import { useCurrentUser } from '../components/AuthContext';
 import { VmCard } from '../components/VmCard';
 import { EditableField, VmTable } from '../components/VmTable';
@@ -58,7 +60,7 @@ export function InventoryPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const canCreateVm = user.role === 'editor' || user.role === 'admin';
+  const canCreateVm = canEditInventory(user.role);
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [view, setView] = useState<ViewState>(() => viewFromParams(searchParams));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

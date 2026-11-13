@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ColumnDrawer } from '../components/ColumnDrawer';
-import type { ColumnConfig } from '../hooks/useColumnPreferences';
+import type { ColumnConfig } from '../lib/columns';
 
 const columns: ColumnConfig[] = [
   { key: 'name', visible: true, order: 0 },

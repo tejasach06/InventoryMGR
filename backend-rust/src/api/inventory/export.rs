@@ -1,4 +1,4 @@
-use super::{filters,selected_ids,service::{db_error,vm_details},resource::invalid};
+use super::{filters,selected_ids,export_selection,service::{db_error,vm_details}};
 use crate::api::deps::{AppState,ApiError,Viewer};
 use axum::{Json,extract::{State,RawQuery},response::{Response,IntoResponse},http::{header,StatusCode}};
 use serde_json::{json,Value};
@@ -26,7 +26,7 @@ fn table<'a>(vms:&'a[Value],cols:&[&str],per_disk:bool)->Vec<Row<'a>>{
 fn parse_columns(raw:Option<&str>,known:&[&'static str])->Result<Vec<&'static str>,ApiError>{
  let Some(raw)=raw else{return Ok(known.to_vec())};
  let mut cols=Vec::new();
- for name in raw.split(','){let name=name.trim();let key=known.iter().find(|k|**k==name).ok_or_else(||invalid(format!("Unknown export column: {name}")))?;if cols.contains(key){return Err(invalid(format!("Duplicate export column: {name}")));}cols.push(*key);}
+ for name in raw.split(','){let name=name.trim();let key=known.iter().find(|k|**k==name).ok_or_else(||ApiError::invalid(format!("Unknown export column: {name}")))?;if cols.contains(key){return Err(ApiError::invalid(format!("Duplicate export column: {name}")));}cols.push(*key);}
  Ok(cols)
 }
 pub(crate) fn csv_text(value:String)->String{
@@ -39,10 +39,10 @@ fn csv(rows:&[Row],headers:&[&str])->Result<Vec<u8>,ApiError>{
   writer.into_inner().map_err(|e|ApiError::internal(e.to_string()))
 }
 pub async fn export(State(s):State<AppState>,_:Viewer,RawQuery(raw):RawQuery)->Result<Response,ApiError>{
-  let p=filters::query(raw);filters::validate_query(&p)?;let format=filters::first(&p,"format").unwrap_or("csv");if !["csv","xlsx","json"].contains(&format){return Err(invalid("Invalid export format"));}
+  let p=filters::query(raw);filters::validate_query(&p)?;let format=filters::first(&p,"format").unwrap_or("csv");if !["csv","xlsx","json"].contains(&format){return Err(ApiError::invalid("Invalid export format"));}
   let cols=parse_columns(filters::first(&p,"columns"),&all_columns())?;
-  let per_disk=match filters::first(&p,"disk_layout").unwrap_or("joined"){"joined"=>false,"rows"=>true,_=>return Err(invalid("Invalid disk layout"))};
-  let mut ids=selected_ids(&s,&p,true).await?;let total=ids.len();if format=="json"{ids.truncate(PREVIEW_ROWS);}
+  let per_disk=match filters::first(&p,"disk_layout").unwrap_or("joined"){"joined"=>false,"rows"=>true,_=>return Err(ApiError::invalid("Invalid disk layout"))};
+  let mut ids=selected_ids(&s,&p,export_selection(&p)?).await?;let total=ids.len();if format=="json"{ids.truncate(PREVIEW_ROWS);}
   let mut c=s.pool.acquire().await.map_err(db_error)?;let vms=vm_details(&mut c,&ids).await?;
   let rows=table(&vms,&cols,per_disk);
   if format=="json"{return Ok(Json(json!({"total":total,"columns":cols,"rows":rows.into_iter().map(|(_,r)|r).collect::<Vec<_>>()})).into_response());}

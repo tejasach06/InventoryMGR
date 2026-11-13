@@ -199,7 +199,7 @@ impl Directory {
         Self { task, uri, base_dn, password_binds }
     }
     async fn configure(&self, state: &AppState) {
-        ldap::save(state, json!({"enabled":true,"server_uri":self.uri,"user_base_dn":self.base_dn})).await.unwrap();
+        ldap::save(&state.pool, &state.settings.jwt_secret, json!({"enabled":true,"server_uri":self.uri,"user_base_dn":self.base_dn})).await.unwrap();
     }
     fn binds(&self, uid: &str) -> usize {
         self.password_binds.lock().get(&format!("uid={uid},{}", self.base_dn)).copied().unwrap_or(0)
@@ -294,7 +294,7 @@ async fn ldap_custom_or_filter_charges_resolved_dn_before_password_bind() {
     let (_database, mut state) = Database::start().await;
     Arc::make_mut(&mut state.settings).app_env = "production".into();
     let directory = Directory::with_users(&["alice@example.com", "bob@example.com"]).await;
-    ldap::save(&state, json!({
+    ldap::save(&state.pool, &state.settings.jwt_secret, json!({
         "enabled":true, "server_uri":directory.uri, "user_base_dn":directory.base_dn,
         "user_filter":"(|(uid={username})(mail={email}))"
     })).await.unwrap();

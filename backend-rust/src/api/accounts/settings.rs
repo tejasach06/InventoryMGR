@@ -1,7 +1,6 @@
 use crate::{
     api::deps::{Admin, ApiError, AppState, Csrf, Viewer},
     core::ldap,
-    schemas::auth::validation,
 };
 use axum::{extract::State, routing::get, Json, Router};
 use serde::Deserialize;
@@ -63,16 +62,6 @@ async fn update_app(
     _csrf: Csrf,
     crate::api::deps::ValidatedJson(p): crate::api::deps::ValidatedJson<Update>,
 ) -> Result<Json<Value>, ApiError> {
-    for (key, value, max) in [
-        ("decommission_notify_days", p.decommission_notify_days, 3650),
-        ("storage_usage_warn_pct", p.storage_usage_warn_pct, 100),
-    ] {
-        if let Some(n) = value {
-            if n < 1 || n > max {
-                return Err(validation(format!("{key} must be between 1 and {max}")));
-            }
-        }
-    }
     for (key, value) in [
         ("decommission_notify_days", p.decommission_notify_days),
         ("storage_usage_warn_pct", p.storage_usage_warn_pct),
@@ -84,7 +73,7 @@ async fn update_app(
     Ok(Json(values(&s).await?))
 }
 async fn ldap_read(State(s): State<AppState>, _: Admin) -> Result<Json<Value>, ApiError> {
-    Ok(Json(ldap::config(&s).await?.unwrap_or_default().read()))
+    Ok(Json(ldap::config(&s.pool).await?.unwrap_or_default().read()))
 }
 async fn ldap_save(
     State(s): State<AppState>,
@@ -92,7 +81,7 @@ async fn ldap_save(
     _csrf: Csrf,
     crate::api::deps::ValidatedJson(p): crate::api::deps::ValidatedJson<LdapUpdate>,
 ) -> Result<Json<Value>, ApiError> {
-    Ok(Json(ldap::save(&s, p.0).await?.read()))
+    Ok(Json(ldap::save(&s.pool, &s.settings.jwt_secret, p.0).await?.read()))
 }
 async fn ldap_test(
     State(s): State<AppState>,
@@ -100,7 +89,8 @@ async fn ldap_test(
     _csrf: Csrf,
     crate::api::deps::ValidatedJson(p): crate::api::deps::ValidatedJson<LdapTest>,
 ) -> Result<Json<Value>, ApiError> {
-    Ok(Json(ldap::test(&s, p.0).await?))
+    let result = ldap::test(&s.pool, &s.settings.jwt_secret, p.0.get("username").and_then(Value::as_str), p.0.get("password").and_then(Value::as_str)).await?;
+    Ok(Json(json!({"ok":result.ok,"message":result.message})))
 }
 impl crate::api::deps::JsonSchema for Update {
     const NULLABLE: &'static [&'static str] =

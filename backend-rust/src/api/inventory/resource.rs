@@ -1,21 +1,19 @@
 use serde_json::{json, Value};
-use axum::http::StatusCode;
 use crate::api::deps::ApiError;
 
 #[derive(Clone, Copy)]
-pub struct Resource { pub table: &'static str, pub fields: &'static str, pub required: &'static str, pub defaults: &'static str, pub parent: Option<(&'static str, &'static str)>, pub missing: &'static str, pub stamped: bool }
-pub const VM: Resource = Resource {table:"vms", fields:"external_id name fqdn description platform datacenter sr_id cluster node status environment cpu_cores memory_mb os_family os_distribution os_version owner business_owner technical_owner pmp_enabled monitoring_enabled backup_enabled backup_location ha_enabled criticality vm_type tags last_patch_date last_vuln_scan_date security_remarks decommission_date last_verified_at",required:"name platform cluster status criticality cpu_cores memory_mb",defaults:r#"{"environment":"production","vm_type":"permanent","pmp_enabled":false,"monitoring_enabled":false,"backup_enabled":false,"ha_enabled":false,"tags":[],"health_score":0}"#,parent:None,missing:"VM not found",stamped:true};
-pub const CLUSTER: Resource = Resource {table:"physical_clusters",fields:"name description notes",required:"name",defaults:"{}",parent:None,missing:"Cluster not found",stamped:true};
-pub const ARRAY: Resource = Resource {table:"storage_arrays",fields:"name vendor model mgmt_host datacenter description total_capacity_gb used_capacity_gb notes",required:"name vendor",defaults:r#"{"total_capacity_gb":0,"used_capacity_gb":0}"#,parent:None,missing:"Storage array not found",stamped:true};
-pub const NODE: Resource = Resource {table:"physical_nodes",fields:"name cpu_model cpu_cores cpu_threads ram_total_gb ram_used_gb storage_usable_gb datacenter rack rack_unit ip_addresses notes sort_order",required:"name",defaults:r#"{"cpu_cores":0,"cpu_threads":0,"ram_total_gb":0,"storage_usable_gb":0,"ip_addresses":[],"sort_order":0}"#,parent:Some(("physical_clusters","cluster_id")),missing:"Node not found",stamped:true};
-pub const DISK: Resource = Resource {table:"vm_disks",fields:"disk_name storage_name size_gb storage_type sort_order",required:"disk_name",defaults:r#"{"size_gb":0,"sort_order":0}"#,parent:Some(("vms","vm_id")),missing:"Disk not found",stamped:false};
-pub const NETWORK: Resource = Resource {table:"vm_networks",fields:"ip_address role sort_order",required:"ip_address",defaults:r#"{"role":"private","sort_order":0}"#,parent:Some(("vms","vm_id")),missing:"Network entry not found",stamped:false};
-pub const APPLICATION: Resource = Resource {table:"vm_applications",fields:"app_name app_owner description",required:"app_name",defaults:"{}",parent:Some(("vms","vm_id")),missing:"Application not found",stamped:false};
-pub const VOLUME: Resource = Resource {table:"storage_volumes",fields:"name capacity_gb used_gb notes sort_order",required:"name",defaults:r#"{"capacity_gb":0,"used_gb":0,"sort_order":0}"#,parent:Some(("storage_arrays","array_id")),missing:"Volume not found",stamped:false};
-pub const LUN: Resource = Resource {table:"storage_luns",fields:"name size_gb used_gb target_iqn cluster status sort_order",required:"name",defaults:r#"{"size_gb":0,"sort_order":0}"#,parent:Some(("storage_volumes","volume_id")),missing:"LUN not found",stamped:false};
-pub const SHARE: Resource = Resource {table:"storage_nfs_shares",fields:"export_path used_gb allowed_clients notes sort_order",required:"export_path",defaults:r#"{"sort_order":0}"#,parent:Some(("storage_volumes","volume_id")),missing:"NFS share not found",stamped:false};
+pub struct Resource { pub table: &'static str, pub fields: &'static str, pub required: &'static str, pub defaults: &'static str, pub parent: Option<(&'static str, &'static str)>, pub missing: &'static str, pub stamped: bool, pub id_field: &'static str }
+pub const VM: Resource = Resource {table:"vms",id_field:"vm_id", fields:"external_id name fqdn description platform datacenter sr_id cluster node status environment cpu_cores memory_mb os_family os_distribution os_version owner business_owner technical_owner pmp_enabled monitoring_enabled backup_enabled backup_location ha_enabled criticality vm_type tags last_patch_date last_vuln_scan_date security_remarks decommission_date last_verified_at",required:"name platform cluster status criticality cpu_cores memory_mb",defaults:r#"{"environment":"production","vm_type":"permanent","pmp_enabled":false,"monitoring_enabled":false,"backup_enabled":false,"ha_enabled":false,"tags":[],"health_score":0}"#,parent:None,missing:"VM not found",stamped:true};
+pub const CLUSTER: Resource = Resource {table:"physical_clusters",id_field:"cluster_id",fields:"name description notes",required:"name",defaults:"{}",parent:None,missing:"Cluster not found",stamped:true};
+pub const ARRAY: Resource = Resource {table:"storage_arrays",id_field:"array_id",fields:"name vendor model mgmt_host datacenter description total_capacity_gb used_capacity_gb notes",required:"name vendor",defaults:r#"{"total_capacity_gb":0,"used_capacity_gb":0}"#,parent:None,missing:"Storage array not found",stamped:true};
+pub const NODE: Resource = Resource {table:"physical_nodes",id_field:"item_id",fields:"name cpu_model cpu_cores cpu_threads ram_total_gb ram_used_gb storage_usable_gb datacenter rack rack_unit ip_addresses notes sort_order",required:"name",defaults:r#"{"cpu_cores":0,"cpu_threads":0,"ram_total_gb":0,"storage_usable_gb":0,"ip_addresses":[],"sort_order":0}"#,parent:Some(("physical_clusters","cluster_id")),missing:"Node not found",stamped:true};
+pub const DISK: Resource = Resource {table:"vm_disks",id_field:"item_id",fields:"disk_name storage_name size_gb storage_type sort_order",required:"disk_name",defaults:r#"{"size_gb":0,"sort_order":0}"#,parent:Some(("vms","vm_id")),missing:"Disk not found",stamped:false};
+pub const NETWORK: Resource = Resource {table:"vm_networks",id_field:"item_id",fields:"ip_address role sort_order",required:"ip_address",defaults:r#"{"role":"private","sort_order":0}"#,parent:Some(("vms","vm_id")),missing:"Network entry not found",stamped:false};
+pub const APPLICATION: Resource = Resource {table:"vm_applications",id_field:"item_id",fields:"app_name app_owner description",required:"app_name",defaults:"{}",parent:Some(("vms","vm_id")),missing:"Application not found",stamped:false};
+pub const VOLUME: Resource = Resource {table:"storage_volumes",id_field:"item_id",fields:"name capacity_gb used_gb notes sort_order",required:"name",defaults:r#"{"capacity_gb":0,"used_gb":0,"sort_order":0}"#,parent:Some(("storage_arrays","array_id")),missing:"Volume not found",stamped:false};
+pub const LUN: Resource = Resource {table:"storage_luns",id_field:"item_id",fields:"name size_gb used_gb target_iqn cluster status sort_order",required:"name",defaults:r#"{"size_gb":0,"sort_order":0}"#,parent:Some(("storage_volumes","volume_id")),missing:"LUN not found",stamped:false};
+pub const SHARE: Resource = Resource {table:"storage_nfs_shares",id_field:"item_id",fields:"export_path used_gb allowed_clients notes sort_order",required:"export_path",defaults:r#"{"sort_order":0}"#,parent:Some(("storage_volumes","volume_id")),missing:"NFS share not found",stamped:false};
 
-pub fn invalid(message: impl Into<String>) -> ApiError { ApiError::new(StatusCode::UNPROCESSABLE_ENTITY,message) }
 pub fn issue(loc: Vec<Value>, kind: &str, message: impl Into<String>, input: &Value) -> Value {
  json!({"type":kind,"loc":loc,"msg":message.into(),"input":input})
 }
@@ -120,6 +118,7 @@ pub fn validate_vm_request(payload:&Value,create:bool)->Result<(),ApiError>{
 #[cfg(test)]
 mod tests {
  use super::*;
+ use axum::http::StatusCode;
   #[test] fn status_writes_accept_only_three_values(){
    let bulk=Resource{table:"bulk",..VM};
    for resource in [VM,bulk]{

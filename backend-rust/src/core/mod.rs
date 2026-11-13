@@ -3,3 +3,4 @@ pub mod security;
 pub mod crypto;
 pub mod ldap;
 pub mod ip_utils;
+pub mod error;
