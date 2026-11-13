@@ -7,3 +7,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Docker image
+
+`Dockerfile` uses Node.js 24 Trixie in both stages. The `builder` stage installs
+frozen pnpm dependencies and creates the Next.js standalone output. The runtime
+stage removes Corepack, npm, and Yarn, then copies `public`, `.next/standalone`,
+`.next/static`, and `healthcheck.cjs`. It runs as UID 1000.

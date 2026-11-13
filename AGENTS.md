@@ -18,6 +18,13 @@ connection — all data is user-entered or CSV-imported.
   helpers.
 - `frontend/src/test/` — vitest unit tests. `frontend/e2e/` — Playwright.
 
+## Scoped agent guides
+
+- `backend-rust/AGENTS.md` covers the Rust backend and its image.
+- `frontend/AGENTS.md` covers the Next.js app and its image.
+- `postgres/AGENTS.md` covers the custom PostgreSQL image.
+- `tools/parity/AGENTS.md` covers frozen API and migration comparisons.
+
 ## Setup / run
 
 ```
@@ -64,7 +71,11 @@ just web-dev        # Next.js development server on :3000
    before adding new component-local styling.
 9. Deploy is `./deploy.sh` on `main`: Podman rootless Compose, service-local
    build contexts, `.dockerignore` excludes `.venv`/`node_modules`,
-   healthchecks target `127.0.0.1`.
+   healthchecks target `127.0.0.1`. The backend Dockerfile builds with Rust
+   and runs on Debian Trixie; the frontend builds Next.js standalone output
+   with Node.js and runs it in a Node.js image; the PostgreSQL Dockerfile
+   builds `gosu` with Go and copies it into the PostgreSQL 17 Alpine image.
+   Keep build tools out of these final stages.
 
 ## Ponytail
 
