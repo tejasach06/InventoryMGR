@@ -15,7 +15,7 @@ const REPORTS: &[(&str, &str)] = &[
     ("pmp_access", "v.pmp_enabled"),
     ("decommission", "v.decommission_date IS NOT NULL AND v.status<>'decommissioned'"),
 ];
-const CSV_COLUMNS: &[&str] = &["name","external_id","sr_id","fqdn","platform","cluster","node","environment","status","criticality","cpu_cores","memory_mb","os_family","os_distribution","os_version","business_owner","technical_owner","pmp_enabled","monitoring_enabled","last_patch_date","last_vuln_scan_date","decommission_date","description","tags","applications"];
+const CSV_COLUMNS: &[&str] = &["name","external_id","sr_id","virtual_hosts","platform","cluster","node","environment","status","criticality","cpu_cores","memory_mb","os_family","os_distribution","os_version","business_owner","technical_owner","pmp_enabled","monitoring_enabled","last_patch_date","last_vuln_scan_date","decommission_date","description","tags","applications"];
 
 async fn values(pool: &sqlx::PgPool, query: String) -> Result<Vec<Value>, ApiError> {
     sqlx::query_scalar(sqlx::AssertSqlSafe(query)).fetch_all(pool).await.map_err(db_error)
@@ -44,6 +44,10 @@ fn report_csv(rows: &[Value]) -> Result<Vec<u8>, ApiError> {
     for row in rows {
         let cells = CSV_COLUMNS.iter().map(|col| match *col {
             "tags" => row[*col].as_array().map(|items| items.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(",")).unwrap_or_default(),
+            "virtual_hosts" => match row[*col].as_array() {
+                Some(arr) if !arr.is_empty() => serde_json::to_string(arr).unwrap_or_default(),
+                _ => String::new(),
+            },
             "monitoring_enabled"|"pmp_enabled" => if row[*col].as_bool().unwrap_or(false) { "Yes".into() } else { "No".into() },
             _ => cell(&row[*col]),
         }).map(csv_text);

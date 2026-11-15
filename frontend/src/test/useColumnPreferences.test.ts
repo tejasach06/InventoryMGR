@@ -13,14 +13,28 @@ describe('mergeWithDefaults', () => {
       { key: 'status', visible: false, order: 1 },
     ];
     const merged = mergeWithDefaults(saved);
-    expect(merged.map((c) => c.key)).toContain('fqdn');
+    expect(merged.map((c) => c.key)).toContain('virtual_hosts');
     expect(merged.map((c) => c.key)).toContain('owner');
-    const fqdn = merged.find((c) => c.key === 'fqdn')!;
-    expect(fqdn.visible).toBe(false);
-    expect(fqdn.order).toBeGreaterThan(1);
+    const vh = merged.find((c) => c.key === 'virtual_hosts')!;
+    expect(vh.visible).toBe(false);
+    expect(vh.order).toBeGreaterThan(1);
     // Saved entries untouched.
     expect(merged[0]).toEqual(saved[0]);
     expect(merged[1]).toEqual(saved[1]);
+  });
+
+  it('migrates legacy fqdn preference to virtual_hosts', () => {
+    const saved = [
+      { key: 'name', visible: true, order: 0 },
+      { key: 'fqdn', visible: true, order: 1 },
+    ];
+    const merged = mergeWithDefaults(saved);
+    expect(merged.find((c) => c.key === 'virtual_hosts')).toEqual({
+      key: 'virtual_hosts',
+      visible: true,
+      order: 1,
+    });
+    expect(merged.find((c) => c.key === 'fqdn')).toBeUndefined();
   });
 
   it('is a no-op when everything is already present', () => {
@@ -71,7 +85,7 @@ describe('useColumnPreferences', () => {
 
     expect(result.current.loading).toBe(true);
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.columns.map((c) => c.key)).toContain('fqdn');
+    expect(result.current.columns.map((c) => c.key)).toContain('virtual_hosts');
     expect(result.current.visibleColumns.map((c) => c.key)).toEqual(['name', 'status']);
   });
 
@@ -90,11 +104,11 @@ describe('useColumnPreferences', () => {
     const { result } = renderHook(() => useColumnPreferences('inventory'));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    act(() => result.current.toggleColumn('fqdn'));
-    expect(result.current.columns.find((c) => c.key === 'fqdn')?.visible).toBe(true);
+    act(() => result.current.toggleColumn('virtual_hosts'));
+    expect(result.current.columns.find((c) => c.key === 'virtual_hosts')?.visible).toBe(true);
 
     await waitFor(() => expect(result.current.error).toBe('Save failed'));
-    expect(settingsApi.updateColumnPreferences).toHaveBeenCalledWith('inventory', expect.arrayContaining([expect.objectContaining({ key: 'fqdn', visible: true })]));
+    expect(settingsApi.updateColumnPreferences).toHaveBeenCalledWith('inventory', expect.arrayContaining([expect.objectContaining({ key: 'virtual_hosts', visible: true })]));
   });
 
   it('reorders columns, ignores invalid moves, and resets to defaults', async () => {
@@ -119,9 +133,9 @@ describe('useColumnPreferences', () => {
 
 describe('toggleColumnConfig and reorderColumnConfig', () => {
   it('toggles visibility for the target column cleanly without mutating', () => {
-    const cols = [{ key: 'fqdn', visible: false, order: 0 }];
-    const next = toggleColumnConfig(cols, 'fqdn');
-    expect(next).toEqual([{ key: 'fqdn', visible: true, order: 0 }]);
+    const cols = [{ key: 'virtual_hosts', visible: false, order: 0 }];
+    const next = toggleColumnConfig(cols, 'virtual_hosts');
+    expect(next).toEqual([{ key: 'virtual_hosts', visible: true, order: 0 }]);
     expect(cols[0].visible).toBe(false);
   });
 

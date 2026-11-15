@@ -694,5 +694,15 @@ CREATE INDEX ix_backup_jobs_started_at ON backup_jobs (started_at);
 
 UPDATE alembic_version SET version_num='0024' WHERE alembic_version.version_num = 'debd8a48a62e';
 
+-- Running upgrade 0024 -> 0025
+
+ALTER TABLE vms ADD COLUMN virtual_hosts TEXT[] DEFAULT '{}'::TEXT[] NOT NULL;
+
+UPDATE vms SET virtual_hosts = ARRAY[fqdn] WHERE fqdn IS NOT NULL AND btrim(fqdn) <> '';
+
+ALTER TABLE vms DROP COLUMN fqdn;
+
+UPDATE alembic_version SET version_num='0025' WHERE alembic_version.version_num = '0024';
+
 COMMIT;
 

@@ -1847,7 +1847,7 @@
           "visible": false
         },
         {
-          "key": "fqdn",
+          "key": "virtual_hosts",
           "order": 8,
           "visible": false
         },
@@ -1940,10 +1940,10 @@
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -2143,7 +2143,6 @@
       ],
       "environment": "production",
       "external_id": null,
-      "fqdn": null,
       "ha_enabled": false,
       "health_score": 45,
       "id": "<uuid:4>",
@@ -2178,14 +2177,15 @@
       "technical_owner": null,
       "updated_at": "<timestamp>",
       "updated_by_id": "<uuid:0>",
+      "virtual_hosts": [],
       "vm_type": "permanent"
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -2218,7 +2218,6 @@
       ],
       "environment": "production",
       "external_id": null,
-      "fqdn": null,
       "ha_enabled": false,
       "health_score": 45,
       "id": "<uuid:4>",
@@ -2253,14 +2252,15 @@
       "technical_owner": null,
       "updated_at": "<timestamp>",
       "updated_by_id": "<uuid:0>",
+      "virtual_hosts": [],
       "vm_type": "permanent"
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -2293,7 +2293,6 @@
       ],
       "environment": "production",
       "external_id": null,
-      "fqdn": null,
       "ha_enabled": false,
       "health_score": 55,
       "id": "<uuid:4>",
@@ -2328,14 +2327,15 @@
       "technical_owner": null,
       "updated_at": "<timestamp>",
       "updated_by_id": "<uuid:0>",
+      "virtual_hosts": [],
       "vm_type": "permanent"
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -2517,7 +2517,6 @@
       ],
       "environment": "production",
       "external_id": null,
-      "fqdn": null,
       "ha_enabled": false,
       "health_score": 55,
       "id": "<uuid:7>",
@@ -2552,14 +2551,15 @@
       "technical_owner": null,
       "updated_at": "<timestamp>",
       "updated_by_id": "<uuid:0>",
+      "virtual_hosts": [],
       "vm_type": "permanent"
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -2890,7 +2890,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:7>",
@@ -2925,6 +2924,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         },
         {
@@ -2953,7 +2953,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:4>",
@@ -2988,6 +2987,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         }
       ],
@@ -2997,10 +2997,10 @@
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -3035,7 +3035,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:4>",
@@ -3070,6 +3069,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         }
       ],
@@ -3079,10 +3079,10 @@
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -3146,7 +3146,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:7>",
@@ -3181,6 +3180,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         },
         {
@@ -3209,7 +3209,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:4>",
@@ -3244,6 +3243,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         }
       ],
@@ -3253,10 +3253,10 @@
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -3291,7 +3291,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:7>",
@@ -3326,6 +3325,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         },
         {
@@ -3354,7 +3354,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:4>",
@@ -3389,6 +3388,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         }
       ],
@@ -3398,10 +3398,10 @@
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -3645,7 +3645,7 @@
       [
         "name",
         "external_id",
-        "fqdn",
+        "virtual_hosts",
         "platform",
         "datacenter",
         "sr_id",
@@ -3771,10 +3771,10 @@
     ],
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -3800,7 +3800,7 @@
           "AM": "backup_ip",
           "AN": "applications",
           "B": "external_id",
-          "C": "fqdn",
+          "C": "virtual_hosts",
           "D": "platform",
           "E": "datacenter",
           "F": "sr_id",
@@ -3881,10 +3881,10 @@
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -4502,7 +4502,6 @@
       ],
       "environment": "production",
       "external_id": null,
-      "fqdn": null,
       "ha_enabled": false,
       "health_score": 0,
       "id": "<uuid:23>",
@@ -4529,14 +4528,15 @@
       "technical_owner": null,
       "updated_at": "<timestamp>",
       "updated_by_id": "<uuid:0>",
+      "virtual_hosts": [],
       "vm_type": "permanent"
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -4569,7 +4569,6 @@
       ],
       "environment": "production",
       "external_id": null,
-      "fqdn": null,
       "ha_enabled": false,
       "health_score": 45,
       "id": "<uuid:25>",
@@ -4596,14 +4595,15 @@
       "technical_owner": null,
       "updated_at": "<timestamp>",
       "updated_by_id": "<uuid:0>",
+      "virtual_hosts": [],
       "vm_type": "permanent"
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -4713,7 +4713,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 45,
           "id": "<uuid:25>",
@@ -4740,6 +4739,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         },
         {
@@ -4768,7 +4768,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 0,
           "id": "<uuid:23>",
@@ -4795,6 +4794,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         }
       ],
@@ -4804,10 +4804,10 @@
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -4883,7 +4883,7 @@
         "name",
         "external_id",
         "sr_id",
-        "fqdn",
+        "virtual_hosts",
         "platform",
         "cluster",
         "node",
@@ -4963,10 +4963,10 @@
     ],
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -4978,7 +4978,7 @@
         "name",
         "external_id",
         "sr_id",
-        "fqdn",
+        "virtual_hosts",
         "platform",
         "cluster",
         "node",
@@ -5004,10 +5004,10 @@
     ],
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -5087,7 +5087,7 @@
       [
         "name",
         "external_id",
-        "fqdn",
+        "virtual_hosts",
         "sr_id",
         "platform",
         "datacenter",
@@ -5128,7 +5128,7 @@
       [
         "SAMPLE-web-01",
         "VM-1001",
-        "web-01.corp.local",
+        "[\"web-01.corp.local\"]",
         "SR-2481",
         "proxmox",
         "DC-Mumbai",
@@ -5169,7 +5169,7 @@
       [
         "SAMPLE-test-02",
         "VM-1002",
-        "test-02.corp.local",
+        "[\"test-02.corp.local\"]",
         "SR-2492",
         "vmware",
         "DC-Pune",
@@ -5210,10 +5210,10 @@
     ],
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -5663,7 +5663,6 @@
           "disks": [],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 0,
           "id": "<uuid:29>",
@@ -5688,6 +5687,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         },
         {
@@ -5716,7 +5716,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:7>",
@@ -5751,6 +5750,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         },
         {
@@ -5779,7 +5779,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:4>",
@@ -5814,6 +5813,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         }
       ],
@@ -5823,10 +5823,10 @@
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -6130,7 +6130,6 @@
           "disks": [],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 0,
           "id": "<uuid:29>",
@@ -6155,6 +6154,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         },
         {
@@ -6183,7 +6183,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:7>",
@@ -6218,6 +6217,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         },
         {
@@ -6246,7 +6246,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:4>",
@@ -6281,6 +6280,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         }
       ],
@@ -6290,10 +6290,10 @@
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -6375,7 +6375,6 @@
       ],
       "environment": "production",
       "external_id": null,
-      "fqdn": null,
       "ha_enabled": false,
       "health_score": 65,
       "id": "<uuid:4>",
@@ -6410,14 +6409,15 @@
       "technical_owner": null,
       "updated_at": "<timestamp>",
       "updated_by_id": "<uuid:1>",
+      "virtual_hosts": [],
       "vm_type": "permanent"
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   },
   {
@@ -6760,7 +6760,6 @@
           "disks": [],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 0,
           "id": "<uuid:29>",
@@ -6785,6 +6784,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         },
         {
@@ -6813,7 +6813,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:7>",
@@ -6848,6 +6847,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         },
         {
@@ -6876,7 +6876,6 @@
           ],
           "environment": "production",
           "external_id": null,
-          "fqdn": null,
           "ha_enabled": false,
           "health_score": 55,
           "id": "<uuid:4>",
@@ -6911,6 +6910,7 @@
           "technical_owner": null,
           "updated_at": "<timestamp>",
           "updated_by_id": "<uuid:0>",
+          "virtual_hosts": [],
           "vm_type": "permanent"
         }
       ],
@@ -6920,10 +6920,10 @@
     },
     "cookies": {},
     "headers": {
-      "x-content-type-options": "nosniff",
-      "x-frame-options": "DENY",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "permissions-policy": "camera=(), microphone=(), geolocation=()"
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY"
     }
   }
 ]

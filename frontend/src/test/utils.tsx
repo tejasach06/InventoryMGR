@@ -61,7 +61,7 @@ export function makeVm(overrides: Partial<Vm> = {}): Vm {
     external_id: 'EXT-1',
     name: 'web-01',
     platform: 'proxmox',
-    fqdn: null,
+    virtual_hosts: [],
     description: 'primary web node',
     datacenter: 'dc-1',
     sr_id: 'SR-1',

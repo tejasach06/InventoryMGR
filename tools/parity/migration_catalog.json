@@ -1850,15 +1850,6 @@
       "udt_name": "varchar",
       "data_type": "character varying",
       "table_name": "vms",
-      "column_name": "fqdn",
-      "is_nullable": "YES",
-      "column_default": null,
-      "ordinal_position": 28
-    },
-    {
-      "udt_name": "varchar",
-      "data_type": "character varying",
-      "table_name": "vms",
       "column_name": "node",
       "is_nullable": "YES",
       "column_default": null,
@@ -1989,6 +1980,15 @@
       "is_nullable": "YES",
       "column_default": null,
       "ordinal_position": 44
+    },
+    {
+      "udt_name": "_text",
+      "data_type": "ARRAY",
+      "table_name": "vms",
+      "column_name": "virtual_hosts",
+      "is_nullable": "NO",
+      "column_default": "'{}'::text[]",
+      "ordinal_position": 45
     }
   ],
   "indexes": [

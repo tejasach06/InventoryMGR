@@ -69,7 +69,7 @@ For recovery outside the API, use `pg_restore --single-transaction --exit-on-err
 
 The native migrator in `backend-rust/src/db/mod.rs` executes the embedded revision chain in `backend-rust/migrations/0001_inventory_schema.sql` through SQLx.
 Startup uses a PostgreSQL advisory lock. Empty databases receive the full chain.
-Recognized historical Alembic revisions receive the remaining upgrades through head `0024`.
+Recognized historical Alembic revisions receive the remaining upgrades through head `0025`.
 
 `alembic_version.version_num` remains the revision ledger.
 There is no `_sqlx_migrations` ledger.
@@ -81,6 +81,9 @@ PostgreSQL 16-to-17 upgrades use `tools/migrate-postgres-16-to-17.sh --confirm` 
 The CSV importer is the sole bulk VM importer.
 The disks column uses `name:size[:storage_name[:storage_type]]`.
 Proxmox updates require both `external_id` or `vmid` and `name` to match an existing VM.
+The `virtual_hosts` column accepts a JSON array of strings or a `;`-separated list. The legacy `fqdn` header is an alias when `virtual_hosts` is empty.
+Each trimmed host is at most 255 characters, and a row may list at most 100 hosts. Oversized rows are rejected, never truncated.
+Duplicates are removed case-insensitively. A supplied list replaces the stored list on update.
 
 Import is preview-then-commit.
 `/api/imports` reports `create`, `update`, `unchanged`, `decommission`, `conflict`, or `invalid` for each row before writing data.
@@ -101,7 +104,7 @@ Both `template` and `backup` tags exclude VMs from alert predicates, regardless 
 | Frontend returns 502 | Confirm backend health and the `INVENTORYMGR_API_URL` network address. |
 | LDAP login fails | Inspect the admin-only LDAP settings and confirm that the bind credential decrypts with the configured `JWT_SECRET`. |
 | Settings endpoint returns 403 | These endpoints require an administrator. |
-| Migration drift | Compare `alembic_version` with head `0024`. Test repair on an isolated copy before touching live data. |
+| Migration drift | Compare `alembic_version` with head `0025`. Test repair on an isolated copy before touching live data. |
 | Backup filename rejected | Keep the generated archive name. Only the documented timestamp, label, optional UUID suffix, and `.dump` extension are allowed. |
 | Access blocked after restore failure | Check restore and invalidation errors before restarting. Confirm database integrity and session-generation persistence before reopening access. |
 
@@ -165,7 +168,7 @@ and HTTP requests have five-second limits. Diagnostic commands have 15-second
 limits and retain at most 100 lines / 5 MiB per stream. Build logs are retained
 separately. Secrets are generated per run and redacted from diagnostic output.
 
-Checks include PostgreSQL revision `0024`, PostgreSQL 17 clients, application UID
+Checks include PostgreSQL revision `0025`, PostgreSQL 17 clients, application UID
 1000, actual running image IDs, direct health, frontend availability, API routing
 through the frontend, and 60 seconds of healthy service state without unexpected
 restarts. Compose also restarts against the same database volume. Quadlet starts

@@ -7,7 +7,7 @@ import type { ColumnConfig } from '../lib/columns';
 const columns: ColumnConfig[] = [
   { key: 'name', visible: true, order: 0 },
   { key: 'cluster', visible: true, order: 1 },
-  { key: 'fqdn', visible: false, order: 2 },
+  { key: 'virtual_hosts', visible: false, order: 2 },
 ];
 
 function renderDrawer(overrides: Record<string, unknown> = {}) {
@@ -38,13 +38,13 @@ describe('ColumnDrawer', () => {
     expect(screen.getAllByRole('checkbox')).toHaveLength(3);
     expect(screen.getByLabelText('Name')).toBeChecked();
     expect(screen.getByLabelText('Cluster')).toBeChecked();
-    expect(screen.getByLabelText('FQDN')).not.toBeChecked();
+    expect(screen.getByLabelText('Virtual hosts')).not.toBeChecked();
   });
 
   it('reports the column key when a checkbox is toggled', async () => {
     const props = renderDrawer();
-    await userEvent.click(screen.getByLabelText('FQDN'));
-    expect(props.onToggle).toHaveBeenCalledWith('fqdn');
+    await userEvent.click(screen.getByLabelText('Virtual hosts'));
+    expect(props.onToggle).toHaveBeenCalledWith('virtual_hosts');
   });
 
   it('reports a reset when Reset to default is pressed', async () => {
@@ -63,23 +63,23 @@ describe('ColumnDrawer', () => {
     const props = renderDrawer();
     const rows = screen.getAllByRole('listitem');
     // jsdom has no drag engine; drive React's synthetic drag handlers directly.
-    const dataTransfer = { effectAllowed: '', dropEffect: '', setData: vi.fn(), getData: () => 'fqdn' };
+    const dataTransfer = { effectAllowed: '', dropEffect: '', setData: vi.fn(), getData: () => 'virtual_hosts' };
     fireEvent.dragStart(rows[2], { dataTransfer });
     fireEvent.dragOver(rows[0], { dataTransfer });
     fireEvent.drop(rows[0], { dataTransfer });
-    expect(props.onReorder).toHaveBeenCalledWith('fqdn', 'name');
+    expect(props.onReorder).toHaveBeenCalledWith('virtual_hosts', 'name');
   });
 
   it('moves rows with arrow buttons and disables boundary moves', async () => {
     const props = renderDrawer();
     expect(screen.getByRole('button', { name: 'Move Name up' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Move FQDN down' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move Virtual hosts down' })).toBeDisabled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Move Cluster up' }));
     expect(props.onReorder).toHaveBeenCalledWith('cluster', 'name');
 
     await userEvent.click(screen.getByRole('button', { name: 'Move Cluster down' }));
-    expect(props.onReorder).toHaveBeenCalledWith('cluster', 'fqdn');
+    expect(props.onReorder).toHaveBeenCalledWith('cluster', 'virtual_hosts');
   });
 
   it('uses raw keys for unknown column labels and does not reorder when dropped on itself', () => {

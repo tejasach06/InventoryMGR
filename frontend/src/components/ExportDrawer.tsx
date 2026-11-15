@@ -7,7 +7,7 @@ import { detailMessage } from '../api/core';
 import { Alert, Drawer, inputClass, primaryButtonClass, secondaryButtonClass } from './ui';
 import { FilterDrawer } from './filters/FilterDrawer';
 import {
-  COMMON_COLUMNS, EXPORT_COLUMNS, EXPORT_GROUPS, exportColumnLabel, exportParams, loadPresets, savePresets,
+  COMMON_COLUMNS, EXPORT_COLUMNS, EXPORT_GROUPS, exportColumnLabel, exportParams, loadPresets, presetColumns, savePresets,
   type DiskLayout, type ExportFormat, type ExportOptions, type ExportPreset, type ExportScope,
 } from '../lib/exportOptions';
 import { humanize, type Filters } from '../lib/inventoryFilters';
@@ -67,7 +67,7 @@ function ExportDrawerBody({ onClose, filters: initialFilters, selectedIds, initi
   function applyPreset(name: string) {
     const preset = presets.find((p) => p.name === name);
     if (!preset) return;
-    setColumns(preset.columns.filter((c) => EXPORT_COLUMNS.includes(c)));
+    setColumns(presetColumns(preset.columns));
     setFormat(preset.format);
     setDiskLayout(preset.diskLayout);
     setFilters(preset.filters);

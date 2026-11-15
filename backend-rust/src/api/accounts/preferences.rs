@@ -20,7 +20,7 @@ const COLUMNS: &[(&str, bool, i64)] = &[
     ("criticality", true, 5),
     ("private_ip", true, 6),
     ("updated_at", true, 7),
-    ("fqdn", false, 8),
+    ("virtual_hosts", false, 8),
     ("environment", false, 9),
     ("vm_type", false, 11),
     ("datacenter", false, 12),
@@ -109,6 +109,7 @@ async fn columns(
         c.key = match c.key.as_str() {
             "ip_address" => "private_ip".into(),
             "os" => "os_family".into(),
+            "fqdn" => "virtual_hosts".into(),
             _ => c.key.clone(),
         };
         seen.insert(c.key.clone())
@@ -136,7 +137,7 @@ async fn set_columns(
     let mut seen = HashSet::new();
     for c in &p.columns {
         if !COLUMNS.iter().any(|(k, _, _)| *k == c.key)
-            && !matches!(c.key.as_str(), "ip_address" | "os")
+            && !matches!(c.key.as_str(), "ip_address" | "os" | "fqdn")
         {
             return Err(ApiError::invalid(format!("Unknown column key: {}", c.key)));
         }

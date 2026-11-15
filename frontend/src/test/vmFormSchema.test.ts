@@ -109,4 +109,19 @@ describe('vmFormSchema', () => {
     });
     expect(parsed.errors.memory_mb).toBeTruthy();
   });
+
+  it('normalizes, trims, deduplicates, and drops blanks for virtual_hosts', () => {
+    const parsed = validateVmFormInput({
+      ...createDefaultVmFormValues(),
+      name: 'vh-vm',
+      cluster: 'c1',
+      status: 'running',
+      cpu_cores: 2,
+      memory_mb: 4,
+      virtual_hosts: ['  app.example.com  ', '  ', 'APP.EXAMPLE.COM', 'Internal Portal', 'internal portal', 'billing.local'],
+    });
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.data?.virtual_hosts).toEqual(['app.example.com', 'Internal Portal', 'billing.local']);
+  });
 });
