@@ -10,7 +10,7 @@ Rust API in this directory.
   code. Keep dependencies pointed toward these modules, not from them into
   route handlers.
 - `migrations/0001_inventory_schema.sql` contains the native SQL revision
-  chain. `alembic_version` remains the ledger at head `0024`.
+  chain. `alembic_version` remains the ledger at head `0025`.
 
 ## Changes and checks
 

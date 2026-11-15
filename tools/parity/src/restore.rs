@@ -467,10 +467,11 @@ pub fn run(binary: &Path, output: &Path) -> Result<()> {
     check!(common::command(&["podman", "exec", &container.name, "psql", "-U", "postgres", "-d", "parity_restore", "-At", "-c", "SELECT count(*) FROM vms WHERE name='accepted-after-restore'"])? == "1", "Fresh write did not persist");
     results["fresh_write_after_restore"] = json!("persisted");
     let mut restart_stale = clone_client(&admin, http_port)?;
+    let prior_head = sql("SELECT version_num FROM alembic_version")?;
     sql("UPDATE alembic_version SET version_num='parity_unknown'")?;
     let incompatible = admin.must("POST", "/api/backups", None)?;
     let incompatible_archive = download(&mut admin, field(&incompatible, "filename")?)?;
-    sql("UPDATE alembic_version SET version_num='0024'")?;
+    sql(&format!("UPDATE alembic_version SET version_num='{prior_head}'"))?;
     let before_rejection = sql("SELECT json_build_object('vms',(SELECT jsonb_agg(to_jsonb(v)) FROM vms v),'jobs',(SELECT jsonb_agg(to_jsonb(j)) FROM backup_jobs j),'sessions',(SELECT jsonb_agg(to_jsonb(s)) FROM app_settings s WHERE key IN ('session_generation','session_epoch')))")?;
     let files_before_rejection = directory_names(&scratch.join("backups"))?;
     let (recovery_status, recovery_body, _) = restore(&mut admin, "unknown-revision.dump", &incompatible_archive)?;

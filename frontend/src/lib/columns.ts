@@ -13,7 +13,7 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'criticality', visible: true, order: 5 },
   { key: 'private_ip', visible: true, order: 6 },
   { key: 'updated_at', visible: true, order: 7 },
-  { key: 'fqdn', visible: false, order: 8 },
+  { key: 'virtual_hosts', visible: false, order: 8 },
   { key: 'environment', visible: false, order: 9 },
   { key: 'vm_type', visible: false, order: 11 },
   { key: 'datacenter', visible: false, order: 12 },
@@ -44,7 +44,7 @@ export const COLUMN_LABELS: Record<string, string> = {
   public_ip: 'Public IP',
   backup_ip: 'Backup IP',
   updated_at: 'Updated',
-  fqdn: 'FQDN',
+  virtual_hosts: 'Virtual hosts',
   environment: 'Environment',
   vm_type: 'Type',
   datacenter: 'Datacenter',
@@ -64,9 +64,10 @@ export const COLUMN_LABELS: Record<string, string> = {
 
 // Merge in columns added after the user saved their preferences.
 export function mergeWithDefaults(saved: ColumnConfig[]): ColumnConfig[] {
-  const savedKeys = new Set(saved.map((c) => c.key));
-  let nextOrder = saved.reduce((max, c) => Math.max(max, c.order), -1) + 1;
-  const merged = [...saved];
+  const normalized = saved.map((c) => (c.key === 'fqdn' ? { ...c, key: 'virtual_hosts' } : c));
+  const savedKeys = new Set(normalized.map((c) => c.key));
+  let nextOrder = normalized.reduce((max, c) => Math.max(max, c.order), -1) + 1;
+  const merged = [...normalized];
   for (const def of DEFAULT_COLUMNS) {
     if (!savedKeys.has(def.key)) merged.push({ key: def.key, visible: false, order: nextOrder++ });
   }

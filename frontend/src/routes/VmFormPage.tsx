@@ -235,6 +235,63 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
   );
 }
 
+function VirtualHostRows({
+  hosts,
+  onChange,
+  error,
+}: {
+  hosts: string[];
+  onChange: (next: string[]) => void;
+  error?: string;
+}) {
+  const update = (i: number, val: string) => {
+    const next = [...hosts];
+    next[i] = val;
+    onChange(next);
+  };
+  const remove = (i: number) => {
+    onChange(hosts.filter((_, idx) => idx !== i));
+  };
+  const add = () => {
+    onChange([...hosts, '']);
+  };
+
+  return (
+    <div className="mt-4 border-t border-[var(--border)] pt-4">
+      <p className={labelClass}>Virtual hosts</p>
+      <p className={helpTextClass}>Domains or website names hosted on this virtual machine.</p>
+      {hosts.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {hosts.map((host, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                id={i === 0 ? 'virtual_hosts' : undefined}
+                aria-label={`Virtual host ${i + 1}`}
+                aria-describedby={error ? 'virtual_hosts-error' : undefined}
+                aria-invalid={Boolean(error)}
+                className={cn(inputClass, 'max-w-md')}
+                type="text"
+                placeholder="e.g. app.example.com or Internal Portal"
+                value={host}
+                onChange={(e) => update(i, e.target.value)}
+              />
+              <RemoveButton onClick={() => remove(i)} label={`Remove virtual host ${i + 1}`} />
+            </div>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        className={`${secondaryButtonClass} mt-3`}
+        onClick={add}
+      >
+        + Add virtual host
+      </button>
+      <FieldError id="virtual_hosts-error" message={error} />
+    </div>
+  );
+}
+
 const EMPTY_OPTIONS = { cpu: [], datacenter: [], disk: [], os: [], os_by_family: { linux: [], windows: [] } };
 
 const union = (...lists: (string[] | undefined)[]) =>
@@ -376,7 +433,6 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
           <SectionCard title="Identity">
             <div className="grid gap-4 lg:grid-cols-3">
               <TextInput name="name" label="Name" values={values} errors={errors} onChange={setField} required />
-              <TextInput name="fqdn" label="FQDN" values={values} errors={errors} onChange={setField} />
               <SelectInput name="platform" label="Platform" values={values} errors={errors} onChange={setField} options={platforms} required />
               <TextInput name="external_id" label="VM-ID" values={values} errors={errors} onChange={setField} />
               <TextInput name="sr_id" label="SR-ID" values={values} errors={errors} onChange={setField} />
@@ -388,6 +444,14 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
                   include the "*" suffix. Add `required` back only if a test switches to regex. */}
               <SelectInput name="vm_type" label="VM Type" values={values} errors={errors} onChange={setField} options={vmTypes} />
             </div>
+            <VirtualHostRows
+              hosts={values.virtual_hosts}
+              error={errors.virtual_hosts}
+              onChange={(next) => {
+                setValues((c) => ({ ...c, virtual_hosts: next }));
+                setErrors((c) => ({ ...c, virtual_hosts: undefined }));
+              }}
+            />
           </SectionCard>
 
           <SectionCard title="Location">

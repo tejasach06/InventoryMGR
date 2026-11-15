@@ -12,7 +12,7 @@ connection — all data is user-entered or CSV-imported.
 ## Layout
 
 - `backend-rust/src/{core,db,schemas,models,api}` contains the native backend. `api/{accounts,inventory,auxiliary}` owns route groups.
-- `backend-rust/migrations/0001_inventory_schema.sql` contains the native Alembic-compatible revision chain. `alembic_version` remains the ledger at head `0024`.
+- `backend-rust/migrations/0001_inventory_schema.sql` contains the native Alembic-compatible revision chain. `alembic_version` remains the ledger at head `0025`.
 - `frontend/src/{app,routes,components,hooks,lib,api}` — routes are page-level,
   components are shared, `api/` holds typed fetch wrappers, `lib/` is pure
   helpers.
@@ -84,6 +84,15 @@ before writing new ones, stdlib/native features before deps, no speculative
 abstractions. Match existing file conventions over inventing new ones.
 
 ## Agent skills
+
+### Orca coordination
+
+When using Orca through Context Mode, resolve the live agent terminal with
+`orca terminal list --json` and pass its handle explicitly as `--from`.
+Verify the Run's `coordinator_handle` matches that non-orphaned agent terminal
+before dispatching; cwd-based discovery can select an orphaned shell instead.
+Use completion notifications after binding and read mail in the coordinator,
+so waiting requires neither repeated status polling nor user prompts.
 
 ### Codebase research
 

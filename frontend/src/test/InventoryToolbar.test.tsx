@@ -11,7 +11,7 @@ import { vms as vmsApi } from '../api/vms';
 
 const columns: ColumnConfig[] = [
   { key: 'name', visible: true, order: 0 },
-  { key: 'fqdn', visible: false, order: 1 },
+  { key: 'virtual_hosts', visible: false, order: 1 },
 ];
 
 function renderToolbar(filters: Filters = { ...emptyFilterState }) {
@@ -152,8 +152,8 @@ describe('InventoryToolbar column drawer', () => {
     const { onToggleColumn } = renderToolbar();
     await userEvent.click(screen.getByRole('button', { name: /Columns/ }));
     const dialog = await screen.findByRole('dialog');
-    await userEvent.click(within(dialog).getByLabelText('FQDN'));
-    expect(onToggleColumn).toHaveBeenCalledWith('fqdn');
+    await userEvent.click(within(dialog).getByLabelText('Virtual hosts'));
+    expect(onToggleColumn).toHaveBeenCalledWith('virtual_hosts');
   });
 
   it('never shows both drawers at once', async () => {

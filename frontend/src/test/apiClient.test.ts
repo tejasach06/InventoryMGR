@@ -337,7 +337,7 @@ describe('api client methods', () => {
 
     const payload: VmPayload = {
       name: 'x',
-      fqdn: null,
+      virtual_hosts: [],
       description: null,
       platform: 'proxmox',
       datacenter: null,
@@ -403,7 +403,7 @@ describe('api client methods', () => {
     const prefs = [
       { key: 'resources', visible: true, order: 1 },
       { key: 'name', visible: true, order: 0 },
-      { key: 'fqdn', visible: false, order: 2 },
+      { key: 'virtual_hosts', visible: false, order: 2 },
     ];
     expect(columnsFromList(prefs)).toEqual(['name', 'cpu_cores', 'memory_mb']);
   });

@@ -1,4 +1,5 @@
 mod resource;
+pub(crate) use resource::{VIRTUAL_HOST_MAX_COUNT, VIRTUAL_HOST_MAX_LEN};
 mod service;
 mod filters;
 pub(crate) mod export;

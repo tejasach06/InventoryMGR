@@ -5,7 +5,7 @@ import { DEFAULT_PAGE_SIZE, paramsFromFilters, type Filters } from './inventoryF
 // an unknown key 422s there, so drift fails loudly. Upgrade to a /vms/export/columns endpoint if it drifts.
 export const EXPORT_GROUPS: { title: string; columns: [string, string][] }[] = [
   { title: 'Identity', columns: [
-    ['name', 'Name'], ['fqdn', 'Hostname (FQDN)'], ['external_id', 'External ID'], ['sr_id', 'Request IDs (VM + IP)'],
+    ['name', 'Name'], ['virtual_hosts', 'Virtual hosts'], ['external_id', 'External ID'], ['sr_id', 'Request IDs (VM + IP)'],
     ['description', 'Description'], ['tags', 'Tags'], ['applications', 'Applications'],
   ] },
   { title: 'Where it runs', columns: [
@@ -105,4 +105,9 @@ export function loadPresets(): ExportPreset[] {
 
 export function savePresets(presets: ExportPreset[]): void {
   window.localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+}
+
+// Legacy presets stored `fqdn`; map to `virtual_hosts`, dedupe, keep only known columns.
+export function presetColumns(columns: string[]): string[] {
+  return [...new Set(columns.map((c) => (c === 'fqdn' ? 'virtual_hosts' : c)))].filter((c) => EXPORT_COLUMNS.includes(c));
 }

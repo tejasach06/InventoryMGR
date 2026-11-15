@@ -75,7 +75,7 @@ export interface Vm {
   id: string;
   external_id: string | null;
   name: string;
-  fqdn: string | null;
+  virtual_hosts: string[];
   description: string | null;
   platform: Platform;
   datacenter: string | null;
