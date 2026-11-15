@@ -33,7 +33,7 @@ it('renders selectable sortable rows and all optional value columns', () => {
     id: 'vm-rich',
     name: 'rich-vm',
     node: 'node-a',
-    fqdn: 'rich.example.local',
+    virtual_hosts: ['rich.example.local'],
     owner: null,
     monitoring_enabled: false,
     pmp_enabled: true,
@@ -46,7 +46,7 @@ it('renders selectable sortable rows and all optional value columns', () => {
   });
   const columns = [
     'name', 'platform', 'cluster', 'node', 'status', 'environment', 'criticality', 'os_family', 'owner',
-    'monitoring_enabled', 'pmp_enabled', 'health', 'resources', 'fqdn', 'private_ip', 'public_ip', 'backup_ip', 'tags', 'unknown_col',
+    'monitoring_enabled', 'pmp_enabled', 'health', 'resources', 'virtual_hosts', 'private_ip', 'public_ip', 'backup_ip', 'tags', 'unknown_col',
   ].map((key) => ({ key }));
 
   renderWithProviders(<VmTable vms={[vm]} columns={columns} selectedIds={new Set([vm.id])} onToggle={onToggle} onToggleAll={onToggleAll} sortKey="name" sortDir="desc" onSort={onSort} />);
@@ -70,8 +70,8 @@ it('renders selectable sortable rows and all optional value columns', () => {
 
 it('renders fallbacks for missing optional values and blocks inline edit for read-only users', () => {
   const update = vi.fn();
-  const vm = makeVm({ node: null, fqdn: null, owner: null, os_family: null, networks: [], tags: [] });
-  renderWithProviders(<VmTable vms={[vm]} columns={[{ key: 'node' }, { key: 'fqdn' }, { key: 'owner' }, { key: 'os_family' }, { key: 'private_ip' }, { key: 'tags' }]} selectedIds={new Set()} onToggle={() => {}} onToggleAll={() => {}} sortKey={null} sortDir="asc" onSort={() => {}} onUpdateCell={update} />);
+  const vm = makeVm({ node: null, virtual_hosts: [], owner: null, os_family: null, networks: [], tags: [] });
+  renderWithProviders(<VmTable vms={[vm]} columns={[{ key: 'node' }, { key: 'virtual_hosts' }, { key: 'owner' }, { key: 'os_family' }, { key: 'private_ip' }, { key: 'tags' }]} selectedIds={new Set()} onToggle={() => {}} onToggleAll={() => {}} sortKey={null} sortDir="asc" onSort={() => {}} onUpdateCell={update} />);
 
   fireEvent.click(screen.getByTestId('cell-owner'));
   expect(update).not.toHaveBeenCalled();

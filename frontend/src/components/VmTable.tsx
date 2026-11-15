@@ -256,7 +256,11 @@ export function VmTable({
                           {col.key === 'resources' && (
                             <span className={cn(monoClass, "truncate max-w-[200px]")}>{vm.cpu_cores} vCPU · {formatMemory(vm.memory_mb)}</span>
                           )}
-                          {col.key === 'fqdn' && <span className={cn(monoClass, "truncate max-w-xs")}>{vm.fqdn ?? ''}</span>}
+                          {col.key === 'virtual_hosts' && (
+                            <span className={cn(monoClass, "truncate max-w-xs")} title={vm.virtual_hosts?.join(', ') || ''}>
+                              {vm.virtual_hosts && vm.virtual_hosts.length > 0 ? vm.virtual_hosts.join(', ') : ''}
+                            </span>
+                          )}
                           {col.key === 'private_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'private')?.ip_address ?? '—'}</span>}
                           {col.key === 'public_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'public')?.ip_address ?? '—'}</span>}
                           {col.key === 'backup_ip' && <span className={monoClass}>{vm.networks?.find((n) => n.role === 'backup')?.ip_address ?? '—'}</span>}

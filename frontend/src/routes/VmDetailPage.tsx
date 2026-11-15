@@ -491,12 +491,12 @@ export function VmDetailPage() {
               </div>
             </div>
             <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3">
-              <p className="eyebrow-label text-[0.625rem]">FQDN</p>
+              <p className="eyebrow-label text-[0.625rem]">Virtual hosts</p>
               <div className="mt-1 flex items-center justify-between gap-1">
-                <span className={`${monoClass} text-sm font-semibold text-[var(--color-text-primary)] truncate`}>
-                  {vm.fqdn ?? '—'}
+                <span className={`${monoClass} text-sm font-semibold text-[var(--color-text-primary)] truncate`} title={vm.virtual_hosts && vm.virtual_hosts.length > 0 ? vm.virtual_hosts.join(', ') : undefined}>
+                  {vm.virtual_hosts && vm.virtual_hosts.length > 0 ? vm.virtual_hosts.join(', ') : '—'}
                 </span>
-                {vm.fqdn && <CopyButton text={vm.fqdn} label="Copy FQDN" />}
+                {vm.virtual_hosts && vm.virtual_hosts.length > 0 && <CopyButton text={vm.virtual_hosts.join(', ')} label="Copy virtual hosts" />}
               </div>
             </div>
             <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3">
@@ -522,7 +522,7 @@ export function VmDetailPage() {
               <SectionCard title="General & Hardware Information">
                 <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
                   <Field label="Hostname" value={vm.name} copyable />
-                  <Field label="FQDN" value={vm.fqdn} mono copyable />
+                  <Field label="Virtual hosts" value={vm.virtual_hosts && vm.virtual_hosts.length > 0 ? vm.virtual_hosts.join(', ') : null} mono copyable />
                   <Field label="VM ID" value={vm.external_id} mono copyable />
                   <Field label="SR-ID" value={vm.sr_id} mono copyable />
                   <Field label="Datacenter" value={vm.datacenter} />

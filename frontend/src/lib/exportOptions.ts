@@ -5,7 +5,7 @@ import { DEFAULT_PAGE_SIZE, paramsFromFilters, type Filters } from './inventoryF
 // an unknown key 422s there, so drift fails loudly. Upgrade to a /vms/export/columns endpoint if it drifts.
 export const EXPORT_GROUPS: { title: string; columns: [string, string][] }[] = [
   { title: 'Identity', columns: [
-    ['name', 'Name'], ['fqdn', 'Hostname (FQDN)'], ['external_id', 'External ID'], ['sr_id', 'Request IDs (VM + IP)'],
+    ['name', 'Name'], ['virtual_hosts', 'Virtual hosts'], ['external_id', 'External ID'], ['sr_id', 'Request IDs (VM + IP)'],
     ['description', 'Description'], ['tags', 'Tags'], ['applications', 'Applications'],
   ] },
   { title: 'Where it runs', columns: [

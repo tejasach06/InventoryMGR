@@ -30,7 +30,24 @@ const optionalDate = z.string().transform((v, ctx) => {
 
 export const vmFormSchema = z.object({
   name: requiredText('Name'),
-  fqdn: optionalText,
+  virtual_hosts: z
+    .array(z.string())
+    .default([])
+    .transform((arr) => {
+      const seen = new Set<string>();
+      const deduped: string[] = [];
+      for (const item of arr) {
+        const trimmed = item.trim();
+        if (trimmed.length > 0) {
+          const lower = trimmed.toLowerCase();
+          if (!seen.has(lower)) {
+            seen.add(lower);
+            deduped.push(trimmed);
+          }
+        }
+      }
+      return deduped;
+    }),
   platform: z.enum(platforms),
   datacenter: optionalText,
   cluster: requiredText('Cluster'),
@@ -72,7 +89,7 @@ export const vmFormSchema = z.object({
 
 export interface VmFormValues {
   name: string;
-  fqdn: string;
+  virtual_hosts: string[];
   platform: 'proxmox' | 'vmware';
   datacenter: string;
   cluster: string;
@@ -112,7 +129,7 @@ export function splitList(value: string): string[] {
 
 export function emptyVmFormValues(): VmFormValues {
   return {
-    name: '', fqdn: '', platform: 'proxmox', datacenter: '', cluster: '',
+    name: '', virtual_hosts: [], platform: 'proxmox', datacenter: '', cluster: '',
     node: '', external_id: '', sr_id: '', status: '', environment: 'production',
     criticality: 'medium', vm_type: 'permanent', cpu_cores: 0, memory_mb: 0,
     os_family: '', os_distribution: '', os_version: '',
@@ -129,7 +146,7 @@ export const createDefaultVmFormValues = emptyVmFormValues;
 export function vmToFormValues(vm: Vm): VmFormValues {
   return {
     name: vm.name,
-    fqdn: vm.fqdn ?? '',
+    virtual_hosts: vm.virtual_hosts ?? [],
     platform: vm.platform,
     datacenter: vm.datacenter ?? '',
     cluster: vm.cluster,

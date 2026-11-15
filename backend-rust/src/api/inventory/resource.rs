@@ -3,7 +3,7 @@ use crate::api::deps::ApiError;
 
 #[derive(Clone, Copy)]
 pub struct Resource { pub table: &'static str, pub fields: &'static str, pub required: &'static str, pub defaults: &'static str, pub parent: Option<(&'static str, &'static str)>, pub missing: &'static str, pub stamped: bool, pub id_field: &'static str }
-pub const VM: Resource = Resource {table:"vms",id_field:"vm_id", fields:"external_id name fqdn description platform datacenter sr_id cluster node status environment cpu_cores memory_mb os_family os_distribution os_version owner business_owner technical_owner pmp_enabled monitoring_enabled backup_enabled backup_location ha_enabled criticality vm_type tags last_patch_date last_vuln_scan_date security_remarks decommission_date last_verified_at",required:"name platform cluster status criticality cpu_cores memory_mb",defaults:r#"{"environment":"production","vm_type":"permanent","pmp_enabled":false,"monitoring_enabled":false,"backup_enabled":false,"ha_enabled":false,"tags":[],"health_score":0}"#,parent:None,missing:"VM not found",stamped:true};
+pub const VM: Resource = Resource {table:"vms",id_field:"vm_id", fields:"external_id name virtual_hosts description platform datacenter sr_id cluster node status environment cpu_cores memory_mb os_family os_distribution os_version owner business_owner technical_owner pmp_enabled monitoring_enabled backup_enabled backup_location ha_enabled criticality vm_type tags last_patch_date last_vuln_scan_date security_remarks decommission_date last_verified_at",required:"name platform cluster status criticality cpu_cores memory_mb",defaults:r#"{"environment":"production","vm_type":"permanent","pmp_enabled":false,"monitoring_enabled":false,"backup_enabled":false,"ha_enabled":false,"tags":[],"virtual_hosts":[],"health_score":0}"#,parent:None,missing:"VM not found",stamped:true};
 pub const CLUSTER: Resource = Resource {table:"physical_clusters",id_field:"cluster_id",fields:"name description notes",required:"name",defaults:"{}",parent:None,missing:"Cluster not found",stamped:true};
 pub const ARRAY: Resource = Resource {table:"storage_arrays",id_field:"array_id",fields:"name vendor model mgmt_host datacenter description total_capacity_gb used_capacity_gb notes",required:"name vendor",defaults:r#"{"total_capacity_gb":0,"used_capacity_gb":0}"#,parent:None,missing:"Storage array not found",stamped:true};
 pub const NODE: Resource = Resource {table:"physical_nodes",id_field:"item_id",fields:"name cpu_model cpu_cores cpu_threads ram_total_gb ram_used_gb storage_usable_gb datacenter rack rack_unit ip_addresses notes sort_order",required:"name",defaults:r#"{"cpu_cores":0,"cpu_threads":0,"ram_total_gb":0,"storage_usable_gb":0,"ip_addresses":[],"sort_order":0}"#,parent:Some(("physical_clusters","cluster_id")),missing:"Node not found",stamped:true};
@@ -47,9 +47,10 @@ fn validate_field(r:Resource,field:&str,v:&mut Value,create:bool)->Result<(),Api
  let error=|kind:&str,msg:String|field_error(field,kind,msg,v);
  if v.is_null(){
   if field=="status"&&(r.table=="vms"||r.table=="bulk"){return Err(error("enum","Input should be a valid enum value".into()));}
+  if field=="virtual_hosts"{return Err(error("list_type","Input should be a valid list".into()));}
   let defaults:Value=serde_json::from_str(r.defaults).unwrap();
   if create&&(r.required.split_whitespace().any(|f|f==field)||defaults.get(field).is_some()) {
-   let(kind,msg)=if INTEGERS.split_whitespace().any(|f|f==field){("int_type","Input should be a valid integer")}else if field.ends_with("_enabled"){("bool_type","Input should be a valid boolean")}else if field=="ip_addresses"{("list_type","Input should be a valid list")}else if field=="tags"{("list_type","Input should be a valid list")}else if ["platform","status","environment","criticality","vm_type","role","vendor"].contains(&field){("enum","Input should be a valid enum value")}else{("string_type","Input should be a valid string")};
+   let(kind,msg)=if INTEGERS.split_whitespace().any(|f|f==field){("int_type","Input should be a valid integer")}else if field.ends_with("_enabled"){("bool_type","Input should be a valid boolean")}else if ["ip_addresses","tags","virtual_hosts"].contains(&field){("list_type","Input should be a valid list")}else if ["platform","status","environment","criticality","vm_type","role","vendor"].contains(&field){("enum","Input should be a valid enum value")}else{("string_type","Input should be a valid string")};
    return Err(error(kind,msg.into()));
   }
   return Ok(());
@@ -61,6 +62,25 @@ fn validate_field(r:Resource,field:&str,v:&mut Value,create:bool)->Result<(),Api
  }
  if field.ends_with("_enabled"){let b=coerce_bool(v).ok_or_else(||error("bool_parsing","Input should be a valid boolean, unable to interpret input".into()))?;*v=json!(b);return Ok(());}
  if field=="tags" {let a=v.as_array().ok_or_else(||error("value_error","Value error, tags must be a list of strings".into()))?;*v=json!(a.iter().filter_map(Value::as_str).map(str::trim).filter(|s|!s.is_empty()).collect::<Vec<_>>());return Ok(());}
+ if field=="virtual_hosts" {
+  let a=v.as_array().ok_or_else(||error("list_type","Input should be a valid list".into()))?;
+  let mut items=Vec::new();
+  let mut seen=std::collections::HashSet::new();
+  let mut errors=Vec::new();
+  for (index, item) in a.iter().enumerate() {
+   if let Some(s)=item.as_str() {
+    let trimmed=s.trim();
+    if !trimmed.is_empty() && seen.insert(trimmed.to_lowercase()) {
+     items.push(trimmed.to_string());
+    }
+   } else {
+    errors.push(issue(vec![json!("body"),json!(field),json!(index)],"string_type","Input should be a valid string",item));
+   }
+  }
+  if !errors.is_empty() { return Err(ApiError::validation(errors)); }
+  *v = json!(items);
+  return Ok(());
+ }
  if field=="ip_addresses"{
   let a=v.as_array().ok_or_else(||error("list_type","Input should be a valid list".into()))?;
   let mut items=Vec::with_capacity(a.len());let mut errors=Vec::new();
@@ -97,7 +117,7 @@ pub fn validate(r: Resource, payload: Value, create: bool) -> Result<Value, ApiE
  for field in r.fields.split_whitespace(){
   if let Some(input)=source.get(field){
    let mut v=input.clone();
-   if r.table=="vms"&&"external_id name fqdn description datacenter sr_id cluster node os_distribution os_version owner business_owner technical_owner backup_location security_remarks".split_whitespace().any(|f|f==field){if let Some(s)=v.as_str(){v=if s.trim().is_empty(){Value::Null}else{json!(s.trim())};}}
+   if r.table=="vms"&&"external_id name description datacenter sr_id cluster node os_distribution os_version owner business_owner technical_owner backup_location security_remarks".split_whitespace().any(|f|f==field){if let Some(s)=v.as_str(){v=if s.trim().is_empty(){Value::Null}else{json!(s.trim())};}}
    match validate_field(r,field,&mut v,create){Ok(())=>{result.insert(field.into(),v);},Err(e)=>errors.extend(e.detail.unwrap().as_array().unwrap().iter().cloned())}
   }else if create&&r.required.split_whitespace().any(|f|f==field){errors.push(issue(vec![json!("body"),json!(field)],"missing","Field required",&payload));}
  }
@@ -166,5 +186,19 @@ mod tests {
   let errors=body["detail"].as_array().unwrap();assert_eq!(errors.len(),3);assert!(errors.iter().all(|e|e["msg"].is_string()&&e["type"].is_string()&&e["loc"][0]=="body"));
   assert!(errors.iter().any(|e|e["loc"]==json!(["body","disks",0,"size_gb"])));
   assert!(errors.iter().any(|e|e["loc"]==json!(["body","networks",0,"ip_address"])));
+ }
+ #[test]fn virtual_hosts_validation_trims_dedupes_drops_blanks_and_rejects_wrong_types(){
+  let valid=validate(VM,json!({"virtual_hosts":["  a.example.com  ","b.example.com","","   ","a.example.com","A.EXAMPLE.COM","Free-form Site Name"]}),false).unwrap();
+  assert_eq!(valid["virtual_hosts"],json!(["a.example.com","b.example.com","Free-form Site Name"]));
+  let create_payload=json!({"name":"x","platform":"proxmox","cluster":"c","status":"running","cpu_cores":1,"memory_mb":1024,"criticality":"low"});
+  assert_eq!(validate(VM,create_payload,true).unwrap()["virtual_hosts"],json!([]));
+  let e_not_list=validate(VM,json!({"virtual_hosts":"not-a-list"}),false).unwrap_err();
+  assert_eq!(e_not_list.detail.unwrap()[0]["type"],"list_type");
+  let e_null=validate(VM,json!({"virtual_hosts":null}),false).unwrap_err();
+  assert_eq!(e_null.detail.unwrap()[0]["type"],"list_type");
+  let e_wrong_item=validate(VM,json!({"virtual_hosts":["valid",42]}),false).unwrap_err();
+  let d=e_wrong_item.detail.unwrap();
+  assert_eq!(d[0]["type"],"string_type");
+  assert_eq!(d[0]["loc"],json!(["body","virtual_hosts",1]));
  }
 }

@@ -291,4 +291,32 @@ describe('VmFormPage', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Name already exists');
   });
+
+  it('allows adding, updating, and removing virtual hosts and submits them', async () => {
+    const createSpy = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm());
+    renderWithProviders(<VmFormPage mode="create" />);
+    await screen.findByRole('heading', { name: 'New VM' });
+
+    fillRequiredCreateFields();
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Add virtual host' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Add virtual host' }));
+
+    const host1 = screen.getByLabelText('Virtual host 1');
+    const host2 = screen.getByLabelText('Virtual host 2');
+    fireEvent.change(host1, { target: { value: 'app.example.com' } });
+    fireEvent.change(host2, { target: { value: 'temp.example.com' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove virtual host 2' }));
+    expect(screen.queryByLabelText('Virtual host 2')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+
+    await waitFor(() => expect(createSpy).toHaveBeenCalled());
+    expect(createSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        virtual_hosts: ['app.example.com'],
+      }),
+    );
+  });
 });

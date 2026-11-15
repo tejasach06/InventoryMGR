@@ -2,7 +2,7 @@ use super::{filters,selected_ids,export_selection,service::{db_error,vm_details}
 use crate::api::deps::{AppState,ApiError,Viewer};
 use axum::{Json,extract::{State,RawQuery},response::{Response,IntoResponse},http::{header,StatusCode}};
 use serde_json::{json,Value};
-const SCALARS:&str="name external_id fqdn platform datacenter sr_id cluster node status environment criticality vm_type cpu_cores memory_mb os_family os_distribution os_version owner business_owner technical_owner pmp_enabled monitoring_enabled backup_enabled backup_location ha_enabled tags last_patch_date last_vuln_scan_date security_remarks decommission_date last_verified_at description health_score created_at updated_at";
+const SCALARS:&str="name external_id virtual_hosts platform datacenter sr_id cluster node status environment criticality vm_type cpu_cores memory_mb os_family os_distribution os_version owner business_owner technical_owner pmp_enabled monitoring_enabled backup_enabled backup_location ha_enabled tags last_patch_date last_vuln_scan_date security_remarks decommission_date last_verified_at description health_score created_at updated_at";
 const DERIVED:[&str;5]=["disks","private_ip","public_ip","backup_ip","applications"];
 const PREVIEW_ROWS:usize=5;
 type Row<'a>=(&'a Value,Vec<String>);
@@ -12,6 +12,7 @@ fn joined(child:&Value,keys:&[&str])->String{let mut parts:Vec<_>=keys.iter().ma
 fn disk(d:&Value)->String{joined(d,&["disk_name","size_gb","storage_name","storage_type"])}
 fn cell(v:&Value,key:&str)->String{match key{
  "tags"=>v[key].as_array().unwrap().iter().filter_map(Value::as_str).collect::<Vec<_>>().join(";"),
+ "virtual_hosts"=>match v.get("virtual_hosts").and_then(Value::as_array){Some(arr) if !arr.is_empty()=>serde_json::to_string(arr).unwrap_or_default(),_=>String::new()},
  "disks"=>v[key].as_array().unwrap().iter().map(disk).collect::<Vec<_>>().join(";"),
  "private_ip"|"public_ip"|"backup_ip"=>{let role=key.trim_end_matches("_ip");v["networks"].as_array().unwrap().iter().filter(|n|n["role"].as_str()==Some(role)).map(|n|text(&n["ip_address"])).collect::<Vec<_>>().join(";")}
  "applications"=>v[key].as_array().unwrap().iter().map(|a|joined(a,&["app_name","app_owner"])).collect::<Vec<_>>().join(";"),

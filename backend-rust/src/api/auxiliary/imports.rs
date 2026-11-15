@@ -8,8 +8,8 @@ use uuid::Uuid;
 use crate::api::deps::{ApiError,AppState,Viewer,Editor,Csrf};
 use super::db_error;
 
-const COLUMNS: &[&str]=&["name","external_id","fqdn","sr_id","platform","datacenter","cluster","node","status","environment","criticality","vm_type","cpu_cores","memory_mb","os_family","os_distribution","os_version","owner","business_owner","technical_owner","monitoring_enabled","pmp_enabled","ha_enabled","backup_enabled","backup_location","tags","last_patch_date","last_vuln_scan_date","last_verified_at","decommission_date","security_remarks","description"];
-const TEMPLATE: &[&str]=&["name","external_id","fqdn","sr_id","platform","datacenter","cluster","node","status","environment","criticality","vm_type","cpu_cores","memory_mb","disks","storage_name","storage_type","os_family","os_distribution","os_version","private_ip","public_ip","backup_ip","owner","business_owner","technical_owner","applications","monitoring_enabled","pmp_enabled","ha_enabled","backup_enabled","backup_location","tags","last_patch_date","last_vuln_scan_date","last_verified_at","decommission_date","security_remarks","description"];
+const COLUMNS: &[&str]=&["name","external_id","virtual_hosts","sr_id","platform","datacenter","cluster","node","status","environment","criticality","vm_type","cpu_cores","memory_mb","os_family","os_distribution","os_version","owner","business_owner","technical_owner","monitoring_enabled","pmp_enabled","ha_enabled","backup_enabled","backup_location","tags","last_patch_date","last_vuln_scan_date","last_verified_at","decommission_date","security_remarks","description"];
+const TEMPLATE: &[&str]=&["name","external_id","virtual_hosts","sr_id","platform","datacenter","cluster","node","status","environment","criticality","vm_type","cpu_cores","memory_mb","disks","storage_name","storage_type","os_family","os_distribution","os_version","private_ip","public_ip","backup_ip","owner","business_owner","technical_owner","applications","monitoring_enabled","pmp_enabled","ha_enabled","backup_enabled","backup_location","tags","last_patch_date","last_vuln_scan_date","last_verified_at","decommission_date","security_remarks","description"];
 const PROTECTED: &[&str]=&["owner","business_owner","technical_owner","monitoring_enabled","pmp_enabled","backup_location","criticality","environment","vm_type","sr_id","last_patch_date","last_vuln_scan_date","last_verified_at","security_remarks"];
 const BOOLS: &[&str]=&["monitoring_enabled","ha_enabled","backup_enabled","pmp_enabled"];
 const DATES: &[&str]=&["last_patch_date","last_vuln_scan_date","decommission_date","last_verified_at"];
@@ -80,7 +80,24 @@ fn normalize(raw: &Value) -> (Option<Value>,Vec<Value>) {
     for key in ["cpu_cores","memory_mb"]{let value=text(raw,key);if value.is_empty(){continue;}match value.parse::<i64>(){Ok(n) if n>=0=>{normalized.insert(key.into(),json!(n));},_=>errors.push(error(key,"must be an integer >= 0"))}}
     for key in BOOLS{let value=text(raw,key).to_lowercase();if value.is_empty(){continue;}match value.as_str(){"true"|"yes"|"1"=>{normalized.insert((*key).into(),json!(true));},"false"|"no"|"0"=>{normalized.insert((*key).into(),json!(false));},_=>errors.push(error(key,"must be one of true, false, yes, no, 1, 0"))}}
     for key in DATES{let value=text(raw,key);if value.is_empty(){continue;}if let Some(date)=parse_date(value){normalized.insert((*key).into(),json!(date.to_string()));}else{errors.push(error(key,"must be ISO date YYYY-MM-DD"));}}
-    for key in COLUMNS {if ["name","platform","cluster","status","environment","criticality","os_family","vm_type","cpu_cores","memory_mb","tags"].contains(key) || BOOLS.contains(key)||DATES.contains(key){continue;}let value=text(raw,key);if !value.is_empty(){normalized.insert((*key).into(),json!(value));}}
+    for key in COLUMNS {if ["name","platform","cluster","status","environment","criticality","os_family","vm_type","cpu_cores","memory_mb","tags","virtual_hosts"].contains(key) || BOOLS.contains(key)||DATES.contains(key){continue;}let value=text(raw,key);if !value.is_empty(){normalized.insert((*key).into(),json!(value));}}
+    let vh_raw=if !text(raw,"virtual_hosts").is_empty(){text(raw,"virtual_hosts")}else{text(raw,"fqdn")};
+    if !vh_raw.trim().is_empty(){
+        let trimmed=vh_raw.trim();
+        let list:Vec<String>=if trimmed.starts_with('[')&&trimmed.ends_with(']'){
+            serde_json::from_str::<Vec<Value>>(trimmed).map(|arr|{
+                let mut out=Vec::new();let mut seen=HashSet::new();
+                for item in arr{if let Some(s)=item.as_str(){let t=s.trim();if !t.is_empty()&&seen.insert(t.to_lowercase()){out.push(t.to_string());}}}
+                out
+            }).unwrap_or_else(|_|vec![trimmed.to_string()])
+        }else{
+            let mut out=Vec::new();let mut seen=HashSet::new();
+            for part in parts(trimmed){if seen.insert(part.to_lowercase()){out.push(part.to_string());}}
+            if out.is_empty(){out.push(trimmed.to_string());}
+            out
+        };
+        if !list.is_empty(){normalized.insert("virtual_hosts".into(),json!(list));}
+    }
     if !text(raw,"tags").is_empty(){normalized.insert("tags".into(),json!(parts(text(raw,"tags")).collect::<Vec<_>>()));}
     disks(raw,&mut errors);applications(raw,&mut errors);for (key,_) in IP_ROLES{ips(raw,key,&mut errors);}
     if errors.is_empty(){(Some(Value::Object(normalized)),errors)}else{(None,errors)}
@@ -134,7 +151,7 @@ fn parse_csv(content: &[u8]) -> Result<(Vec<Value>,Vec<String>),ApiError> {
     let headers=reader.headers().map_err(|e|ApiError::bad_request(e.to_string()))?.iter().map(|s|s.trim().to_owned()).collect::<Vec<_>>();
     let mut missing=["name","platform","cluster"].into_iter().filter(|key|!headers.iter().any(|header|header==key)).collect::<Vec<_>>();missing.sort_unstable();
     if !missing.is_empty(){return Err(ApiError::bad_request(format!("CSV missing required headers: {}",missing.join(", "))));}
-    let mut ignored=headers.iter().filter(|s|!s.is_empty() && !TEMPLATE.contains(&s.as_str())).cloned().collect::<Vec<_>>();ignored.sort();ignored.dedup();
+    let mut ignored=headers.iter().filter(|s|!s.is_empty() && !TEMPLATE.contains(&s.as_str()) && *s != "fqdn").cloned().collect::<Vec<_>>();ignored.sort();ignored.dedup();
     let mut rows=Vec::new();
     for record in reader.records(){let record=record.map_err(|e|ApiError::bad_request(e.to_string()))?;if rows.len()>=5000{return Err(ApiError::bad_request("CSV row count exceeds 5000"));}let raw=headers.iter().enumerate().map(|(i,h)|(h.clone(),json!(record.get(i).unwrap_or("").trim()))).collect::<Map<_,_>>();rows.push(Value::Object(raw));}
     if rows.is_empty(){return Err(ApiError::bad_request("CSV file is empty"));}
@@ -220,7 +237,7 @@ async fn write_vm(connection:&mut PgConnection,vm:Option<&Value>,normalized:&Val
         sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE vms SET {} WHERE id=$3",assignments.join(",")))).bind(values).bind(user).bind(id).execute(connection).await.map_err(mutation_error)?;
         Ok(id)
     }else{
-        let id=Uuid::new_v4();let mut values=json!({"environment":"production","cpu_cores":0,"memory_mb":0,"criticality":"medium","vm_type":"permanent","monitoring_enabled":false,"ha_enabled":false,"backup_enabled":false,"pmp_enabled":false,"tags":[],"os_family":null});
+        let id=Uuid::new_v4();let mut values=json!({"environment":"production","cpu_cores":0,"memory_mb":0,"criticality":"medium","vm_type":"permanent","monitoring_enabled":false,"ha_enabled":false,"backup_enabled":false,"pmp_enabled":false,"tags":[],"virtual_hosts":[],"os_family":null});
         values.as_object_mut().unwrap().extend(normalized.as_object().unwrap().clone());
         let columns=COLUMNS.join(",");let selected=COLUMNS.iter().map(|key|format!("r.{key}")).collect::<Vec<_>>().join(",");
         sqlx::query(sqlx::AssertSqlSafe(format!("INSERT INTO vms(id,{columns},created_by_id,updated_by_id,created_at,updated_at,health_score) SELECT $2,{selected},$3,$3,now(),now(),0 FROM jsonb_populate_record(NULL::vms,$1) r")))
@@ -289,8 +306,8 @@ async fn commit_row(connection:&mut PgConnection,row:&Value,user:Uuid)->Result<U
 }
 pub async fn template(_:Viewer)->Result<Response,ApiError>{
     let rows=[
-        ["SAMPLE-web-01","VM-1001","web-01.corp.local","SR-2481","proxmox","DC-Mumbai","pve-cluster-01","pve-node-03","running","production","high","permanent","4","8192","os:100;data:500","SAMPLE-SAN-01","ssd","linux","ubuntu","22.04","10.20.30.41","","","infra-team","Retail Ops","A. Sharma","nginx:web-team;postgres:dba-team","true","true","true","true","Veeam-Repo-01","web;tier1","2026-07-14","2026-07-01","2026-07-20","","","Sample row - delete before importing"],
-        ["SAMPLE-test-02","VM-1002","test-02.corp.local","SR-2492","vmware","DC-Pune","vc-cluster-02","esxi-node-11","powered_off","testing","low","temporary","2","4096","os:60","","","windows","","2022","10.20.31.52","","","qa-team","QA","R. Iyer","iis","false","false","false","false","","sandbox","2026-06-02","","","2026-09-30","","Sample row - delete before importing"],
+        ["SAMPLE-web-01","VM-1001","[\"web-01.corp.local\"]","SR-2481","proxmox","DC-Mumbai","pve-cluster-01","pve-node-03","running","production","high","permanent","4","8192","os:100;data:500","SAMPLE-SAN-01","ssd","linux","ubuntu","22.04","10.20.30.41","","","infra-team","Retail Ops","A. Sharma","nginx:web-team;postgres:dba-team","true","true","true","true","Veeam-Repo-01","web;tier1","2026-07-14","2026-07-01","2026-07-20","","","Sample row - delete before importing"],
+        ["SAMPLE-test-02","VM-1002","[\"test-02.corp.local\"]","SR-2492","vmware","DC-Pune","vc-cluster-02","esxi-node-11","powered_off","testing","low","temporary","2","4096","os:60","","","windows","","2022","10.20.31.52","","","qa-team","QA","R. Iyer","iis","false","false","false","false","","sandbox","2026-06-02","","","2026-09-30","","Sample row - delete before importing"],
     ];
     let mut writer=csv::WriterBuilder::new().terminator(csv::Terminator::Any(b'\n')).from_writer(Vec::new());
     writer.write_record(TEMPLATE).map_err(|e|ApiError::internal(e.to_string()))?;
@@ -331,4 +348,17 @@ mod tests{
     #[test] fn invalid_child_cells_block_normalization(){let (normalized,errors)=normalize(&json!({"name":"one","platform":"vmware","cluster":"c","disks":"os:-1","private_ip":"2001:db8::1","applications":":owner"}));assert!(normalized.is_none());assert_eq!(errors.len(),3);}
     #[test] fn storage_fallback_and_case_insensitive_dedup(){let disks=disks(&json!({"disks":"os:10;OS:20;data:50:san:ssd","storage_name":"default","storage_type":"hdd"}),&mut Vec::new());assert_eq!(disks.len(),2);assert_eq!(disks[0].storage_name.as_deref(),Some("default"));assert_eq!(disks[1].storage_type.as_deref(),Some("ssd"));}
     #[test] fn csv_bom_unknown_headers_and_missing_cells(){let (rows,ignored)=parse_csv("\u{feff}name,platform,cluster,extra\na,pve,c\n".as_bytes()).unwrap();assert_eq!(ignored,vec!["extra"]);assert_eq!(rows[0]["extra"],"");assert!(parse_csv(b"name,platform\na,pve\n").is_err());}
+    #[test] fn csv_virtual_hosts_and_legacy_fqdn_normalization(){
+        let (n1, e1) = normalize(&json!({"name":"one","platform":"pve","cluster":"c","virtual_hosts":"[\"alpha.local\",\"beta, with comma\",\"alpha.local\"]"}));
+        assert!(e1.is_empty());
+        assert_eq!(n1.unwrap()["virtual_hosts"], json!(["alpha.local", "beta, with comma"]));
+
+        let (n2, e2) = normalize(&json!({"name":"two","platform":"vmware","cluster":"c","fqdn":"legacy.corp.local"}));
+        assert!(e2.is_empty());
+        assert_eq!(n2.unwrap()["virtual_hosts"], json!(["legacy.corp.local"]));
+
+        let (rows, ignored) = parse_csv(b"name,platform,cluster,fqdn\na,pve,c,host.local\n").unwrap();
+        assert!(ignored.is_empty());
+        assert_eq!(rows[0]["fqdn"], "host.local");
+    }
 }
