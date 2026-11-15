@@ -292,6 +292,38 @@ describe('VmFormPage', () => {
     expect(alert).toHaveTextContent('Name already exists');
   });
 
+  it.each([
+    { count: 1, value: 'x'.repeat(256), message: 'Each virtual host must be at most 255 characters.' },
+    { count: 101, value: '', message: 'Use at most 100 virtual hosts.' },
+  ])('shows virtual host errors and allows saving after correction ($count rows)', async ({ count, value, message }) => {
+    const createSpy = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm());
+    renderWithProviders(<VmFormPage mode="create" />);
+    await screen.findByRole('heading', { name: 'New VM' });
+    fillRequiredCreateFields();
+    const addHost = screen.getByRole('button', { name: '+ Add virtual host' });
+    for (let i = 0; i < count; i++) {
+      fireEvent.click(addHost);
+    }
+    const host = screen.getByLabelText('Virtual host 1');
+    fireEvent.change(host, { target: { value } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(host).toHaveFocus();
+    expect(host).toHaveAttribute('aria-invalid', 'true');
+    expect(host).toHaveAccessibleDescription(message);
+    expect(createSpy).not.toHaveBeenCalled();
+
+    if (count > 100) {
+      fireEvent.click(screen.getByRole('button', { name: 'Remove virtual host 101' }));
+    }
+    fireEvent.change(host, { target: { value: 'valid.example.com' } });
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+    await waitFor(() => expect(createSpy).toHaveBeenCalledTimes(1));
+    expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({ virtual_hosts: ['valid.example.com'] }));
+  });
+
   it('allows adding, updating, and removing virtual hosts and submits them', async () => {
     const createSpy = vi.spyOn(vmsApi, 'createVm').mockResolvedValue(makeVm());
     renderWithProviders(<VmFormPage mode="create" />);

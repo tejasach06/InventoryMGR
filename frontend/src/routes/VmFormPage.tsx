@@ -238,9 +238,11 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
 function VirtualHostRows({
   hosts,
   onChange,
+  error,
 }: {
   hosts: string[];
   onChange: (next: string[]) => void;
+  error?: string;
 }) {
   const update = (i: number, val: string) => {
     const next = [...hosts];
@@ -263,7 +265,10 @@ function VirtualHostRows({
           {hosts.map((host, i) => (
             <div key={i} className="flex items-center gap-2">
               <input
+                id={i === 0 ? 'virtual_hosts' : undefined}
                 aria-label={`Virtual host ${i + 1}`}
+                aria-describedby={error ? 'virtual_hosts-error' : undefined}
+                aria-invalid={Boolean(error)}
                 className={cn(inputClass, 'max-w-md')}
                 type="text"
                 placeholder="e.g. app.example.com or Internal Portal"
@@ -282,6 +287,7 @@ function VirtualHostRows({
       >
         + Add virtual host
       </button>
+      <FieldError id="virtual_hosts-error" message={error} />
     </div>
   );
 }
@@ -440,7 +446,11 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             </div>
             <VirtualHostRows
               hosts={values.virtual_hosts}
-              onChange={(next) => setValues((c) => ({ ...c, virtual_hosts: next }))}
+              error={errors.virtual_hosts}
+              onChange={(next) => {
+                setValues((c) => ({ ...c, virtual_hosts: next }));
+                setErrors((c) => ({ ...c, virtual_hosts: undefined }));
+              }}
             />
           </SectionCard>
 
