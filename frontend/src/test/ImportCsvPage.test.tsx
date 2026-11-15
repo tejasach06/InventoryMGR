@@ -131,6 +131,18 @@ describe('ImportCsvPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('explains how to import, replace, and clear multiple virtual hosts', () => {
+    renderWithProviders(<ImportCsvPage />);
+
+    expect(screen.getByText(/Use virtual_hosts for multiple virtual hosts/)).toHaveTextContent(
+      'web.corp.local;api.corp.local',
+    );
+    expect(screen.getByText(/replaces the existing virtual hosts/)).toHaveTextContent(
+      '[] clears the list',
+    );
+    expect(screen.queryByText(/importing never clears a field/)).not.toBeInTheDocument();
+  });
+
 
   it('shows unchanged rows in their own summary card', async () => {
     vi.spyOn(importsApi, 'previewImport').mockResolvedValue(

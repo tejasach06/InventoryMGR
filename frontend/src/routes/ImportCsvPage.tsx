@@ -210,8 +210,13 @@ export function ImportCsvPage() {
                 group — identity, placement, classification, capacity, OS, network,
                 ownership, operations, compliance dates, notes — and two SAMPLE- rows you
                 should delete once you have copied the formats. Blank cells are left
-                unchanged on existing VMs and take default values on new ones — importing
-                never clears a field. On existing VMs, curated columns — owner,
+                unchanged on existing VMs and take default values on new ones.
+                Use virtual_hosts for multiple virtual hosts, separated by semicolons
+                (web.corp.local;api.corp.local) or as a JSON array. A supplied list
+                replaces the existing virtual hosts; [] clears the list. Each entry
+                can contain up to 255 characters, with at most 100 entries per VM.
+                Legacy fqdn columns are still accepted.
+                On existing VMs, curated columns — owner,
                 business_owner, technical_owner, monitoring_enabled, pmp_enabled,
                 backup_location, criticality, environment, vm_type, sr_id,
                 last_patch_date, last_vuln_scan_date, last_verified_at,

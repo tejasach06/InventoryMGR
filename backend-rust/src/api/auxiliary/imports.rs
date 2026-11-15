@@ -312,7 +312,7 @@ async fn commit_row(connection:&mut PgConnection,row:&Value,user:Uuid)->Result<U
 }
 pub async fn template(_:Viewer)->Result<Response,ApiError>{
     let rows=[
-        ["SAMPLE-web-01","VM-1001","[\"web-01.corp.local\"]","SR-2481","proxmox","DC-Mumbai","pve-cluster-01","pve-node-03","running","production","high","permanent","4","8192","os:100;data:500","SAMPLE-SAN-01","ssd","linux","ubuntu","22.04","10.20.30.41","","","infra-team","Retail Ops","A. Sharma","nginx:web-team;postgres:dba-team","true","true","true","true","Veeam-Repo-01","web;tier1","2026-07-14","2026-07-01","2026-07-20","","","Sample row - delete before importing"],
+        ["SAMPLE-web-01","VM-1001","[\"web-01.corp.local\",\"portal.corp.local\"]","SR-2481","proxmox","DC-Mumbai","pve-cluster-01","pve-node-03","running","production","high","permanent","4","8192","os:100;data:500","SAMPLE-SAN-01","ssd","linux","ubuntu","22.04","10.20.30.41","","","infra-team","Retail Ops","A. Sharma","nginx:web-team;postgres:dba-team","true","true","true","true","Veeam-Repo-01","web;tier1","2026-07-14","2026-07-01","2026-07-20","","","Sample row - delete before importing"],
         ["SAMPLE-test-02","VM-1002","[\"test-02.corp.local\"]","SR-2492","vmware","DC-Pune","vc-cluster-02","esxi-node-11","powered_off","testing","low","temporary","2","4096","os:60","","","windows","","2022","10.20.31.52","","","qa-team","QA","R. Iyer","iis","false","false","false","false","","sandbox","2026-06-02","","","2026-09-30","","Sample row - delete before importing"],
     ];
     let mut writer=csv::WriterBuilder::new().terminator(csv::Terminator::Any(b'\n')).from_writer(Vec::new());
@@ -324,6 +324,42 @@ pub async fn template(_:Viewer)->Result<Response,ApiError>{
 #[cfg(test)]
 mod tests{
     use super::*;
+    #[tokio::test]
+    async fn csv_template_round_trips_multiple_virtual_hosts(){
+        let now=chrono::Utc::now();
+        let viewer=crate::api::deps::RequireRole::<1>(crate::models::user::User{
+            id:Uuid::nil(),email:"viewer@example.test".into(),password_hash:String::new(),
+            role:crate::models::user::UserRole::Viewer,is_active:true,auth_source:"local".into(),
+            preferences:json!({}),created_at:now,updated_at:now,
+        });
+        let response=template(viewer).await.unwrap();
+        assert_eq!(response.headers()[header::CONTENT_TYPE],"text/csv");
+        assert_eq!(response.headers()[header::CONTENT_DISPOSITION],"attachment; filename=\"vm-import-template.csv\"");
+        let bytes=axum::body::to_bytes(response.into_body(),1024*1024).await.unwrap();
+        let (rows,ignored)=parse_csv(&bytes).unwrap();
+        assert!(ignored.is_empty());
+        assert_eq!(rows.len(),2);
+        for row in &rows{
+            let (normalized,errors)=normalize(row);
+            assert!(errors.is_empty(),"{errors:?}");
+            let normalized=normalized.unwrap();
+            assert!(status_error(&normalized,true).is_none());
+            assert!(normalized["virtual_hosts"].is_array());
+            assert!(normalized.get("fqdn").is_none());
+        }
+        let (normalized,_)=normalize(&rows[0]);
+        assert_eq!(normalized.unwrap()["virtual_hosts"],json!(["web-01.corp.local","portal.corp.local"]));
+    }
+    #[test]
+    fn csv_virtual_hosts_updates_replace_clear_or_preserve(){
+        let vm=json!({"virtual_hosts":["old.corp.local"]});
+        for (cell,expected) in [("new.corp.local;portal.corp.local",Some(json!(["new.corp.local","portal.corp.local"]))),("[]",Some(json!([]))),("",None)]{
+            let (normalized,errors)=normalize(&json!({"name":"one","platform":"pve","cluster":"c","virtual_hosts":cell}));
+            assert!(errors.is_empty());
+            let values=updates(&normalized.unwrap(),&vm);
+            assert_eq!(values.get("virtual_hosts"),expected.as_ref());
+        }
+    }
     #[test] fn csv_status_accepts_three_values_rejects_unknown(){
         for status in ["running","powered_off","decommissioned"]{let (normalized,errors)=normalize(&json!({"name":"one","platform":"vmware","cluster":"c","status":status}));assert!(errors.is_empty());let normalized=normalized.unwrap();assert_eq!(normalized["status"],status);assert!(status_error(&normalized,true).is_none());}
         for status in ["unknown"," UNKNOWN ","null"]{let (normalized,errors)=normalize(&json!({"name":"one","platform":"vmware","cluster":"c","status":status}));assert!(normalized.is_none());assert_eq!(errors[0]["field"],"status");}
