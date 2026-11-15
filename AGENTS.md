@@ -85,6 +85,15 @@ abstractions. Match existing file conventions over inventing new ones.
 
 ## Agent skills
 
+### Orca coordination
+
+When using Orca through Context Mode, resolve the live agent terminal with
+`orca terminal list --json` and pass its handle explicitly as `--from`.
+Verify the Run's `coordinator_handle` matches that non-orphaned agent terminal
+before dispatching; cwd-based discovery can select an orphaned shell instead.
+Use completion notifications after binding and read mail in the coordinator,
+so waiting requires neither repeated status polling nor user prompts.
+
 ### Codebase research
 
 When Graphify is installed and an existing graph is available, query it first
