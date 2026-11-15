@@ -5,6 +5,8 @@ umask 077
 TARGET=${DEPLOY_VERIFY_TARGET:-tejas@192.168.0.21}
 SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
 RUN_LABEL=inventorymgr.verification.run
+# Must equal tools/parity/migration_head.txt; remote worker has no repo checkout.
+MIGRATION_HEAD=0025
 PHASE=preflight
 WORK=
 ROOT=
@@ -311,7 +313,7 @@ check_services() {
 assert_runtime() {
     local version actual name end
     actual=$(bounded 10s podman exec "$DB" psql -U inventorymgr -d inventorymgr -Atqc 'SELECT version_num FROM alembic_version')
-    [[ $actual == 0024 ]] || fail "Unexpected migration ledger: $actual"
+    [[ $actual == "$MIGRATION_HEAD" ]] || fail "Unexpected migration ledger: $actual"
     for name in pg_dump pg_restore; do
         version=$(bounded 10s podman exec "$API" "$name" --version)
         [[ $version == *'(PostgreSQL) 17.'* ]] || fail "Wrong PostgreSQL client version: $version"
@@ -325,7 +327,7 @@ assert_runtime() {
         http_checks || fail 'HTTP checks failed during observation'
         sleep 5
     done
-    note "$CURRENT: migration=0024 clients=17 image_ids=matched stable=60s"
+    note "$CURRENT: migration=$MIGRATION_HEAD clients=17 image_ids=matched stable=60s"
 }
 
 run_compose() {

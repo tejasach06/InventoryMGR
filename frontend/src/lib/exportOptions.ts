@@ -106,3 +106,8 @@ export function loadPresets(): ExportPreset[] {
 export function savePresets(presets: ExportPreset[]): void {
   window.localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
 }
+
+// Legacy presets stored `fqdn`; map to `virtual_hosts`, dedupe, keep only known columns.
+export function presetColumns(columns: string[]): string[] {
+  return [...new Set(columns.map((c) => (c === 'fqdn' ? 'virtual_hosts' : c)))].filter((c) => EXPORT_COLUMNS.includes(c));
+}

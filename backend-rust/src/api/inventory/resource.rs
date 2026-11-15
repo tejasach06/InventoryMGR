@@ -1,6 +1,9 @@
 use serde_json::{json, Value};
 use crate::api::deps::ApiError;
 
+/// Shared with CSV import (`imports.rs`); frontend mirrors these in `vmForm.ts`.
+pub const VIRTUAL_HOST_MAX_LEN: usize = 255;
+pub const VIRTUAL_HOST_MAX_COUNT: usize = 100;
 #[derive(Clone, Copy)]
 pub struct Resource { pub table: &'static str, pub fields: &'static str, pub required: &'static str, pub defaults: &'static str, pub parent: Option<(&'static str, &'static str)>, pub missing: &'static str, pub stamped: bool, pub id_field: &'static str }
 pub const VM: Resource = Resource {table:"vms",id_field:"vm_id", fields:"external_id name virtual_hosts description platform datacenter sr_id cluster node status environment cpu_cores memory_mb os_family os_distribution os_version owner business_owner technical_owner pmp_enabled monitoring_enabled backup_enabled backup_location ha_enabled criticality vm_type tags last_patch_date last_vuln_scan_date security_remarks decommission_date last_verified_at",required:"name platform cluster status criticality cpu_cores memory_mb",defaults:r#"{"environment":"production","vm_type":"permanent","pmp_enabled":false,"monitoring_enabled":false,"backup_enabled":false,"ha_enabled":false,"tags":[],"virtual_hosts":[],"health_score":0}"#,parent:None,missing:"VM not found",stamped:true};
@@ -64,13 +67,18 @@ fn validate_field(r:Resource,field:&str,v:&mut Value,create:bool)->Result<(),Api
  if field=="tags" {let a=v.as_array().ok_or_else(||error("value_error","Value error, tags must be a list of strings".into()))?;*v=json!(a.iter().filter_map(Value::as_str).map(str::trim).filter(|s|!s.is_empty()).collect::<Vec<_>>());return Ok(());}
  if field=="virtual_hosts" {
   let a=v.as_array().ok_or_else(||error("list_type","Input should be a valid list".into()))?;
+  if a.len()>VIRTUAL_HOST_MAX_COUNT {return Err(error("too_long",format!("List should have at most {VIRTUAL_HOST_MAX_COUNT} items")));}
   let mut items=Vec::new();
   let mut seen=std::collections::HashSet::new();
   let mut errors=Vec::new();
   for (index, item) in a.iter().enumerate() {
    if let Some(s)=item.as_str() {
     let trimmed=s.trim();
-    if !trimmed.is_empty() && seen.insert(trimmed.to_lowercase()) {
+    if trimmed.chars().count()>VIRTUAL_HOST_MAX_LEN {
+     let mut e=issue(vec![json!("body"),json!(field),json!(index)],"string_too_long",format!("String should have at most {VIRTUAL_HOST_MAX_LEN} characters"),item);
+     e["ctx"]=json!({"max_length":VIRTUAL_HOST_MAX_LEN});
+     errors.push(e);
+    } else if !trimmed.is_empty() && seen.insert(trimmed.to_lowercase()) {
      items.push(trimmed.to_string());
     }
    } else {
@@ -200,5 +208,16 @@ mod tests {
   let d=e_wrong_item.detail.unwrap();
   assert_eq!(d[0]["type"],"string_type");
   assert_eq!(d[0]["loc"],json!(["body","virtual_hosts",1]));
+ }
+ #[test]fn virtual_hosts_bounds_reject_oversize_items_and_counts(){
+  let ok="x".repeat(VIRTUAL_HOST_MAX_LEN);
+  assert_eq!(validate(VM,json!({"virtual_hosts":[ok.clone(),"Acme, Inc; portal"]}),false).unwrap()["virtual_hosts"],json!([ok,"Acme, Inc; portal"]));
+  let long=validate(VM,json!({"virtual_hosts":["fine","x".repeat(VIRTUAL_HOST_MAX_LEN+1)]}),false).unwrap_err();
+  let d=long.detail.unwrap();
+  assert_eq!(d[0]["type"],"string_too_long");
+  assert_eq!(d[0]["loc"],json!(["body","virtual_hosts",1]));
+  let many:Vec<String>=(0..=VIRTUAL_HOST_MAX_COUNT).map(|i|format!("h{i}.local")).collect();
+  let count=validate(VM,json!({"virtual_hosts":many}),false).unwrap_err();
+  assert_eq!(count.detail.unwrap()[0]["loc"],json!(["body","virtual_hosts"]));
  }
 }

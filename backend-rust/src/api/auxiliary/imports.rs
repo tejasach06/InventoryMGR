@@ -6,6 +6,7 @@ use sqlx::PgConnection;
 use std::collections::{HashMap,HashSet};
 use uuid::Uuid;
 use crate::api::deps::{ApiError,AppState,Viewer,Editor,Csrf};
+use crate::api::inventory::{VIRTUAL_HOST_MAX_COUNT,VIRTUAL_HOST_MAX_LEN};
 use super::db_error;
 
 const COLUMNS: &[&str]=&["name","external_id","virtual_hosts","sr_id","platform","datacenter","cluster","node","status","environment","criticality","vm_type","cpu_cores","memory_mb","os_family","os_distribution","os_version","owner","business_owner","technical_owner","monitoring_enabled","pmp_enabled","ha_enabled","backup_enabled","backup_location","tags","last_patch_date","last_vuln_scan_date","last_verified_at","decommission_date","security_remarks","description"];
@@ -84,19 +85,24 @@ fn normalize(raw: &Value) -> (Option<Value>,Vec<Value>) {
     let vh_raw=if !text(raw,"virtual_hosts").is_empty(){text(raw,"virtual_hosts")}else{text(raw,"fqdn")};
     if !vh_raw.trim().is_empty(){
         let trimmed=vh_raw.trim();
-        let list:Vec<String>=if trimmed.starts_with('[')&&trimmed.ends_with(']'){
-            serde_json::from_str::<Vec<Value>>(trimmed).map(|arr|{
+        let json_arr=if trimmed.starts_with('[')&&trimmed.ends_with(']'){serde_json::from_str::<Vec<Value>>(trimmed).ok()}else{None};
+        if let Some(arr)=json_arr{
+            if arr.len()>VIRTUAL_HOST_MAX_COUNT{errors.push(error("virtual_hosts",format!("must have at most {VIRTUAL_HOST_MAX_COUNT} entries")));}
+            else if arr.iter().any(|v|!v.is_string()){errors.push(error("virtual_hosts","every JSON entry must be a string"));}
+            else{
                 let mut out=Vec::new();let mut seen=HashSet::new();
-                for item in arr{if let Some(s)=item.as_str(){let t=s.trim();if !t.is_empty()&&seen.insert(t.to_lowercase()){out.push(t.to_string());}}}
-                out
-            }).unwrap_or_else(|_|vec![trimmed.to_string()])
+                for s in arr.iter().filter_map(Value::as_str){let t=s.trim();if !t.is_empty()&&seen.insert(t.to_lowercase()){out.push(t.to_string());}}
+                if out.iter().any(|s|s.chars().count()>VIRTUAL_HOST_MAX_LEN){errors.push(error("virtual_hosts",format!("each entry must be at most {VIRTUAL_HOST_MAX_LEN} characters")));}
+                else{normalized.insert("virtual_hosts".into(),json!(out));}
+            }
         }else{
             let mut out=Vec::new();let mut seen=HashSet::new();
             for part in parts(trimmed){if seen.insert(part.to_lowercase()){out.push(part.to_string());}}
             if out.is_empty(){out.push(trimmed.to_string());}
-            out
-        };
-        if !list.is_empty(){normalized.insert("virtual_hosts".into(),json!(list));}
+            if out.len()>VIRTUAL_HOST_MAX_COUNT{errors.push(error("virtual_hosts",format!("must have at most {VIRTUAL_HOST_MAX_COUNT} entries")));}
+            else if out.iter().any(|s|s.chars().count()>VIRTUAL_HOST_MAX_LEN){errors.push(error("virtual_hosts",format!("each entry must be at most {VIRTUAL_HOST_MAX_LEN} characters")));}
+            else{normalized.insert("virtual_hosts".into(),json!(out));}
+        }
     }
     if !text(raw,"tags").is_empty(){normalized.insert("tags".into(),json!(parts(text(raw,"tags")).collect::<Vec<_>>()));}
     disks(raw,&mut errors);applications(raw,&mut errors);for (key,_) in IP_ROLES{ips(raw,key,&mut errors);}
@@ -360,5 +366,25 @@ mod tests{
         let (rows, ignored) = parse_csv(b"name,platform,cluster,fqdn\na,pve,c,host.local\n").unwrap();
         assert!(ignored.is_empty());
         assert_eq!(rows[0]["fqdn"], "host.local");
+    }
+    #[test] fn csv_virtual_host_bounds_reject_instead_of_truncating(){
+        let ok="x".repeat(VIRTUAL_HOST_MAX_LEN);let long="x".repeat(VIRTUAL_HOST_MAX_LEN+1);
+        let (n, e) = normalize(&json!({"name":"a","platform":"pve","cluster":"c","virtual_hosts":format!("[\"{ok}\"]")}));
+        assert!(e.is_empty());assert_eq!(n.unwrap()["virtual_hosts"], json!([ok]));
+        let (n, e) = normalize(&json!({"name":"b","platform":"pve","cluster":"c","virtual_hosts":format!("[\"{long}\"]")}));
+        assert!(n.is_none());assert_eq!(e[0]["field"], "virtual_hosts");
+        let many: Vec<String> = (0..=VIRTUAL_HOST_MAX_COUNT).map(|i| format!("h{i}.local")).collect();
+        let (n, e) = normalize(&json!({"name":"c","platform":"pve","cluster":"c","virtual_hosts":serde_json::to_string(&many).unwrap()}));
+        assert!(n.is_none());assert_eq!(e[0]["field"], "virtual_hosts");
+        let (n, e) = normalize(&json!({"name":"d","platform":"pve","cluster":"c","virtual_hosts":"Shop, EU;portal.local"}));
+        assert!(e.is_empty());assert_eq!(n.unwrap()["virtual_hosts"], json!(["Shop, EU", "portal.local"]));
+    }
+    #[test] fn csv_virtual_hosts_explicit_empty_clears_and_nonstring_rejects(){
+        let (n, e) = normalize(&json!({"name":"e","platform":"pve","cluster":"c","virtual_hosts":"[]"}));
+        assert!(e.is_empty());assert_eq!(n.unwrap()["virtual_hosts"], json!([]));
+        let (n, e) = normalize(&json!({"name":"f","platform":"pve","cluster":"c","virtual_hosts":"[\"ok.local\",42]"}));
+        assert!(n.is_none());assert_eq!(e[0]["field"], "virtual_hosts");
+        let (n, e) = normalize(&json!({"name":"g","platform":"pve","cluster":"c","virtual_hosts":"  "}));
+        assert!(e.is_empty());assert!(n.unwrap().get("virtual_hosts").is_none());
     }
 }

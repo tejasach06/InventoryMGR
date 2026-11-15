@@ -492,11 +492,13 @@ export function VmDetailPage() {
             </div>
             <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3">
               <p className="eyebrow-label text-[0.625rem]">Virtual hosts</p>
-              <div className="mt-1 flex items-center justify-between gap-1">
-                <span className={`${monoClass} text-sm font-semibold text-[var(--color-text-primary)] truncate`} title={vm.virtual_hosts && vm.virtual_hosts.length > 0 ? vm.virtual_hosts.join(', ') : undefined}>
-                  {vm.virtual_hosts && vm.virtual_hosts.length > 0 ? vm.virtual_hosts.join(', ') : '—'}
+              <div className="mt-1 flex items-start justify-between gap-1">
+                <span className="flex flex-wrap gap-1 min-w-0">
+                  {vm.virtual_hosts && vm.virtual_hosts.length > 0 ? vm.virtual_hosts.map((host) => (
+                    <span key={host} className={`${monoClass} text-sm font-semibold text-[var(--color-text-primary)] truncate rounded border border-[var(--color-border)] px-1.5 py-0.5`} title={host}>{host}</span>
+                  )) : <span className={`${monoClass} text-sm text-[var(--color-text-primary)]`}>—</span>}
                 </span>
-                {vm.virtual_hosts && vm.virtual_hosts.length > 0 && <CopyButton text={vm.virtual_hosts.join(', ')} label="Copy virtual hosts" />}
+                {vm.virtual_hosts && vm.virtual_hosts.length > 0 && <CopyButton text={vm.virtual_hosts.join('\n')} label="Copy virtual hosts" />}
               </div>
             </div>
             <div className="rounded-lg bg-[var(--color-surface-secondary)] p-3">

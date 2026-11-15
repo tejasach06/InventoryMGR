@@ -28,22 +28,29 @@ const optionalDate = z.string().transform((v, ctx) => {
   return t;
 });
 
+// Mirrors backend `VIRTUAL_HOST_MAX_LEN` / `VIRTUAL_HOST_MAX_COUNT` in resource.rs.
+export const VIRTUAL_HOST_MAX_LEN = 255;
+export const VIRTUAL_HOST_MAX_COUNT = 100;
 export const vmFormSchema = z.object({
   name: requiredText('Name'),
   virtual_hosts: z
     .array(z.string())
+    .max(VIRTUAL_HOST_MAX_COUNT, `Use at most ${VIRTUAL_HOST_MAX_COUNT} virtual hosts.`)
     .default([])
-    .transform((arr) => {
+    .transform((arr, ctx) => {
       const seen = new Set<string>();
       const deduped: string[] = [];
       for (const item of arr) {
         const trimmed = item.trim();
-        if (trimmed.length > 0) {
-          const lower = trimmed.toLowerCase();
-          if (!seen.has(lower)) {
-            seen.add(lower);
-            deduped.push(trimmed);
-          }
+        if (trimmed.length === 0) continue;
+        if ([...trimmed].length > VIRTUAL_HOST_MAX_LEN) {
+          ctx.addIssue({ code: 'custom', message: `Each virtual host must be at most ${VIRTUAL_HOST_MAX_LEN} characters.` });
+          return z.NEVER;
+        }
+        const lower = trimmed.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          deduped.push(trimmed);
         }
       }
       return deduped;

@@ -12,7 +12,7 @@ connection — all data is user-entered or CSV-imported.
 ## Layout
 
 - `backend-rust/src/{core,db,schemas,models,api}` contains the native backend. `api/{accounts,inventory,auxiliary}` owns route groups.
-- `backend-rust/migrations/0001_inventory_schema.sql` contains the native Alembic-compatible revision chain. `alembic_version` remains the ledger at head `0024`.
+- `backend-rust/migrations/0001_inventory_schema.sql` contains the native Alembic-compatible revision chain. `alembic_version` remains the ledger at head `0025`.
 - `frontend/src/{app,routes,components,hooks,lib,api}` — routes are page-level,
   components are shared, `api/` holds typed fetch wrappers, `lib/` is pure
   helpers.
