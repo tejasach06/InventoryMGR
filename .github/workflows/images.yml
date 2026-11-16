@@ -42,7 +42,7 @@ jobs:
           tags=("sha-${SHA::12}")
           if [ "$IS_TAG" = true ]; then tags+=("$REF_NAME"); else tags+=(latest); fi
 
-          podman build --pull -t "$image:${tags[0]}" \
+          podman build --pull --no-cache -t "$image:${tags[0]}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             --label "org.opencontainers.image.revision=$SHA" \
             "${{ matrix.context }}"
