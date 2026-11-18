@@ -531,3 +531,49 @@ async fn test_full_export_and_reimport_round_trip() {
     let imported_vm = list["items"].as_array().unwrap().iter().find(|vm| vm["name"] == "vm-imported-clone").expect("imported VM found");
     assert_eq!(imported_vm["ip_mappings"], json!([{"public_ip": "203.0.113.50", "private_ip": "10.0.0.50"}]));
 }
+
+#[tokio::test]
+async fn test_csv_batch_mapping_limit_and_audit() {
+    let (_db, state) = Database::start().await;
+    let mut client = Browser::default();
+    client.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await;
+
+    // 1. Batch limit: 5001 mapping pairs across rows rejected with 400 Bad Request
+    let mut big_csv = String::from("name,platform,cluster,status,cpu_cores,memory_mb,public_ip,private_ip,ip_mappings\n");
+    let many_pairs = (0..5001).map(|i| format!("203.0.113.{}>10.0.0.{}", i % 250, i % 250)).collect::<Vec<_>>().join(";");
+    big_csv.push_str(&format!("over-limit-batch,vmware,c,running,1,1024,203.0.113.1,10.0.0.1,{many_pairs}\n"));
+    let (status, err) = client.upload_csv(&state, "big.csv", &big_csv, false).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(err["detail"].as_str().unwrap().contains("exceeds limit of 5000 IP mapping pairs"));
+
+    // 2. Normal import records audit log event
+    let csv = "name,platform,cluster,status,cpu_cores,memory_mb,public_ip,private_ip,ip_mappings\n\
+               csv-audit-vm,vmware,c,running,1,1024,203.0.113.10,10.0.0.10,203.0.113.10>10.0.0.10\n";
+    let (status, preview) = client.upload_csv(&state, "audit_test.csv", csv, false).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let batch_id = preview["id"].as_str().unwrap();
+
+    let (status, _) = client.request(&state, "POST", &format!("/imports/{batch_id}/commit"), None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (_, list) = client.request(&state, "GET", "/vms", None).await;
+    let vm = list["items"].as_array().unwrap().iter().find(|vm| vm["name"] == "csv-audit-vm").unwrap();
+    let vm_id = vm["id"].as_str().unwrap();
+
+    let (status, audit) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
+    assert_eq!(status, StatusCode::OK);
+    let mapping_event = audit.as_array().unwrap().iter().find(|e| e["field_name"] == "ip_mappings").expect("audit entry for CSV mapping");
+    assert_eq!(mapping_event["new_value"], "203.0.113.10>10.0.0.10");
+
+    // 3. Re-importing without mapping changes records NO spurious audit log entry
+    let (status, preview2) = client.upload_csv(&state, "audit_test_repeat.csv", csv, false).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let batch_id2 = preview2["id"].as_str().unwrap();
+    let (status, _) = client.request(&state, "POST", &format!("/imports/{batch_id2}/commit"), None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (_, audit_after) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
+    let mapping_count_after = audit_after.as_array().unwrap().iter().filter(|e| e["field_name"] == "ip_mappings").count();
+    let mapping_count_before = audit.as_array().unwrap().iter().filter(|e| e["field_name"] == "ip_mappings").count();
+    assert_eq!(mapping_count_after, mapping_count_before, "No spurious audit event for unchanged import");
+}

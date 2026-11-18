@@ -67,6 +67,15 @@ struct NetworkRow {
  ip_address: String,
  role: String,
 }
+pub async fn lock_vm(conn: &mut PgConnection, id: Uuid) -> Result<(), ApiError> {
+ sqlx::query("SELECT id FROM vms WHERE id=$1 FOR UPDATE")
+  .bind(id)
+  .fetch_optional(&mut *conn)
+  .await
+  .map_err(db_error)?
+  .ok_or_else(|| ApiError::not_found(VM.missing))?;
+ Ok(())
+}
 pub async fn fetch_vm_mapping_pairs(conn: &mut PgConnection, vm_id: Uuid) -> Result<Vec<(String, String)>, ApiError> {
  sqlx::query_as(
   "SELECT pub.ip_address, priv.ip_address
@@ -81,6 +90,42 @@ pub async fn fetch_vm_mapping_pairs(conn: &mut PgConnection, vm_id: Uuid) -> Res
  .await
  .map_err(db_error)
 }
+pub fn canonical_mappings_string(pairs: &[(String, String)]) -> Option<String> {
+ if pairs.is_empty() {
+  None
+ } else {
+  let mut sorted: Vec<String> = pairs.iter().map(|(pub_ip, priv_ip)| format!("{pub_ip}>{priv_ip}")).collect();
+  sorted.sort();
+  Some(sorted.join(";"))
+ }
+}
+
+pub async fn audit_ip_mappings(
+ conn: &mut PgConnection,
+ vm_id: Uuid,
+ user_id: Uuid,
+ before: &[(String, String)],
+ after: &[(String, String)],
+) -> Result<(), ApiError> {
+ let old_canonical = canonical_mappings_string(before);
+ let new_canonical = canonical_mappings_string(after);
+ if old_canonical != new_canonical {
+  sqlx::query(
+   "INSERT INTO audit_log (id, vm_id, user_id, field_name, old_value, new_value, changed_at)
+    VALUES ($1, $2, $3, 'ip_mappings', $4, $5, now())"
+  )
+  .bind(Uuid::new_v4())
+  .bind(vm_id)
+  .bind(user_id)
+  .bind(old_canonical)
+  .bind(new_canonical)
+  .execute(&mut *conn)
+  .await
+  .map_err(db_error)?;
+ }
+ Ok(())
+}
+
 pub async fn apply_ip_mappings(conn: &mut PgConnection, vm_id: Uuid, mappings: &[Value]) -> Result<(), ApiError> {
  let networks: Vec<NetworkRow> = sqlx::query_as(
   "SELECT id, ip_address, role::text FROM vm_networks WHERE vm_id = $1"
@@ -90,6 +135,12 @@ pub async fn apply_ip_mappings(conn: &mut PgConnection, vm_id: Uuid, mappings: &
  .await
  .map_err(db_error)?;
 
+ let mut ip_to_networks: std::collections::HashMap<String, Vec<(&str, Uuid)>> = std::collections::HashMap::new();
+ for n in &networks {
+  let norm = crate::core::ip_utils::normalize_ip(&n.ip_address).to_string();
+  ip_to_networks.entry(norm).or_default().push((&n.role, n.id));
+ }
+
  let mut errors = Vec::new();
  let mut pairs = Vec::new();
  let mut seen = std::collections::HashSet::new();
@@ -97,68 +148,74 @@ pub async fn apply_ip_mappings(conn: &mut PgConnection, vm_id: Uuid, mappings: &
  for (index, item) in mappings.iter().enumerate() {
   let pub_raw = item.get("public_ip").and_then(Value::as_str).unwrap_or("");
   let priv_raw = item.get("private_ip").and_then(Value::as_str).unwrap_or("");
-  let pub_norm = crate::core::ip_utils::normalize_ip(pub_raw);
-  let priv_norm = crate::core::ip_utils::normalize_ip(priv_raw);
+  let pub_norm = crate::core::ip_utils::normalize_ip(pub_raw).to_string();
+  let priv_norm = crate::core::ip_utils::normalize_ip(priv_raw).to_string();
 
   let mut pub_id = None;
-  let pub_matches: Vec<_> = networks.iter().filter(|n| crate::core::ip_utils::normalize_ip(&n.ip_address) == pub_norm).collect();
-  if pub_matches.is_empty() {
-   errors.push(issue(
-    vec![json!("body"), json!("ip_mappings"), json!(index), json!("public_ip")],
-    "value_error",
-    format!("Address '{pub_raw}' does not match any network entry on this VM"),
-    &item["public_ip"],
-   ));
-  } else {
-   let pub_roles: Vec<_> = pub_matches.iter().filter(|n| n.role == "public").collect();
-   if pub_roles.is_empty() {
-    let actual = &pub_matches[0].role;
+  let pub_entries = ip_to_networks.get(&pub_norm);
+  match pub_entries {
+   None => {
     errors.push(issue(
      vec![json!("body"), json!("ip_mappings"), json!(index), json!("public_ip")],
      "value_error",
-     format!("Network entry '{pub_raw}' has role '{actual}', expected 'public'"),
+     format!("Address '{pub_raw}' does not match any network entry on this VM"),
      &item["public_ip"],
     ));
-   } else if pub_roles.len() > 1 {
-    errors.push(issue(
-     vec![json!("body"), json!("ip_mappings"), json!(index), json!("public_ip")],
-     "value_error",
-     format!("Ambiguous public address '{pub_raw}'; multiple matching network entries found"),
-     &item["public_ip"],
-    ));
-   } else {
-    pub_id = Some(pub_roles[0].id);
+   }
+   Some(entries) => {
+    let pub_roles: Vec<_> = entries.iter().filter(|(role, _)| *role == "public").collect();
+    if pub_roles.is_empty() {
+     let actual = entries[0].0;
+     errors.push(issue(
+      vec![json!("body"), json!("ip_mappings"), json!(index), json!("public_ip")],
+      "value_error",
+      format!("Network entry '{pub_raw}' has role '{actual}', expected 'public'"),
+      &item["public_ip"],
+     ));
+    } else if pub_roles.len() > 1 {
+     errors.push(issue(
+      vec![json!("body"), json!("ip_mappings"), json!(index), json!("public_ip")],
+      "value_error",
+      format!("Ambiguous public address '{pub_raw}'; multiple matching network entries found"),
+      &item["public_ip"],
+     ));
+    } else {
+     pub_id = Some(pub_roles[0].1);
+    }
    }
   }
 
   let mut priv_id = None;
-  let priv_matches: Vec<_> = networks.iter().filter(|n| crate::core::ip_utils::normalize_ip(&n.ip_address) == priv_norm).collect();
-  if priv_matches.is_empty() {
-   errors.push(issue(
-    vec![json!("body"), json!("ip_mappings"), json!(index), json!("private_ip")],
-    "value_error",
-    format!("Address '{priv_raw}' does not match any network entry on this VM"),
-    &item["private_ip"],
-   ));
-  } else {
-   let priv_roles: Vec<_> = priv_matches.iter().filter(|n| n.role == "private").collect();
-   if priv_roles.is_empty() {
-    let actual = &priv_matches[0].role;
+  let priv_entries = ip_to_networks.get(&priv_norm);
+  match priv_entries {
+   None => {
     errors.push(issue(
      vec![json!("body"), json!("ip_mappings"), json!(index), json!("private_ip")],
      "value_error",
-     format!("Network entry '{priv_raw}' has role '{actual}', expected 'private'"),
+     format!("Address '{priv_raw}' does not match any network entry on this VM"),
      &item["private_ip"],
     ));
-   } else if priv_roles.len() > 1 {
-    errors.push(issue(
-     vec![json!("body"), json!("ip_mappings"), json!(index), json!("private_ip")],
-     "value_error",
-     format!("Ambiguous private address '{priv_raw}'; multiple matching network entries found"),
-     &item["private_ip"],
-    ));
-   } else {
-    priv_id = Some(priv_roles[0].id);
+   }
+   Some(entries) => {
+    let priv_roles: Vec<_> = entries.iter().filter(|(role, _)| *role == "private").collect();
+    if priv_roles.is_empty() {
+     let actual = entries[0].0;
+     errors.push(issue(
+      vec![json!("body"), json!("ip_mappings"), json!(index), json!("private_ip")],
+      "value_error",
+      format!("Network entry '{priv_raw}' has role '{actual}', expected 'private'"),
+      &item["private_ip"],
+     ));
+    } else if priv_roles.len() > 1 {
+     errors.push(issue(
+      vec![json!("body"), json!("ip_mappings"), json!(index), json!("private_ip")],
+      "value_error",
+      format!("Ambiguous private address '{priv_raw}'; multiple matching network entries found"),
+      &item["private_ip"],
+     ));
+    } else {
+     priv_id = Some(priv_roles[0].1);
+    }
    }
   }
 
@@ -170,21 +227,25 @@ pub async fn apply_ip_mappings(conn: &mut PgConnection, vm_id: Uuid, mappings: &
  }
 
  if !errors.is_empty() {
+  if errors.len() > 100 {
+   errors.truncate(100);
+  }
   return Err(ApiError::validation(errors));
  }
 
- for (pub_id, priv_id) in pairs {
-  sqlx::query(
-   "INSERT INTO vm_ip_mappings (id, vm_id, public_ip_id, public_role, private_ip_id, private_role)
-    VALUES ($1, $2, $3, 'public', $4, 'private')"
-  )
-  .bind(Uuid::new_v4())
-  .bind(vm_id)
-  .bind(pub_id)
-  .bind(priv_id)
-  .execute(&mut *conn)
-  .await
-  .map_err(db_error)?;
+ if !pairs.is_empty() {
+  let mut builder = sqlx::QueryBuilder::new(
+   "INSERT INTO vm_ip_mappings (id, vm_id, public_ip_id, public_role, private_ip_id, private_role) "
+  );
+  builder.push_values(pairs, |mut b, (pub_id, priv_id)| {
+   b.push_bind(Uuid::new_v4())
+    .push_bind(vm_id)
+    .push_bind(pub_id)
+    .push(" 'public' ")
+    .push_bind(priv_id)
+    .push(" 'private' ");
+  });
+  builder.build().execute(&mut *conn).await.map_err(db_error)?;
  }
 
  Ok(())
@@ -203,7 +264,8 @@ pub async fn mutate_vm(pool:&PgPool,id:Option<Uuid>,payload:Value,user:Uuid)->Re
  validate_vm_request(&payload,id.is_none())?;
  let mut tx=pool.begin().await.map_err(db_error)?;
  let old=if let Some(id)=id{
-  let old_row: Value = sqlx::query_scalar("SELECT to_jsonb(v) FROM vms v WHERE id=$1 FOR UPDATE")
+  lock_vm(&mut tx, id).await?;
+  let old_row: Value = sqlx::query_scalar("SELECT to_jsonb(v) FROM vms v WHERE id=$1")
    .bind(id)
    .fetch_optional(&mut *tx)
    .await
@@ -214,6 +276,12 @@ pub async fn mutate_vm(pool:&PgPool,id:Option<Uuid>,payload:Value,user:Uuid)->Re
  let vm=write(&mut tx,VM,id,None,payload.clone(),user).await?;
  let vm_id=Uuid::parse_str(vm["id"].as_str().unwrap()).unwrap();
  if let Some(old)=old{audit(&mut tx,vm_id,user,&old,&vm).await?;}
+
+ let before_pairs = if id.is_some() {
+  fetch_vm_mapping_pairs(&mut tx, vm_id).await?
+ } else {
+  Vec::new()
+ };
 
  if let Some(disks)=payload.get("disks"){
   let items=disks.as_array().ok_or_else(||ApiError::invalid("disks must be an array"))?;
@@ -239,14 +307,10 @@ pub async fn mutate_vm(pool:&PgPool,id:Option<Uuid>,payload:Value,user:Uuid)->Re
   apply_ip_mappings(&mut tx, vm_id, mapping_items).await?;
  } else if has_networks {
   let net_items = payload["networks"].as_array().unwrap();
-  let existing_pairs = if id.is_some() {
-   fetch_vm_mapping_pairs(&mut tx, vm_id).await?
-  } else {
-   Vec::new()
-  };
+  let existing_pairs = &before_pairs;
 
   if !existing_pairs.is_empty() {
-   for (pub_ip, priv_ip) in &existing_pairs {
+   for (pub_ip, priv_ip) in existing_pairs {
     let norm_pub = crate::core::ip_utils::normalize_ip(pub_ip);
     let norm_priv = crate::core::ip_utils::normalize_ip(priv_ip);
 
@@ -275,12 +339,15 @@ pub async fn mutate_vm(pool:&PgPool,id:Option<Uuid>,payload:Value,user:Uuid)->Re
   }
 
   if !existing_pairs.is_empty() {
-   let old_items: Vec<Value> = existing_pairs.into_iter().map(|(pub_ip, priv_ip)| {
+   let old_items: Vec<Value> = existing_pairs.iter().map(|(pub_ip, priv_ip)| {
     json!({"public_ip": pub_ip, "private_ip": priv_ip})
    }).collect();
    apply_ip_mappings(&mut tx, vm_id, &old_items).await?;
   }
  }
+
+ let after_pairs = fetch_vm_mapping_pairs(&mut tx, vm_id).await?;
+ audit_ip_mappings(&mut tx, vm_id, user, &before_pairs, &after_pairs).await?;
 
  health(&mut tx,vm_id).await?;
  let detail=vm_detail(&mut tx,vm_id).await?;

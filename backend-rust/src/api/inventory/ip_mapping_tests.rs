@@ -527,6 +527,22 @@ async fn api_linked_edits_and_deletes_rejection() {
     let (status, _) = client.request(&state, "DELETE", &format!("/vms/{vm_id}/networks/{unlinked_priv_id}"), None).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
+    // Missing VM returns 404 for network child create/patch/delete
+    let random_vm = Uuid::new_v4();
+    let random_child = Uuid::new_v4();
+    let (status, err) = client.request(&state, "POST", &format!("/vms/{random_vm}/networks"), Some(json!({"ip_address": "10.0.0.1", "role": "private"}))).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{err}");
+    let (status, err) = client.request(&state, "PATCH", &format!("/vms/{random_vm}/networks/{random_child}"), Some(json!({"sort_order": 1}))).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{err}");
+    let (status, err) = client.request(&state, "DELETE", &format!("/vms/{random_vm}/networks/{random_child}"), None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{err}");
+
+    // Missing child network on existing VM returns 404
+    let (status, err) = client.request(&state, "PATCH", &format!("/vms/{vm_id}/networks/{random_child}"), Some(json!({"sort_order": 1}))).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{err}");
+    let (status, err) = client.request(&state, "DELETE", &format!("/vms/{vm_id}/networks/{random_child}"), None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{err}");
+
     // Parent VM-level edit can unlink and change endpoints atomically
     let (status, vm_updated) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
         "networks": [
@@ -611,4 +627,95 @@ async fn api_vm_deletion_cascades() {
         .await
         .unwrap();
     assert_eq!(count_after, 0, "VM deletion cascaded to vm_ip_mappings");
+}
+
+#[tokio::test]
+async fn api_ip_mappings_audit_log_events() {
+    let (_db, state) = Database::start().await;
+    let mut client = Browser::default();
+    client.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await;
+
+    // 1. Initial VM create with mappings records audit event
+    let (status, vm) = client.request(&state, "POST", "/vms", Some(json!({
+        "name": "audit-vm", "platform": "vmware", "cluster": "c", "status": "running",
+        "criticality": "low", "cpu_cores": 1, "memory_mb": 1024,
+        "networks": [
+            {"ip_address": "203.0.113.10", "role": "public"},
+            {"ip_address": "10.0.0.10", "role": "private"},
+            {"ip_address": "10.0.0.11", "role": "private"}
+        ],
+        "ip_mappings": [
+            {"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}
+        ]
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let vm_id = vm["id"].as_str().unwrap();
+
+    let (status, audit) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
+    assert_eq!(status, StatusCode::OK);
+    let rows = audit.as_array().unwrap();
+    let mapping_event = rows.iter().find(|e| e["field_name"] == "ip_mappings").expect("audit event for initial mappings");
+    assert!(mapping_event["old_value"].is_null());
+    assert_eq!(mapping_event["new_value"], "203.0.113.10>10.0.0.10");
+    assert_eq!(mapping_event["user"]["email"], "admin@example.com");
+
+    // 2. Reordering and duplicate input produces NO spurious audit events
+    let initial_count = rows.iter().filter(|e| e["field_name"] == "ip_mappings").count();
+    let (status, _) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "ip_mappings": [
+            {"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"},
+            {"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}
+        ]
+    }))).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, audit2) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
+    let count2 = audit2.as_array().unwrap().iter().filter(|e| e["field_name"] == "ip_mappings").count();
+    assert_eq!(count2, initial_count, "No duplicate audit entry for identical mappings");
+
+    // 3. Mapping replace records before and after canonical strings
+    let (status, _) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "ip_mappings": [
+            {"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"},
+            {"public_ip": "203.0.113.10", "private_ip": "10.0.0.11"}
+        ]
+    }))).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, audit3) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
+    let rows3 = audit3.as_array().unwrap();
+    let latest_event = &rows3[0];
+    assert_eq!(latest_event["field_name"], "ip_mappings");
+    assert_eq!(latest_event["old_value"], "203.0.113.10>10.0.0.10");
+    assert_eq!(latest_event["new_value"], "203.0.113.10>10.0.0.10;203.0.113.10>10.0.0.11");
+
+    // 4. Mapping clear records new_value as null
+    let (status, _) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "ip_mappings": []
+    }))).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, audit4) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
+    let latest_event4 = &audit4.as_array().unwrap()[0];
+    assert_eq!(latest_event4["field_name"], "ip_mappings");
+    assert_eq!(latest_event4["old_value"], "203.0.113.10>10.0.0.10;203.0.113.10>10.0.0.11");
+    assert!(latest_event4["new_value"].is_null());
+
+    // 5. Failed validation leaves no audit entry
+    let audit_count_before = audit4.as_array().unwrap().len();
+    let (status, _) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "ip_mappings": [{"public_ip": "198.51.100.99", "private_ip": "10.0.0.10"}]
+    }))).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let (_, audit_after_err) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
+    assert_eq!(audit_after_err.as_array().unwrap().len(), audit_count_before);
+
+    // 6. Cloning a VM records audit event on cloned VM
+    let (_, _add_back) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "ip_mappings": [{"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}]
+    }))).await;
+    let (status, cloned) = client.request(&state, "POST", &format!("/vms/{vm_id}/clone"), None).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let cloned_id = cloned["id"].as_str().unwrap();
+    let (_, cloned_audit) = client.request(&state, "GET", &format!("/vms/{cloned_id}/audit"), None).await;
+    let clone_mapping_event = cloned_audit.as_array().unwrap().iter().find(|e| e["field_name"] == "ip_mappings").expect("clone audit event for mappings");
+    assert!(clone_mapping_event["old_value"].is_null());
+    assert_eq!(clone_mapping_event["new_value"], "203.0.113.10>10.0.0.10");
 }
