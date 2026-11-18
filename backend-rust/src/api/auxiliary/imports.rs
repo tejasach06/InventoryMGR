@@ -10,12 +10,12 @@ use crate::api::inventory::{VIRTUAL_HOST_MAX_COUNT,VIRTUAL_HOST_MAX_LEN};
 use super::db_error;
 
 const COLUMNS: &[&str]=&["name","external_id","virtual_hosts","sr_id","platform","datacenter","cluster","node","status","environment","criticality","vm_type","cpu_cores","memory_mb","os_family","os_distribution","os_version","owner","business_owner","technical_owner","monitoring_enabled","pmp_enabled","ha_enabled","backup_enabled","backup_location","tags","last_patch_date","last_vuln_scan_date","last_verified_at","decommission_date","security_remarks","description"];
-const TEMPLATE: &[&str]=&["name","external_id","virtual_hosts","sr_id","platform","datacenter","cluster","node","status","environment","criticality","vm_type","cpu_cores","memory_mb","disks","storage_name","storage_type","os_family","os_distribution","os_version","private_ip","public_ip","backup_ip","owner","business_owner","technical_owner","applications","monitoring_enabled","pmp_enabled","ha_enabled","backup_enabled","backup_location","tags","last_patch_date","last_vuln_scan_date","last_verified_at","decommission_date","security_remarks","description"];
+const TEMPLATE: &[&str]=&["name","external_id","virtual_hosts","sr_id","platform","datacenter","cluster","node","status","environment","criticality","vm_type","cpu_cores","memory_mb","disks","storage_name","storage_type","os_family","os_distribution","os_version","private_ip","public_ip","backup_ip","ip_mappings","owner","business_owner","technical_owner","applications","monitoring_enabled","pmp_enabled","ha_enabled","backup_enabled","backup_location","tags","last_patch_date","last_vuln_scan_date","last_verified_at","decommission_date","security_remarks","description"];
 const PROTECTED: &[&str]=&["owner","business_owner","technical_owner","monitoring_enabled","pmp_enabled","backup_location","criticality","environment","vm_type","sr_id","last_patch_date","last_vuln_scan_date","last_verified_at","security_remarks"];
 const BOOLS: &[&str]=&["monitoring_enabled","ha_enabled","backup_enabled","pmp_enabled"];
 const DATES: &[&str]=&["last_patch_date","last_vuln_scan_date","decommission_date","last_verified_at"];
 const IP_ROLES: &[(&str,&str)]=&[("private_ip","private"),("public_ip","public"),("backup_ip","backup")];
-const SNAPSHOT: &str="SELECT to_jsonb(v) || jsonb_build_object('disks',COALESCE((SELECT jsonb_agg(to_jsonb(d) ORDER BY d.sort_order,d.id) FROM vm_disks d WHERE d.vm_id=v.id),'[]'::jsonb),'networks',COALESCE((SELECT jsonb_agg(to_jsonb(n) ORDER BY n.sort_order,n.id) FROM vm_networks n WHERE n.vm_id=v.id),'[]'::jsonb),'applications',COALESCE((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.app_name) FROM vm_applications a WHERE a.vm_id=v.id),'[]'::jsonb)) FROM vms v";
+const SNAPSHOT: &str="SELECT to_jsonb(v) || jsonb_build_object('disks',COALESCE((SELECT jsonb_agg(to_jsonb(d) ORDER BY d.sort_order,d.id) FROM vm_disks d WHERE d.vm_id=v.id),'[]'::jsonb),'networks',COALESCE((SELECT jsonb_agg(to_jsonb(n) ORDER BY n.sort_order,n.id) FROM vm_networks n WHERE n.vm_id=v.id),'[]'::jsonb),'applications',COALESCE((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.app_name) FROM vm_applications a WHERE a.vm_id=v.id),'[]'::jsonb),'ip_mappings',COALESCE((SELECT jsonb_agg(jsonb_build_object('public_ip',pub.ip_address,'private_ip',priv.ip_address) ORDER BY pub.ip_address ASC,priv.ip_address ASC,m.id ASC) FROM vm_ip_mappings m JOIN vm_networks pub ON pub.id=m.public_ip_id JOIN vm_networks priv ON priv.id=m.private_ip_id WHERE m.vm_id=v.id),'[]'::jsonb)) FROM vms v";
 const HEALTH: &str="UPDATE vms v SET health_score=CASE WHEN EXISTS(SELECT 1 FROM jsonb_array_elements_text(v.tags) t WHERE lower(btrim(t))='template') THEN 0 ELSE (CASE WHEN COALESCE(v.description,'')<>'' THEN 10 ELSE 0 END)+(CASE WHEN COALESCE(v.owner,'')<>'' OR COALESCE(v.business_owner,'')<>'' OR COALESCE(v.technical_owner,'')<>'' THEN 15 ELSE 0 END)+(CASE WHEN EXISTS(SELECT 1 FROM vm_applications a WHERE a.vm_id=v.id) THEN 20 ELSE 0 END)+(CASE WHEN EXISTS(SELECT 1 FROM vm_networks n WHERE n.vm_id=v.id) THEN 15 ELSE 0 END)+(CASE WHEN EXISTS(SELECT 1 FROM vm_disks d WHERE d.vm_id=v.id) THEN 15 ELSE 0 END)+(CASE WHEN v.monitoring_enabled THEN 10 ELSE 0 END)+(CASE WHEN v.decommission_date IS NOT NULL THEN 15 ELSE 0 END) END WHERE v.id=$1";
 
 fn text<'a>(value: &'a Value,key: &str) -> &'a str {value[key].as_str().unwrap_or("")}
@@ -53,6 +53,31 @@ fn ips(raw: &Value,key: &str,errors: &mut Vec<Value>) -> Vec<String> {
     let mut result=Vec::new();
     for part in parts(text(raw,key)){let ip=part.split('/').next().unwrap_or("").trim();if ip.is_empty(){continue;}if ip.contains(':'){errors.push(error(key,"must be IP addresses separated by ;"));return Vec::new();}result.push(ip.into());}
     result
+}
+fn parse_ip_mappings(raw: &Value, errors: &mut Vec<Value>) -> Option<Vec<(String, String)>> {
+    let raw_val = raw.get("ip_mappings")?.as_str()?;
+    if raw_val.trim().is_empty() { return None; }
+    let mut pairs = Vec::new();
+    let mut seen = HashSet::new();
+    for part in parts(raw_val) {
+        let pieces: Vec<_> = part.split('>').collect();
+        if pieces.len() != 2 {
+            errors.push(error("ip_mappings", "must be public>private pairs separated by ;"));
+            return Some(Vec::new());
+        }
+        let pub_part = pieces[0].trim();
+        let priv_part = pieces[1].trim();
+        if pub_part.is_empty() || priv_part.is_empty() || pub_part.contains(':') || priv_part.contains(':') {
+            errors.push(error("ip_mappings", "must be public>private pairs separated by ;"));
+            return Some(Vec::new());
+        }
+        let pub_norm = crate::core::ip_utils::normalize_ip(pub_part).to_string();
+        let priv_norm = crate::core::ip_utils::normalize_ip(priv_part).to_string();
+        if seen.insert((pub_norm.clone(), priv_norm.clone())) {
+            pairs.push((pub_norm, priv_norm));
+        }
+    }
+    Some(pairs)
 }
 fn status_error(normalized:&Value,create:bool)->Option<Value>{
     match normalized.get("status"){
@@ -105,7 +130,7 @@ fn normalize(raw: &Value) -> (Option<Value>,Vec<Value>) {
         }
     }
     if !text(raw,"tags").is_empty(){normalized.insert("tags".into(),json!(parts(text(raw,"tags")).collect::<Vec<_>>()));}
-    disks(raw,&mut errors);applications(raw,&mut errors);for (key,_) in IP_ROLES{ips(raw,key,&mut errors);}
+    disks(raw,&mut errors);applications(raw,&mut errors);for (key,_) in IP_ROLES{ips(raw,key,&mut errors);}parse_ip_mappings(raw,&mut errors);
     if errors.is_empty(){(Some(Value::Object(normalized)),errors)}else{(None,errors)}
 }
 fn identity(value: &Value) -> String {
@@ -116,28 +141,152 @@ fn supplied(value: &Value) -> bool {match value {Value::Null=>false,Value::Bool(
 fn updates(normalized: &Value,vm: &Value) -> Value {
     Value::Object(normalized.as_object().unwrap().iter().filter(|(key,_)|!PROTECTED.contains(&key.as_str()) || !supplied(&vm[*key])).map(|(key,value)|(key.clone(),value.clone())).collect())
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct IpPlan { header:&'static str,role:&'static str,retargets:Vec<(Value,String)>,inserts:Vec<String> }
-fn ip_plans(vm: &Value,raw: &Value) -> Vec<IpPlan> {
-    let networks=vm["networks"].as_array().cloned().unwrap_or_default();
-    let mut claimed:HashSet<String>=networks.iter().map(|n|text(n,"ip_address").into()).collect();
-    let mut plans=Vec::new();
-    for &(header,role) in IP_ROLES {
-        let mut unique=HashSet::new();
-        let mentioned:Vec<_>=ips(raw,header,&mut Vec::new()).into_iter().filter(|s|unique.insert(s.clone())).collect();
-        let mut role_rows:Vec<_>=networks.iter().filter(|n|text(n,"role")==role).cloned().collect();
-        role_rows.sort_by(|a,b|a["sort_order"].as_i64().cmp(&b["sort_order"].as_i64()).then_with(||text(a,"id").cmp(text(b,"id"))));
-        let existing:HashSet<_>=role_rows.iter().map(|n|text(n,"ip_address").to_owned()).collect();
-        let new:Vec<_>=mentioned.iter().filter(|s|!existing.contains(*s)&&!claimed.contains(*s)).cloned().collect();
-        let reusable:Vec<_>=role_rows.into_iter().filter(|n|!mentioned.iter().any(|ip|ip==text(n,"ip_address"))).collect();
-        let count=new.len().min(reusable.len());
-        let retargets=reusable.into_iter().take(count).zip(new.iter().take(count).cloned()).collect();
-        let inserts=new.iter().skip(count).cloned().collect();
-        claimed.extend(new);
-        plans.push(IpPlan{header,role,retargets,inserts});
-    }plans
+
+#[derive(Clone, Debug)]
+struct NetworkMappingPlan {
+    ip_plans: Vec<IpPlan>,
+    new_mapping_pairs: Vec<(String, String)>,
+    mapping_errors: Vec<Value>,
 }
-fn diff(normalized: &Value,vm: &Value,raw: &Value) -> Value {
+
+fn plan_networks_and_mappings(vm: Option<&Value>, raw: &Value) -> NetworkMappingPlan {
+    let mut mapping_errors = Vec::new();
+    let requested = parse_ip_mappings(raw, &mut mapping_errors);
+
+    let networks = vm.and_then(|v| v.get("networks")).and_then(Value::as_array).cloned().unwrap_or_default();
+    let mut claimed: HashSet<String> = networks.iter().map(|n| text(n, "ip_address").into()).collect();
+
+    let mut protected_ips: HashSet<String> = HashSet::new();
+    if let Some(existing_mappings) = vm.and_then(|v| v.get("ip_mappings")).and_then(Value::as_array) {
+        for m in existing_mappings {
+            if let Some(p) = m.get("public_ip").and_then(Value::as_str) {
+                protected_ips.insert(crate::core::ip_utils::normalize_ip(p).to_string());
+            }
+            if let Some(p) = m.get("private_ip").and_then(Value::as_str) {
+                protected_ips.insert(crate::core::ip_utils::normalize_ip(p).to_string());
+            }
+        }
+    }
+    if let Some(req) = &requested {
+        for (pub_ip, priv_ip) in req {
+            protected_ips.insert(pub_ip.clone());
+            protected_ips.insert(priv_ip.clone());
+        }
+    }
+
+    let mut ip_plans = Vec::new();
+    for &(header, role) in IP_ROLES {
+        let mut unique = HashSet::new();
+        let mentioned: Vec<_> = ips(raw, header, &mut Vec::new()).into_iter().filter(|s| unique.insert(s.clone())).collect();
+        let mut role_rows: Vec<_> = networks.iter().filter(|n| text(n, "role") == role).cloned().collect();
+        role_rows.sort_by(|a, b| a["sort_order"].as_i64().cmp(&b["sort_order"].as_i64()).then_with(|| text(a, "id").cmp(text(b, "id"))));
+        let existing: HashSet<_> = role_rows.iter().map(|n| text(n, "ip_address").to_owned()).collect();
+        let new: Vec<_> = mentioned.iter().filter(|s| !existing.contains(*s) && !claimed.contains(*s)).cloned().collect();
+        let reusable: Vec<_> = role_rows.into_iter()
+            .filter(|n| !mentioned.iter().any(|ip| ip == text(n, "ip_address")) && !protected_ips.contains(text(n, "ip_address")))
+            .collect();
+        let count = new.len().min(reusable.len());
+        let retargets: Vec<(Value, String)> = reusable.into_iter().take(count).zip(new.iter().take(count).cloned()).collect();
+        let inserts: Vec<String> = new.iter().skip(count).cloned().collect();
+        claimed.extend(new);
+        ip_plans.push(IpPlan { header, role, retargets, inserts });
+    }
+
+    let mut effective_networks: Vec<(String, String)> = Vec::new();
+    if let Some(vm_val) = vm {
+        if let Some(nets) = vm_val.get("networks").and_then(Value::as_array) {
+            for n in nets {
+                let current_ip = text(n, "ip_address");
+                let role = text(n, "role");
+                let mut retargeted_ip = None;
+                for plan in &ip_plans {
+                    if let Some((_, new_ip)) = plan.retargets.iter().find(|(orig, _)| orig["id"] == n["id"]) {
+                        retargeted_ip = Some(new_ip.clone());
+                        break;
+                    }
+                }
+                if let Some(new_ip) = retargeted_ip {
+                    effective_networks.push((new_ip, role.to_string()));
+                } else {
+                    effective_networks.push((current_ip.to_string(), role.to_string()));
+                }
+            }
+        }
+    }
+    for plan in &ip_plans {
+        for insert_ip in &plan.inserts {
+            effective_networks.push((insert_ip.clone(), plan.role.to_string()));
+        }
+    }
+
+    let mut new_mapping_pairs = Vec::new();
+    if let Some(req_pairs) = &requested {
+        let existing_pairs: HashSet<(String, String)> = vm
+            .and_then(|v| v.get("ip_mappings"))
+            .and_then(Value::as_array)
+            .map(|arr| {
+                arr.iter().map(|m| (text(m, "public_ip").to_string(), text(m, "private_ip").to_string())).collect()
+            })
+            .unwrap_or_default();
+
+        for (pub_raw, priv_raw) in req_pairs {
+            let pub_norm = crate::core::ip_utils::normalize_ip(pub_raw);
+            let priv_norm = crate::core::ip_utils::normalize_ip(priv_raw);
+
+            let pub_matches: Vec<_> = effective_networks.iter()
+                .filter(|(ip, _)| crate::core::ip_utils::normalize_ip(ip) == pub_norm)
+                .collect();
+            if pub_matches.is_empty() {
+                mapping_errors.push(error("ip_mappings", format!("Address '{pub_raw}' does not match any network entry on this VM")));
+            } else {
+                let pub_roles: Vec<_> = pub_matches.iter().filter(|(_, r)| r == "public").collect();
+                if pub_roles.is_empty() {
+                    let actual = &pub_matches[0].1;
+                    mapping_errors.push(error("ip_mappings", format!("Network entry '{pub_raw}' has role '{actual}', expected 'public'")));
+                } else if pub_roles.len() > 1 {
+                    mapping_errors.push(error("ip_mappings", format!("Ambiguous public address '{pub_raw}'; multiple matching network entries found")));
+                }
+            }
+
+            let priv_matches: Vec<_> = effective_networks.iter()
+                .filter(|(ip, _)| crate::core::ip_utils::normalize_ip(ip) == priv_norm)
+                .collect();
+            if priv_matches.is_empty() {
+                mapping_errors.push(error("ip_mappings", format!("Address '{priv_raw}' does not match any network entry on this VM")));
+            } else {
+                let priv_roles: Vec<_> = priv_matches.iter().filter(|(_, r)| r == "private").collect();
+                if priv_roles.is_empty() {
+                    let actual = &priv_matches[0].1;
+                    mapping_errors.push(error("ip_mappings", format!("Network entry '{priv_raw}' has role '{actual}', expected 'private'")));
+                } else if priv_roles.len() > 1 {
+                    mapping_errors.push(error("ip_mappings", format!("Ambiguous private address '{priv_raw}'; multiple matching network entries found")));
+                }
+            }
+
+            if mapping_errors.is_empty() {
+                let pair = (pub_norm.to_string(), priv_norm.to_string());
+                if !existing_pairs.contains(&pair) {
+                    new_mapping_pairs.push(pair);
+                }
+            }
+        }
+    }
+
+    NetworkMappingPlan {
+        ip_plans,
+        new_mapping_pairs,
+        mapping_errors,
+    }
+}
+
+#[cfg(test)]
+fn ip_plans(vm: &Value, raw: &Value) -> Vec<IpPlan> {
+    plan_networks_and_mappings(Some(vm), raw).ip_plans
+}
+
+fn diff_with_plan(normalized: &Value, vm: &Value, raw: &Value, plan: &NetworkMappingPlan) -> Value {
     let mut changes=Map::new();
     let existing_disks:HashSet<_>=vm["disks"].as_array().into_iter().flatten().map(|d|text(d,"disk_name").to_lowercase()).collect();
     let added:Vec<_>=disks(raw,&mut Vec::new()).iter().filter(|d|!existing_disks.contains(&d.name.to_lowercase())).map(|d|format!("{}:{}",d.name,d.size)).collect();
@@ -145,9 +294,27 @@ fn diff(normalized: &Value,vm: &Value,raw: &Value) -> Value {
     let existing_apps:HashSet<_>=vm["applications"].as_array().into_iter().flatten().map(|a|text(a,"app_name").to_lowercase()).collect();
     let added:Vec<_>=applications(raw,&mut Vec::new()).into_iter().filter(|(name,_)|!existing_apps.contains(&name.to_lowercase())).map(|(name,_)|name).collect();
     if !added.is_empty(){changes.insert("applications".into(),json!([null,added]));}
-    for plan in ip_plans(vm,raw){let old:Vec<_>=plan.retargets.iter().map(|(n,_)|text(n,"ip_address")).collect();let new:Vec<_>=plan.retargets.iter().map(|(_,ip)|ip.clone()).chain(plan.inserts).collect();if !new.is_empty(){changes.insert(plan.header.into(),json!([if old.is_empty(){Value::Null}else{json!(old)},new]));}}
+    for p in &plan.ip_plans {
+        let old:Vec<_>=p.retargets.iter().map(|(n,_)|text(n,"ip_address")).collect();
+        let new:Vec<_>=p.retargets.iter().map(|(_,ip)|ip.clone()).chain(p.inserts.clone()).collect();
+        if !new.is_empty(){changes.insert(p.header.into(),json!([if old.is_empty(){Value::Null}else{json!(old)},new]));}
+    }
+    if !plan.new_mapping_pairs.is_empty() {
+        let added_pairs: Vec<String> = plan.new_mapping_pairs.iter().map(|(pub_ip, priv_ip)| format!("{pub_ip}>{priv_ip}")).collect();
+        let old_pairs: Vec<String> = vm.get("ip_mappings").and_then(Value::as_array).map(|arr| {
+            arr.iter().map(|m| format!("{}>{}", text(m, "public_ip"), text(m, "private_ip"))).collect()
+        }).unwrap_or_default();
+        let old_val = if old_pairs.is_empty() { Value::Null } else { json!(old_pairs) };
+        changes.insert("ip_mappings".into(), json!([old_val, added_pairs]));
+    }
     for (key,new) in updates(normalized,vm).as_object().unwrap(){let old=&vm[key];if old!=new{changes.insert(key.clone(),json!([old,new]));}}
     Value::Object(changes)
+}
+
+#[cfg(test)]
+fn diff(normalized: &Value,vm: &Value,raw: &Value) -> Value {
+    let plan = plan_networks_and_mappings(Some(vm), raw);
+    diff_with_plan(normalized, vm, raw, &plan)
 }
 fn parse_csv(content: &[u8]) -> Result<(Vec<Value>,Vec<String>),ApiError> {
     if content.len()>5*1024*1024{return Err(ApiError::bad_request("CSV file exceeds 5 MiB"));}
@@ -203,11 +370,33 @@ pub async fn preview(State(state):State<AppState>,user:Editor,_:Csrf,mut multipa
             let key=identity(normalized);
             if !seen.insert(key.clone()){action="conflict";errors=vec![error("identity","duplicate CSV identity")];}
             else{scopes.insert((text(normalized,"cluster").trim().to_lowercase(),text(normalized,"platform").to_owned()));
-                if let Some(vm)=matches.get(&key){let vm_id=Uuid::parse_str(text(vm,"id")).map_err(|e|ApiError::internal(e.to_string()))?;target=Some(vm_id);matched.insert(vm_id);changes=diff(normalized,vm,raw);action=if changes.as_object().unwrap().is_empty(){"unchanged"}else{"update"};for field in changes.as_object().unwrap().keys(){let count=field_changes.get(field).and_then(Value::as_i64).unwrap_or(0);field_changes.insert(field.clone(),json!(count+1));}}
+                if let Some(vm)=matches.get(&key){
+                    let vm_id=Uuid::parse_str(text(vm,"id")).map_err(|e|ApiError::internal(e.to_string()))?;
+                    target=Some(vm_id);
+                    matched.insert(vm_id);
+                    let plan=plan_networks_and_mappings(Some(vm),raw);
+                    if !plan.mapping_errors.is_empty(){errors.extend(plan.mapping_errors);action="invalid";}
+                    else{
+                        changes=diff_with_plan(normalized,vm,raw,&plan);
+                        action=if changes.as_object().unwrap().is_empty(){"unchanged"}else{"update"};
+                        for field in changes.as_object().unwrap().keys(){let count=field_changes.get(field).and_then(Value::as_i64).unwrap_or(0);field_changes.insert(field.clone(),json!(count+1));}
+                    }
+                }
                 else if let Some(error)=status_error(normalized,true){errors.push(error);}
-                else{action="create";}
+                else{
+                    let plan=plan_networks_and_mappings(None,raw);
+                    if !plan.mapping_errors.is_empty(){errors.extend(plan.mapping_errors);action="invalid";}
+                    else{
+                        action="create";
+                        if !plan.new_mapping_pairs.is_empty(){
+                            let pairs:Vec<String>=plan.new_mapping_pairs.iter().map(|(pub_ip,priv_ip)|format!("{pub_ip}>{priv_ip}")).collect();
+                            changes.as_object_mut().unwrap().insert("ip_mappings".into(),json!([Value::Null,pairs]));
+                        }
+                    }
+                }
             }
         }
+        if !errors.is_empty(){action="invalid";}
         summary[action]=json!(summary[action].as_i64().unwrap()+1);
         insert_row(&mut tx,id,index as i32+2,raw,normalized.as_ref(),action,target,&json!(errors),&json!(warnings),&changes).await?;
     }
@@ -260,13 +449,23 @@ async fn attach_children(connection:&mut PgConnection,id:Uuid,raw:&Value,user:Uu
         sqlx::query("INSERT INTO vm_disks(id,vm_id,disk_name,size_gb,storage_name,storage_type,sort_order) VALUES($1,$2,$3,$4,$5,$6,$7)").bind(Uuid::new_v4()).bind(id).bind(disk.name).bind(size).bind(disk.storage_name).bind(disk.storage_type).bind(order).execute(&mut *connection).await.map_err(db_error)?;order+=1;
     }
     let mut order=vm["networks"].as_array().map(Vec::len).unwrap_or(0) as i32;
-    for plan in ip_plans(&vm,raw){for (network,address) in plan.retargets{
+    let plan=plan_networks_and_mappings(Some(&vm),raw);
+    for p in plan.ip_plans{for (network,address) in p.retargets{
         let net_id=Uuid::parse_str(text(&network,"id")).map_err(|e|ApiError::internal(e.to_string()))?;
         sqlx::query("UPDATE vm_networks SET ip_address=$2 WHERE id=$1").bind(net_id).bind(&address).execute(&mut *connection).await.map_err(db_error)?;
-        audit(connection,id,user,plan.header,&network["ip_address"],&json!(address)).await?;
-    }for address in plan.inserts{
-        sqlx::query("INSERT INTO vm_networks(id,vm_id,ip_address,role,sort_order) VALUES($1,$2,$3,$4::network_role,$5)").bind(Uuid::new_v4()).bind(id).bind(address).bind(plan.role).bind(order).execute(&mut *connection).await.map_err(db_error)?;order+=1;
+        audit(connection,id,user,p.header,&network["ip_address"],&json!(address)).await?;
+    }for address in p.inserts{
+        sqlx::query("INSERT INTO vm_networks(id,vm_id,ip_address,role,sort_order) VALUES($1,$2,$3,$4::network_role,$5)").bind(Uuid::new_v4()).bind(id).bind(address).bind(p.role).bind(order).execute(&mut *connection).await.map_err(db_error)?;order+=1;
     }}
+    let mut mapping_errors=Vec::new();
+    if let Some(pairs)=parse_ip_mappings(raw,&mut mapping_errors){
+        for (pub_ip,priv_ip) in pairs{
+            let pub_id:Uuid=sqlx::query_scalar("SELECT id FROM vm_networks WHERE vm_id=$1 AND (ip_address=$2 OR split_part(ip_address,'/',1)=$2) AND role='public' LIMIT 1").bind(id).bind(&pub_ip).fetch_one(&mut *connection).await.map_err(db_error)?;
+            let priv_id:Uuid=sqlx::query_scalar("SELECT id FROM vm_networks WHERE vm_id=$1 AND (ip_address=$2 OR split_part(ip_address,'/',1)=$2) AND role='private' LIMIT 1").bind(id).bind(&priv_ip).fetch_one(&mut *connection).await.map_err(db_error)?;
+            sqlx::query("INSERT INTO vm_ip_mappings(id,vm_id,public_ip_id,public_role,private_ip_id,private_role) VALUES($1,$2,$3,'public',$4,'private') ON CONFLICT (public_ip_id,private_ip_id) DO NOTHING")
+                .bind(Uuid::new_v4()).bind(id).bind(pub_id).bind(priv_id).execute(&mut *connection).await.map_err(db_error)?;
+        }
+    }
     let mut existing:HashSet<_>=vm["applications"].as_array().into_iter().flatten().map(|a|text(a,"app_name").to_lowercase()).collect();
     for (name,owner) in applications(raw,&mut Vec::new()){if existing.insert(name.to_lowercase()){
         sqlx::query("INSERT INTO vm_applications(id,vm_id,app_name,app_owner) VALUES($1,$2,$3,$4)").bind(Uuid::new_v4()).bind(id).bind(name).bind(owner).execute(&mut *connection).await.map_err(db_error)?;
@@ -287,7 +486,19 @@ pub async fn commit(State(state):State<AppState>,user:Editor,_:Csrf,Path(id):Pat
     if decommission>0 && total>0 && decommission*2>total && !payload.as_ref().is_some_and(|p|p.confirm_decommission){return Err(ApiError::new(StatusCode::CONFLICT,format!("This import would decommission {decommission} of {total} VMs (over half the inventory). Re-submit with confirm_decommission to proceed.")));}
     let mut result=json!({"created":0,"updated":0,"decommissioned":0});
     for row in rows {
-        let action=text(row,"action");if action=="unchanged"{continue;}
+        let action=text(row,"action");
+        if action=="unchanged"{
+            if !text(&row["raw"],"ip_mappings").trim().is_empty(){
+                let target_id=row["target_vm_id"].as_str().and_then(|s|Uuid::parse_str(s).ok()).ok_or_else(||ApiError::new(StatusCode::CONFLICT,"Import target VM changed"))?;
+                sqlx::query("SELECT id FROM vms WHERE id=$1 FOR UPDATE").bind(target_id).fetch_optional(&mut *tx).await.map_err(db_error)?;
+                let vm=snapshot(&mut tx,target_id).await?;
+                let plan=plan_networks_and_mappings(Some(&vm),&row["raw"]);
+                if !plan.mapping_errors.is_empty()||!plan.new_mapping_pairs.is_empty()||plan.ip_plans.iter().any(|p|!p.retargets.is_empty()||!p.inserts.is_empty()){
+                    return Err(ApiError::new(StatusCode::CONFLICT,"Import preview is stale: network configuration changed"));
+                }
+            }
+            continue;
+        }
         let outcome=commit_row(&mut tx,row,user.0.id).await;
         let vm=match outcome {Ok(id)=>id,Err(error) if matches!(error.status,StatusCode::CONFLICT|StatusCode::FORBIDDEN|StatusCode::NOT_FOUND)=>return Err(error),Err(error)=>return Err(ApiError::new(StatusCode::UNPROCESSABLE_ENTITY,format!("Row {} failed to import: {}",row["row_number"],error.message)))};
         sqlx::query(HEALTH).bind(vm).execute(&mut *tx).await.map_err(db_error)?;
@@ -308,12 +519,37 @@ async fn commit_row(connection:&mut PgConnection,row:&Value,user:Uuid)->Result<U
         return write_vm(connection,Some(&vm),&normalized,user).await;
     }
     if identity(&vm)!=identity(&row["normalized"]){return Err(ApiError::new(StatusCode::CONFLICT,"Import target VM changed"));}
+
+    let plan=plan_networks_and_mappings(Some(&vm),&row["raw"]);
+    if !plan.mapping_errors.is_empty(){return Err(ApiError::new(StatusCode::CONFLICT,"Import preview is stale: network mappings changed"));}
+    let previewed_changes=&row["changes"];
+    for p in &plan.ip_plans{
+        let old:Vec<String>=p.retargets.iter().map(|(n,_)|text(n,"ip_address").to_string()).collect();
+        let new:Vec<String>=p.retargets.iter().map(|(_,ip)|ip.clone()).chain(p.inserts.clone()).collect();
+        let previewed=previewed_changes.get(p.header);
+        if new.is_empty(){
+            if previewed.is_some(){return Err(ApiError::new(StatusCode::CONFLICT,"Import preview is stale: network changes changed"));}
+        }else{
+            let expected_old=if old.is_empty(){Value::Null}else{json!(old)};
+            let expected=json!([expected_old,new]);
+            if previewed!=Some(&expected){return Err(ApiError::new(StatusCode::CONFLICT,"Import preview is stale: network changes changed"));}
+        }
+    }
+    let previewed_mappings=previewed_changes.get("ip_mappings");
+    if plan.new_mapping_pairs.is_empty(){
+        if previewed_mappings.is_some(){return Err(ApiError::new(StatusCode::CONFLICT,"Import preview is stale: network mappings changed"));}
+    }else{
+        let added:Vec<String>=plan.new_mapping_pairs.iter().map(|(pub_ip,priv_ip)|format!("{pub_ip}>{priv_ip}")).collect();
+        let previewed_added=previewed_mappings.and_then(|v|v.as_array()).and_then(|arr|arr.get(1));
+        if previewed_added!=Some(&json!(added)){return Err(ApiError::new(StatusCode::CONFLICT,"Import preview is stale: network mappings changed"));}
+    }
+
     write_vm(connection,Some(&vm),&row["normalized"],user).await?;attach_children(connection,id,&row["raw"],user).await?;Ok(id)
 }
 pub async fn template(_:Viewer)->Result<Response,ApiError>{
     let rows=[
-        ["SAMPLE-web-01","VM-1001","[\"web-01.corp.local\",\"portal.corp.local\"]","SR-2481","proxmox","DC-Mumbai","pve-cluster-01","pve-node-03","running","production","high","permanent","4","8192","os:100;data:500","SAMPLE-SAN-01","ssd","linux","ubuntu","22.04","10.20.30.41","","","infra-team","Retail Ops","A. Sharma","nginx:web-team;postgres:dba-team","true","true","true","true","Veeam-Repo-01","web;tier1","2026-07-14","2026-07-01","2026-07-20","","","Sample row - delete before importing"],
-        ["SAMPLE-test-02","VM-1002","[\"test-02.corp.local\"]","SR-2492","vmware","DC-Pune","vc-cluster-02","esxi-node-11","powered_off","testing","low","temporary","2","4096","os:60","","","windows","","2022","10.20.31.52","","","qa-team","QA","R. Iyer","iis","false","false","false","false","","sandbox","2026-06-02","","","2026-09-30","","Sample row - delete before importing"],
+        ["SAMPLE-web-01","VM-1001","[\"web-01.corp.local\",\"portal.corp.local\"]","SR-2481","proxmox","DC-Mumbai","pve-cluster-01","pve-node-03","running","production","high","permanent","4","8192","os:100;data:500","SAMPLE-SAN-01","ssd","linux","ubuntu","22.04","10.20.30.41","198.51.100.10","","198.51.100.10>10.20.30.41","infra-team","Retail Ops","A. Sharma","nginx:web-team;postgres:dba-team","true","true","true","true","Veeam-Repo-01","web;tier1","2026-07-14","2026-07-01","2026-07-20","","","Sample row - delete before importing"],
+        ["SAMPLE-test-02","VM-1002","[\"test-02.corp.local\"]","SR-2492","vmware","DC-Pune","vc-cluster-02","esxi-node-11","powered_off","testing","low","temporary","2","4096","os:60","","","windows","","2022","10.20.31.52","","","","qa-team","QA","R. Iyer","iis","false","false","false","false","","sandbox","2026-06-02","","","2026-09-30","","Sample row - delete before importing"],
     ];
     let mut writer=csv::WriterBuilder::new().terminator(csv::Terminator::Any(b'\n')).from_writer(Vec::new());
     writer.write_record(TEMPLATE).map_err(|e|ApiError::internal(e.to_string()))?;
@@ -422,5 +658,116 @@ mod tests{
         assert!(n.is_none());assert_eq!(e[0]["field"], "virtual_hosts");
         let (n, e) = normalize(&json!({"name":"g","platform":"pve","cluster":"c","virtual_hosts":"  "}));
         assert!(e.is_empty());assert!(n.unwrap().get("virtual_hosts").is_none());
+    }
+    #[test]
+    fn csv_ip_mappings_syntax_errors_reject_normalization(){
+        for bad in ["foo", "1.1.1.1", "1.1.1.1>", ">1.1.1.1", "1.1.1.1>2.2.2.2>3.3.3.3", "1.1.1.1:80>2.2.2.2", "2001:db8::1>10.0.0.1"] {
+            let (n, e) = normalize(&json!({"name":"a","platform":"pve","cluster":"c","ip_mappings":bad}));
+            assert!(n.is_none(), "expected error for {bad}");
+            assert_eq!(e[0]["field"], "ip_mappings");
+            assert_eq!(e[0]["message"], "must be public>private pairs separated by ;");
+        }
+        let (n, e) = normalize(&json!({"name":"a","platform":"pve","cluster":"c","ip_mappings":" 203.0.113.4 > 10.0.0.5 ; 203.0.113.4 > 10.0.0.6 "}));
+        assert!(e.is_empty());
+        assert!(n.is_some());
+    }
+    #[test]
+    fn csv_ip_mappings_protects_existing_mapped_and_referenced_addresses_from_retargeting(){
+        // VM has public IP 203.0.113.1 (mapped to 10.0.0.1), private 10.0.0.1 (mapped), private 10.0.0.2 (unlinked).
+        let vm = json!({
+            "networks": [
+                {"id": "n1", "role": "public", "ip_address": "203.0.113.1", "sort_order": 0},
+                {"id": "n2", "role": "private", "ip_address": "10.0.0.1", "sort_order": 0},
+                {"id": "n3", "role": "private", "ip_address": "10.0.0.2", "sort_order": 1}
+            ],
+            "ip_mappings": [
+                {"public_ip": "203.0.113.1", "private_ip": "10.0.0.1"}
+            ]
+        });
+        // Raw introduces new private IP 10.0.0.99.
+        // n2 (10.0.0.1) is protected because it is in ip_mappings.
+        // n3 (10.0.0.2) is unlinked, so it should be retargeted to 10.0.0.99.
+        let raw = json!({"private_ip": "10.0.0.99"});
+        let plan = plan_networks_and_mappings(Some(&vm), &raw);
+        let priv_plan = plan.ip_plans.iter().find(|p| p.role == "private").unwrap();
+        assert_eq!(priv_plan.retargets.len(), 1);
+        assert_eq!(text(&priv_plan.retargets[0].0, "id"), "n3");
+        assert_eq!(priv_plan.retargets[0].1, "10.0.0.99");
+        assert!(priv_plan.inserts.is_empty());
+
+        // Now if 10.0.0.2 is referenced in raw's ip_mappings, it too must be protected from retargeting!
+        let raw_with_ref = json!({
+            "private_ip": "10.0.0.99",
+            "ip_mappings": "203.0.113.1>10.0.0.2"
+        });
+        let plan_ref = plan_networks_and_mappings(Some(&vm), &raw_with_ref);
+        let priv_plan_ref = plan_ref.ip_plans.iter().find(|p| p.role == "private").unwrap();
+        // Since both n2 and n3 are protected, neither can be retargeted, so 10.0.0.99 must be inserted!
+        assert!(priv_plan_ref.retargets.is_empty());
+        assert_eq!(priv_plan_ref.inserts, vec!["10.0.0.99"]);
+    }
+    #[test]
+    fn csv_ip_mappings_diff_shows_mapping_additions_and_omits_unchanged(){
+        let vm = json!({
+            "name": "vm1",
+            "networks": [
+                {"id": "n1", "role": "public", "ip_address": "203.0.113.1", "sort_order": 0},
+                {"id": "n2", "role": "private", "ip_address": "10.0.0.1", "sort_order": 0},
+                {"id": "n3", "role": "private", "ip_address": "10.0.0.2", "sort_order": 1}
+            ],
+            "ip_mappings": [
+                {"public_ip": "203.0.113.1", "private_ip": "10.0.0.1"}
+            ]
+        });
+        let normalized = json!({"name": "vm1"});
+
+        // 1. Row adds a new mapping 203.0.113.1>10.0.0.2
+        let raw_add = json!({"name": "vm1", "ip_mappings": "203.0.113.1>10.0.0.2"});
+        let changes_add = diff(&normalized, &vm, &raw_add);
+        let map_changes = changes_add.as_object().unwrap().get("ip_mappings").unwrap();
+        assert_eq!(map_changes[0], json!(["203.0.113.1>10.0.0.1"]));
+        assert_eq!(map_changes[1], json!(["203.0.113.1>10.0.0.2"]));
+
+        // 2. Row repeats existing mapping 203.0.113.1>10.0.0.1 (idempotent / unchanged)
+        let raw_same = json!({"name": "vm1", "ip_mappings": "203.0.113.1>10.0.0.1"});
+        let changes_same = diff(&normalized, &vm, &raw_same);
+        assert!(changes_same.as_object().unwrap().get("ip_mappings").is_none());
+        assert!(changes_same.as_object().unwrap().is_empty());
+
+        // 3. Row omits ip_mappings: preserves existing, produces no ip_mappings change
+        let raw_blank = json!({"name": "vm1"});
+        let changes_blank = diff(&normalized, &vm, &raw_blank);
+        assert!(changes_blank.as_object().unwrap().get("ip_mappings").is_none());
+        assert!(changes_blank.as_object().unwrap().is_empty());
+    }
+    #[test]
+    fn csv_ip_mappings_effective_network_role_and_unresolved_errors(){
+        let vm = json!({
+            "networks": [
+                {"id": "n1", "role": "public", "ip_address": "203.0.113.1", "sort_order": 0},
+                {"id": "n2", "role": "private", "ip_address": "10.0.0.1", "sort_order": 0},
+                {"id": "n3", "role": "private", "ip_address": "10.0.0.2", "sort_order": 1},
+                {"id": "n4", "role": "private", "ip_address": "10.0.0.2", "sort_order": 2}
+            ],
+            "ip_mappings": []
+        });
+
+        // Unresolved public address
+        let raw_unres = json!({"ip_mappings": "198.51.100.99>10.0.0.1"});
+        let plan = plan_networks_and_mappings(Some(&vm), &raw_unres);
+        assert_eq!(plan.mapping_errors.len(), 1);
+        assert!(plan.mapping_errors[0]["message"].as_str().unwrap().contains("does not match any network entry"));
+
+        // Wrong role (using private IP as public)
+        let raw_wrong = json!({"ip_mappings": "10.0.0.1>10.0.0.1"});
+        let plan = plan_networks_and_mappings(Some(&vm), &raw_wrong);
+        assert_eq!(plan.mapping_errors.len(), 1);
+        assert!(plan.mapping_errors[0]["message"].as_str().unwrap().contains("has role 'private', expected 'public'"));
+
+        // Ambiguous address (two network rows with 10.0.0.2 with role private)
+        let raw_amb = json!({"ip_mappings": "203.0.113.1>10.0.0.2"});
+        let plan = plan_networks_and_mappings(Some(&vm), &raw_amb);
+        assert_eq!(plan.mapping_errors.len(), 1);
+        assert!(plan.mapping_errors[0]["message"].as_str().unwrap().contains("Ambiguous private address '10.0.0.2'"));
     }
 }

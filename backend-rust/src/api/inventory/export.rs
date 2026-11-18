@@ -3,7 +3,7 @@ use crate::api::deps::{AppState,ApiError,Viewer};
 use axum::{Json,extract::{State,RawQuery},response::{Response,IntoResponse},http::{header,StatusCode}};
 use serde_json::{json,Value};
 const SCALARS:&str="name external_id virtual_hosts platform datacenter sr_id cluster node status environment criticality vm_type cpu_cores memory_mb os_family os_distribution os_version owner business_owner technical_owner pmp_enabled monitoring_enabled backup_enabled backup_location ha_enabled tags last_patch_date last_vuln_scan_date security_remarks decommission_date last_verified_at description health_score created_at updated_at";
-const DERIVED:[&str;5]=["disks","private_ip","public_ip","backup_ip","applications"];
+const DERIVED:[&str;6]=["disks","private_ip","public_ip","backup_ip","ip_mappings","applications"];
 const PREVIEW_ROWS:usize=5;
 type Row<'a>=(&'a Value,Vec<String>);
 fn all_columns()->Vec<&'static str>{SCALARS.split_whitespace().chain(DERIVED).collect()}
@@ -15,6 +15,11 @@ fn cell(v:&Value,key:&str)->String{match key{
  "virtual_hosts"=>match v.get("virtual_hosts").and_then(Value::as_array){Some(arr) if !arr.is_empty()=>serde_json::to_string(arr).unwrap_or_default(),_=>String::new()},
  "disks"=>v[key].as_array().unwrap().iter().map(disk).collect::<Vec<_>>().join(";"),
  "private_ip"|"public_ip"|"backup_ip"=>{let role=key.trim_end_matches("_ip");v["networks"].as_array().unwrap().iter().filter(|n|n["role"].as_str()==Some(role)).map(|n|text(&n["ip_address"])).collect::<Vec<_>>().join(";")}
+ "ip_mappings"=>v.get("ip_mappings").and_then(Value::as_array).map(|arr|{
+  let mut pairs:Vec<String>=arr.iter().map(|m|format!("{}>{}",text(&m["public_ip"]),text(&m["private_ip"]))).collect();
+  pairs.sort();
+  pairs.join(";")
+ }).unwrap_or_default(),
  "applications"=>v[key].as_array().unwrap().iter().map(|a|joined(a,&["app_name","app_owner"])).collect::<Vec<_>>().join(";"),
  _=>text(&v[key])}}
 fn table<'a>(vms:&'a[Value],cols:&[&str],per_disk:bool)->Vec<Row<'a>>{
@@ -72,7 +77,7 @@ fn xlsx(rows:&[Row],headers:&[&str])->Result<Vec<u8>,ApiError>{
   let headers=all_columns();
   let bytes=xlsx(&table(&[vm],&headers,false),&headers).unwrap();let mut archive=zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
   let mut xml=String::new();archive.by_name("xl/worksheets/sheet1.xml").unwrap().read_to_string(&mut xml).unwrap();
-  for cell in ["AL2","AM2","AN2"]{assert!(xml.contains(&format!("<c r=\"{cell}\"")),"missing derived empty cell {cell}");}
+  for cell in ["AL2","AM2","AN2","AO2"]{assert!(xml.contains(&format!("<c r=\"{cell}\"")),"missing derived empty cell {cell}");}
   assert!(!xml.contains("<c r=\"B2\""),"nullable external_id should stay absent");
  }
  #[test]fn csv_export_does_not_emit_formula_cells(){
@@ -100,5 +105,25 @@ fn xlsx(rows:&[Row],headers:&[&str])->Result<Vec<u8>,ApiError>{
    assert_eq!(rows.iter().map(|(_,r)|r.clone()).collect::<Vec<_>>(),[["vm","a:1"],["vm","b:2"]]);
    assert_eq!(table(&vms,&["name","disks"],false)[0].1,["vm","a:1;b:2"]);
    assert_eq!(table(&vms,&["name"],true).len(),1);
+  }
+  #[test]fn ip_mappings_column_formats_canonical_pairs(){
+   let vm=json!({
+    "name":"vm",
+    "tags":[],
+    "disks":[],
+    "networks":[
+     {"role":"public","ip_address":"203.0.113.4"},
+     {"role":"private","ip_address":"10.0.0.5"},
+     {"role":"private","ip_address":"10.0.0.6"}
+    ],
+    "applications":[],
+    "ip_mappings":[
+     {"public_ip":"203.0.113.4","private_ip":"10.0.0.6"},
+     {"public_ip":"203.0.113.4","private_ip":"10.0.0.5"}
+    ]
+   });
+   let vms=[vm];
+   let rows=table(&vms,&["name","public_ip","private_ip","ip_mappings"],false);
+   assert_eq!(rows[0].1[3],"203.0.113.4>10.0.0.5;203.0.113.4>10.0.0.6");
   }
 }

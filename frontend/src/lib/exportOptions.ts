@@ -19,7 +19,7 @@ export const EXPORT_GROUPS: { title: string; columns: [string, string][] }[] = [
     ['cpu_cores', 'CPU cores'], ['memory_mb', 'Memory (MB)'], ['disks', 'Disks'], ['os_family', 'OS family'],
     ['os_distribution', 'OS distribution'], ['os_version', 'OS version'],
   ] },
-  { title: 'Network', columns: [['private_ip', 'Private IP'], ['public_ip', 'Public IP'], ['backup_ip', 'Backup IP']] },
+  { title: 'Network', columns: [['private_ip', 'Private IP'], ['public_ip', 'Public IP'], ['backup_ip', 'Backup IP'], ['ip_mappings', 'IP mappings']] },
   { title: 'People', columns: [['owner', 'Owner'], ['business_owner', 'Business owner'], ['technical_owner', 'Technical owner']] },
   { title: 'Protection & security', columns: [
     ['monitoring_enabled', 'Monitoring on'], ['backup_enabled', 'Backup on'], ['backup_location', 'Backup location'],

@@ -63,7 +63,9 @@ Cluster groupings with nested `/api/clusters/{parent_id}/nodes`.
 CSV import workflow: upload → preview (diff against existing inventory,
 classified `create`/`update`/`unchanged`/`decommission`/`conflict`/`invalid`) →
 commit. See `docs/RUNBOOK.md`/`AGENTS.md` for the CSV format and Proxmox
-identity-matching rule.
+identity-matching rule. The optional `ip_mappings` column accepts
+semicolon-separated `public>private` IP pairs (e.g., `203.0.113.4>10.0.0.5;203.0.113.4>10.0.0.6`).
+Mappings are additive and resolve against existing or simultaneously imported addresses on the same VM.
 
 ### IP mappings in CSV
 
@@ -76,7 +78,7 @@ The optional `ip_mappings` column specifies public-to-private IP pairings:
 
 Takes the list filters plus `ids` (repeatable) or `all=true`, and:
 
-- `columns` — comma-separated, ordered export columns (VM scalar fields, `disks`, `private_ip`, `public_ip`, `backup_ip`, `applications`, `ip_mappings`). Omitted = all. Unknown or duplicate names return 422.
+- `columns` — comma-separated, ordered export columns (VM scalar fields, `disks`, `private_ip`, `public_ip`, `backup_ip`, `applications`, `ip_mappings`). Omitted = all. Unknown or duplicate names return 422. A custom export containing only `ip_mappings` requires corresponding address endpoints to already exist on the destination during re-import.
 - `format` — `csv` (default), `xlsx`, or `json` (preview: `{total, columns, rows}` with the first 5 VMs).
 - `disk_layout` — `joined` (default, one cell per VM) or `rows` (one row per disk, VM fields repeated).
 
