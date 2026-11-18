@@ -140,6 +140,33 @@ pub fn validate_vm_request(payload:&Value,create:bool)->Result<(),ApiError>{
   if let Some(items)=items.as_array(){for(index,item)in items.iter().enumerate(){if let Err(e)=validate(r,item.clone(),true){let e=prefix_error(e,&[json!(field),json!(index)]);errors.extend(e.detail.unwrap().as_array().unwrap().iter().cloned());}}}
   else{errors.push(issue(vec![json!("body"),json!(field)],"sequence_str","Input should be a valid sequence",items));}
  }}
+ if let Some(items) = payload.get("ip_mappings") {
+  if let Some(items) = items.as_array() {
+   for (index, item) in items.iter().enumerate() {
+    if !item.is_object() {
+     errors.push(issue(vec![json!("body"), json!("ip_mappings"), json!(index)], "model_attributes_type", "Input should be a valid dictionary or object to extract fields from", item));
+     continue;
+    }
+    for key in ["public_ip", "private_ip"] {
+     let loc = vec![json!("body"), json!("ip_mappings"), json!(index), json!(key)];
+     match item.get(key) {
+      None => errors.push(issue(loc, "missing", "Field required", item)),
+      Some(Value::String(s)) => {
+       let trimmed = s.trim();
+       if trimmed.is_empty() {
+        let mut e = issue(loc, "string_too_short", "String should have at least 1 character", &json!(s));
+        e["ctx"] = json!({"min_length": 1});
+        errors.push(e);
+       }
+      }
+      Some(val) => errors.push(issue(loc, "string_type", "Input should be a valid string", val)),
+     }
+    }
+   }
+  } else {
+   errors.push(issue(vec![json!("body"), json!("ip_mappings")], "list_type", "Input should be a valid list", items));
+  }
+ }
  if errors.is_empty(){Ok(())}else{Err(ApiError::validation(errors))}
 }
 
@@ -219,5 +246,28 @@ mod tests {
   let many:Vec<String>=(0..=VIRTUAL_HOST_MAX_COUNT).map(|i|format!("h{i}.local")).collect();
   let count=validate(VM,json!({"virtual_hosts":many}),false).unwrap_err();
   assert_eq!(count.detail.unwrap()[0]["loc"],json!(["body","virtual_hosts"]));
+ }
+ #[test]fn ip_mappings_validation_rejects_non_list_and_invalid_items(){
+  let valid=validate_vm_request(&json!({"ip_mappings":[{"public_ip":"1.1.1.1","private_ip":"10.0.0.1"}]}),false);
+  assert!(valid.is_ok());
+  let valid_empty=validate_vm_request(&json!({"ip_mappings":[]}),false);
+  assert!(valid_empty.is_ok());
+  let e_not_list=validate_vm_request(&json!({"ip_mappings":"not-a-list"}),false).unwrap_err();
+  let d=e_not_list.detail.unwrap();
+  assert_eq!(d[0]["type"],"list_type");
+  assert_eq!(d[0]["loc"],json!(["body","ip_mappings"]));
+  let e_null=validate_vm_request(&json!({"ip_mappings":null}),false).unwrap_err();
+  assert_eq!(e_null.detail.unwrap()[0]["type"],"list_type");
+  let e_wrong_item=validate_vm_request(&json!({"ip_mappings":["not-an-object"]}),false).unwrap_err();
+  assert_eq!(e_wrong_item.detail.unwrap()[0]["type"],"model_attributes_type");
+  let e_missing_fields=validate_vm_request(&json!({"ip_mappings":[{}]}),false).unwrap_err();
+  let d=e_missing_fields.detail.unwrap();
+  assert_eq!(d.as_array().unwrap().len(),2);
+  assert!(d.as_array().unwrap().iter().any(|e|e["loc"]==json!(["body","ip_mappings",0,"public_ip"])&&e["type"]=="missing"));
+  assert!(d.as_array().unwrap().iter().any(|e|e["loc"]==json!(["body","ip_mappings",0,"private_ip"])&&e["type"]=="missing"));
+  let e_blank=validate_vm_request(&json!({"ip_mappings":[{"public_ip":"  ","private_ip":123}]}),false).unwrap_err();
+  let d=e_blank.detail.unwrap();
+  assert!(d.as_array().unwrap().iter().any(|e|e["loc"]==json!(["body","ip_mappings",0,"public_ip"])&&e["type"]=="string_too_short"));
+  assert!(d.as_array().unwrap().iter().any(|e|e["loc"]==json!(["body","ip_mappings",0,"private_ip"])&&e["type"]=="string_type"));
  }
 }

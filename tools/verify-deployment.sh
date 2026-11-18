@@ -6,7 +6,7 @@ TARGET=${DEPLOY_VERIFY_TARGET:-tejas@192.168.0.21}
 SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
 RUN_LABEL=inventorymgr.verification.run
 # Must equal tools/parity/migration_head.txt; remote worker has no repo checkout.
-MIGRATION_HEAD=0025
+MIGRATION_HEAD=0026
 PHASE=preflight
 WORK=
 ROOT=

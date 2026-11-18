@@ -2,7 +2,7 @@ use sqlx::postgres::{PgConnection, PgPool, PgPoolOptions};
 use sqlx::Executor;
 use std::time::Duration;
 const SCHEMA: &str = include_str!("../../migrations/0001_inventory_schema.sql");
-const HEAD: &str = "0025";
+const HEAD: &str = "0026";
 pub async fn create_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
     PgPoolOptions::new()
         .max_connections(20)
@@ -10,7 +10,7 @@ pub async fn create_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
         .connect(database_url)
         .await
 }
-async fn execute_migration(connection: &mut PgConnection, sql: &'static str) -> Result<(), sqlx::Error> {
+pub(crate) async fn execute_migration(connection: &mut PgConnection, sql: &'static str) -> Result<(), sqlx::Error> {
     let mut start = 0;
     let mut offset = 0;
     for line in sql.split_inclusive('\n') {

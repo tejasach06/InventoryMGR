@@ -29,7 +29,165 @@ async fn batch_children(conn:&mut PgConnection,r:Resource,ids:&[Uuid])->Result<V
 pub async fn vm_details(conn:&mut PgConnection,ids:&[Uuid])->Result<Vec<Value>,ApiError>{
  if ids.is_empty(){return Ok(Vec::new());}
  let mut rows:Vec<Value>=sqlx::query_scalar("SELECT to_jsonb(v) FROM vms v WHERE id=ANY($1) ORDER BY array_position($1,id)").bind(ids).fetch_all(&mut *conn).await.map_err(db_error)?;
- for(key,r)in[("disks",DISK),("networks",NETWORK),("applications",APPLICATION)]{attach(&mut rows,key,"vm_id",batch_children(conn,r,ids).await?);}Ok(rows)
+ for(key,r)in[("disks",DISK),("networks",NETWORK),("applications",APPLICATION)]{attach(&mut rows,key,"vm_id",batch_children(conn,r,ids).await?);}
+ let mut mappings = batch_ip_mappings(conn, ids).await?;
+ for row in &mut rows {
+  let vm_id = row["id"].as_str().unwrap();
+  row["ip_mappings"] = json!(mappings.remove(vm_id).unwrap_or_default());
+ }
+ Ok(rows)
+}
+async fn batch_ip_mappings(conn:&mut PgConnection, ids:&[Uuid])->Result<std::collections::HashMap<String, Vec<Value>>, ApiError> {
+ if ids.is_empty(){return Ok(std::collections::HashMap::new());}
+ let rows: Vec<(Uuid, String, String)> = sqlx::query_as(
+  "SELECT m.vm_id, pub.ip_address, priv.ip_address
+   FROM vm_ip_mappings m
+   JOIN vm_networks pub ON pub.id = m.public_ip_id
+   JOIN vm_networks priv ON priv.id = m.private_ip_id
+   WHERE m.vm_id = ANY($1)
+   ORDER BY pub.ip_address ASC, priv.ip_address ASC, m.id ASC"
+ )
+ .bind(ids)
+ .fetch_all(&mut *conn)
+ .await
+ .map_err(db_error)?;
+
+ let mut grouped = std::collections::HashMap::<String, Vec<Value>>::new();
+ for (vm_id, pub_ip, priv_ip) in rows {
+  grouped.entry(vm_id.to_string()).or_default().push(json!({
+   "public_ip": pub_ip,
+   "private_ip": priv_ip,
+  }));
+ }
+ Ok(grouped)
+}
+#[derive(sqlx::FromRow)]
+struct NetworkRow {
+ id: Uuid,
+ ip_address: String,
+ role: String,
+}
+pub async fn fetch_vm_mapping_pairs(conn: &mut PgConnection, vm_id: Uuid) -> Result<Vec<(String, String)>, ApiError> {
+ sqlx::query_as(
+  "SELECT pub.ip_address, priv.ip_address
+   FROM vm_ip_mappings m
+   JOIN vm_networks pub ON pub.id = m.public_ip_id
+   JOIN vm_networks priv ON priv.id = m.private_ip_id
+   WHERE m.vm_id = $1
+   ORDER BY pub.ip_address ASC, priv.ip_address ASC, m.id ASC"
+ )
+ .bind(vm_id)
+ .fetch_all(conn)
+ .await
+ .map_err(db_error)
+}
+pub async fn apply_ip_mappings(conn: &mut PgConnection, vm_id: Uuid, mappings: &[Value]) -> Result<(), ApiError> {
+ let networks: Vec<NetworkRow> = sqlx::query_as(
+  "SELECT id, ip_address, role::text FROM vm_networks WHERE vm_id = $1"
+ )
+ .bind(vm_id)
+ .fetch_all(&mut *conn)
+ .await
+ .map_err(db_error)?;
+
+ let mut errors = Vec::new();
+ let mut pairs = Vec::new();
+ let mut seen = std::collections::HashSet::new();
+
+ for (index, item) in mappings.iter().enumerate() {
+  let pub_raw = item.get("public_ip").and_then(Value::as_str).unwrap_or("");
+  let priv_raw = item.get("private_ip").and_then(Value::as_str).unwrap_or("");
+  let pub_norm = crate::core::ip_utils::normalize_ip(pub_raw);
+  let priv_norm = crate::core::ip_utils::normalize_ip(priv_raw);
+
+  let mut pub_id = None;
+  let pub_matches: Vec<_> = networks.iter().filter(|n| crate::core::ip_utils::normalize_ip(&n.ip_address) == pub_norm).collect();
+  if pub_matches.is_empty() {
+   errors.push(issue(
+    vec![json!("body"), json!("ip_mappings"), json!(index), json!("public_ip")],
+    "value_error",
+    format!("Address '{pub_raw}' does not match any network entry on this VM"),
+    &item["public_ip"],
+   ));
+  } else {
+   let pub_roles: Vec<_> = pub_matches.iter().filter(|n| n.role == "public").collect();
+   if pub_roles.is_empty() {
+    let actual = &pub_matches[0].role;
+    errors.push(issue(
+     vec![json!("body"), json!("ip_mappings"), json!(index), json!("public_ip")],
+     "value_error",
+     format!("Network entry '{pub_raw}' has role '{actual}', expected 'public'"),
+     &item["public_ip"],
+    ));
+   } else if pub_roles.len() > 1 {
+    errors.push(issue(
+     vec![json!("body"), json!("ip_mappings"), json!(index), json!("public_ip")],
+     "value_error",
+     format!("Ambiguous public address '{pub_raw}'; multiple matching network entries found"),
+     &item["public_ip"],
+    ));
+   } else {
+    pub_id = Some(pub_roles[0].id);
+   }
+  }
+
+  let mut priv_id = None;
+  let priv_matches: Vec<_> = networks.iter().filter(|n| crate::core::ip_utils::normalize_ip(&n.ip_address) == priv_norm).collect();
+  if priv_matches.is_empty() {
+   errors.push(issue(
+    vec![json!("body"), json!("ip_mappings"), json!(index), json!("private_ip")],
+    "value_error",
+    format!("Address '{priv_raw}' does not match any network entry on this VM"),
+    &item["private_ip"],
+   ));
+  } else {
+   let priv_roles: Vec<_> = priv_matches.iter().filter(|n| n.role == "private").collect();
+   if priv_roles.is_empty() {
+    let actual = &priv_matches[0].role;
+    errors.push(issue(
+     vec![json!("body"), json!("ip_mappings"), json!(index), json!("private_ip")],
+     "value_error",
+     format!("Network entry '{priv_raw}' has role '{actual}', expected 'private'"),
+     &item["private_ip"],
+    ));
+   } else if priv_roles.len() > 1 {
+    errors.push(issue(
+     vec![json!("body"), json!("ip_mappings"), json!(index), json!("private_ip")],
+     "value_error",
+     format!("Ambiguous private address '{priv_raw}'; multiple matching network entries found"),
+     &item["private_ip"],
+    ));
+   } else {
+    priv_id = Some(priv_roles[0].id);
+   }
+  }
+
+  if let (Some(pub_id), Some(priv_id)) = (pub_id, priv_id) {
+   if seen.insert((pub_id, priv_id)) {
+    pairs.push((pub_id, priv_id));
+   }
+  }
+ }
+
+ if !errors.is_empty() {
+  return Err(ApiError::validation(errors));
+ }
+
+ for (pub_id, priv_id) in pairs {
+  sqlx::query(
+   "INSERT INTO vm_ip_mappings (id, vm_id, public_ip_id, public_role, private_ip_id, private_role)
+    VALUES ($1, $2, $3, 'public', $4, 'private')"
+  )
+  .bind(Uuid::new_v4())
+  .bind(vm_id)
+  .bind(pub_id)
+  .bind(priv_id)
+  .execute(&mut *conn)
+  .await
+  .map_err(db_error)?;
+ }
+
+ Ok(())
 }
 pub async fn parent_list(conn:&mut PgConnection,r:Resource)->Result<Vec<Value>,ApiError>{
  let sql=if r.table=="physical_clusters"{
@@ -41,9 +199,94 @@ pub async fn parent_list(conn:&mut PgConnection,r:Resource)->Result<Vec<Value>,A
  if r.table=="storage_arrays"{let warn=warn_pct(conn).await?;for row in &mut rows{capacity(row,"used_capacity_gb","total_capacity_gb",warn);}}Ok(rows)
 }
 pub async fn audit(conn:&mut PgConnection,id:Uuid,user:Uuid,old:&Value,new:&Value)->Result<(),ApiError>{for field in VM.fields.split_whitespace(){if old.get(field)!=new.get(field){let stringify=|v:Option<&Value>|v.filter(|v|!v.is_null()).map(|v|match v{Value::String(s)=>s.clone(),Value::Bool(b)=>if *b{"True".into()}else{"False".into()},Value::Array(a)=>format!("[{}]",a.iter().map(|v|match v{Value::String(s)=>format!("\'{}\'",s.replace("\\","\\\\").replace("\'","\\\'")),_=>v.to_string()}).collect::<Vec<_>>().join(", ")),_=>v.to_string()});sqlx::query("INSERT INTO audit_log(id,vm_id,user_id,field_name,old_value,new_value,changed_at) VALUES($1,$2,$3,$4,$5,$6,now())").bind(Uuid::new_v4()).bind(id).bind(user).bind(field).bind(stringify(old.get(field))).bind(stringify(new.get(field))).execute(&mut *conn).await.map_err(db_error)?;}}Ok(())}
-pub async fn mutate_vm(pool:&PgPool,id:Option<Uuid>,payload:Value,user:Uuid)->Result<Value,ApiError>{validate_vm_request(&payload,id.is_none())?;let mut tx=pool.begin().await.map_err(db_error)?;let old=if let Some(id)=id{Some(row(&mut tx,VM,id,None).await?)}else{None};let vm=write(&mut tx,VM,id,None,payload.clone(),user).await?;let vm_id=Uuid::parse_str(vm["id"].as_str().unwrap()).unwrap();if let Some(old)=old{audit(&mut tx,vm_id,user,&old,&vm).await?;}
- for(field,r)in[("disks",DISK),("networks",NETWORK)]{if let Some(items)=payload.get(field){let items=items.as_array().ok_or_else(||ApiError::invalid(format!("{field} must be an array")))?;sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {} WHERE vm_id=$1",r.table))).bind(vm_id).execute(&mut *tx).await.map_err(db_error)?;for item in items{write(&mut tx,r,None,Some(vm_id),item.clone(),user).await?;}}}
- health(&mut tx,vm_id).await?;let detail=vm_detail(&mut tx,vm_id).await?;tx.commit().await.map_err(db_error)?;Ok(detail)}
+pub async fn mutate_vm(pool:&PgPool,id:Option<Uuid>,payload:Value,user:Uuid)->Result<Value,ApiError>{
+ validate_vm_request(&payload,id.is_none())?;
+ let mut tx=pool.begin().await.map_err(db_error)?;
+ let old=if let Some(id)=id{
+  let old_row: Value = sqlx::query_scalar("SELECT to_jsonb(v) FROM vms v WHERE id=$1 FOR UPDATE")
+   .bind(id)
+   .fetch_optional(&mut *tx)
+   .await
+   .map_err(db_error)?
+   .ok_or_else(|| ApiError::not_found(VM.missing))?;
+  Some(old_row)
+ }else{None};
+ let vm=write(&mut tx,VM,id,None,payload.clone(),user).await?;
+ let vm_id=Uuid::parse_str(vm["id"].as_str().unwrap()).unwrap();
+ if let Some(old)=old{audit(&mut tx,vm_id,user,&old,&vm).await?;}
+
+ if let Some(disks)=payload.get("disks"){
+  let items=disks.as_array().ok_or_else(||ApiError::invalid("disks must be an array"))?;
+  sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {} WHERE vm_id=$1",DISK.table))).bind(vm_id).execute(&mut *tx).await.map_err(db_error)?;
+  for item in items{write(&mut tx,DISK,None,Some(vm_id),item.clone(),user).await?;}
+ }
+
+ let has_networks = payload.get("networks").is_some();
+ let mappings_opt = payload.get("ip_mappings");
+
+ if let Some(mappings) = mappings_opt {
+  let mapping_items = mappings.as_array().ok_or_else(|| ApiError::invalid("ip_mappings must be an array"))?;
+  if has_networks {
+   let net_items = payload["networks"].as_array().unwrap();
+   sqlx::query("DELETE FROM vm_ip_mappings WHERE vm_id=$1").bind(vm_id).execute(&mut *tx).await.map_err(db_error)?;
+   sqlx::query("DELETE FROM vm_networks WHERE vm_id=$1").bind(vm_id).execute(&mut *tx).await.map_err(db_error)?;
+   for item in net_items {
+    write(&mut tx, NETWORK, None, Some(vm_id), item.clone(), user).await?;
+   }
+  } else {
+   sqlx::query("DELETE FROM vm_ip_mappings WHERE vm_id=$1").bind(vm_id).execute(&mut *tx).await.map_err(db_error)?;
+  }
+  apply_ip_mappings(&mut tx, vm_id, mapping_items).await?;
+ } else if has_networks {
+  let net_items = payload["networks"].as_array().unwrap();
+  let existing_pairs = if id.is_some() {
+   fetch_vm_mapping_pairs(&mut tx, vm_id).await?
+  } else {
+   Vec::new()
+  };
+
+  if !existing_pairs.is_empty() {
+   for (pub_ip, priv_ip) in &existing_pairs {
+    let norm_pub = crate::core::ip_utils::normalize_ip(pub_ip);
+    let norm_priv = crate::core::ip_utils::normalize_ip(priv_ip);
+
+    let pub_match_count = net_items.iter().filter(|n| {
+     let ip = n.get("ip_address").and_then(Value::as_str).unwrap_or("");
+     let role = n.get("role").and_then(Value::as_str).unwrap_or("private");
+     crate::core::ip_utils::normalize_ip(ip) == norm_pub && role == "public"
+    }).count();
+
+    let priv_match_count = net_items.iter().filter(|n| {
+     let ip = n.get("ip_address").and_then(Value::as_str).unwrap_or("");
+     let role = n.get("role").and_then(Value::as_str).unwrap_or("private");
+     crate::core::ip_utils::normalize_ip(ip) == norm_priv && role == "private"
+    }).count();
+
+    if pub_match_count != 1 || priv_match_count != 1 {
+     return Err(ApiError::conflict("Cannot replace networks: existing IP mapping would be invalidated; update or clear ip_mappings first"));
+    }
+   }
+  }
+
+  sqlx::query("DELETE FROM vm_ip_mappings WHERE vm_id=$1").bind(vm_id).execute(&mut *tx).await.map_err(db_error)?;
+  sqlx::query("DELETE FROM vm_networks WHERE vm_id=$1").bind(vm_id).execute(&mut *tx).await.map_err(db_error)?;
+  for item in net_items {
+   write(&mut tx, NETWORK, None, Some(vm_id), item.clone(), user).await?;
+  }
+
+  if !existing_pairs.is_empty() {
+   let old_items: Vec<Value> = existing_pairs.into_iter().map(|(pub_ip, priv_ip)| {
+    json!({"public_ip": pub_ip, "private_ip": priv_ip})
+   }).collect();
+   apply_ip_mappings(&mut tx, vm_id, &old_items).await?;
+  }
+ }
+
+ health(&mut tx,vm_id).await?;
+ let detail=vm_detail(&mut tx,vm_id).await?;
+ tx.commit().await.map_err(db_error)?;
+ Ok(detail)
+}
 pub async fn bulk_applications(pool:&PgPool,id:Uuid,adds:&[String],removes:&[String])->Result<(),ApiError>{
  let mut tx=pool.begin().await.map_err(db_error)?;
  if !removes.is_empty(){let lowered:Vec<String>=removes.iter().map(|n|n.to_lowercase()).collect();sqlx::query("DELETE FROM vm_applications WHERE vm_id=$1 AND lower(app_name)=ANY($2)").bind(id).bind(lowered).execute(&mut *tx).await.map_err(db_error)?;}

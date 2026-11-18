@@ -69,6 +69,9 @@ mod selection_tests {
   assert!(export_selection(&filters::query(Some("ids=broken".into()))).is_err());
  }
 }
+#[cfg(test)]
+#[path = "ip_mapping_tests.rs"]
+mod ip_mapping_tests;
 async fn list_vms(State(s):State<AppState>,_:Viewer,RawQuery(raw):RawQuery)->Result<Json<Value>,ApiError>{
  let p=filters::query(raw);filters::validate_query(&p)?;
  let limit=filters::bounded(&p,"limit",50,1,Some(200))?;let offset=filters::bounded(&p,"offset",0,0,None)?;
@@ -90,9 +93,72 @@ async fn patch_parent(State(s):State<AppState>,u:Editor,_csrf:Csrf,Extension(r):
 async fn delete_parent(State(s):State<AppState>,_:Editor,_csrf:Csrf,Extension(r):Extension<Resource>,InventoryId(id):InventoryId)->Result<(StatusCode,[(axum::http::HeaderName,&'static str);1]),ApiError>{let mut tx=s.pool.begin().await.map_err(db_error)?;delete(&mut tx,r,id,None).await?;tx.commit().await.map_err(db_error)?;Ok((StatusCode::NO_CONTENT,[(axum::http::header::CONTENT_TYPE,"application/json")]))}
 async fn list_children(State(s):State<AppState>,_:Viewer,Extension(r):Extension<Resource>,Path(p):Path<HashMap<String,String>>)->Result<Json<Value>,ApiError>{let parent=identifier(&p,"parent")?;let mut c=s.pool.acquire().await.map_err(db_error)?;require_parent(&mut c,r,parent).await?;Ok(Json(json!(children(&mut c,r,parent).await?)))}
 async fn create_child(State(s):State<AppState>,u:Editor,_csrf:Csrf,Extension(r):Extension<Resource>,Path(p):Path<HashMap<String,String>>,ValidatedJson(v):ValidatedJson<Value>)->Result<(StatusCode,Json<Value>),ApiError>{validate(r,v.clone(),true)?;let parent=identifier(&p,"parent")?;let mut tx=s.pool.begin().await.map_err(db_error)?;require_parent(&mut tx,r,parent).await?;let mut v=write(&mut tx,r,None,Some(parent),v,u.0.id).await?;if r.parent.unwrap().0=="vms"{health(&mut tx,parent).await?;}project_child(r,&mut v);tx.commit().await.map_err(db_error)?;Ok((StatusCode::CREATED,Json(v)))}
-async fn patch_child(State(s):State<AppState>,u:Editor,_csrf:Csrf,Extension(r):Extension<Resource>,Path(p):Path<HashMap<String,String>>,ValidatedJson(v):ValidatedJson<Value>)->Result<Json<Value>,ApiError>{validate(r,v.clone(),false)?;let parent=identifier(&p,"parent")?;let id=identifier(&p,"id")?;let mut tx=s.pool.begin().await.map_err(db_error)?;row(&mut tx,r,id,Some(parent)).await?;let mut v=write(&mut tx,r,Some(id),Some(parent),v,u.0.id).await?;project_child(r,&mut v);tx.commit().await.map_err(db_error)?;Ok(Json(v))}
-async fn delete_child(State(s):State<AppState>,_:Editor,_csrf:Csrf,Extension(r):Extension<Resource>,Path(p):Path<HashMap<String,String>>)->Result<(StatusCode,[(axum::http::HeaderName,&'static str);1]),ApiError>{let parent=identifier(&p,"parent")?;let mut tx=s.pool.begin().await.map_err(db_error)?;delete(&mut tx,r,identifier(&p,"id")?,Some(parent)).await?;if r.parent.unwrap().0=="vms"{health(&mut tx,parent).await?;}tx.commit().await.map_err(db_error)?;Ok((StatusCode::NO_CONTENT,[(axum::http::header::CONTENT_TYPE,"application/json")]))}
-async fn clone_vm(State(s):State<AppState>,u:Editor,_csrf:Csrf,InventoryId(id):InventoryId)->Result<(StatusCode,Json<Value>),ApiError>{let mut tx=s.pool.begin().await.map_err(db_error)?;let mut old=vm_detail(&mut tx,id).await?;old["name"]=json!(format!("{}-copy",old["name"].as_str().unwrap()));old["external_id"]=Value::Null;let v=write(&mut tx,VM,None,None,old.clone(),u.0.id).await?;let new_id=Uuid::parse_str(v["id"].as_str().unwrap()).unwrap();for(key,r)in[("disks",DISK),("networks",NETWORK),("applications",APPLICATION)]{for child in old[key].as_array().unwrap(){write(&mut tx,r,None,Some(new_id),child.clone(),u.0.id).await?;}}health(&mut tx,new_id).await?;let v=vm_detail(&mut tx,new_id).await?;tx.commit().await.map_err(db_error)?;Ok((StatusCode::CREATED,Json(v)))}
+async fn patch_child(State(s):State<AppState>,u:Editor,_csrf:Csrf,Extension(r):Extension<Resource>,Path(p):Path<HashMap<String,String>>,ValidatedJson(v):ValidatedJson<Value>)->Result<Json<Value>,ApiError>{
+ validate(r,v.clone(),false)?;
+ let parent=identifier(&p,"parent")?;
+ let id=identifier(&p,"id")?;
+ let mut tx=s.pool.begin().await.map_err(db_error)?;
+ let existing=row(&mut tx,r,id,Some(parent)).await?;
+ if r.table=="vm_networks"{
+  let linked:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM vm_ip_mappings WHERE public_ip_id=$1 OR private_ip_id=$1)").bind(id).fetch_one(&mut *tx).await.map_err(db_error)?;
+  if linked{
+   if let Some(new_ip)=v.get("ip_address").and_then(Value::as_str){
+    let norm_new=crate::core::ip_utils::normalize_ip(new_ip);
+    let norm_old=crate::core::ip_utils::normalize_ip(existing["ip_address"].as_str().unwrap_or(""));
+    if norm_new!=norm_old{
+     return Err(ApiError::conflict("Cannot modify IP address of a network entry linked in IP mappings; update mappings first"));
+    }
+   }
+   if let Some(new_role)=v.get("role").and_then(Value::as_str){
+    let old_role=existing["role"].as_str().unwrap_or("");
+    if new_role!=old_role{
+     return Err(ApiError::conflict("Cannot modify role of a network entry linked in IP mappings; update mappings first"));
+    }
+   }
+  }
+ }
+ let mut v=write(&mut tx,r,Some(id),Some(parent),v,u.0.id).await?;
+ project_child(r,&mut v);
+ tx.commit().await.map_err(db_error)?;
+ Ok(Json(v))
+}
+async fn delete_child(State(s):State<AppState>,_:Editor,_csrf:Csrf,Extension(r):Extension<Resource>,Path(p):Path<HashMap<String,String>>)->Result<(StatusCode,[(axum::http::HeaderName,&'static str);1]),ApiError>{
+ let parent=identifier(&p,"parent")?;
+ let id=identifier(&p,"id")?;
+ let mut tx=s.pool.begin().await.map_err(db_error)?;
+ if r.table=="vm_networks"{
+  let linked:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM vm_ip_mappings WHERE public_ip_id=$1 OR private_ip_id=$1)").bind(id).fetch_one(&mut *tx).await.map_err(db_error)?;
+  if linked{
+   return Err(ApiError::conflict("Cannot delete network entry linked in IP mappings; update or delete mappings first"));
+  }
+ }
+ delete(&mut tx,r,id,Some(parent)).await?;
+ if r.parent.unwrap().0=="vms"{health(&mut tx,parent).await?;}
+ tx.commit().await.map_err(db_error)?;
+ Ok((StatusCode::NO_CONTENT,[(axum::http::header::CONTENT_TYPE,"application/json")]))
+}
+async fn clone_vm(State(s):State<AppState>,u:Editor,_csrf:Csrf,InventoryId(id):InventoryId)->Result<(StatusCode,Json<Value>),ApiError>{
+ let mut tx=s.pool.begin().await.map_err(db_error)?;
+ let mut old=vm_detail(&mut tx,id).await?;
+ old["name"]=json!(format!("{}-copy",old["name"].as_str().unwrap()));
+ old["external_id"]=Value::Null;
+ let v=write(&mut tx,VM,None,None,old.clone(),u.0.id).await?;
+ let new_id=Uuid::parse_str(v["id"].as_str().unwrap()).unwrap();
+ for(key,r)in[("disks",DISK),("networks",NETWORK),("applications",APPLICATION)]{
+  for child in old[key].as_array().unwrap(){
+   write(&mut tx,r,None,Some(new_id),child.clone(),u.0.id).await?;
+  }
+ }
+ if let Some(mappings)=old.get("ip_mappings").and_then(Value::as_array){
+  if !mappings.is_empty(){
+   apply_ip_mappings(&mut tx,new_id,mappings).await?;
+  }
+ }
+ health(&mut tx,new_id).await?;
+ let v=vm_detail(&mut tx,new_id).await?;
+ tx.commit().await.map_err(db_error)?;
+ Ok((StatusCode::CREATED,Json(v)))
+}
 async fn bulk(State(s):State<AppState>,u:Editor,_csrf:Csrf,ValidatedJson(payload):ValidatedJson<Value>)->Result<Json<Value>,ApiError>{
  let mut request=bulk::validate_bulk(&payload)?;request.params.insert("sort".into(),vec!["name".into()]);
  let targets=selected_ids(&s,&request.params,if request.explicit_ids{Selection::Ids(request.params["ids"].iter().map(|id|Uuid::parse_str(id).map_err(|_|ApiError::invalid("Invalid UUID"))).collect::<Result<_,_>>()?)}else{Selection::Filtered(Order::Requested)}).await?;
