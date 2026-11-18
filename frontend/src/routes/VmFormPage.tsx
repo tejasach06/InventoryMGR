@@ -7,9 +7,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { vms as vmsApi } from '../api/vms';
 import { settings as settingsApi } from '../api/settings';
 import { detailMessage } from '../api/core';
-import type { NetworkRole, VmPayload } from '../api/types';
+import type { IpMapping, NetworkRole, VmPayload } from '../api/types';
 import {
-  Alert, FieldError, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
+  Alert, ConfirmDialog, FieldError, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass,
   secondaryButtonClass, selectClass, textareaClass,
 } from '../components/ui';
@@ -183,13 +183,32 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
 
 type IpRow = { rowId: string; ip: string; role: NetworkRole };
 
+interface DraftMapping {
+  publicRowId: string;
+  privateRowId: string;
+  publicIp: string;
+  privateIp: string;
+}
+
 function parseIpPaste(text: string): IpRow[] | null {
   const parts = text.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
   if (parts.length < 2) return null;
   return parts.map((ip) => ({ rowId: rowId(), ip, role: 'private' as NetworkRole }));
 }
-function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction<IpRow[]>> }) {
-  const update = (i: number, patch: Partial<IpRow>) => setIps((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+
+function IpRows({
+  ips,
+  onUpdate,
+  onRequestRemove,
+  onAdd,
+  onPasteReplace,
+}: {
+  ips: IpRow[];
+  onUpdate: (i: number, patch: Partial<IpRow>) => void;
+  onRequestRemove: (i: number) => void;
+  onAdd: () => void;
+  onPasteReplace: (rows: IpRow[]) => void;
+}) {
   const gridClass = 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_12rem_2.5rem] lg:items-end';
   return (
     <div>
@@ -205,32 +224,129 @@ function IpRows({ ips, setIps }: { ips: IpRow[]; setIps: Dispatch<SetStateAction
           <div key={r.rowId} className={gridClass}>
             <label className="flex flex-col gap-1">
               <span className={cn(labelClass, 'lg:hidden')}>IP Address {i + 1}</span>
-              <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => update(i, { ip: e.target.value })}
+              <input aria-label={`IP address ${i + 1}`} className={inputClass} type="text" placeholder="e.g. 10.0.0.10" value={r.ip} onChange={(e) => onUpdate(i, { ip: e.target.value })}
                 onPaste={i === 0 ? (e) => {
                   const parsed = parseIpPaste(e.clipboardData.getData('text'));
                   const isPristine = ips.length === 1 && !ips[0].ip;
-                  if (parsed && isPristine) { e.preventDefault(); setIps(parsed); }
+                  if (parsed && isPristine) { e.preventDefault(); onPasteReplace(parsed); }
                 } : undefined} />
             </label>
             <label className="flex flex-col gap-1">
               <span className={cn(labelClass, 'lg:hidden')}>Role</span>
-              <select aria-label={`IP role ${i + 1}`} className={selectClass} value={r.role} onChange={(e) => update(i, { role: e.target.value as NetworkRole })}>
+              <select aria-label={`IP role ${i + 1}`} className={selectClass} value={r.role} onChange={(e) => onUpdate(i, { role: e.target.value as NetworkRole })}>
                 <option value="private">Private</option>
                 <option value="public">Public</option>
                 <option value="backup">Backup</option>
               </select>
             </label>
             {ips.length > 1 ? (
-              <RemoveButton onClick={() => setIps((rows) => rows.filter((_, idx) => idx !== i))} label={`Remove IP address ${i + 1}`} />
+              <RemoveButton onClick={() => onRequestRemove(i)} label={`Remove IP address ${i + 1}`} />
             ) : (
               <div aria-hidden="true" />
             )}
           </div>
         ))}
       </div>
-      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={() => setIps((rows) => [...rows, { rowId: rowId(), ip: '', role: 'private' as NetworkRole }])}>
+      <button type="button" className={`${secondaryButtonClass} mt-3`} onClick={onAdd}>
         + Add IP address
       </button>
+    </div>
+  );
+}
+
+function IpMappingRows({
+  ips,
+  mappings,
+  setMappings,
+}: {
+  ips: IpRow[];
+  mappings: DraftMapping[];
+  setMappings: Dispatch<SetStateAction<DraftMapping[]>>;
+}) {
+  const publicRows = ips.filter((r) => r.role === 'public');
+  const privateRows = ips.filter((r) => r.role === 'private' && r.ip.trim());
+
+  if (publicRows.length === 0) return null;
+
+  return (
+    <div className="mt-6 border-t border-[var(--color-border)] pt-4" data-testid="ip-mappings-section">
+      <p className={labelClass}>Public-to-Private IP Mappings</p>
+      <p className={helpTextClass}>
+        Select private IP endpoints on this VM for each public address.
+      </p>
+      <div className="mt-3 space-y-4">
+        {publicRows.map((pubRow) => {
+          const pubIp = pubRow.ip.trim();
+          const hasValidIp = Boolean(pubIp);
+          const pubMappings = mappings.filter((m) => m.publicRowId === pubRow.rowId);
+          return (
+            <div key={pubRow.rowId} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Public IP:</span>
+                  <span className={cn('text-sm font-medium', hasValidIp ? 'font-mono text-[var(--color-text-primary)]' : 'italic text-[var(--color-text-tertiary)]')}>
+                    {hasValidIp ? pubIp : '(Enter public IP above)'}
+                  </span>
+                </div>
+                {hasValidIp && pubMappings.length > 0 ? (
+                  <button
+                    type="button"
+                    className="text-xs text-[var(--color-criticality-critical)] hover:underline"
+                    onClick={() => setMappings((prev) => prev.filter((m) => m.publicRowId !== pubRow.rowId))}
+                  >
+                    Unlink all
+                  </button>
+                ) : null}
+              </div>
+              <div className="mt-2.5">
+                <span className="text-xs text-[var(--color-text-tertiary)]">Target private endpoints:</span>
+                {privateRows.length === 0 ? (
+                  <p className="mt-1 text-xs text-[var(--color-text-tertiary)] italic">No private IP addresses configured on this VM. Add a private IP above to map endpoints.</p>
+                ) : (
+                  <div className="mt-1.5 flex flex-wrap gap-4">
+                    {privateRows.map((privRow) => {
+                      const isChecked = mappings.some(
+                        (m) => m.publicRowId === pubRow.rowId && m.privateRowId === privRow.rowId
+                      );
+                      return (
+                        <label key={privRow.rowId} className="flex items-center gap-2 cursor-pointer text-sm">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
+                            checked={isChecked}
+                            disabled={!hasValidIp}
+                            aria-label={`Map ${pubIp || 'public IP'} to ${privRow.ip}`}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setMappings((prev) => [
+                                  ...prev,
+                                  {
+                                    publicRowId: pubRow.rowId,
+                                    privateRowId: privRow.rowId,
+                                    publicIp: pubRow.ip.trim(),
+                                    privateIp: privRow.ip.trim(),
+                                  },
+                                ]);
+                              } else {
+                                setMappings((prev) =>
+                                  prev.filter(
+                                    (m) => !(m.publicRowId === pubRow.rowId && m.privateRowId === privRow.rowId)
+                                  )
+                                );
+                              }
+                            }}
+                          />
+                          <span className="font-mono text-[var(--color-text-primary)]">{privRow.ip}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -306,8 +422,10 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const [errors, setErrors] = useState<VmFormErrors>({});
   const [disks, setDisks] = useState<DiskRow[]>(() => [{ rowId: rowId(), name: '', size: '', unit: 'GB', storage: '', type: '' }]);
   const [ips, setIps] = useState<IpRow[]>(() => [{ rowId: rowId(), ip: '', role: 'private' as NetworkRole }]);
-  const initialSnapshot = useRef<string>(JSON.stringify({ values, disks, ips }));
-  const isDirty = useMemo(() => JSON.stringify({ values, disks, ips }) !== initialSnapshot.current, [values, disks, ips]);
+  const [mappings, setMappings] = useState<DraftMapping[]>([]);
+  const [unlinkingRow, setUnlinkingRow] = useState<IpRow | null>(null);
+  const initialSnapshot = useRef<string>(JSON.stringify({ values, disks, ips, mappings }));
+  const isDirty = useMemo(() => JSON.stringify({ values, disks, ips, mappings }) !== initialSnapshot.current, [values, disks, ips, mappings]);
 
   const vmQuery = useQuery({ queryKey: ['vm', id], queryFn: () => vmsApi.getVm(id ?? ''), enabled: mode === 'edit' && Boolean(id) });
   const optionsQuery = useQuery({ queryKey: ['settings', 'options'], queryFn: settingsApi.getDropdownOptions });
@@ -337,10 +455,28 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
         ip: n.ip_address,
         role: n.role,
       })) : [{ rowId: rowId(), ip: '', role: 'private' as NetworkRole }];
+
+      const loadedMappings: DraftMapping[] = [];
+      if (vmQuery.data.ip_mappings && vmQuery.data.ip_mappings.length > 0) {
+        for (const m of vmQuery.data.ip_mappings) {
+          const pub = loadedIps.find((r) => r.role === 'public' && r.ip === m.public_ip);
+          const priv = loadedIps.find((r) => r.role === 'private' && r.ip === m.private_ip);
+          if (pub && priv) {
+            loadedMappings.push({
+              publicRowId: pub.rowId,
+              privateRowId: priv.rowId,
+              publicIp: pub.ip,
+              privateIp: priv.ip,
+            });
+          }
+        }
+      }
+
       setValues(loadedValues);
       setDisks(loadedDisks);
       setIps(loadedIps);
-      initialSnapshot.current = JSON.stringify({ values: loadedValues, disks: loadedDisks, ips: loadedIps });
+      setMappings(loadedMappings);
+      initialSnapshot.current = JSON.stringify({ values: loadedValues, disks: loadedDisks, ips: loadedIps, mappings: loadedMappings });
     }
   }, [vmQuery.data]);
 
@@ -368,6 +504,35 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
     setErrors((c) => ({ ...c, [name]: undefined }));
   }
 
+  function updateIp(i: number, patch: Partial<IpRow>) {
+    const current = ips[i];
+    if (!current) return;
+    const ipChanged = patch.ip !== undefined && patch.ip !== current.ip;
+    const roleChanged = patch.role !== undefined && patch.role !== current.role;
+    if (ipChanged || roleChanged) {
+      setMappings((prev) => prev.filter((m) => m.publicRowId !== current.rowId && m.privateRowId !== current.rowId));
+    }
+    setIps((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+
+  function requestRemoveIp(i: number) {
+    const row = ips[i];
+    if (!row) return;
+    const isLinked = mappings.some((m) => m.publicRowId === row.rowId || m.privateRowId === row.rowId);
+    if (isLinked) {
+      setUnlinkingRow(row);
+    } else {
+      setIps((rows) => rows.filter((_, idx) => idx !== i));
+    }
+  }
+
+  function confirmRemoveLinkedIp() {
+    if (!unlinkingRow) return;
+    setIps((rows) => rows.filter((r) => r.rowId !== unlinkingRow.rowId));
+    setMappings((prev) => prev.filter((m) => m.publicRowId !== unlinkingRow.rowId && m.privateRowId !== unlinkingRow.rowId));
+    setUnlinkingRow(null);
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsed = vmFormSchema.safeParse(values);
@@ -384,6 +549,28 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
     }
     setErrors({});
     try {
+      const validMappings = mappings.filter((m) => {
+        const pub = ips.find((r) => r.rowId === m.publicRowId && r.role === 'public' && r.ip.trim());
+        const priv = ips.find((r) => r.rowId === m.privateRowId && r.role === 'private' && r.ip.trim());
+        return Boolean(pub && priv);
+      }).map((m) => {
+        const pub = ips.find((r) => r.rowId === m.publicRowId)!;
+        const priv = ips.find((r) => r.rowId === m.privateRowId)!;
+        return {
+          public_ip: pub.ip.trim(),
+          private_ip: priv.ip.trim(),
+        };
+      });
+      const seenPairs = new Set<string>();
+      const dedupedMappings: IpMapping[] = [];
+      for (const m of validMappings) {
+        const key = `${m.public_ip}>${m.private_ip}`;
+        if (!seenPairs.has(key)) {
+          seenPairs.add(key);
+          dedupedMappings.push(m);
+        }
+      }
+
       const payload = {
         ...parsed.data,
         disks: disks
@@ -402,9 +589,10 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             role: r.role,
             sort_order: i,
           })),
+        ip_mappings: dedupedMappings,
       };
       const vm = await save.mutateAsync(payload as VmPayload);
-      initialSnapshot.current = JSON.stringify({ values, disks, ips });
+      initialSnapshot.current = JSON.stringify({ values, disks, ips, mappings });
       queryClient.invalidateQueries({ queryKey: ['vms'] });
       queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
       queryClient.invalidateQueries({ queryKey: ['vm-suggestions'] });
@@ -471,7 +659,14 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
           </SectionCard>
 
           <SectionCard title="Network">
-            <IpRows ips={ips} setIps={setIps} />
+            <IpRows
+              ips={ips}
+              onUpdate={updateIp}
+              onRequestRemove={requestRemoveIp}
+              onAdd={() => setIps((rows) => [...rows, { rowId: rowId(), ip: '', role: 'private' as NetworkRole }])}
+              onPasteReplace={(parsed) => { setIps(parsed); setMappings([]); }}
+            />
+            <IpMappingRows ips={ips} mappings={mappings} setMappings={setMappings} />
           </SectionCard>
 
           <SectionCard title="Operating System">
@@ -556,6 +751,15 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
               onClick={(e) => { if (isDirty && !confirm('Discard unsaved changes?')) e.preventDefault(); }}>Cancel</Link>
           </div>
         </form>
+        <ConfirmDialog
+          open={Boolean(unlinkingRow)}
+          title="Remove Linked IP Address"
+          tone="danger"
+          confirmLabel="Remove and Unlink"
+          body={`Address "${unlinkingRow?.ip}" is currently linked in IP mappings. Removing it will unlink its mappings. Do you want to continue?`}
+          onConfirm={confirmRemoveLinkedIp}
+          onCancel={() => setUnlinkingRow(null)}
+        />
       </section>
     </PageTransition>
   );
