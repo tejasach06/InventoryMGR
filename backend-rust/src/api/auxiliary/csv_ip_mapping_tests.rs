@@ -478,6 +478,34 @@ async fn test_csv_stale_preview_rejection_and_rollback() {
     let (status, err) = client.request(&state, "POST", &format!("/imports/{batch_unchanged_id}/commit"), None).await;
     assert_eq!(status, StatusCode::CONFLICT);
     assert!(err["detail"].as_str().unwrap().contains("preview is stale"));
+
+    // 6. Test target VM deleted after preview:
+    // Create VM, preview CSV targeting it. Delete the entire VM.
+    // Commit must fail with CONFLICT ("Import target VM changed since preview").
+    let (status, vm3) = client.request(&state, "POST", "/vms", Some(json!({
+        "name": "vm-deleted-after-preview",
+        "platform": "vmware",
+        "cluster": "cluster-a",
+        "status": "running",
+        "cpu_cores": 2,
+        "memory_mb": 4096,
+        "criticality": "medium"
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let vm3_id = vm3["id"].as_str().unwrap();
+
+    let csv_delete = "name,platform,cluster,cpu_cores\n\
+                      vm-deleted-after-preview,vmware,cluster-a,4\n";
+    let (status, preview_del) = client.upload_csv(&state, "del_preview.csv", csv_delete, false).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let batch_del_id = preview_del["id"].as_str().unwrap();
+
+    let (status, _) = client.request(&state, "DELETE", &format!("/vms/{vm3_id}"), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    let (status, err) = client.request(&state, "POST", &format!("/imports/{batch_del_id}/commit"), None).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert!(err["detail"].as_str().unwrap().contains("Import target VM changed"));
 }
 
 #[tokio::test]

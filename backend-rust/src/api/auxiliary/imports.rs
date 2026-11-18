@@ -582,7 +582,12 @@ pub async fn commit(State(state):State<AppState>,user:Editor,_:Csrf,Path(id):Pat
     target_ids.sort();
     target_ids.dedup();
     for target_id in target_ids {
-        crate::api::inventory::service::lock_vm(&mut tx, target_id).await?;
+        if let Err(e) = crate::api::inventory::service::lock_vm(&mut tx, target_id).await {
+            if e.status == StatusCode::NOT_FOUND {
+                return Err(ApiError::new(StatusCode::CONFLICT, "Import target VM changed"));
+            }
+            return Err(e);
+        }
     }
     let mut result=json!({"created":0,"updated":0,"decommissioned":0});
     for row in rows {
