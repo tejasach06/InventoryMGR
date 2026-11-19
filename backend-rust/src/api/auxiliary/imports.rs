@@ -242,10 +242,13 @@ fn plan_networks_and_mappings(vm: Option<&Value>, raw: &Value) -> NetworkMapping
         let mentioned: Vec<_> = ips(raw, header, &mut Vec::new()).into_iter().filter(|s| unique.insert(s.clone())).collect();
         let mut role_rows: Vec<_> = networks.iter().filter(|n| text(n, "role") == role).cloned().collect();
         role_rows.sort_by(|a, b| a["sort_order"].as_i64().cmp(&b["sort_order"].as_i64()).then_with(|| text(a, "id").cmp(text(b, "id"))));
-        let existing: HashSet<_> = role_rows.iter().map(|n| text(n, "ip_address").to_owned()).collect();
-        let new: Vec<_> = mentioned.iter().filter(|s| !existing.contains(*s) && !claimed.contains(*s)).cloned().collect();
+        let existing: HashSet<_> = role_rows.iter().map(|n| crate::core::ip_utils::normalize_ip(text(n, "ip_address")).to_string()).collect();
+        let new: Vec<_> = mentioned.iter().filter(|s| !existing.contains(crate::core::ip_utils::normalize_ip(s)) && !claimed.contains(*s)).cloned().collect();
         let reusable: Vec<_> = role_rows.into_iter()
-            .filter(|n| !mentioned.iter().any(|ip| ip == text(n, "ip_address")) && !protected_ips.contains(text(n, "ip_address")))
+            .filter(|n| {
+                let norm = crate::core::ip_utils::normalize_ip(text(n, "ip_address"));
+                !mentioned.iter().any(|ip| crate::core::ip_utils::normalize_ip(ip) == norm) && !protected_ips.contains(norm)
+            })
             .collect();
         let count = new.len().min(reusable.len());
         let retargets: Vec<(Value, String)> = reusable.into_iter().take(count).zip(new.iter().take(count).cloned()).collect();
@@ -549,6 +552,9 @@ async fn attach_children(connection:&mut PgConnection,id:Uuid,raw:&Value,user:Uu
     let before_pairs = crate::api::inventory::service::fetch_vm_mapping_pairs(connection, id).await?;
     let mut mapping_errors=Vec::new();
     if let Some(pairs)=parse_ip_mappings(raw,&mut mapping_errors){
+        if !mapping_errors.is_empty() {
+            return Err(ApiError::conflict("Invalid IP mappings in CSV row"));
+        }
         if !pairs.is_empty() {
             let networks: Vec<(Uuid, String, String)> = sqlx::query_as(
                 "SELECT id, ip_address, role::text FROM vm_networks WHERE vm_id = $1"

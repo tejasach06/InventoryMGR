@@ -99,7 +99,29 @@ async fn create_child(State(s):State<AppState>,u:Editor,_csrf:Csrf,Extension(r):
  validate(r,v.clone(),true)?;
  let parent=identifier(&p,"parent")?;
  let mut tx=s.pool.begin().await.map_err(db_error)?;
- if r.table=="vm_networks"{lock_vm(&mut tx,parent).await?;}else{require_parent(&mut tx,r,parent).await?;}
+ if r.table=="vm_networks"{
+  lock_vm(&mut tx,parent).await?;
+  let new_ip=v.get("ip_address").and_then(Value::as_str).unwrap_or("");
+  let new_role=v.get("role").and_then(Value::as_str).unwrap_or("private");
+  let norm_new=crate::core::ip_utils::normalize_ip(new_ip);
+  let linked_nets: Vec<(Uuid, String, String)> = sqlx::query_as(
+   "SELECT n.id, n.ip_address, n.role::text FROM vm_networks n \
+    WHERE n.vm_id = $1 AND EXISTS (\
+     SELECT 1 FROM vm_ip_mappings m \
+     WHERE m.vm_id = $1 AND (m.public_ip_id = n.id OR m.private_ip_id = n.id)\
+    )"
+  )
+  .bind(parent)
+  .fetch_all(&mut *tx)
+  .await
+  .map_err(db_error)?;
+
+  for (_lid, lip, lrole) in linked_nets {
+   if lrole == new_role && crate::core::ip_utils::normalize_ip(&lip) == norm_new {
+    return Err(ApiError::conflict("Cannot add duplicate network entry for an IP address linked in IP mappings; update mappings first"));
+   }
+  }
+ }else{require_parent(&mut tx,r,parent).await?;}
  let mut v=write(&mut tx,r,None,Some(parent),v,u.0.id).await?;
  if r.parent.unwrap().0=="vms"{health(&mut tx,parent).await?;}
  project_child(r,&mut v);
@@ -127,6 +149,29 @@ async fn patch_child(State(s):State<AppState>,u:Editor,_csrf:Csrf,Extension(r):E
     let old_role=existing["role"].as_str().unwrap_or("");
     if new_role!=old_role{
      return Err(ApiError::conflict("Cannot modify role of a network entry linked in IP mappings; update mappings first"));
+    }
+   }
+  }
+  if v.get("ip_address").is_some() || v.get("role").is_some() {
+   let effective_ip = v.get("ip_address").and_then(Value::as_str).unwrap_or_else(|| existing["ip_address"].as_str().unwrap_or(""));
+   let effective_role = v.get("role").and_then(Value::as_str).unwrap_or_else(|| existing["role"].as_str().unwrap_or("private"));
+   let norm_effective = crate::core::ip_utils::normalize_ip(effective_ip);
+
+   let linked_nets: Vec<(Uuid, String, String)> = sqlx::query_as(
+    "SELECT n.id, n.ip_address, n.role::text FROM vm_networks n \
+     WHERE n.vm_id = $1 AND EXISTS (\
+      SELECT 1 FROM vm_ip_mappings m \
+      WHERE m.vm_id = $1 AND (m.public_ip_id = n.id OR m.private_ip_id = n.id)\
+     )"
+   )
+   .bind(parent)
+   .fetch_all(&mut *tx)
+   .await
+   .map_err(db_error)?;
+
+   for (lid, lip, lrole) in linked_nets {
+    if lid != id && lrole == effective_role && crate::core::ip_utils::normalize_ip(&lip) == norm_effective {
+     return Err(ApiError::conflict("Cannot modify network entry to duplicate an IP address linked in IP mappings; update mappings first"));
     }
    }
   }

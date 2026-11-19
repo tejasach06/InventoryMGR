@@ -43,7 +43,9 @@ VM list and detail responses expose `ip_mappings: [{ public_ip, private_ip }]`.
 VM create and update (`POST /api/vms`, `PATCH /api/vms/{id}`) accept the same `ip_mappings` field.
 Endpoints must correspond to network entries on the same VM with roles `public` and `private` respectively.
 Omission preserves existing mappings on update, while an explicit array replaces them, and `[]` clears them.
+When submitting `ip_mappings` in `PATCH /api/vms/{id}`, the request must include `network_precondition` matching the concurrency token returned on the most recent VM GET; requests with missing or stale tokens return 409 Conflict.
 A child network entry linked in an IP mapping cannot be deleted or have its address/role changed through `/api/vms/{parent_id}/networks/{id}` (returns 409 Conflict); linked edits and unlinking must be performed atomically via VM-level update (`PATCH /api/vms/{id}`).
+Adding or editing child network entries via `/api/vms/{parent_id}/networks` that would introduce a duplicate address of an existing linked endpoint also returns 409 Conflict.
 
 ## Storage — `/api/storage`
 

@@ -530,6 +530,65 @@ async fn api_linked_edits_and_deletes_rejection() {
     }))).await;
     assert_eq!(status, StatusCode::OK, "{ok}");
 
+    // Child POST introducing a duplicate of a linked public endpoint rejected with 409 Conflict
+    let (status, err) = client.request(&state, "POST", &format!("/vms/{vm_id}/networks"), Some(json!({
+        "ip_address": "203.0.113.60", "role": "public"
+    }))).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{err}");
+
+    // Child POST with CIDR mask matching a linked endpoint also rejected with 409 Conflict
+    let (status, err) = client.request(&state, "POST", &format!("/vms/{vm_id}/networks"), Some(json!({
+        "ip_address": "203.0.113.60/24", "role": "public"
+    }))).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{err}");
+
+    // Child POST with duplicate of a linked private endpoint rejected with 409 Conflict
+    let (status, err) = client.request(&state, "POST", &format!("/vms/{vm_id}/networks"), Some(json!({
+        "ip_address": "10.0.0.60", "role": "private"
+    }))).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{err}");
+
+    // Child POST with same IP but DIFFERENT role is allowed (role semantics preserved)
+    let (status, diff_role) = client.request(&state, "POST", &format!("/vms/{vm_id}/networks"), Some(json!({
+        "ip_address": "203.0.113.60", "role": "private"
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED, "{diff_role}");
+    let diff_role_id = diff_role["id"].as_str().unwrap();
+
+    // Child PATCH modifying an unlinked entry to duplicate a linked endpoint rejected with 409 Conflict
+    let (status, err) = client.request(&state, "PATCH", &format!("/vms/{vm_id}/networks/{diff_role_id}"), Some(json!({
+        "role": "public"
+    }))).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{err}");
+
+    let (status, err) = client.request(&state, "PATCH", &format!("/vms/{vm_id}/networks/{diff_role_id}"), Some(json!({
+        "ip_address": "10.0.0.60"
+    }))).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{err}");
+
+    // Clean up diff_role entry
+    let (status, _) = client.request(&state, "DELETE", &format!("/vms/{vm_id}/networks/{diff_role_id}"), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    // Child POST of an unrelated/unlinked network and its duplicate is allowed (preserves unlinked duplicates)
+    let (status, unlinked_1) = client.request(&state, "POST", &format!("/vms/{vm_id}/networks"), Some(json!({
+        "ip_address": "10.0.0.88", "role": "private"
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED, "{unlinked_1}");
+    let unlinked_1_id = unlinked_1["id"].as_str().unwrap();
+
+    let (status, unlinked_2) = client.request(&state, "POST", &format!("/vms/{vm_id}/networks"), Some(json!({
+        "ip_address": "10.0.0.88", "role": "private"
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED, "{unlinked_2}");
+    let unlinked_2_id = unlinked_2["id"].as_str().unwrap();
+
+    // Removing an unlinked duplicate child is allowed
+    let (status, _) = client.request(&state, "DELETE", &format!("/vms/{vm_id}/networks/{unlinked_2_id}"), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = client.request(&state, "DELETE", &format!("/vms/{vm_id}/networks/{unlinked_1_id}"), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
     // Child DELETE on unlinked row is allowed
     let (status, _) = client.request(&state, "DELETE", &format!("/vms/{vm_id}/networks/{unlinked_priv_id}"), None).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
