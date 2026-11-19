@@ -37,6 +37,16 @@ Child resources nest under a VM: `/api/vms/{parent_id}/disks`,
 `/api/vms/{parent_id}/networks`, `/api/vms/{parent_id}/applications`,
 `/api/vms/{vm_id}/audit` (change history, read-only).
 
+### IP mappings
+
+VM list and detail responses expose `ip_mappings: [{ public_ip, private_ip }]`.
+VM create and update (`POST /api/vms`, `PATCH /api/vms/{id}`) accept the same `ip_mappings` field.
+Endpoints must correspond to network entries on the same VM with roles `public` and `private` respectively.
+Omission preserves existing mappings on update, while an explicit array replaces them, and `[]` clears them.
+When submitting `ip_mappings` in `PATCH /api/vms/{id}`, the request must include `network_precondition` matching the concurrency token returned on the most recent VM GET; requests with missing or stale tokens return 409 Conflict.
+A child network entry linked in an IP mapping cannot be deleted or have its address/role changed through `/api/vms/{parent_id}/networks/{id}` (returns 409 Conflict); linked edits and unlinking must be performed atomically via VM-level update (`PATCH /api/vms/{id}`).
+Adding or editing child network entries via `/api/vms/{parent_id}/networks` that would introduce a duplicate address of an existing linked endpoint also returns 409 Conflict.
+
 ## Storage — `/api/storage`
 
 Storage arrays (vendor: `synology`, `netapp`, …) with nested volumes, LUNs, and
@@ -55,15 +65,26 @@ Cluster groupings with nested `/api/clusters/{parent_id}/nodes`.
 CSV import workflow: upload → preview (diff against existing inventory,
 classified `create`/`update`/`unchanged`/`decommission`/`conflict`/`invalid`) →
 commit. See `docs/RUNBOOK.md`/`AGENTS.md` for the CSV format and Proxmox
-identity-matching rule.
+identity-matching rule. The optional `ip_mappings` column accepts
+semicolon-separated `public>private` IP pairs (e.g., `203.0.113.4>10.0.0.5;203.0.113.4>10.0.0.6`).
+Mappings are additive and resolve against existing or simultaneously imported addresses on the same VM.
+
+### IP mappings in CSV
+
+The optional `ip_mappings` column specifies public-to-private IP pairings:
+- **Format**: `public>private` pairs separated by semicolons (e.g. `203.0.113.4>10.0.0.5;203.0.113.4>10.0.0.6`).
+- **Update semantics**: Missing or blank cells preserve existing mappings. Nonblank cells add the specified pairs idempotently. Removing mappings is an explicit VM edit.
+- **Validation**: Endpoints must exist on the same VM (either already present or included in the row's `public_ip` / `private_ip` columns) with the respective roles.
 
 ## VM export — `GET /api/vms/export`
 
 Takes the list filters plus `ids` (repeatable) or `all=true`, and:
 
-- `columns` — comma-separated, ordered export columns (VM scalar fields, `disks`, `private_ip`, `public_ip`, `backup_ip`, `applications`). Omitted = all. Unknown or duplicate names return 422.
+- `columns` — comma-separated, ordered export columns (VM scalar fields, `disks`, `private_ip`, `public_ip`, `backup_ip`, `applications`, `ip_mappings`). Omitted = all. Unknown or duplicate names return 422. A custom export containing only `ip_mappings` requires corresponding address endpoints to already exist on the destination during re-import.
 - `format` — `csv` (default), `xlsx`, or `json` (preview: `{total, columns, rows}` with the first 5 VMs).
 - `disk_layout` — `joined` (default, one cell per VM) or `rows` (one row per disk, VM fields repeated).
+
+When `ip_mappings` is exported, it emits canonical ordered pairs (`public>private;...`). Include address columns (`public_ip`, `private_ip`) in full exports for round-trip re-import compatibility; a custom export containing only mappings requires endpoints to already exist on the target.
 
 ## Reports — `/api/reports`
 

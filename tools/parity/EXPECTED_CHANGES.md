@@ -85,3 +85,34 @@ The HTTP baseline contains recorded transcripts for 245 operations across the AP
 - `tools/parity/historical_initial.sql`: Preserved byte-for-byte.
 - Native migration chain `backend-rust/migrations/0001_inventory_schema.sql` (lines 697–706) preserves the linear revision history from head `0024` to `0025`, migrating existing `fqdn` values into single-element arrays and defaulting NULL/empty values to empty arrays.
 - Historical upgrade boundaries verified on Aspire across revisions `0004`, `0010`, `debd8a48a62e`, and `0024` with user and VM row preservation.
+
+---
+
+## 5. IP Mappings & Network Preconditions Feature (PR #72, ledger head `0026`)
+
+This section documents the reviewed contract differences and baseline updates for the VM public-to-private IP mappings and deterministic network precondition feature.
+
+### Scope of Changes
+- Total operations in suite: **245**
+- Unmodified cases preserved byte-for-byte: **227**
+- Authorized modified cases: **18** (Cases 113, 114, 115, 119, 135, 136, 138, 139, 150, 151, 176, 177, 180, 191, 210, 224, 227, 244)
+
+### Classification of Approved Differences
+1. **VM Object Responses** (Cases 113, 114, 115, 119, 176, 177, 227)
+   - Scope: `POST /api/vms`, `GET /api/vms/{id}`, `PATCH /api/vms/{id}`, `POST /api/vms/{id}/clone`.
+   - Delta: Added fields `"ip_mappings": []`, `"mapping_precondition": "<token:N>"`, and `"network_precondition": "<token:N>"`.
+   - Normalization: `tools/parity/src/http_client.rs` aliases 64-character SHA-256 hex precondition tokens as `<token:N>`, mirroring `<uuid:N>` normalization for runtime UUIDs.
+2. **Paginated VM List Responses** (Cases 135, 136, 138, 139, 180, 210, 224, 244)
+   - Scope: `GET /api/vms` queries with pagination, filters, and searches.
+   - Delta: Added `"ip_mappings": []`, `"mapping_precondition": "<token:N>"`, and `"network_precondition": "<token:N>"` to each VM record.
+3. **CSV & XLSX Exports** (Cases 150, 151)
+   - Scope: `GET /api/vms/export?format=csv` and `GET /api/vms/export?format=xlsx`.
+   - Delta: Added `ip_mappings` column to header.
+4. **CSV Import Template** (Case 191)
+   - Scope: `GET /api/imports/template`.
+   - Delta: Added `ip_mappings` column to template header.
+
+### Invariants Preserved
+- All 89 OpenAPI operations remain covered.
+- All HTTP status codes, security headers, and cookie behavior remain identical.
+- Migrations (`0026`) preserve all historical rows across empty and upgrade boundaries.

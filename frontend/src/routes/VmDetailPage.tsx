@@ -223,6 +223,8 @@ function DisksPanel({ vm }: { vm: Vm }) {
 
 function NetworksPanel({ vm }: { vm: Vm }) {
   const qc = useQueryClient();
+  const user = useCurrentUser();
+  const canEdit = user ? canEditInventory(user.role) : false;
   const [deleteNetworkId, setDeleteNetworkId] = useState<string | null>(null);
   const addMut = useMutation({
     mutationFn: (v: Record<string, string>) => vmsApi.addNetwork(vm.id, {
@@ -263,20 +265,58 @@ function NetworksPanel({ vm }: { vm: Vm }) {
               </tr>
             </thead>
             <tbody className={tableBodyClass}>
-              {vm.networks.map((n) => (
-                <tr key={n.id} className={tableRowClass}>
-                  <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-primary)]')}>
-                    <div className="flex items-center gap-1.5">
-                      <span>{n.ip_address}</span>
-                      <CopyButton text={n.ip_address} />
-                    </div>
-                  </td>
-                  <td className={cn(tableCellClass, 'capitalize text-[var(--color-text-secondary)]')}>{n.role}</td>
-                  <td className={tableCellClass}>
-                    <RemoveRowButton onClick={() => setDeleteNetworkId(n.id)} title={`Remove ${n.ip_address}`} />
-                  </td>
-                </tr>
-              ))}
+              {vm.networks.map((n) => {
+                const targets = n.role === 'public'
+                  ? (vm.ip_mappings ?? []).filter((m) => m.public_ip === n.ip_address).map((m) => m.private_ip)
+                  : [];
+                const sources = n.role === 'private'
+                  ? (vm.ip_mappings ?? []).filter((m) => m.private_ip === n.ip_address).map((m) => m.public_ip)
+                  : [];
+                const isLinked = (vm.ip_mappings ?? []).some(
+                  (m) => m.public_ip === n.ip_address || m.private_ip === n.ip_address
+                );
+
+                return (
+                  <tr key={n.id} className={tableRowClass}>
+                    <td className={cn(tableCellClass, 'font-mono text-[var(--color-text-primary)]')}>
+                      <div className="flex items-center gap-1.5">
+                        <span>{n.ip_address}</span>
+                        <CopyButton text={n.ip_address} />
+                      </div>
+                      {targets.length > 0 ? (
+                        <div className="mt-1 text-xs font-sans text-[var(--color-text-secondary)]">
+                          <span className="font-semibold text-[var(--color-text-tertiary)] mr-1">Mapped to:</span>
+                          <span className="font-mono text-[var(--color-text-primary)]">{targets.join(', ')}</span>
+                        </div>
+                      ) : null}
+                      {sources.length > 0 ? (
+                        <div className="mt-1 text-xs font-sans text-[var(--color-text-secondary)]">
+                          <span className="font-semibold text-[var(--color-text-tertiary)] mr-1">Mapped from:</span>
+                          <span className="font-mono text-[var(--color-text-primary)]">{sources.join(', ')}</span>
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className={cn(tableCellClass, 'capitalize text-[var(--color-text-secondary)]')}>{n.role}</td>
+                    <td className={tableCellClass}>
+                      {isLinked ? (
+                        canEdit ? (
+                          <Link
+                            href={`/inventory/${vm.id}/edit`}
+                            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-surface-tertiary)] hover:underline transition-colors"
+                            title={`Linked in IP mappings. Edit or unlink in the VM form.`}
+                          >
+                            Edit in form
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-[var(--color-text-tertiary)]">Linked</span>
+                        )
+                      ) : (
+                        <RemoveRowButton onClick={() => setDeleteNetworkId(n.id)} title={`Remove ${n.ip_address}`} />
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

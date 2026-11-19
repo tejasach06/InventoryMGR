@@ -704,5 +704,31 @@ ALTER TABLE vms DROP COLUMN fqdn;
 
 UPDATE alembic_version SET version_num='0025' WHERE alembic_version.version_num = '0024';
 
+-- Running upgrade 0025 -> 0026
+
+ALTER TABLE vm_networks ADD CONSTRAINT uq_vm_networks_id_vm_role UNIQUE (id, vm_id, role);
+
+CREATE TABLE vm_ip_mappings (
+    id UUID NOT NULL, 
+    vm_id UUID NOT NULL, 
+    public_ip_id UUID NOT NULL, 
+    public_role network_role DEFAULT 'public' NOT NULL, 
+    private_ip_id UUID NOT NULL, 
+    private_role network_role DEFAULT 'private' NOT NULL, 
+    PRIMARY KEY (id), 
+    CONSTRAINT fk_vm_ip_mappings_vm FOREIGN KEY(vm_id) REFERENCES vms (id) ON DELETE CASCADE, 
+    CONSTRAINT fk_vm_ip_mappings_public FOREIGN KEY(public_ip_id, vm_id, public_role) REFERENCES vm_networks (id, vm_id, role) ON DELETE CASCADE, 
+    CONSTRAINT fk_vm_ip_mappings_private FOREIGN KEY(private_ip_id, vm_id, private_role) REFERENCES vm_networks (id, vm_id, role) ON DELETE CASCADE, 
+    CONSTRAINT ck_vm_ip_mappings_public_role CHECK (public_role = 'public'), 
+    CONSTRAINT ck_vm_ip_mappings_private_role CHECK (private_role = 'private'), 
+    CONSTRAINT uq_vm_ip_mappings_pair UNIQUE (public_ip_id, private_ip_id)
+);
+
+CREATE INDEX ix_vm_ip_mappings_vm_id ON vm_ip_mappings (vm_id);
+
+CREATE INDEX ix_vm_ip_mappings_private_ip_id ON vm_ip_mappings (private_ip_id);
+
+UPDATE alembic_version SET version_num='0026' WHERE alembic_version.version_num = '0025';
+
 COMMIT;
 

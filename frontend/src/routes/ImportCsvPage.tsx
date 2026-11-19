@@ -41,6 +41,10 @@ const IP_ROLE_HEADERS = ['private_ip', 'public_ip', 'backup_ip'] as const;
 
 function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
   const isDecommission = row.action === 'decommission';
+  const mappingText = row.normalized?.ip_mappings && row.normalized.ip_mappings.length > 0
+    ? row.normalized.ip_mappings.map((m) => `${m.public_ip}>${m.private_ip}`).join('; ')
+    : (row.raw.ip_mappings ? String(row.raw.ip_mappings) : null);
+
   return (
     <tr className={tableRowClass}>
       <th className={cn('whitespace-nowrap px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]', monoClass, 'tabular-nums')} scope="row">
@@ -58,7 +62,15 @@ function ImportRow({ row }: { row: ImportBatch['rows'][number] }) {
       <td className={tableCellClass}>{row.normalized?.platform ?? String(row.raw.platform ?? '—')}</td>
       <td className={tableCellClass}>{row.normalized?.cluster ?? String(row.raw.cluster ?? '—')}</td>
       <td className={tableCellClass}>{String(row.raw.disks || '—')}</td>
-      <td className={cn(tableCellClass, monoClass)}>{IP_ROLE_HEADERS.map((header) => row.raw[header]).filter(Boolean).join(', ') || '—'}</td>
+      <td className={cn(tableCellClass, monoClass)}>
+        <div>{IP_ROLE_HEADERS.map((header) => row.raw[header]).filter(Boolean).join(', ') || '—'}</div>
+        {mappingText ? (
+          <div className="mt-1 text-xs font-sans text-[var(--color-text-secondary)]">
+            <span className="font-semibold text-[var(--color-text-tertiary)]">Mappings: </span>
+            <span className={monoClass}>{mappingText}</span>
+          </div>
+        ) : null}
+      </td>
       <td className="min-w-72 px-4 py-3 text-[var(--color-text-secondary)]">
         {row.errors.length > 0 || row.warnings.length > 0 ? (
           <>
@@ -225,7 +237,12 @@ export function ImportCsvPage() {
                 to import those identifiers; when external_id is present it is what matches
                 a row to an existing VM instead of the name. List several disks as
                 name:size pairs (os:100;data:500) and several IPs in private_ip,
-                public_ip or backup_ip, separated by semicolons. Importing only ever adds
+                public_ip or backup_ip, separated by semicolons.
+                Map public IPs to private IPs with ip_mappings using public&gt;private
+                pairs separated by semicolons (e.g. 203.0.113.4&gt;10.0.0.5;203.0.113.4&gt;10.0.0.6).
+                Missing or blank mappings preserve existing links; nonblank cells add
+                pairs idempotently. Removing mappings is done as an explicit VM edit.
+                Importing only ever adds
                 disks and IPs; removing one, or resizing a disk, is done in the VM form.
               </p>
             </details>
