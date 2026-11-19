@@ -135,6 +135,7 @@ pub fn validate(r: Resource, payload: Value, create: bool) -> Result<Value, ApiE
 }
 pub const MAX_MAPPINGS_PER_VM: usize = 256;
 pub const MAX_ENDPOINT_LENGTH: usize = 50;
+pub const MAX_CSV_BATCH_MAPPINGS: usize = 5000;
 
 pub fn validate_vm_request(payload:&Value,create:bool)->Result<(),ApiError>{
  let mut errors=Vec::new();
@@ -174,6 +175,9 @@ pub fn validate_vm_request(payload:&Value,create:bool)->Result<(),ApiError>{
        } else if trimmed.chars().count() > MAX_ENDPOINT_LENGTH {
         let mut e = issue(loc, "string_too_long", format!("String should have at most {MAX_ENDPOINT_LENGTH} characters"), &json!(s));
         e["ctx"] = json!({"max_length": MAX_ENDPOINT_LENGTH});
+        errors.push(e);
+       } else if let Err(err_msg) = crate::core::ip_utils::parse_ipv4_endpoint(trimmed) {
+        let e = issue(loc, "value_error", format!("Value error, {err_msg}"), &json!(s));
         errors.push(e);
        }
       }
@@ -312,7 +316,13 @@ mod tests {
   assert_eq!(d[0]["loc"], json!(["body", "ip_mappings", 0, "public_ip"]));
   assert_eq!(d[0]["ctx"]["max_length"], 50);
 
-  let exact_50 = "1".repeat(50);
+  let exact_50 = format!("{:<50}", "10.0.0.1/32");
   assert!(validate_vm_request(&json!({"ip_mappings": [{"public_ip": exact_50, "private_ip": "10.0.0.1"}]}), false).is_ok());
+
+  let malformed_ip = "999.999.999.999";
+  let err_mal = validate_vm_request(&json!({"ip_mappings": [{"public_ip": malformed_ip, "private_ip": "10.0.0.1"}]}), false).unwrap_err();
+  let d_mal = err_mal.detail.unwrap();
+  assert_eq!(d_mal[0]["type"], "value_error");
+  assert_eq!(d_mal[0]["loc"], json!(["body", "ip_mappings", 0, "public_ip"]));
  }
 }

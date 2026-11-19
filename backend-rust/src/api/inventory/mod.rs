@@ -1,5 +1,8 @@
 mod resource;
-pub(crate) use resource::{VIRTUAL_HOST_MAX_COUNT, VIRTUAL_HOST_MAX_LEN};
+pub(crate) use resource::{
+    MAX_CSV_BATCH_MAPPINGS, MAX_ENDPOINT_LENGTH, MAX_MAPPINGS_PER_VM, VIRTUAL_HOST_MAX_COUNT,
+    VIRTUAL_HOST_MAX_LEN,
+};
 pub(crate) mod service;
 mod filters;
 pub(crate) mod export;

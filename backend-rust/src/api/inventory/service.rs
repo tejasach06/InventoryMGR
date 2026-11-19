@@ -34,8 +34,58 @@ pub async fn vm_details(conn:&mut PgConnection,ids:&[Uuid])->Result<Vec<Value>,A
  for row in &mut rows {
   let vm_id = row["id"].as_str().unwrap();
   row["ip_mappings"] = json!(mappings.remove(vm_id).unwrap_or_default());
+  let nets = row["networks"].as_array().cloned().unwrap_or_default();
+  let maps = row["ip_mappings"].as_array().cloned().unwrap_or_default();
+  let token = compute_network_precondition(&nets, &maps);
+  row["network_precondition"] = json!(token);
+  row["mapping_precondition"] = json!(token);
  }
  Ok(rows)
+}
+
+pub fn compute_network_precondition(networks: &[Value], ip_mappings: &[Value]) -> String {
+ use sha2::{Digest, Sha256};
+ let mut hasher = Sha256::new();
+
+ let mut sorted_nets: Vec<&Value> = networks.iter().collect();
+ sorted_nets.sort_by(|a, b| {
+  let a_order = a.get("sort_order").and_then(Value::as_i64).unwrap_or(0);
+  let b_order = b.get("sort_order").and_then(Value::as_i64).unwrap_or(0);
+  let a_id = a.get("id").and_then(Value::as_str).unwrap_or("");
+  let b_id = b.get("id").and_then(Value::as_str).unwrap_or("");
+  a_order.cmp(&b_order).then_with(|| a_id.cmp(b_id))
+ });
+
+ for n in sorted_nets {
+  let id = n.get("id").and_then(Value::as_str).unwrap_or("");
+  let sort_order = n.get("sort_order").and_then(Value::as_i64).unwrap_or(0);
+  let role = n.get("role").and_then(Value::as_str).unwrap_or("");
+  let ip = crate::core::ip_utils::normalize_ip(n.get("ip_address").and_then(Value::as_str).unwrap_or(""));
+  hasher.update(format!("{id}:{sort_order}:{role}:{ip}\n").as_bytes());
+ }
+
+ hasher.update(b"---\n");
+
+ let mut sorted_maps: Vec<&Value> = ip_mappings.iter().collect();
+ sorted_maps.sort_by(|a, b| {
+  let a_pub = a.get("public_ip").and_then(Value::as_str).unwrap_or("");
+  let b_pub = b.get("public_ip").and_then(Value::as_str).unwrap_or("");
+  let a_priv = a.get("private_ip").and_then(Value::as_str).unwrap_or("");
+  let b_priv = b.get("private_ip").and_then(Value::as_str).unwrap_or("");
+  let a_pub_norm = crate::core::ip_utils::normalize_ip(a_pub);
+  let b_pub_norm = crate::core::ip_utils::normalize_ip(b_pub);
+  let a_priv_norm = crate::core::ip_utils::normalize_ip(a_priv);
+  let b_priv_norm = crate::core::ip_utils::normalize_ip(b_priv);
+  a_pub_norm.cmp(b_pub_norm).then_with(|| a_priv_norm.cmp(b_priv_norm))
+ });
+
+ for m in sorted_maps {
+  let pub_ip = crate::core::ip_utils::normalize_ip(m.get("public_ip").and_then(Value::as_str).unwrap_or(""));
+  let priv_ip = crate::core::ip_utils::normalize_ip(m.get("private_ip").and_then(Value::as_str).unwrap_or(""));
+  hasher.update(format!("{pub_ip}>{priv_ip}\n").as_bytes());
+ }
+
+ hex::encode(hasher.finalize())
 }
 async fn batch_ip_mappings(conn:&mut PgConnection, ids:&[Uuid])->Result<std::collections::HashMap<String, Vec<Value>>, ApiError> {
  if ids.is_empty(){return Ok(std::collections::HashMap::new());}
@@ -271,6 +321,25 @@ pub async fn mutate_vm(pool:&PgPool,id:Option<Uuid>,payload:Value,user:Uuid)->Re
    .await
    .map_err(db_error)?
    .ok_or_else(|| ApiError::not_found(VM.missing))?;
+
+  if payload.get("ip_mappings").is_some() {
+   let current_nets = children(&mut tx, NETWORK, id).await?;
+   let mut current_map_map = batch_ip_mappings(&mut tx, &[id]).await?;
+   let current_maps = current_map_map.remove(&id.to_string()).unwrap_or_default();
+   let current_token = compute_network_precondition(&current_nets, &current_maps);
+
+   let client_token = payload
+    .get("network_precondition")
+    .or_else(|| payload.get("mapping_precondition"))
+    .and_then(Value::as_str);
+
+   if client_token != Some(current_token.as_str()) {
+    return Err(ApiError::conflict(
+     "Network configuration has changed since loading; reload the VM to view current networks and mappings before editing",
+    ));
+   }
+  }
+
   Some(old_row)
  }else{None};
  let vm=write(&mut tx,VM,id,None,payload.clone(),user).await?;

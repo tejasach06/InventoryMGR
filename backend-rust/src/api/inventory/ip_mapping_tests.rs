@@ -298,7 +298,8 @@ async fn api_mapping_only_edits() {
 
     // Mapping-only edit: no networks in payload
     let (status, patched) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
-        "ip_mappings": []
+        "ip_mappings": [],
+        "network_precondition": vm["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(patched["ip_mappings"], json!([]));
@@ -334,7 +335,8 @@ async fn api_omitted_vs_empty() {
 
     // Empty array clears mappings
     let (status, cleared) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
-        "ip_mappings": []
+        "ip_mappings": [],
+        "network_precondition": patched["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(cleared["ip_mappings"], json!([]));
@@ -419,7 +421,8 @@ async fn api_cross_vm_and_wrong_role_rejection() {
     let (status, err) = client.request(&state, "PATCH", &format!("/vms/{vm_a_id}"), Some(json!({
         "ip_mappings": [
             {"public_ip": "203.0.113.41", "private_ip": "10.0.0.42"}
-        ]
+        ],
+        "network_precondition": vm_a["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(err["detail"][0]["loc"], json!(["body", "ip_mappings", 0, "private_ip"]));
@@ -428,7 +431,8 @@ async fn api_cross_vm_and_wrong_role_rejection() {
     let (status, err) = client.request(&state, "PATCH", &format!("/vms/{vm_a_id}"), Some(json!({
         "ip_mappings": [
             {"public_ip": "198.51.100.1", "private_ip": "10.0.0.41"}
-        ]
+        ],
+        "network_precondition": vm_a["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(err["detail"][0]["loc"], json!(["body", "ip_mappings", 0, "public_ip"]));
@@ -449,7 +453,8 @@ async fn api_cross_vm_and_wrong_role_rejection() {
     let (status, err) = client.request(&state, "PATCH", &format!("/vms/{vm_c_id}"), Some(json!({
         "ip_mappings": [
             {"public_ip": "10.0.0.50", "private_ip": "10.0.0.50"}
-        ]
+        ],
+        "network_precondition": vm_c["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert!(err["detail"][0]["msg"].as_str().unwrap().contains("expected 'public'"));
@@ -458,7 +463,8 @@ async fn api_cross_vm_and_wrong_role_rejection() {
     let (status, err) = client.request(&state, "PATCH", &format!("/vms/{vm_c_id}"), Some(json!({
         "ip_mappings": [
             {"public_ip": "203.0.113.50", "private_ip": "10.0.99.50"}
-        ]
+        ],
+        "network_precondition": vm_c["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert!(err["detail"][0]["msg"].as_str().unwrap().contains("expected 'private'"));
@@ -467,7 +473,8 @@ async fn api_cross_vm_and_wrong_role_rejection() {
     let (status, ok) = client.request(&state, "PATCH", &format!("/vms/{vm_c_id}"), Some(json!({
         "ip_mappings": [
             {"public_ip": " 203.0.113.50/24 ", "private_ip": "10.0.0.50/16"}
-        ]
+        ],
+        "network_precondition": vm_c["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::OK, "{ok}");
     assert_eq!(ok["ip_mappings"], json!([{"public_ip": "203.0.113.50", "private_ip": "10.0.0.50"}]));
@@ -544,6 +551,7 @@ async fn api_linked_edits_and_deletes_rejection() {
     assert_eq!(status, StatusCode::NOT_FOUND, "{err}");
 
     // Parent VM-level edit can unlink and change endpoints atomically
+    let (_, vm_current) = client.request(&state, "GET", &format!("/vms/{vm_id}"), None).await;
     let (status, vm_updated) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
         "networks": [
             {"ip_address": "203.0.113.70", "role": "public"},
@@ -551,7 +559,8 @@ async fn api_linked_edits_and_deletes_rejection() {
         ],
         "ip_mappings": [
             {"public_ip": "203.0.113.70", "private_ip": "10.0.0.70"}
-        ]
+        ],
+        "network_precondition": vm_current["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::OK, "{vm_updated}");
     assert_eq!(vm_updated["ip_mappings"], json!([{"public_ip": "203.0.113.70", "private_ip": "10.0.0.70"}]));
@@ -585,7 +594,10 @@ async fn api_vm_clone_retains_pairs() {
     assert_eq!(cloned_vm["ip_mappings"], json!([{"public_ip": "203.0.113.80", "private_ip": "10.0.0.80"}]));
 
     // Deleting mapping on cloned VM does not affect source VM
-    let (status, _) = client.request(&state, "PATCH", &format!("/vms/{cloned_id}"), Some(json!({"ip_mappings": []}))).await;
+    let (status, _) = client.request(&state, "PATCH", &format!("/vms/{cloned_id}"), Some(json!({
+        "ip_mappings": [],
+        "network_precondition": cloned_vm["network_precondition"]
+    }))).await;
     assert_eq!(status, StatusCode::OK);
 
     let (_, source_check) = client.request(&state, "GET", &format!("/vms/{source_id}"), None).await;
@@ -661,11 +673,12 @@ async fn api_ip_mappings_audit_log_events() {
 
     // 2. Reordering and duplicate input produces NO spurious audit events
     let initial_count = rows.iter().filter(|e| e["field_name"] == "ip_mappings").count();
-    let (status, _) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+    let (status, patched1) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
         "ip_mappings": [
             {"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"},
             {"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}
-        ]
+        ],
+        "network_precondition": vm["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::OK);
     let (_, audit2) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
@@ -673,11 +686,12 @@ async fn api_ip_mappings_audit_log_events() {
     assert_eq!(count2, initial_count, "No duplicate audit entry for identical mappings");
 
     // 3. Mapping replace records before and after canonical strings
-    let (status, _) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+    let (status, patched2) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
         "ip_mappings": [
             {"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"},
             {"public_ip": "203.0.113.10", "private_ip": "10.0.0.11"}
-        ]
+        ],
+        "network_precondition": patched1["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::OK);
     let (_, audit3) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
@@ -688,8 +702,9 @@ async fn api_ip_mappings_audit_log_events() {
     assert_eq!(latest_event["new_value"], "203.0.113.10>10.0.0.10;203.0.113.10>10.0.0.11");
 
     // 4. Mapping clear records new_value as null
-    let (status, _) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
-        "ip_mappings": []
+    let (status, cleared) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "ip_mappings": [],
+        "network_precondition": patched2["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::OK);
     let (_, audit4) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
@@ -701,7 +716,8 @@ async fn api_ip_mappings_audit_log_events() {
     // 5. Failed validation leaves no audit entry
     let audit_count_before = audit4.as_array().unwrap().len();
     let (status, _) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
-        "ip_mappings": [{"public_ip": "198.51.100.99", "private_ip": "10.0.0.10"}]
+        "ip_mappings": [{"public_ip": "198.51.100.99", "private_ip": "10.0.0.10"}],
+        "network_precondition": cleared["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     let (_, audit_after_err) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
@@ -709,7 +725,8 @@ async fn api_ip_mappings_audit_log_events() {
 
     // 6. Cloning a VM records audit event on cloned VM
     let (_, _add_back) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
-        "ip_mappings": [{"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}]
+        "ip_mappings": [{"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}],
+        "network_precondition": cleared["network_precondition"]
     }))).await;
     let (status, cloned) = client.request(&state, "POST", &format!("/vms/{vm_id}/clone"), None).await;
     assert_eq!(status, StatusCode::CREATED);
@@ -718,4 +735,198 @@ async fn api_ip_mappings_audit_log_events() {
     let clone_mapping_event = cloned_audit.as_array().unwrap().iter().find(|e| e["field_name"] == "ip_mappings").expect("clone audit event for mappings");
     assert!(clone_mapping_event["old_value"].is_null());
     assert_eq!(clone_mapping_event["new_value"], "203.0.113.10>10.0.0.10");
+}
+
+#[tokio::test]
+async fn api_network_precondition_concurrency_and_audit_integrity() {
+    let (_db, state) = Database::start().await;
+    let mut client = Browser::default();
+    client.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await;
+
+    // Create VM with networks and ip_mappings
+    let (status, vm) = client.request(&state, "POST", "/vms", Some(json!({
+        "name": "precon-vm", "platform": "vmware", "cluster": "prod", "status": "running",
+        "criticality": "high", "cpu_cores": 2, "memory_mb": 4096,
+        "networks": [
+            {"ip_address": "203.0.113.10", "role": "public"},
+            {"ip_address": "10.0.0.10", "role": "private"}
+        ],
+        "ip_mappings": [
+            {"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}
+        ]
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let vm_id = vm["id"].as_str().unwrap();
+
+    // Verify preconditions are exposed on VM
+    let initial_precon = vm["network_precondition"].as_str().expect("network_precondition should be present");
+    assert!(!initial_precon.is_empty());
+    assert_eq!(vm["mapping_precondition"].as_str().unwrap(), initial_precon);
+
+    let (_, audit_before) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
+    let audit_count_before = audit_before.as_array().unwrap().len();
+
+    // 1. Missing precondition token on mapping edit returns 409 Conflict
+    let (status, err_missing) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "description": "should not save",
+        "ip_mappings": []
+    }))).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert!(err_missing["detail"].as_str().unwrap().contains("reload the VM"));
+
+    // 2. Mismatched precondition token returns 409 Conflict
+    let (status, err_mismatch) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "description": "should not save either",
+        "network_precondition": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "ip_mappings": []
+    }))).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert!(err_mismatch["detail"].as_str().unwrap().contains("reload the VM"));
+
+    // Verify VM fields and audit log remained completely untouched
+    let (_, vm_check) = client.request(&state, "GET", &format!("/vms/{vm_id}"), None).await;
+    assert_eq!(vm_check["description"], Value::Null);
+    assert_eq!(vm_check["ip_mappings"], json!([{"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}]));
+    let (_, audit_after) = client.request(&state, "GET", &format!("/vms/{vm_id}/audit"), None).await;
+    assert_eq!(audit_after.as_array().unwrap().len(), audit_count_before);
+
+    // 3. Matching precondition token succeeds
+    let (status, patched) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "description": "successfully updated",
+        "network_precondition": initial_precon,
+        "ip_mappings": []
+    }))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(patched["description"], "successfully updated");
+    assert_eq!(patched["ip_mappings"], json!([]));
+    assert_ne!(patched["network_precondition"], initial_precon);
+}
+
+#[tokio::test]
+async fn api_creation_and_legacy_patch_without_precondition() {
+    let (_db, state) = Database::start().await;
+    let mut client = Browser::default();
+    client.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await;
+
+    // Creation with mappings requires no precondition
+    let (status, vm) = client.request(&state, "POST", "/vms", Some(json!({
+        "name": "legacy-compat-vm", "platform": "vmware", "cluster": "prod", "status": "running",
+        "criticality": "low", "cpu_cores": 1, "memory_mb": 1024,
+        "networks": [
+            {"ip_address": "203.0.113.25", "role": "public"},
+            {"ip_address": "10.0.0.25", "role": "private"}
+        ],
+        "ip_mappings": [
+            {"public_ip": "203.0.113.25", "private_ip": "10.0.0.25"}
+        ]
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let vm_id = vm["id"].as_str().unwrap();
+
+    // Legacy network-only PATCH (omitting ip_mappings) succeeds without precondition
+    let (status, net_patch) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "networks": [
+            {"ip_address": "203.0.113.25", "role": "public"},
+            {"ip_address": "10.0.0.25", "role": "private"},
+            {"ip_address": "10.0.0.26", "role": "private"}
+        ]
+    }))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(net_patch["ip_mappings"], json!([{"public_ip": "203.0.113.25", "private_ip": "10.0.0.25"}]));
+
+    // PATCH omitting both networks and ip_mappings preserves mappings without precondition
+    let (status, desc_patch) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "description": "field-only update"
+    }))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(desc_patch["description"], "field-only update");
+    assert_eq!(desc_patch["ip_mappings"], json!([{"public_ip": "203.0.113.25", "private_ip": "10.0.0.25"}]));
+}
+
+#[tokio::test]
+async fn api_child_network_edits_invalidate_precondition() {
+    let (_db, state) = Database::start().await;
+    let mut client = Browser::default();
+    client.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await;
+
+    let (status, vm) = client.request(&state, "POST", "/vms", Some(json!({
+        "name": "child-precon-vm", "platform": "vmware", "cluster": "prod", "status": "running",
+        "criticality": "medium", "cpu_cores": 2, "memory_mb": 2048,
+        "networks": [
+            {"ip_address": "203.0.113.55", "role": "public"},
+            {"ip_address": "10.0.0.55", "role": "private"}
+        ],
+        "ip_mappings": [
+            {"public_ip": "203.0.113.55", "private_ip": "10.0.0.55"}
+        ]
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let vm_id = vm["id"].as_str().unwrap();
+    let initial_precon = vm["network_precondition"].as_str().unwrap();
+
+    // Add a child network directly via child endpoint
+    let (status, new_child) = client.request(&state, "POST", &format!("/vms/{vm_id}/networks"), Some(json!({
+        "ip_address": "10.0.0.56",
+        "role": "private"
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED, "{new_child}");
+
+    // Detail query exposes updated precondition
+    let (status, vm_reloaded) = client.request(&state, "GET", &format!("/vms/{vm_id}"), None).await;
+    assert_eq!(status, StatusCode::OK);
+    let updated_precon = vm_reloaded["network_precondition"].as_str().unwrap();
+    assert_ne!(initial_precon, updated_precon, "Child network addition must alter precondition token");
+
+    // Attempting to save with stale initial precondition fails with 409 Conflict
+    let (status, err) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "network_precondition": initial_precon,
+        "ip_mappings": []
+    }))).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert!(err["detail"].as_str().unwrap().contains("reload the VM"));
+
+    // Saving with updated precondition succeeds
+    let (status, ok) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "network_precondition": updated_precon,
+        "ip_mappings": []
+    }))).await;
+    assert_eq!(status, StatusCode::OK, "{ok}");
+}
+
+#[tokio::test]
+async fn api_malformed_ipv4_rejected_and_cidr_normalized() {
+    let (_db, state) = Database::start().await;
+    let mut client = Browser::default();
+    client.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await;
+
+    // 1. Create with malformed IPv4 rejected at API boundary
+    for bad_ip in ["256.1.1.1", "1.2.3", "not-an-ip", "::1", "10.0.0.1:80"] {
+        let (status, err) = client.request(&state, "POST", "/vms", Some(json!({
+            "name": "bad-ip-vm", "platform": "vmware", "cluster": "prod", "status": "running",
+            "criticality": "low", "cpu_cores": 1, "memory_mb": 1024,
+            "ip_mappings": [
+                {"public_ip": bad_ip, "private_ip": "10.0.0.1"}
+            ]
+        }))).await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "Expected rejection for bad IP: {bad_ip}");
+        let detail = err["detail"].as_array().unwrap();
+        assert!(detail.iter().any(|e| e["loc"] == json!(["body", "ip_mappings", 0, "public_ip"])));
+    }
+
+    // 2. Valid IPv4 with CIDR notation and whitespace normalized and accepted
+    let (status, vm) = client.request(&state, "POST", "/vms", Some(json!({
+        "name": "cidr-norm-vm", "platform": "vmware", "cluster": "prod", "status": "running",
+        "criticality": "low", "cpu_cores": 1, "memory_mb": 1024,
+        "networks": [
+            {"ip_address": " 203.0.113.60/24 ", "role": "public"},
+            {"ip_address": "  10.0.0.60/16  ", "role": "private"}
+        ],
+        "ip_mappings": [
+            {"public_ip": " 203.0.113.60/24 ", "private_ip": "  10.0.0.60/16  "}
+        ]
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED, "{vm}");
+    assert_eq!(vm["networks"][0]["ip_address"], "203.0.113.60");
+    assert_eq!(vm["networks"][1]["ip_address"], "10.0.0.60");
+    assert_eq!(vm["ip_mappings"], json!([{"public_ip": "203.0.113.60", "private_ip": "10.0.0.60"}]));
 }

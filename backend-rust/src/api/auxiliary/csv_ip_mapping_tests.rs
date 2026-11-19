@@ -200,9 +200,13 @@ async fn test_csv_legacy_compatibility_and_preservation() {
     let (_, list) = client.request(&state, "GET", "/vms", None).await;
     let vm_id = list["items"][0]["id"].as_str().unwrap();
 
+    // Get the created VM ID and precondition
+    let (_, get_vm) = client.request(&state, "GET", &format!("/vms/{vm_id}"), None).await;
+
     // Add mapping via API
     let (status, patched) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
-        "ip_mappings": [{"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}]
+        "ip_mappings": [{"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}],
+        "network_precondition": get_vm["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(patched["ip_mappings"], json!([{"public_ip": "203.0.113.10", "private_ip": "10.0.0.10"}]));
@@ -470,7 +474,8 @@ async fn test_csv_stale_preview_rejection_and_rollback() {
     // Atomically unlink and clear endpoints via VM patch
     let (status, _) = client.request(&state, "PATCH", &format!("/vms/{vm2_id}"), Some(json!({
         "networks": [],
-        "ip_mappings": []
+        "ip_mappings": [],
+        "network_precondition": vm2["network_precondition"]
     }))).await;
     assert_eq!(status, StatusCode::OK);
 
@@ -604,4 +609,143 @@ async fn test_csv_batch_mapping_limit_and_audit() {
     let mapping_count_after = audit_after.as_array().unwrap().iter().filter(|e| e["field_name"] == "ip_mappings").count();
     let mapping_count_before = audit.as_array().unwrap().iter().filter(|e| e["field_name"] == "ip_mappings").count();
     assert_eq!(mapping_count_after, mapping_count_before, "No spurious audit event for unchanged import");
+}
+
+#[tokio::test]
+async fn test_csv_commit_revalidation_bounds_and_malformed() {
+    let (_db, state) = Database::start().await;
+    let mut client = setup_client(&state).await;
+
+    let valid_csv = "name,platform,cluster,status,cpu_cores,memory_mb,criticality,public_ip,private_ip,ip_mappings\n\
+                     tamper-vm,vmware,cluster-a,running,2,4096,medium,203.0.113.10,10.0.0.10,203.0.113.10>10.0.0.10\n";
+    let (status, preview) = client.upload_csv(&state, "valid.csv", valid_csv, false).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let batch_id = preview["id"].as_str().unwrap();
+
+    // Tamper the staged batch in database to inject malformed IPv4 mapping
+    sqlx::query("UPDATE csv_import_rows SET raw = jsonb_set(raw, '{ip_mappings}', '\"999.999.999.999>10.0.0.10\"'::jsonb) WHERE batch_id = $1")
+        .bind(Uuid::parse_str(batch_id).unwrap())
+        .execute(&state.pool)
+        .await
+        .unwrap();
+
+    let (status, err) = client.request(&state, "POST", &format!("/imports/{batch_id}/commit"), None).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(err["detail"].as_str().unwrap(), "Import preview is stale or invalid: please preview again");
+
+    // Tamper the staged batch in database to exceed MAX_MAPPINGS_PER_VM
+    let over_mappings = (0..257).map(|_| "203.0.113.1>10.0.0.1").collect::<Vec<_>>().join(";");
+    sqlx::query("UPDATE csv_import_rows SET raw = jsonb_set(raw, '{ip_mappings}', to_jsonb($2::text)) WHERE batch_id = $1")
+        .bind(Uuid::parse_str(batch_id).unwrap())
+        .bind(over_mappings)
+        .execute(&state.pool)
+        .await
+        .unwrap();
+
+    let (status, err_over) = client.request(&state, "POST", &format!("/imports/{batch_id}/commit"), None).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(err_over["detail"].as_str().unwrap(), "Import preview is stale or invalid: please preview again");
+}
+
+#[tokio::test]
+async fn test_csv_commit_create_mapping_plan_error() {
+    let (_db, state) = Database::start().await;
+    let mut client = setup_client(&state).await;
+
+    let valid_csv = "name,platform,cluster,status,cpu_cores,memory_mb,criticality,public_ip,private_ip,ip_mappings\n\
+                     create-err-vm,vmware,cluster-a,running,2,4096,medium,203.0.113.10,10.0.0.10,203.0.113.10>10.0.0.10\n";
+    let (status, preview) = client.upload_csv(&state, "create_err.csv", valid_csv, false).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let batch_id = preview["id"].as_str().unwrap();
+
+    // Tamper the raw ip_mappings to reference an IP address not present in public_ip or private_ip
+    sqlx::query("UPDATE csv_import_rows SET raw = jsonb_set(raw, '{ip_mappings}', '\"203.0.113.99>10.0.0.10\"'::jsonb) WHERE batch_id = $1")
+        .bind(Uuid::parse_str(batch_id).unwrap())
+        .execute(&state.pool)
+        .await
+        .unwrap();
+
+    let (status, err) = client.request(&state, "POST", &format!("/imports/{batch_id}/commit"), None).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert!(err["detail"].as_str().unwrap().contains("preview is stale"));
+}
+
+#[tokio::test]
+async fn test_csv_edits_change_vm_precondition_token() {
+    let (_db, state) = Database::start().await;
+    let mut client = setup_client(&state).await;
+
+    // Create a VM via API
+    let (status, vm) = client.request(&state, "POST", "/vms", Some(json!({
+        "name": "csv-precon-vm", "platform": "vmware", "cluster": "cluster-a", "status": "running",
+        "criticality": "low", "cpu_cores": 1, "memory_mb": 1024,
+        "networks": [
+            {"ip_address": "203.0.113.20", "role": "public"},
+            {"ip_address": "10.0.0.20", "role": "private"}
+        ],
+        "ip_mappings": [
+            {"public_ip": "203.0.113.20", "private_ip": "10.0.0.20"}
+        ]
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let vm_id = vm["id"].as_str().unwrap();
+    let initial_precon = vm["network_precondition"].as_str().unwrap();
+
+    // Import a CSV adding a new private IP to this VM
+    let csv = "name,platform,cluster,status,cpu_cores,memory_mb,criticality,public_ip,private_ip\n\
+               csv-precon-vm,vmware,cluster-a,running,1,1024,low,203.0.113.20,10.0.0.20;10.0.0.21\n";
+    let (status, preview) = client.upload_csv(&state, "update_nets.csv", csv, false).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let batch_id = preview["id"].as_str().unwrap();
+    let (status, _) = client.request(&state, "POST", &format!("/imports/{batch_id}/commit"), None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    // Fetch the VM: verify precondition token changed
+    let (status, vm_updated) = client.request(&state, "GET", &format!("/vms/{vm_id}"), None).await;
+    assert_eq!(status, StatusCode::OK);
+    let new_precon = vm_updated["network_precondition"].as_str().unwrap();
+    assert_ne!(initial_precon, new_precon, "CSV edit must change precondition token");
+
+    // Attempting PATCH with stale token fails with 409 Conflict
+    let (status, err) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "network_precondition": initial_precon,
+        "ip_mappings": []
+    }))).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert!(err["detail"].as_str().unwrap().contains("reload the VM"));
+
+    // Attempting PATCH with new token succeeds
+    let (status, ok) = client.request(&state, "PATCH", &format!("/vms/{vm_id}"), Some(json!({
+        "network_precondition": new_precon,
+        "ip_mappings": []
+    }))).await;
+    assert_eq!(status, StatusCode::OK, "{ok}");
+}
+
+#[tokio::test]
+async fn test_csv_malformed_ipv4_endpoint_rejected_at_preview() {
+    let (_db, state) = Database::start().await;
+    let mut client = setup_client(&state).await;
+
+    // Bad IPv4 endpoint rejected in CSV preview
+    let bad_csv = "name,platform,cluster,status,cpu_cores,memory_mb,criticality,public_ip,private_ip,ip_mappings\n\
+                   bad-ip-vm,vmware,cluster-a,running,2,4096,medium,203.0.113.1,10.0.0.1,256.0.0.1>10.0.0.1\n";
+    let (status, preview) = client.upload_csv(&state, "bad_ip.csv", bad_csv, false).await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(preview["summary"]["invalid"], 1);
+    assert!(preview["rows"][0]["errors"][0]["message"].as_str().unwrap().contains("invalid IPv4 address in mapping pair"));
+
+    // Valid IPv4 with CIDR and whitespace normalized and accepted
+    let norm_csv = "name,platform,cluster,status,cpu_cores,memory_mb,criticality,public_ip,private_ip,ip_mappings\n\
+                    norm-ip-vm,vmware,cluster-a,running,2,4096,medium,203.0.113.1/24,10.0.0.1/16, 203.0.113.1/24 > 10.0.0.1/16 \n";
+    let (status, preview_norm) = client.upload_csv(&state, "norm_ip.csv", norm_csv, false).await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(preview_norm["summary"]["create"], 1);
+    let batch_norm_id = preview_norm["id"].as_str().unwrap();
+    let (status, _) = client.request(&state, "POST", &format!("/imports/{batch_norm_id}/commit"), None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (_, list) = client.request(&state, "GET", "/vms", None).await;
+    let created = list["items"].as_array().unwrap().iter().find(|vm| vm["name"] == "norm-ip-vm").unwrap();
+    assert_eq!(created["ip_mappings"], json!([{"public_ip": "203.0.113.1", "private_ip": "10.0.0.1"}]));
 }

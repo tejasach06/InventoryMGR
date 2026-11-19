@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { vms as vmsApi } from '../api/vms';
 import { settings as settingsApi } from '../api/settings';
-import { detailMessage } from '../api/core';
-import type { IpMapping, NetworkRole, VmPayload } from '../api/types';
+import { ApiError, detailMessage } from '../api/core';
+import type { IpMapping, NetworkRole, Vm, VmPayload } from '../api/types';
 import {
   Alert, ConfirmDialog, FieldError, PageHeader, PageTransition, RemoveButton, SectionCard, SectionNav, Skeleton, Spinner,
   cardClass, helpTextClass, inputClass, labelClass, primaryButtonClass,
@@ -181,6 +181,62 @@ function DiskRows({ disks, setDisks }: { disks: DiskRow[]; setDisks: Dispatch<Se
   );
 }
 
+export function isValidIpv4(ip: string): boolean {
+  const trimmed = ip.trim();
+  if (!trimmed) return false;
+  const withoutCidr = trimmed.split('/')[0].trim();
+  const parts = withoutCidr.split('.');
+  if (parts.length !== 4) return false;
+  return parts.every((p) => {
+    if (!/^\d{1,3}$/.test(p)) return false;
+    const n = Number(p);
+    return n >= 0 && n <= 255;
+  });
+}
+
+export function deriveNetworkPrecondition(vm: Vm): string {
+  if (vm.network_precondition) return vm.network_precondition;
+  const nets = (vm.networks ?? [])
+    .map((n) => `${n.ip_address.trim()}:${n.role}:${n.sort_order ?? 0}`)
+    .join(';');
+  const maps = (vm.ip_mappings ?? [])
+    .map((m) => `${m.public_ip.trim()}>${m.private_ip.trim()}`)
+    .sort()
+    .join(';');
+  return `derived:${nets}|${maps}`;
+}
+
+interface LoadedNetworkItem {
+  ip_address: string;
+  role: NetworkRole;
+  sort_order: number;
+}
+
+interface LoadedMappingItem {
+  public_ip: string;
+  private_ip: string;
+}
+
+export function hasNetworkConfigChanged(
+  currentNets: LoadedNetworkItem[],
+  currentMaps: LoadedMappingItem[],
+  initNets: LoadedNetworkItem[],
+  initMaps: LoadedMappingItem[],
+): boolean {
+  if (currentNets.length !== initNets.length) return true;
+  for (let i = 0; i < currentNets.length; i++) {
+    if (currentNets[i].ip_address !== initNets[i].ip_address) return true;
+    if (currentNets[i].role !== initNets[i].role) return true;
+    if (currentNets[i].sort_order !== initNets[i].sort_order) return true;
+  }
+  if (currentMaps.length !== initMaps.length) return true;
+  const currentSet = new Set(currentMaps.map((m) => `${m.public_ip}>${m.private_ip}`));
+  for (const m of initMaps) {
+    if (!currentSet.has(`${m.public_ip}>${m.private_ip}`)) return true;
+  }
+  return false;
+}
+
 type IpRow = { rowId: string; ip: string; role: NetworkRole };
 
 interface DraftMapping {
@@ -277,18 +333,24 @@ function IpMappingRows({
       <div className="mt-3 space-y-4">
         {publicRows.map((pubRow) => {
           const pubIp = pubRow.ip.trim();
-          const hasValidIp = Boolean(pubIp);
+          const hasIp = Boolean(pubIp);
+          const isPubValid = hasIp && isValidIpv4(pubIp);
           const pubMappings = mappings.filter((m) => m.publicRowId === pubRow.rowId);
           return (
             <div key={pubRow.rowId} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] p-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Public IP:</span>
-                  <span className={cn('text-sm font-medium', hasValidIp ? 'font-mono text-[var(--color-text-primary)]' : 'italic text-[var(--color-text-tertiary)]')}>
-                    {hasValidIp ? pubIp : '(Enter public IP above)'}
+                  <span className={cn('text-sm font-medium', hasIp ? 'font-mono text-[var(--color-text-primary)]' : 'italic text-[var(--color-text-tertiary)]')}>
+                    {hasIp ? pubIp : '(Enter public IP above)'}
                   </span>
+                  {hasIp && !isPubValid && (
+                    <span className="text-xs text-[var(--color-criticality-critical)]">
+                      (Malformed address — correct in IP addresses above)
+                    </span>
+                  )}
                 </div>
-                {hasValidIp && pubMappings.length > 0 ? (
+                {hasIp && pubMappings.length > 0 ? (
                   <button
                     type="button"
                     className="text-xs text-[var(--color-criticality-critical)] hover:underline"
@@ -305,16 +367,18 @@ function IpMappingRows({
                 ) : (
                   <div className="mt-1.5 flex flex-wrap gap-4">
                     {privateRows.map((privRow) => {
+                      const isPrivValid = isValidIpv4(privRow.ip);
                       const isChecked = mappings.some(
                         (m) => m.publicRowId === pubRow.rowId && m.privateRowId === privRow.rowId
                       );
+                      const canMap = isPubValid && isPrivValid;
                       return (
-                        <label key={privRow.rowId} className="flex items-center gap-2 cursor-pointer text-sm">
+                        <label key={privRow.rowId} className={cn('flex items-center gap-2 text-sm', canMap ? 'cursor-pointer' : 'cursor-not-allowed opacity-60')}>
                           <input
                             type="checkbox"
                             className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
                             checked={isChecked}
-                            disabled={!hasValidIp}
+                            disabled={!canMap}
                             aria-label={`Map ${pubIp || 'public IP'} to ${privRow.ip}`}
                             onChange={(e) => {
                               if (e.target.checked) {
@@ -337,6 +401,11 @@ function IpMappingRows({
                             }}
                           />
                           <span className="font-mono text-[var(--color-text-primary)]">{privRow.ip}</span>
+                          {!isPrivValid && (
+                            <span className="text-xs text-[var(--color-criticality-critical)]">
+                              (Malformed address — correct above)
+                            </span>
+                          )}
                         </label>
                       );
                     })}
@@ -424,6 +493,9 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const [ips, setIps] = useState<IpRow[]>(() => [{ rowId: rowId(), ip: '', role: 'private' as NetworkRole }]);
   const [mappings, setMappings] = useState<DraftMapping[]>([]);
   const [unlinkingRow, setUnlinkingRow] = useState<IpRow | null>(null);
+  const loadedPreconditionRef = useRef<string | undefined>(undefined);
+  const initialNetworksRef = useRef<LoadedNetworkItem[]>([]);
+  const initialMappingsRef = useRef<LoadedMappingItem[]>([]);
   const initialSnapshot = useRef<string>(JSON.stringify({ values, disks, ips, mappings }));
   const isDirty = useMemo(() => JSON.stringify({ values, disks, ips, mappings }) !== initialSnapshot.current, [values, disks, ips, mappings]);
 
@@ -439,44 +511,59 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const owners = ownersQuery.data ?? [];
   const suggest = suggestionsQuery.data ?? {};
 
-  useEffect(() => {
-    if (vmQuery.data) {
-      const loadedValues = vmToFormValues(vmQuery.data);
-      const loadedDisks = vmQuery.data.disks.length > 0 ? vmQuery.data.disks.map((d) => ({
-        rowId: rowId(),
-        name: d.disk_name,
-        size: String(d.size_gb >= 1024 ? d.size_gb / 1024 : d.size_gb),
-        unit: (d.size_gb >= 1024 ? 'TB' : 'GB') as 'GB' | 'TB',
-        storage: d.storage_name ?? '',
-        type: d.storage_type ?? '',
-      })) : [{ rowId: rowId(), name: '', size: '', unit: 'GB' as const, storage: '', type: '' }];
-      const loadedIps = vmQuery.data.networks.length > 0 ? vmQuery.data.networks.map((n) => ({
-        rowId: rowId(),
-        ip: n.ip_address,
-        role: n.role,
-      })) : [{ rowId: rowId(), ip: '', role: 'private' as NetworkRole }];
+  const populateFormFromVm = (vm: Vm) => {
+    const loadedValues = vmToFormValues(vm);
+    const loadedDisks = vm.disks.length > 0 ? vm.disks.map((d) => ({
+      rowId: rowId(),
+      name: d.disk_name,
+      size: String(d.size_gb >= 1024 ? d.size_gb / 1024 : d.size_gb),
+      unit: (d.size_gb >= 1024 ? 'TB' : 'GB') as 'GB' | 'TB',
+      storage: d.storage_name ?? '',
+      type: d.storage_type ?? '',
+    })) : [{ rowId: rowId(), name: '', size: '', unit: 'GB' as const, storage: '', type: '' }];
+    const loadedIps = vm.networks.length > 0 ? vm.networks.map((n) => ({
+      rowId: rowId(),
+      ip: n.ip_address,
+      role: n.role,
+    })) : [{ rowId: rowId(), ip: '', role: 'private' as NetworkRole }];
 
-      const loadedMappings: DraftMapping[] = [];
-      if (vmQuery.data.ip_mappings && vmQuery.data.ip_mappings.length > 0) {
-        for (const m of vmQuery.data.ip_mappings) {
-          const pub = loadedIps.find((r) => r.role === 'public' && r.ip === m.public_ip);
-          const priv = loadedIps.find((r) => r.role === 'private' && r.ip === m.private_ip);
-          if (pub && priv) {
-            loadedMappings.push({
-              publicRowId: pub.rowId,
-              privateRowId: priv.rowId,
-              publicIp: pub.ip,
-              privateIp: priv.ip,
-            });
-          }
+    const loadedMappings: DraftMapping[] = [];
+    if (vm.ip_mappings && vm.ip_mappings.length > 0) {
+      for (const m of vm.ip_mappings) {
+        const pub = loadedIps.find((r) => r.role === 'public' && r.ip === m.public_ip);
+        const priv = loadedIps.find((r) => r.role === 'private' && r.ip === m.private_ip);
+        if (pub && priv) {
+          loadedMappings.push({
+            publicRowId: pub.rowId,
+            privateRowId: priv.rowId,
+            publicIp: pub.ip,
+            privateIp: priv.ip,
+          });
         }
       }
+    }
 
-      setValues(loadedValues);
-      setDisks(loadedDisks);
-      setIps(loadedIps);
-      setMappings(loadedMappings);
-      initialSnapshot.current = JSON.stringify({ values: loadedValues, disks: loadedDisks, ips: loadedIps, mappings: loadedMappings });
+    setValues(loadedValues);
+    setDisks(loadedDisks);
+    setIps(loadedIps);
+    setMappings(loadedMappings);
+
+    loadedPreconditionRef.current = vm.network_precondition ?? deriveNetworkPrecondition(vm);
+    initialNetworksRef.current = (vm.networks ?? []).map((n, i) => ({
+      ip_address: n.ip_address.trim(),
+      role: n.role,
+      sort_order: n.sort_order ?? i,
+    }));
+    initialMappingsRef.current = (vm.ip_mappings ?? []).map((m) => ({
+      public_ip: m.public_ip.trim(),
+      private_ip: m.private_ip.trim(),
+    }));
+    initialSnapshot.current = JSON.stringify({ values: loadedValues, disks: loadedDisks, ips: loadedIps, mappings: loadedMappings });
+  };
+
+  useEffect(() => {
+    if (vmQuery.data) {
+      populateFormFromVm(vmQuery.data);
     }
   }, [vmQuery.data]);
 
@@ -571,7 +658,22 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
         }
       }
 
-      const payload = {
+      const currentNetworks = ips
+        .filter((r) => r.ip.trim())
+        .map((r, i) => ({
+          ip_address: r.ip.trim(),
+          role: r.role,
+          sort_order: i,
+        }));
+
+      const networkChanged = mode === 'create' || hasNetworkConfigChanged(
+        currentNetworks,
+        dedupedMappings,
+        initialNetworksRef.current,
+        initialMappingsRef.current,
+      );
+
+      const payload: Record<string, unknown> = {
         ...parsed.data,
         disks: disks
           .filter((d) => d.size && Number(d.size) > 0)
@@ -582,17 +684,31 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
             storage_type: d.type.trim() || null,
             sort_order: i,
           })),
-        networks: ips
-          .filter((r) => r.ip.trim())
-          .map((r, i) => ({
-            ip_address: r.ip.trim(),
-            role: r.role,
-            sort_order: i,
-          })),
-        ip_mappings: dedupedMappings,
       };
+
+      if (mode === 'create') {
+        payload.networks = currentNetworks;
+        payload.ip_mappings = dedupedMappings;
+      } else if (networkChanged) {
+        payload.networks = currentNetworks;
+        payload.ip_mappings = dedupedMappings;
+        if (loadedPreconditionRef.current) {
+          payload.network_precondition = loadedPreconditionRef.current;
+        }
+      }
+
       const vm = await save.mutateAsync(payload as VmPayload);
       initialSnapshot.current = JSON.stringify({ values, disks, ips, mappings });
+      loadedPreconditionRef.current = vm.network_precondition ?? deriveNetworkPrecondition(vm);
+      initialNetworksRef.current = (vm.networks ?? []).map((n, i) => ({
+        ip_address: n.ip_address.trim(),
+        role: n.role,
+        sort_order: n.sort_order ?? i,
+      }));
+      initialMappingsRef.current = (vm.ip_mappings ?? []).map((m) => ({
+        public_ip: m.public_ip.trim(),
+        private_ip: m.private_ip.trim(),
+      }));
       queryClient.invalidateQueries({ queryKey: ['vms'] });
       queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
       queryClient.invalidateQueries({ queryKey: ['vm-suggestions'] });
@@ -603,6 +719,21 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
       router.push(`/inventory/${vm.id}`);
     } catch { /* save.isError displayed above the form */ }
   }
+
+  const handleReload = async () => {
+    save.reset();
+    const res = await vmQuery.refetch();
+    if (res.data) {
+      populateFormFromVm(res.data);
+    }
+  };
+
+  const isConflict = Boolean(
+    save.isError &&
+    ((save.error instanceof ApiError && save.error.status === 409) ||
+     (typeof (save.error as { status?: number })?.status === 'number' && (save.error as { status?: number }).status === 409) ||
+     /conflict|precondition/i.test(detailMessage(save.error)))
+  );
 
   if (vmQuery.isLoading) return (
     <div className={cardClass + ' space-y-8'} role="status" aria-label="Loading form">
@@ -615,7 +746,27 @@ export function VmFormPage({ mode }: { mode: 'create' | 'edit' }) {
     <PageTransition>
       <section className="mx-auto w-full max-w-5xl 2xl:max-w-6xl">
         <PageHeader title={title} context="Virtual machine" description="Record identity, placement, capacity, operations, and ownership." />
-        {save.isError ? <Alert>{detailMessage(save.error)}</Alert> : null}
+        {isConflict ? (
+          <Alert tone="error">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold">Network configuration conflict</p>
+                <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+                  The network configuration has changed since loading this VM ({detailMessage(save.error)}). Your draft changes have been retained in the form.
+                </p>
+              </div>
+              <button
+                type="button"
+                className={cn(secondaryButtonClass, 'whitespace-nowrap')}
+                onClick={handleReload}
+              >
+                Reload VM data
+              </button>
+            </div>
+          </Alert>
+        ) : save.isError ? (
+          <Alert>{detailMessage(save.error)}</Alert>
+        ) : null}
         <SectionNav titles={['Identity', 'Location', 'Hardware', 'Network', 'Operating System', 'Ownership', 'Operations', 'Security', 'Notes & Tags']} />
         <form className="space-y-5 pb-20" onSubmit={submit} noValidate>
           <SectionCard title="Identity">

@@ -6,7 +6,11 @@ use sqlx::PgConnection;
 use std::collections::{HashMap,HashSet};
 use uuid::Uuid;
 use crate::api::deps::{ApiError,AppState,Viewer,Editor,Csrf};
-use crate::api::inventory::{VIRTUAL_HOST_MAX_COUNT,VIRTUAL_HOST_MAX_LEN};
+use crate::api::inventory::{
+    MAX_CSV_BATCH_MAPPINGS, MAX_ENDPOINT_LENGTH, MAX_MAPPINGS_PER_VM, VIRTUAL_HOST_MAX_COUNT,
+    VIRTUAL_HOST_MAX_LEN,
+};
+pub const MAX_CSV_MAPPINGS_PER_ROW: usize = MAX_MAPPINGS_PER_VM;
 use super::db_error;
 
 const COLUMNS: &[&str]=&["name","external_id","virtual_hosts","sr_id","platform","datacenter","cluster","node","status","environment","criticality","vm_type","cpu_cores","memory_mb","os_family","os_distribution","os_version","owner","business_owner","technical_owner","monitoring_enabled","pmp_enabled","ha_enabled","backup_enabled","backup_location","tags","last_patch_date","last_vuln_scan_date","last_verified_at","decommission_date","security_remarks","description"];
@@ -54,10 +58,6 @@ fn ips(raw: &Value,key: &str,errors: &mut Vec<Value>) -> Vec<String> {
     for part in parts(text(raw,key)){let ip=part.split('/').next().unwrap_or("").trim();if ip.is_empty(){continue;}if ip.contains(':'){errors.push(error(key,"must be IP addresses separated by ;"));return Vec::new();}result.push(ip.into());}
     result
 }
-pub const MAX_CSV_MAPPINGS_PER_ROW: usize = 256;
-pub const MAX_CSV_BATCH_MAPPINGS: usize = 5000;
-pub const MAX_ENDPOINT_LENGTH: usize = 50;
-
 fn parse_ip_mappings(raw: &Value, errors: &mut Vec<Value>) -> Option<Vec<(String, String)>> {
     let raw_val = raw.get("ip_mappings")?.as_str()?;
     if raw_val.trim().is_empty() { return None; }
@@ -84,8 +84,20 @@ fn parse_ip_mappings(raw: &Value, errors: &mut Vec<Value>) -> Option<Vec<(String
             errors.push(error("ip_mappings", format!("each endpoint must be at most {MAX_ENDPOINT_LENGTH} characters")));
             return Some(Vec::new());
         }
-        let pub_norm = crate::core::ip_utils::normalize_ip(pub_part).to_string();
-        let priv_norm = crate::core::ip_utils::normalize_ip(priv_part).to_string();
+        let pub_norm = match crate::core::ip_utils::parse_ipv4_endpoint(pub_part) {
+            Ok(ip) => ip,
+            Err(_) => {
+                errors.push(error("ip_mappings", "invalid IPv4 address in mapping pair"));
+                return Some(Vec::new());
+            }
+        };
+        let priv_norm = match crate::core::ip_utils::parse_ipv4_endpoint(priv_part) {
+            Ok(ip) => ip,
+            Err(_) => {
+                errors.push(error("ip_mappings", "invalid IPv4 address in mapping pair"));
+                return Some(Vec::new());
+            }
+        };
         if seen.insert((pub_norm.clone(), priv_norm.clone())) {
             pairs.push((pub_norm, priv_norm));
         }
@@ -105,6 +117,41 @@ fn validate_staged_status(rows:&[Value])->Result<(),ApiError>{
         let action=text(row,"action");
         if matches!(action,"create"|"update"|"unchanged"){
             if let Some(error)=status_error(&row["normalized"],action=="create"){return Err(ApiError::new(StatusCode::UNPROCESSABLE_ENTITY,format!("Row {} failed to import: status {}",row["row_number"],text(&error,"message"))));}
+        }
+    }
+    Ok(())
+}
+fn validate_staged_mappings(rows: &[Value]) -> Result<(), ApiError> {
+    let mut total_batch_mappings = 0usize;
+    for row in rows {
+        let raw_val = text(&row["raw"], "ip_mappings");
+        if raw_val.trim().is_empty() {
+            continue;
+        }
+        let raw_parts: Vec<&str> = parts(raw_val).collect();
+        if raw_parts.len() > MAX_MAPPINGS_PER_VM {
+            return Err(ApiError::new(StatusCode::CONFLICT, "Import preview is stale or invalid: please preview again"));
+        }
+        total_batch_mappings += raw_parts.len();
+        if total_batch_mappings > MAX_CSV_BATCH_MAPPINGS {
+            return Err(ApiError::new(StatusCode::CONFLICT, "Import preview is stale or invalid: please preview again"));
+        }
+        for part in raw_parts {
+            let pieces: Vec<&str> = part.split('>').collect();
+            if pieces.len() != 2 {
+                return Err(ApiError::new(StatusCode::CONFLICT, "Import preview is stale or invalid: please preview again"));
+            }
+            let pub_part = pieces[0].trim();
+            let priv_part = pieces[1].trim();
+            if pub_part.is_empty() || priv_part.is_empty() || pub_part.contains(':') || priv_part.contains(':') {
+                return Err(ApiError::new(StatusCode::CONFLICT, "Import preview is stale or invalid: please preview again"));
+            }
+            if pub_part.chars().count() > MAX_ENDPOINT_LENGTH || priv_part.chars().count() > MAX_ENDPOINT_LENGTH {
+                return Err(ApiError::new(StatusCode::CONFLICT, "Import preview is stale or invalid: please preview again"));
+            }
+            if crate::core::ip_utils::parse_ipv4_endpoint(pub_part).is_err() || crate::core::ip_utils::parse_ipv4_endpoint(priv_part).is_err() {
+                return Err(ApiError::new(StatusCode::CONFLICT, "Import preview is stale or invalid: please preview again"));
+            }
         }
     }
     Ok(())
@@ -523,19 +570,33 @@ async fn attach_children(connection:&mut PgConnection,id:Uuid,raw:&Value,user:Uu
                 let pub_norm = crate::core::ip_utils::normalize_ip(&pub_ip).to_string();
                 let priv_norm = crate::core::ip_utils::normalize_ip(&priv_ip).to_string();
 
-                let pub_id = ip_to_networks.get(&pub_norm).and_then(|entries| {
-                    let matching: Vec<_> = entries.iter().filter(|(role, _)| *role == "public").collect();
-                    if matching.len() == 1 { Some(matching[0].1) } else { None }
-                });
-                let priv_id = ip_to_networks.get(&priv_norm).and_then(|entries| {
-                    let matching: Vec<_> = entries.iter().filter(|(role, _)| *role == "private").collect();
-                    if matching.len() == 1 { Some(matching[0].1) } else { None }
-                });
-
-                if let (Some(pub_id), Some(priv_id)) = (pub_id, priv_id) {
-                    if seen.insert((pub_id, priv_id)) {
-                        resolved_pairs.push((pub_id, priv_id));
+                let pub_id = match ip_to_networks.get(&pub_norm) {
+                    None => return Err(ApiError::conflict(format!("Mapping endpoint '{pub_ip}' does not match any network entry on this VM"))),
+                    Some(entries) => {
+                        let matching: Vec<_> = entries.iter().filter(|(role, _)| *role == "public").collect();
+                        if matching.is_empty() {
+                            return Err(ApiError::conflict(format!("Network entry '{pub_ip}' has role '{}', expected 'public'", entries[0].0)));
+                        } else if matching.len() > 1 {
+                            return Err(ApiError::conflict(format!("Ambiguous public address '{pub_ip}'; multiple matching network entries found")));
+                        }
+                        matching[0].1
                     }
+                };
+                let priv_id = match ip_to_networks.get(&priv_norm) {
+                    None => return Err(ApiError::conflict(format!("Mapping endpoint '{priv_ip}' does not match any network entry on this VM"))),
+                    Some(entries) => {
+                        let matching: Vec<_> = entries.iter().filter(|(role, _)| *role == "private").collect();
+                        if matching.is_empty() {
+                            return Err(ApiError::conflict(format!("Network entry '{priv_ip}' has role '{}', expected 'private'", entries[0].0)));
+                        } else if matching.len() > 1 {
+                            return Err(ApiError::conflict(format!("Ambiguous private address '{priv_ip}'; multiple matching network entries found")));
+                        }
+                        matching[0].1
+                    }
+                };
+
+                if seen.insert((pub_id, priv_id)) {
+                    resolved_pairs.push((pub_id, priv_id));
                 }
             }
 
@@ -573,6 +634,7 @@ pub async fn commit(State(state):State<AppState>,user:Editor,_:Csrf,Path(id):Pat
     let rows=batch["rows"].as_array().unwrap();
     if rows.iter().any(|row|matches!(text(row,"action"),"invalid"|"conflict")){return Err(ApiError::new(StatusCode::CONFLICT,"Import contains invalid or conflicting rows"));}
     validate_staged_status(rows)?;
+    validate_staged_mappings(rows)?;
     let decommission=rows.iter().filter(|row|text(row,"action")=="decommission").count();
     let total=batch["summary"]["decommission_candidate_total"].as_u64().unwrap_or(0) as usize;
     if decommission>0 && total>0 && decommission*2>total && !payload.as_ref().is_some_and(|p|p.confirm_decommission){return Err(ApiError::new(StatusCode::CONFLICT,format!("This import would decommission {decommission} of {total} VMs (over half the inventory). Re-submit with confirm_decommission to proceed.")));}
@@ -615,7 +677,15 @@ pub async fn commit(State(state):State<AppState>,user:Editor,_:Csrf,Path(id):Pat
 async fn commit_row(connection:&mut PgConnection,row:&Value,user:Uuid)->Result<Uuid,ApiError>{
     let action=text(row,"action");
     let target=row["target_vm_id"].as_str().and_then(|s|Uuid::parse_str(s).ok());
-    if action=="create"{let id=write_vm(connection,None,&row["normalized"],user).await?;attach_children(connection,id,&row["raw"],user).await?;return Ok(id);}
+    if action=="create"{
+        let plan = plan_networks_and_mappings(None, &row["raw"]);
+        if !plan.mapping_errors.is_empty() {
+            return Err(ApiError::new(StatusCode::CONFLICT, "Import preview is stale: network mappings changed"));
+        }
+        let id=write_vm(connection,None,&row["normalized"],user).await?;
+        attach_children(connection,id,&row["raw"],user).await?;
+        return Ok(id);
+    }
     let id=target.ok_or_else(||ApiError::new(StatusCode::CONFLICT,"Import target VM changed"))?;
     sqlx::query("SELECT id FROM vms WHERE id=$1 FOR UPDATE").bind(id).fetch_optional(&mut *connection).await.map_err(db_error)?;
     let vm=snapshot(connection,id).await?;
@@ -909,18 +979,16 @@ mod tests{
         assert!(plan_idempotent.mapping_errors.is_empty());
         assert!(plan_idempotent.new_mapping_pairs.is_empty());
 
-        let add_10 = (250..260).map(|i| format!("203.0.113.{i}>10.0.0.{i}")).collect::<Vec<_>>().join(";");
+        let add_10 = (0..10).map(|i| format!("203.0.114.{i}>10.0.0.1")).collect::<Vec<_>>().join(";");
         let mut networks = vec![
-            json!({"id": "n1", "role": "public", "ip_address": "203.0.113.1", "sort_order": 0}),
-            json!({"id": "n2", "role": "private", "ip_address": "10.0.0.1", "sort_order": 0}),
+            json!({"id": "n1", "role": "private", "ip_address": "10.0.0.1", "sort_order": 0}),
         ];
-        for i in 250..260 {
-            networks.push(json!({"id": format!("pub_{i}"), "role": "public", "ip_address": format!("203.0.113.{i}"), "sort_order": 0}));
-            networks.push(json!({"id": format!("priv_{i}"), "role": "private", "ip_address": format!("10.0.0.{i}"), "sort_order": 0}));
+        for i in 0..10 {
+            networks.push(json!({"id": format!("pub_{i}"), "role": "public", "ip_address": format!("203.0.114.{i}"), "sort_order": 0}));
         }
         let vm_many = json!({
             "networks": networks,
-            "ip_mappings": (0..255).map(|i| json!({"public_ip": format!("203.0.113.{i}"), "private_ip": format!("10.0.0.{i}")})).collect::<Vec<_>>()
+            "ip_mappings": (0..250).map(|i| json!({"public_ip": format!("203.0.113.{i}"), "private_ip": "10.0.0.1"})).collect::<Vec<_>>()
         });
         let plan_over = plan_networks_and_mappings(Some(&vm_many), &json!({"ip_mappings": add_10}));
         assert_eq!(plan_over.mapping_errors.len(), 1);

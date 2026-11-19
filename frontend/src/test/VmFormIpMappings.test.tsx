@@ -4,6 +4,7 @@ import { VmFormPage } from '../routes/VmFormPage';
 import { vms as vmsApi } from '../api/vms';
 import { makeVm, renderWithProviders } from './utils';
 import { settings as settingsApi } from '../api/settings';
+import { ApiError } from '../api/core';
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
@@ -249,5 +250,220 @@ describe('VmFormPage - IP Mappings', () => {
 
     fireEvent.click(cb);
     expect(cb).toBeChecked();
+  });
+
+  it('omits networks and ip_mappings from PATCH payload when only unrelated fields are edited', async () => {
+    const vm = makeVm({
+      name: 'web-original',
+      networks: [
+        { id: 'n1', vm_id: 'vm-1', ip_address: '203.0.113.1', role: 'public', sort_order: 0 },
+        { id: 'n2', vm_id: 'vm-1', ip_address: '10.0.0.1', role: 'private', sort_order: 1 },
+      ],
+      ip_mappings: [{ public_ip: '203.0.113.1', private_ip: '10.0.0.1' }],
+    });
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
+    const updateSpy = vi.spyOn(vmsApi, 'updateVm').mockResolvedValue({ ...vm, name: 'web-renamed' });
+
+    renderWithProviders(<VmFormPage mode="edit" />);
+    await screen.findByRole('heading', { name: `Edit ${vm.name}` });
+
+    // Edit only VM name
+    const nameInput = screen.getByLabelText(/^Name/);
+    fireEvent.change(nameInput, { target: { value: 'web-renamed' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
+    const payload = updateSpy.mock.calls[0][1];
+    expect(payload.name).toBe('web-renamed');
+    expect(payload.networks).toBeUndefined();
+    expect(payload.ip_mappings).toBeUndefined();
+    expect(payload.network_precondition).toBeUndefined();
+  });
+
+  it('sends networks, ip_mappings, and network_precondition when an IP address is edited', async () => {
+    const vm = makeVm({
+      network_precondition: 'prec-token-123',
+      networks: [
+        { id: 'n1', vm_id: 'vm-1', ip_address: '203.0.113.1', role: 'public', sort_order: 0 },
+        { id: 'n2', vm_id: 'vm-1', ip_address: '10.0.0.1', role: 'private', sort_order: 1 },
+      ],
+      ip_mappings: [{ public_ip: '203.0.113.1', private_ip: '10.0.0.1' }],
+    });
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
+    const updateSpy = vi.spyOn(vmsApi, 'updateVm').mockResolvedValue(vm);
+
+    renderWithProviders(<VmFormPage mode="edit" />);
+    await screen.findByRole('heading', { name: `Edit ${vm.name}` });
+
+    // Edit IP address
+    const privInput = screen.getByLabelText('IP address 2');
+    fireEvent.change(privInput, { target: { value: '10.0.0.2' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
+    const payload = updateSpy.mock.calls[0][1];
+    expect(payload.networks).toBeDefined();
+    expect(payload.networks).toEqual([
+      { ip_address: '203.0.113.1', role: 'public', sort_order: 0 },
+      { ip_address: '10.0.0.2', role: 'private', sort_order: 1 },
+    ]);
+    expect(payload.ip_mappings).toBeDefined();
+    expect(payload.network_precondition).toBe('prec-token-123');
+  });
+
+  it('sends networks, ip_mappings, and network_precondition when an IP role is edited', async () => {
+    const vm = makeVm({
+      network_precondition: 'prec-token-456',
+      networks: [
+        { id: 'n1', vm_id: 'vm-1', ip_address: '203.0.113.1', role: 'public', sort_order: 0 },
+        { id: 'n2', vm_id: 'vm-1', ip_address: '10.0.0.1', role: 'private', sort_order: 1 },
+      ],
+      ip_mappings: [],
+    });
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
+    const updateSpy = vi.spyOn(vmsApi, 'updateVm').mockResolvedValue(vm);
+
+    renderWithProviders(<VmFormPage mode="edit" />);
+    await screen.findByRole('heading', { name: `Edit ${vm.name}` });
+
+    // Edit IP role
+    const roleSelect = screen.getByLabelText('IP role 2');
+    fireEvent.change(roleSelect, { target: { value: 'backup' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
+    const payload = updateSpy.mock.calls[0][1];
+    expect(payload.networks).toBeDefined();
+    expect(payload.networks?.[1].role).toBe('backup');
+    expect(payload.ip_mappings).toBeDefined();
+    expect(payload.network_precondition).toBe('prec-token-456');
+  });
+
+  it('sends networks, ip_mappings, and network_precondition when a mapping is selected', async () => {
+    const vm = makeVm({
+      network_precondition: 'prec-token-789',
+      networks: [
+        { id: 'n1', vm_id: 'vm-1', ip_address: '203.0.113.1', role: 'public', sort_order: 0 },
+        { id: 'n2', vm_id: 'vm-1', ip_address: '10.0.0.1', role: 'private', sort_order: 1 },
+      ],
+      ip_mappings: [],
+    });
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
+    const updateSpy = vi.spyOn(vmsApi, 'updateVm').mockResolvedValue(vm);
+
+    renderWithProviders(<VmFormPage mode="edit" />);
+    await screen.findByRole('heading', { name: `Edit ${vm.name}` });
+
+    const checkbox = screen.getByLabelText('Map 203.0.113.1 to 10.0.0.1');
+    fireEvent.click(checkbox);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
+    const payload = updateSpy.mock.calls[0][1];
+    expect(payload.networks).toBeDefined();
+    expect(payload.ip_mappings).toEqual([{ public_ip: '203.0.113.1', private_ip: '10.0.0.1' }]);
+    expect(payload.network_precondition).toBe('prec-token-789');
+  });
+
+  it('retains draft values and provides explicit reload option on 409 conflict', async () => {
+    const vm = makeVm({
+      name: 'web-original',
+      network_precondition: 'token-old',
+      networks: [
+        { id: 'n1', vm_id: 'vm-1', ip_address: '203.0.113.1', role: 'public', sort_order: 0 },
+        { id: 'n2', vm_id: 'vm-1', ip_address: '10.0.0.1', role: 'private', sort_order: 1 },
+      ],
+      ip_mappings: [],
+    });
+    const getVmSpy = vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
+    vi.spyOn(vmsApi, 'updateVm').mockRejectedValue(new ApiError(409, 'Network configuration conflict: modified in concurrent session'));
+
+    renderWithProviders(<VmFormPage mode="edit" />);
+    await screen.findByRole('heading', { name: `Edit ${vm.name}` });
+
+    // User edits draft fields
+    const nameInput = screen.getByLabelText(/^Name/);
+    fireEvent.change(nameInput, { target: { value: 'web-modified-draft' } });
+    const checkbox = screen.getByLabelText('Map 203.0.113.1 to 10.0.0.1');
+    fireEvent.click(checkbox);
+
+    // Save triggers 409
+    fireEvent.click(screen.getByRole('button', { name: 'Save VM' }));
+
+    // Conflict alert must appear
+    expect(await screen.findByText('Network configuration conflict')).toBeInTheDocument();
+    expect(screen.getByText(/Network configuration conflict: modified in concurrent session/)).toBeInTheDocument();
+
+    // Draft inputs must remain in the form
+    expect(screen.getByLabelText(/^Name/)).toHaveValue('web-modified-draft');
+    expect(screen.getByLabelText('Map 203.0.113.1 to 10.0.0.1')).toBeChecked();
+
+    // Explicit reload button must be available
+    const reloadBtn = screen.getByRole('button', { name: 'Reload VM data' });
+    expect(reloadBtn).toBeInTheDocument();
+
+    // When clicked, it refreshes from server
+    const serverVm = makeVm({
+      name: 'web-server-refreshed',
+      network_precondition: 'token-new',
+      networks: [
+        { id: 'n1', vm_id: 'vm-1', ip_address: '203.0.113.1', role: 'public', sort_order: 0 },
+        { id: 'n2', vm_id: 'vm-1', ip_address: '10.0.0.2', role: 'private', sort_order: 1 },
+      ],
+      ip_mappings: [],
+    });
+    getVmSpy.mockResolvedValue(serverVm);
+
+    fireEvent.click(reloadBtn);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^Name/)).toHaveValue('web-server-refreshed');
+    });
+    expect(screen.queryByText('Network configuration conflict')).not.toBeInTheDocument();
+  });
+
+  it('provides a clear correction path when an address is malformed for mapping endpoints', async () => {
+    const vm = makeVm({
+      networks: [
+        { id: 'n1', vm_id: 'vm-1', ip_address: '203.0.113.1', role: 'public', sort_order: 0 },
+        { id: 'n2', vm_id: 'vm-1', ip_address: '10.0.0.1', role: 'private', sort_order: 1 },
+      ],
+      ip_mappings: [],
+    });
+    vi.spyOn(vmsApi, 'getVm').mockResolvedValue(vm);
+
+    renderWithProviders(<VmFormPage mode="edit" />);
+    await screen.findByRole('heading', { name: `Edit ${vm.name}` });
+
+    // Enter a malformed private IP
+    const privInput = screen.getByLabelText('IP address 2');
+    fireEvent.change(privInput, { target: { value: 'invalid-ip-addr' } });
+
+    // Warning text should appear indicating correction path
+    expect(screen.getByText('(Malformed address — correct above)')).toBeInTheDocument();
+
+    // Checkbox should be disabled
+    const cb = screen.getByLabelText('Map 203.0.113.1 to invalid-ip-addr');
+    expect(cb).toBeDisabled();
+
+    // Enter a malformed public IP
+    const pubInput = screen.getByLabelText('IP address 1');
+    fireEvent.change(pubInput, { target: { value: 'not.valid.ipv4.string' } });
+
+    expect(screen.getByText('(Malformed address — correct in IP addresses above)')).toBeInTheDocument();
+
+    // Correct the addresses
+    fireEvent.change(pubInput, { target: { value: '203.0.113.9' } });
+    fireEvent.change(privInput, { target: { value: '10.0.0.9' } });
+
+    // Error hints disappear and checkbox becomes enabled
+    expect(screen.queryByText('(Malformed address — correct in IP addresses above)')).not.toBeInTheDocument();
+    expect(screen.queryByText('(Malformed address — correct above)')).not.toBeInTheDocument();
+    const correctedCb = screen.getByLabelText('Map 203.0.113.9 to 10.0.0.9');
+    expect(correctedCb).not.toBeDisabled();
   });
 });

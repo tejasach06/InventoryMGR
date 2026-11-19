@@ -114,6 +114,7 @@ export interface Vm {
   networks: Network[];
   applications: Application[];
   ip_mappings?: IpMapping[];
+  network_precondition?: string;
   health_score: number;
   created_by_id: string;
   updated_by_id: string;
@@ -121,10 +122,11 @@ export interface Vm {
   updated_at: string;
 }
 
-export type VmPayload = Omit<Vm, 'id' | 'disks' | 'networks' | 'applications' | 'health_score' | 'created_by_id' | 'updated_by_id' | 'created_at' | 'updated_at'> & {
+export type VmPayload = Omit<Vm, 'id' | 'disks' | 'networks' | 'applications' | 'health_score' | 'created_by_id' | 'updated_by_id' | 'created_at' | 'updated_at' | 'network_precondition'> & {
   disks: Omit<Disk, 'id' | 'vm_id'>[];
-  networks: Omit<Network, 'id' | 'vm_id'>[];
+  networks?: Omit<Network, 'id' | 'vm_id'>[];
   ip_mappings?: IpMapping[];
+  network_precondition?: string;
 };
 
 export type VmCreate = VmPayload;
