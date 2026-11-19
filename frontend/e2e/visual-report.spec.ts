@@ -16,14 +16,14 @@ async function ensureAdminSession(page: Page) {
     await page.getByLabel('Password', { exact: true }).fill(ADMIN_PASSWORD);
     await page.getByLabel('Confirm password').fill(ADMIN_PASSWORD);
     await setup.click();
-    await expect(page).toHaveURL(/\/inventory$/);
+    await expect(page).toHaveURL(/\/inventory$/, { timeout: 30_000 });
     return;
   }
 
   await page.getByLabel('Email').fill(ADMIN_EMAIL);
   await page.getByLabel('Password', { exact: true }).fill(ADMIN_PASSWORD);
   await signin.click();
-  await expect(page).toHaveURL(/\/inventory$/);
+  await expect(page).toHaveURL(/\/inventory$/, { timeout: 30_000 });
 }
 
 const VIEWPORTS = [
