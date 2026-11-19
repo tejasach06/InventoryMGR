@@ -13,4 +13,8 @@ describe('presetColumns', () => {
   it('exposes virtual_hosts as an export column', () => {
     expect(EXPORT_COLUMNS).toContain('virtual_hosts');
   });
+
+  it('exposes ip_mappings as an export column', () => {
+    expect(EXPORT_COLUMNS).toContain('ip_mappings');
+  });
 });

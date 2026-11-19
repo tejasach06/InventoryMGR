@@ -1,6 +1,9 @@
 mod backups;
 mod imports;
 mod reporting;
+#[cfg(test)]
+#[path = "csv_ip_mapping_tests.rs"]
+mod csv_ip_mapping_tests;
 
 use axum::{extract::DefaultBodyLimit, routing::{get, post}, Router};
 use crate::api::deps::AppState;

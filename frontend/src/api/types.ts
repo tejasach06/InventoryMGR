@@ -52,6 +52,11 @@ export interface Network {
   sort_order: number;
 }
 
+export interface IpMapping {
+  public_ip: string;
+  private_ip: string;
+}
+
 export interface Application {
   id: string;
   vm_id: string;
@@ -108,6 +113,8 @@ export interface Vm {
   disks: Disk[];
   networks: Network[];
   applications: Application[];
+  ip_mappings?: IpMapping[];
+  network_precondition?: string;
   health_score: number;
   created_by_id: string;
   updated_by_id: string;
@@ -115,10 +122,15 @@ export interface Vm {
   updated_at: string;
 }
 
-export type VmPayload = Omit<Vm, 'id' | 'disks' | 'networks' | 'applications' | 'health_score' | 'created_by_id' | 'updated_by_id' | 'created_at' | 'updated_at'> & {
+export type VmPayload = Omit<Vm, 'id' | 'disks' | 'networks' | 'applications' | 'health_score' | 'created_by_id' | 'updated_by_id' | 'created_at' | 'updated_at' | 'network_precondition'> & {
   disks: Omit<Disk, 'id' | 'vm_id'>[];
-  networks: Omit<Network, 'id' | 'vm_id'>[];
+  networks?: Omit<Network, 'id' | 'vm_id'>[];
+  ip_mappings?: IpMapping[];
+  network_precondition?: string;
 };
+
+export type VmCreate = VmPayload;
+export type VmUpdate = Partial<VmPayload>;
 
 export interface VmList {
   items: Vm[];

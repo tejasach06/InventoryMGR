@@ -95,6 +95,7 @@ export function makeVm(overrides: Partial<Vm> = {}): Vm {
       { id: 'net-1', vm_id: 'vm-1', ip_address: '10.0.0.10', role: 'private', sort_order: 0 },
       { id: 'net-2', vm_id: 'vm-1', ip_address: '10.0.0.11', role: 'private', sort_order: 1 },
     ],
+    ip_mappings: [],
     applications: [],
     health_score: 50,
     created_by_id: 'user-1',

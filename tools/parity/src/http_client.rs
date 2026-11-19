@@ -59,6 +59,8 @@ impl Client {
             Value::String(text) => {
                 if re(r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$").is_match(text) {
                     let alias = if let Some((_, alias)) = self.ids.iter().find(|(id, _)| id == text) { alias.clone() } else { let alias = format!("<uuid:{}>", self.ids.len()); self.ids.push((text.clone(), alias.clone())); alias }; *text = alias;
+                } else if ["network_precondition", "mapping_precondition"].contains(&key) && re(r"^[0-9a-fA-F]{64}$").is_match(text) {
+                    let alias = if let Some((_, alias)) = self.ids.iter().find(|(id, _)| id == text) { alias.clone() } else { let alias = format!("<token:{}>", self.ids.len()); self.ids.push((text.clone(), alias.clone())); alias }; *text = alias;
                 } else if VOLATILE.contains(&key) { *text = "<timestamp>".into(); }
                 else if key == "filename" && re(r"^tmp[^/]+\.dump$").is_match(text) { *text = "<restore-upload>.dump".into(); }
                 else if re(r"^inventorymgr-\d{8}T\d{6}Z-.*\.dump$").is_match(text) { *text = masked_case(text); }
