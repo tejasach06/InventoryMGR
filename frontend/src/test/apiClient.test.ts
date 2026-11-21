@@ -47,14 +47,20 @@ afterEach(() => {
 });
 
 describe('apiRequest', () => {
-  it('posts only explicit IDs for bulk deletion and accepts a 204 response', async () => {
-    fetchMock.mockResolvedValue(fakeResponse({ status: 204 }));
+  it('reuses the bulk deletion body when retrying after session refresh', async () => {
+    fetchMock
+      .mockResolvedValueOnce(fakeResponse({ status: 401 }))
+      .mockResolvedValueOnce(fakeResponse({ status: 200 }))
+      .mockResolvedValueOnce(fakeResponse({ status: 204 }));
+    const body = { ids: ['v1', 'v2'], request_id: 'a2429f18-d871-44ae-86af-e8943329c036' };
 
-    await expect(vmsApi.bulkDeleteVms(['v1', 'v2'])).resolves.toBeNull();
-    const [url, init] = lastFetchCall();
-    expect(url).toBe('/api/vms/bulk-delete');
-    expect(init.method).toBe('POST');
-    expect(init.body).toBe(JSON.stringify({ ids: ['v1', 'v2'] }));
+    await expect(vmsApi.bulkDeleteVms(body)).resolves.toBeNull();
+    const calls = fetchMock.mock.calls.filter(([url]) => url === '/api/vms/bulk-delete');
+    expect(calls).toHaveLength(2);
+    for (const [, init] of calls) {
+      expect(init.method).toBe('POST');
+      expect(init.body).toBe(JSON.stringify(body));
+    }
   });
 
   it('issues a GET without a body, Content-Type, or CSRF header and includes credentials', async () => {

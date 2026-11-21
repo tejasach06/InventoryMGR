@@ -124,7 +124,7 @@ test('bulk edits the selected rows', async ({ page }) => {
   await expect(page.locator('[data-testid="cell-criticality"]').first()).toHaveText(/high/i);
 });
 
-test('bulk deletes selected VM inventory entries after a two-second hold', async ({ page }) => {
+test('retries bulk VM deletion with the same request after a lost response', async ({ page }) => {
   const prefix = `e2e-bulk-delete-${Date.now()}`;
   const selectedNames = [`${prefix}-first`, `${prefix}-second`];
   const retainedName = `${prefix}-retained`;
@@ -166,6 +166,19 @@ test('bulk deletes selected VM inventory entries after a two-second hold', async
     await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
   }
 
+  let firstBody: string | null = null;
+  let firstStatus: number | undefined;
+  await page.route('**/api/vms/bulk-delete', async (route) => {
+    if (firstBody !== null) return route.continue();
+    firstBody = route.request().postData();
+    firstStatus = (await route.fetch()).status();
+    return route.abort();
+  });
+  await holdButton.click({ delay: 2_100 });
+  await expect(dialog.getByRole('alert')).toContainText('Deletion may have completed.');
+  expect(firstStatus).toBe(204);
+  expect(firstBody).toMatch(/"request_id":"[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}"/);
+
   const [response] = await Promise.all([
     page.waitForResponse((res) =>
       res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/vms/bulk-delete',
@@ -173,6 +186,7 @@ test('bulk deletes selected VM inventory entries after a two-second hold', async
     holdButton.click({ delay: 2_100 }),
   ]);
   expect(response.status()).toBe(204);
+  expect(response.request().postData()).toBe(firstBody);
   await expect(dialog).toBeHidden();
   for (const name of selectedNames) {
     await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0);
