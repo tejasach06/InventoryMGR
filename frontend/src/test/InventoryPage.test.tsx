@@ -26,7 +26,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 function makeVmList(overrides: Partial<VmList> = {}): VmList {
-  return { items: [makeVm()], total: 1, limit: 50, offset: 0, ...overrides };
+  return { items: [makeVm()], total: 1, limit: 50, offset: 0, version: '00000000-0000-0000-0000-000000000001', ...overrides };
 }
 
 beforeEach(() => {
@@ -108,7 +108,7 @@ describe('InventoryPage bulk deletion', () => {
     await act(() => vi.advanceTimersByTimeAsync(1999));
     expect(deletion).not.toHaveBeenCalled();
     await act(() => vi.advanceTimersByTimeAsync(1));
-    expect(deletion).toHaveBeenCalledExactlyOnceWith(['vm-1']);
+    expect(deletion).toHaveBeenCalledExactlyOnceWith({ ids: ['vm-1'], request_id: expect.any(String), version: expect.any(String) });
 
     fireEvent.keyDown(hold, { key: 'Enter', repeat: true });
     fireEvent.keyDown(hold, { key: 'Escape' });
@@ -161,6 +161,7 @@ describe('InventoryPage bulk deletion', () => {
     expect(deletion).toHaveBeenCalledTimes(1);
     await act(() => vi.advanceTimersByTimeAsync(1));
     expect(deletion).toHaveBeenCalledTimes(2);
+    expect(deletion.mock.calls[1]).toEqual(deletion.mock.calls[0]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByRole('toolbar', { name: 'Bulk actions' })).not.toBeInTheDocument();
     expect(screen.getByText(/the selection is stale/i)).toBeInTheDocument();
@@ -185,6 +186,63 @@ describe('InventoryPage bulk deletion', () => {
     expect(dialog).not.toBeInTheDocument();
     await act(() => vi.advanceTimersByTimeAsync(2000));
     expect(deletion).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    new DOMException('Aborted', 'AbortError'),
+    new TypeError('Failed to fetch'),
+    new ApiError(502, 'Bad Gateway'),
+    new ApiError(504, 'Gateway Timeout'),
+  ])(
+    'retries the original snapshot after $name only after a fresh hold', async (error) => {
+      vi.spyOn(crypto, 'randomUUID').mockImplementation(() => { throw new Error('Secure-context API unavailable'); });
+      const deletion = vi.spyOn(vmsApi, 'bulkDeleteVms')
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce(null);
+      const { queryClient, dialog, hold } = await openDelete();
+      const pointer = { pointerId: 1, button: 0, isPrimary: true };
+
+      fireEvent.pointerDown(hold, pointer);
+      await act(() => vi.advanceTimersByTimeAsync(2000));
+      fireEvent.pointerUp(hold, pointer);
+      expect(within(dialog).getByRole('alert')).toHaveTextContent(/deletion may have completed.*hold for 2 seconds to retry/i);
+      expect(deletion).toHaveBeenCalledExactlyOnceWith({
+        ids: ['vm-1'],
+        request_id: expect.stringMatching(/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/),
+        version: expect.any(String),
+      });
+
+      act(() => {
+        queryClient.setQueriesData<VmList>({ queryKey: ['vms'] }, makeVmList({ items: [makeVm({ id: 'replacement', name: 'replacement' })] }));
+      });
+      await act(() => vi.advanceTimersByTimeAsync(2000));
+      expect(screen.getByRole('checkbox', { name: 'Select replacement' })).toBeInTheDocument();
+      expect(within(dialog).getByRole('list')).toHaveTextContent(/^web-01$/);
+      fireEvent.click(hold);
+      act(() => hold.focus());
+      fireEvent.keyDown(hold, { key: 'Enter' });
+      await act(() => vi.advanceTimersByTimeAsync(1999));
+      expect(deletion).toHaveBeenCalledTimes(1);
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(deletion).toHaveBeenCalledTimes(2);
+      expect(deletion.mock.calls[1]).toEqual(deletion.mock.calls[0]);
+      expect(dialog).not.toBeInTheDocument();
+    },
+  );
+
+  it('uses a new request ID when the same VMs are confirmed again', async () => {
+    const deletion = vi.spyOn(vmsApi, 'bulkDeleteVms').mockRejectedValue(new ApiError(503, 'Try again.'));
+    const { cancel, dialog, hold } = await openDelete();
+    fireEvent.keyDown(hold, { key: 'Enter' });
+    await act(() => vi.advanceTimersByTimeAsync(2000));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Try again.');
+    fireEvent.click(cancel);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete selected' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Hold to delete' }), { key: 'Enter' });
+    await act(() => vi.advanceTimersByTimeAsync(2000));
+    expect(deletion).toHaveBeenCalledTimes(2);
+    expect(deletion.mock.calls[1][0]).toEqual({ ids: ['vm-1'], request_id: expect.any(String), version: expect.any(String) });
+    expect(deletion.mock.calls[1][0].request_id).not.toBe(deletion.mock.calls[0][0].request_id);
   });
 });
 

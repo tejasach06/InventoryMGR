@@ -8,8 +8,8 @@ export const vms = {
   updateVm: (id: string, payload: Partial<VmPayload>) =>
     apiRequest<Vm>(`/vms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteVm: (id: string) => apiRequest<null>(`/vms/${id}`, { method: 'DELETE' }),
-  bulkDeleteVms: (ids: string[]) =>
-    apiRequest<null>('/vms/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) }),
+  bulkDeleteVms: (body: { ids: string[]; request_id?: string; version?: string }) =>
+    apiRequest<null>('/vms/bulk-delete', { method: 'POST', body: JSON.stringify(body) }),
   cloneVm: (id: string) => apiRequest<Vm>(`/vms/${id}/clone`, { method: 'POST' }),
   bulkUpdateVms: (body: { ids?: string[]; filters?: Record<string, unknown>; patch: BulkPatch }) =>
     apiRequest<BulkResult>('/vms/bulk', {

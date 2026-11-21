@@ -123,6 +123,8 @@ async fn bulk_delete_vms_requires_admin_and_csrf_and_deletes_atomically() {
         Some(json!({"ids": [123]})),
         Some(json!({"ids": [ids[0], ids[0].simple().to_string().to_uppercase()]})),
         Some(json!({"ids": [ids[0]], "all": true})),
+        Some(json!({"ids": [ids[0]], "request_id": "not-a-uuid"})),
+        Some(json!({"ids": [ids[0]], "version": 123})),
         Some(json!({"ids": missing})),
     ] {
         let (status, body) = admin.request(&state, "POST", path, invalid.clone()).await;
@@ -143,10 +145,8 @@ async fn bulk_delete_vms_requires_admin_and_csrf_and_deletes_atomically() {
         .execute(&state.pool).await.unwrap();
     sqlx::query("INSERT INTO delete_blocker (vm_id) VALUES ($1)")
         .bind(ids[1]).execute(&state.pool).await.unwrap();
-    assert_eq!(
-        admin.request(&state, "POST", path, Some(payload.clone())).await.0,
-        StatusCode::INTERNAL_SERVER_ERROR,
-    );
+    assert_eq!(admin.request(&state, "POST", path, Some(payload.clone())).await,
+        (StatusCode::INTERNAL_SERVER_ERROR, json!({"detail":"VM deletion failed"})));
     let disk_count: i64 = sqlx::query_scalar("SELECT count(*) FROM vm_disks")
         .fetch_one(&state.pool).await.unwrap();
     assert_eq!(disk_count, 3);
@@ -159,6 +159,274 @@ async fn bulk_delete_vms_requires_admin_and_csrf_and_deletes_atomically() {
         .fetch_all(&state.pool).await.unwrap();
     assert_eq!(remaining_vms, [ids[2]]);
     assert_eq!(remaining_disks, [ids[2]]);
+}
+
+async fn deletion_test_vm(admin: &mut Browser, state: &AppState, name: &str) -> Uuid {
+    let (status, vm) = admin.request(state, "POST", "/vms", Some(json!({
+        "name": name, "platform": "vmware", "cluster": "test", "status": "running",
+        "criticality": "medium", "cpu_cores": 1, "memory_mb": 1024,
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED, "{vm}");
+    Uuid::parse_str(vm["id"].as_str().unwrap()).unwrap()
+}
+
+#[tokio::test]
+#[ignore = "requires Podman; creates and removes its own PostgreSQL 17 container"]
+async fn vm_deletion_audit_is_atomic_and_replay_requires_current_authorization() {
+    let (_database, state) = Database::start().await;
+    let mut admin = Browser::default();
+    assert_eq!(admin.request(&state, "POST", "/auth/setup", Some(json!({
+        "email":"admin@example.com", "password":"admin-password",
+    }))).await.0, StatusCode::CREATED);
+    let actor: Uuid = sqlx::query_scalar("SELECT id FROM users WHERE email = 'admin@example.com'")
+        .fetch_one(&state.pool).await.unwrap();
+    let first = deletion_test_vm(&mut admin, &state, "first").await;
+    let second = deletion_test_vm(&mut admin, &state, "second").await;
+    let single = deletion_test_vm(&mut admin, &state, "single").await;
+    let single_path = format!("/vms/{single}");
+    assert_eq!(admin.request(&state, "PATCH", &format!("/vms/{first}"), Some(json!({
+        "description":"preserve this history",
+    }))).await.0, StatusCode::OK);
+    let history = || sqlx::query_scalar::<_, Value>(
+        "SELECT to_jsonb(a) FROM audit_log a WHERE vm_id = $1 AND field_name = 'description'",
+    ).bind(first).fetch_one(&state.pool);
+    let prior_history = history().await.unwrap();
+
+    let path = "/vms/bulk-delete";
+    let request_id = Uuid::new_v4();
+    let version = crate::api::deps::session_generation(&state).await.unwrap();
+    let stale = json!({"ids":[first, Uuid::nil()], "request_id":request_id, "version":version});
+    assert_eq!(admin.request(&state, "POST", path, Some(stale)).await.0, StatusCode::CONFLICT);
+    let mut ids = [first, second];
+    ids.sort_unstable();
+    let payload = json!({"ids":[ids[1], ids[0]], "request_id":request_id, "version":version});
+
+    sqlx::raw_sql(
+        "CREATE FUNCTION fail_deletion_audit() RETURNS trigger LANGUAGE plpgsql AS
+           $$ BEGIN RAISE EXCEPTION 'private audit failure details'; END $$;
+         CREATE CONSTRAINT TRIGGER fail_deletion_audit AFTER INSERT ON vm_deletion_receipts
+           DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION fail_deletion_audit();"
+    ).execute(&state.pool).await.unwrap();
+    assert_eq!(admin.request(&state, "POST", path, Some(payload.clone())).await,
+        (StatusCode::INTERNAL_SERVER_ERROR, json!({"detail":"VM deletion failed"})));
+    let after_failure: i64 = sqlx::query_scalar("SELECT count(*) FROM vms")
+        .fetch_one(&state.pool).await.unwrap();
+    assert_eq!(after_failure, 3);
+    let receipts: i64 = sqlx::query_scalar("SELECT count(*) FROM vm_deletion_receipts")
+        .fetch_one(&state.pool).await.unwrap();
+    assert_eq!(receipts, 0);
+    assert_eq!(history().await.unwrap(), prior_history);
+    sqlx::query("DROP TRIGGER fail_deletion_audit ON vm_deletion_receipts")
+        .execute(&state.pool).await.unwrap();
+
+    assert_eq!(admin.request(&state, "POST", path, Some(payload.clone())).await.0, StatusCode::NO_CONTENT);
+    assert_eq!(admin.request(&state, "POST", path, Some(json!({
+        "ids":ids, "request_id":request_id, "version":version,
+    }))).await.0, StatusCode::NO_CONTENT);
+    assert_eq!(history().await.unwrap(), prior_history);
+    let receipt: (Uuid, Vec<Uuid>, bool) = sqlx::query_as(
+        "SELECT actor_id, vm_ids, deleted_at <= now()
+         FROM vm_deletion_receipts WHERE operation_id = $1",
+    ).bind(request_id).fetch_one(&state.pool).await.unwrap();
+    assert_eq!(receipt, (actor, ids.to_vec(), true));
+
+    let (status, mismatch) = admin.request(&state, "POST", path, Some(json!({
+        "ids":[single], "request_id":request_id, "version":version,
+    }))).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(mismatch, json!({"detail":"Deletion request could not be applied"}));
+    let mut no_csrf = admin.clone();
+    no_csrf.csrf.clear();
+    assert_eq!(no_csrf.request(&state, "POST", path, Some(payload.clone())).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(admin.request(&state, "POST", "/users", Some(json!({
+        "email":"other@example.com", "password":"other-password", "role":"admin",
+    }))).await.0, StatusCode::CREATED);
+    let mut other = Browser::default();
+    assert_eq!(other.login(&state, "other@example.com", "other-password").await, StatusCode::OK);
+    assert_eq!(other.request(&state, "POST", path, Some(payload.clone())).await, (status, mismatch));
+
+    assert_eq!(admin.request(&state, "DELETE", &single_path, None).await.0, StatusCode::NO_CONTENT);
+    assert_eq!(admin.request(&state, "DELETE", &single_path, None).await.0, StatusCode::NOT_FOUND);
+    let single_receipt: Uuid = sqlx::query_scalar(
+        "SELECT actor_id FROM vm_deletion_receipts WHERE vm_ids = ARRAY[$1]::uuid[]",
+    ).bind(single).fetch_one(&state.pool).await.unwrap();
+    assert_eq!(single_receipt, actor);
+
+    sqlx::query("ALTER TABLE app_settings RENAME TO unavailable_settings")
+        .execute(&state.pool).await.unwrap();
+    for (method, url, body) in [
+        ("POST", path, Some(payload.clone())),
+        ("DELETE", single_path.as_str(), None),
+    ] {
+        assert_eq!(admin.request(&state, method, url, body).await,
+            (StatusCode::INTERNAL_SERVER_ERROR, json!({"detail":"VM deletion failed"})));
+    }
+    sqlx::query("ALTER TABLE unavailable_settings RENAME TO app_settings")
+        .execute(&state.pool).await.unwrap();
+    sqlx::query("UPDATE users SET role = 'viewer' WHERE id = $1")
+        .bind(actor).execute(&state.pool).await.unwrap();
+    assert_eq!(admin.request(&state, "POST", path, Some(payload)).await.0, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+#[ignore = "requires Podman; creates and removes its own PostgreSQL 17 container"]
+async fn vm_deletion_retries_lock_timeout_and_serializes_concurrent_requests() {
+    async fn wait_for_blocked_requests(state: &AppState, count: i64) {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                let pending: i64 = sqlx::query_scalar(
+                    "SELECT count(*) FROM pg_stat_activity
+                     WHERE datname = current_database() AND wait_event_type = 'Lock'
+                       AND (query LIKE 'INSERT INTO vm_deletion_receipts %'
+                            OR query LIKE 'SELECT id FROM vms WHERE id = ANY%')",
+                ).fetch_one(&state.pool).await.unwrap();
+                if pending == count {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        }).await.expect("deletion requests should overlap");
+    }
+
+    let (_database, state) = Database::start().await;
+    let mut admin = Browser::default();
+    assert_eq!(admin.request(&state, "POST", "/auth/setup", Some(json!({
+        "email":"admin@example.com", "password":"admin-password",
+    }))).await.0, StatusCode::CREATED);
+    let mut ids = [
+        deletion_test_vm(&mut admin, &state, "one").await,
+        deletion_test_vm(&mut admin, &state, "two").await,
+        deletion_test_vm(&mut admin, &state, "three").await,
+    ];
+    ids.sort_unstable();
+    let [shared, first, second] = ids;
+    let mut blocker = state.pool.begin().await.unwrap();
+    sqlx::query("SELECT id FROM vms WHERE id = $1 FOR UPDATE")
+        .bind(first).execute(&mut *blocker).await.unwrap();
+
+    let path = "/vms/bulk-delete";
+    let request_id = Uuid::new_v4();
+    let other_id = Uuid::new_v4();
+    let version = crate::api::deps::session_generation(&state).await.unwrap();
+    let payload = json!({"ids":[shared, first], "request_id":request_id, "version":version});
+    let started = Instant::now();
+    let outcome = tokio::time::timeout(
+        Duration::from_secs(9), admin.request(&state, "POST", path, Some(payload.clone())),
+    ).await.unwrap();
+    assert_eq!(outcome, (StatusCode::SERVICE_UNAVAILABLE, json!({"detail":"VM deletion is busy. Try again."})));
+    assert!(started.elapsed() >= Duration::from_secs(5));
+
+    let mut replay = admin.clone();
+    let mut overlapping = admin.clone();
+    let (original, (repeated, competing, ())) = tokio::join!(
+        admin.request(&state, "POST", path, Some(payload)),
+        async {
+            // The original owns the lower UUID before it reaches the blocked row.
+            wait_for_blocked_requests(&state, 1).await;
+            tokio::join!(
+                replay.request(&state, "POST", path, Some(json!({"ids":[first, shared], "request_id":request_id, "version":version}))),
+                overlapping.request(&state, "POST", path, Some(json!({"ids":[second, shared], "request_id":other_id, "version":version}))),
+                async {
+                    wait_for_blocked_requests(&state, 3).await;
+                    blocker.rollback().await.unwrap();
+                },
+            )
+        },
+    );
+    assert_eq!(original.0, StatusCode::NO_CONTENT);
+    assert_eq!(original, repeated);
+    assert_eq!(competing.0, StatusCode::CONFLICT);
+    let remaining: Vec<Uuid> = sqlx::query_scalar("SELECT id FROM vms")
+        .fetch_all(&state.pool).await.unwrap();
+    assert_eq!(remaining, [second]);
+    let receipts: Vec<Uuid> = sqlx::query_scalar("SELECT operation_id FROM vm_deletion_receipts")
+        .fetch_all(&state.pool).await.unwrap();
+    assert_eq!(receipts, [request_id]);
+}
+
+#[tokio::test]
+#[ignore = "requires Podman; creates and removes its own PostgreSQL 17 container"]
+async fn vm_deletion_rejects_delayed_retry_from_before_restore_and_accepts_fresh_confirmation() {
+    let (_database, state) = Database::start().await;
+    let mut admin = Browser::default();
+    assert_eq!(admin.request(&state, "POST", "/auth/setup", Some(json!({
+        "email":"admin@example.com", "password":"admin-password",
+    }))).await.0, StatusCode::CREATED);
+
+    let first = deletion_test_vm(&mut admin, &state, "alpha").await;
+    let second = deletion_test_vm(&mut admin, &state, "beta").await;
+    let mut ids = [first, second];
+    ids.sort_unstable();
+
+    // 1. Initial selection captures current version token from /vms
+    let (status, list) = admin.request(&state, "GET", "/vms", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let initial_version = list["version"].as_str().expect("version token in list response").to_owned();
+
+    let request_id = Uuid::new_v4();
+    let payload = json!({
+        "ids": ids,
+        "request_id": request_id,
+        "version": initial_version,
+    });
+
+    // 2. Simulate database restore:
+    // Under the restore concurrency gate (exclusive write lock),
+    // restore updates app_settings with a new session_generation.
+    {
+        let _exclusive = state.database_access.write().await;
+        crate::api::deps::invalidate_sessions(&state.pool).await.unwrap();
+    }
+
+    // 3. Admin logs in again to obtain a fresh valid admin session in the restored epoch
+    assert_eq!(admin.login(&state, "admin@example.com", "admin-password").await, StatusCode::OK);
+
+    // 4. Delayed retry with pre-restore request_id and pre-restore version MUST be rejected
+    // with 409 Conflict without deleting the restored VMs
+    let (status, err) = admin.request(&state, "POST", "/vms/bulk-delete", Some(payload)).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(err, json!({"detail":"The selection is stale; please refresh and try again"}));
+
+    // Verify restored VMs are NOT deleted
+    let vm_count: i64 = sqlx::query_scalar("SELECT count(*) FROM vms WHERE id = ANY($1)")
+        .bind(&ids[..]).fetch_one(&state.pool).await.unwrap();
+    assert_eq!(vm_count, 2, "Restored VMs must be preserved against pre-restore retries");
+
+    // 5. Fresh confirmation: Admin fetches current inventory, obtaining the new version token
+    let (status, fresh_list) = admin.request(&state, "GET", "/vms", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let fresh_version = fresh_list["version"].as_str().expect("fresh version token").to_owned();
+    assert_ne!(fresh_version, initial_version);
+
+    // Fresh confirmation with new request_id and fresh version succeeds
+    let fresh_request_id = Uuid::new_v4();
+    let fresh_payload = json!({
+        "ids": ids,
+        "request_id": fresh_request_id,
+        "version": fresh_version,
+    });
+    assert_eq!(admin.request(&state, "POST", "/vms/bulk-delete", Some(fresh_payload)).await.0, StatusCode::NO_CONTENT);
+
+    // Target VMs are now deleted
+    let remaining: i64 = sqlx::query_scalar("SELECT count(*) FROM vms WHERE id = ANY($1)")
+        .bind(&ids[..]).fetch_one(&state.pool).await.unwrap();
+    assert_eq!(remaining, 0, "Fresh confirmation deletes target VMs");
+}
+
+#[tokio::test]
+#[ignore = "requires Podman; creates and removes its own PostgreSQL 17 container"]
+async fn vm_deletion_legacy_call_without_request_id_retains_compatibility() {
+    let (_database, state) = Database::start().await;
+    let mut admin = Browser::default();
+    assert_eq!(admin.request(&state, "POST", "/auth/setup", Some(json!({
+        "email":"admin@example.com", "password":"admin-password",
+    }))).await.0, StatusCode::CREATED);
+    let target = deletion_test_vm(&mut admin, &state, "legacy").await;
+    let payload = json!({"ids": [target]});
+    assert_eq!(admin.request(&state, "POST", "/vms/bulk-delete", Some(payload)).await.0, StatusCode::NO_CONTENT);
+    let remaining: i64 = sqlx::query_scalar("SELECT count(*) FROM vms WHERE id = $1")
+        .bind(target).fetch_one(&state.pool).await.unwrap();
+    assert_eq!(remaining, 0);
 }
 
 #[tokio::test]

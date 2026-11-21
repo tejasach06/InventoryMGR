@@ -52,6 +52,7 @@ impl Client {
                     if let Some(Value::Object(ctx)) = map.get_mut("ctx") { ctx.remove("error"); if ctx.is_empty() { map.remove("ctx"); } }
                 }
                 if matches!(map.get("kind").and_then(Value::as_str), Some("manual" | "restore" | "pre_restore")) && map.get("size_bytes").and_then(Value::as_u64).unwrap_or(0) > 0 { map.insert("size_bytes".into(), json!("<nonempty-dump>")); }
+                if map.contains_key("items") && map.contains_key("total") { map.remove("version"); }
                 let mut keys: Vec<_> = map.keys().cloned().collect(); keys.sort();
                 for k in keys { let v = map.remove(&k).unwrap(); map.insert(k.clone(), self.normalize(v, &k)); }
             }

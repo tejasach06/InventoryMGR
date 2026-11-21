@@ -137,6 +137,7 @@ export interface VmList {
   total: number;
   limit: number;
   offset: number;
+  version?: string;
 }
 export type BulkPatch = Record<string, string | boolean | string[]>;
 export interface BulkResult {

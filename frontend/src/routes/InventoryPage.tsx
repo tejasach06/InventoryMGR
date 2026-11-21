@@ -72,7 +72,11 @@ export function InventoryPage() {
   const [bulkFailureDetails, setBulkFailureDetails] = useState<BulkResult | null>(null);
   const [pendingPatch, setPendingPatch] = useState<BulkPatch | null>(null);
   const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
-  const [deleteTargets, setDeleteTargets] = useState<Pick<Vm, 'id' | 'name'>[]>([]);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    targets: Pick<Vm, 'id' | 'name'>[];
+    requestId: string;
+    version?: string;
+  } | null>(null);
   const [deleteError, setDeleteError] = useState<string>();
   const queryClient = useQueryClient();
   const [exportOpen, setExportOpen] = useState(false);
@@ -220,25 +224,43 @@ export function InventoryPage() {
 
   function openBulkDelete() {
     if (!canDeleteSelected) return;
-    setDeleteTargets(items.filter(({ id }) => selectedIds.has(id)).map(({ id, name }) => ({ id, name })));
+    const targets = items.filter(({ id }) => selectedIds.has(id)).map(({ id, name }) => ({ id, name }));
+    // getRandomValues is available on HTTP origins where randomUUID is unavailable.
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const requestId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    const version = vms.data?.version;
+    setDeleteConfirmation({ targets, requestId, version });
     setDeleteError(undefined);
     setBulkError(undefined);
     setBulkSuccess(undefined);
     setBulkFailureDetails(null);
   }
 
-  const closeBulkDelete = useCallback(() => setDeleteTargets([]), []);
+  const closeBulkDelete = useCallback(() => setDeleteConfirmation(null), []);
+  const deleteTargets = deleteConfirmation?.targets ?? [];
 
   async function deleteSelected() {
-    const ids = deleteTargets.map(({ id }) => id);
+    if (!deleteConfirmation) return;
+    const ids = deleteConfirmation.targets.map(({ id }) => id);
     setDeleteError(undefined);
     try {
-      await vmsApi.bulkDeleteVms(ids);
+      await vmsApi.bulkDeleteVms({
+        ids,
+        request_id: deleteConfirmation.requestId,
+        version: deleteConfirmation.version,
+      });
       setBulkSuccess(`Deleted ${ids.length} VM record${ids.length === 1 ? '' : 's'}.`);
       for (const id of ids) void queryClient.invalidateQueries({ queryKey: ['vm', id] });
       void queryClient.invalidateQueries({ queryKey: ['vm-export-preview'] });
     } catch (error) {
-      if (!(error instanceof ApiError && error.status === 409)) {
+      if (!(error instanceof ApiError) || error.status === 502 || error.status === 504) {
+        setDeleteError('Deletion may have completed. Press and hold for 2 seconds to retry.');
+        return;
+      }
+      if (error.status !== 409) {
         setDeleteError(detailMessage(error));
         return;
       }
@@ -497,7 +519,7 @@ export function InventoryPage() {
         )}
       </ConfirmDialog>
       <ConfirmDialog
-        open={deleteTargets.length > 0}
+        open={deleteConfirmation !== null}
         title={`Delete ${deleteTargets.length} selected VM${deleteTargets.length === 1 ? '' : 's'}?`}
         body="This permanently deletes these records from InventoryMGR only. Press and hold for 2 seconds to confirm."
         confirmLabel="Hold to delete"

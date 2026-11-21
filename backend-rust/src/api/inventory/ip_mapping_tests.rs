@@ -131,7 +131,7 @@ async fn migration_empty_database_and_schema_verification() {
         .fetch_one(&state.pool)
         .await
         .unwrap();
-    assert_eq!(version, "0026");
+    assert_eq!(version, "0027");
 
     let exists: bool = sqlx::query_scalar("SELECT to_regclass('public.vm_ip_mappings') IS NOT NULL")
         .fetch_one(&state.pool)
@@ -149,13 +149,8 @@ async fn migration_empty_database_and_schema_verification() {
 #[tokio::test]
 async fn migration_from_0025_preserves_rows_and_zero_inferred_pairs() {
     let (_db, pool, _url) = Database::start_raw().await;
-    const SCHEMA: &str = include_str!("../../../migrations/0001_inventory_schema.sql");
-    let marker = "-- Running upgrade 0025 -> 0026";
-    let offset = SCHEMA.find(marker).expect("0025 -> 0026 marker found");
-    let schema_0025: &'static str = Box::leak(format!("{}\nCOMMIT;", &SCHEMA[..offset]).into_boxed_str());
-
     let mut conn = pool.acquire().await.unwrap();
-    crate::db::execute_migration(&mut conn, schema_0025).await.unwrap();
+    load_historical_schema(&mut conn, "0025").await;
 
     let version: String = sqlx::query_scalar("SELECT version_num FROM alembic_version")
         .fetch_one(&mut *conn)
@@ -203,7 +198,7 @@ async fn migration_from_0025_preserves_rows_and_zero_inferred_pairs() {
         .fetch_one(&mut *conn)
         .await
         .unwrap();
-    assert_eq!(version, "0026");
+    assert_eq!(version, "0027");
 
     // Existing rows preserved
     let net_count: i64 = sqlx::query_scalar("SELECT count(*) FROM vm_networks WHERE vm_id=$1")
@@ -219,6 +214,82 @@ async fn migration_from_0025_preserves_rows_and_zero_inferred_pairs() {
         .await
         .unwrap();
     assert_eq!(mapping_count, 0, "Zero inferred pairs created on historical upgrade");
+}
+
+async fn load_historical_schema(conn: &mut sqlx::PgConnection, version: &str) {
+    const SCHEMA: &str = include_str!("../../../migrations/0001_inventory_schema.sql");
+    let marker = format!("-- Running upgrade {version} -> ");
+    let offset = SCHEMA.find(&marker).expect("historical migration boundary");
+    let schema = format!("{}\nCOMMIT;", &SCHEMA[..offset]).leak();
+    crate::db::execute_migration(conn, schema).await.unwrap();
+}
+
+#[tokio::test]
+async fn migration_from_0026_retains_audit_history_after_vm_removal() {
+    let (_db, pool, _url) = Database::start_raw().await;
+    let mut conn = pool.acquire().await.unwrap();
+    load_historical_schema(&mut conn, "0026").await;
+    let actor: Uuid = sqlx::query_scalar(
+        "INSERT INTO users(id, email, password_hash, role, is_active, created_at, updated_at)
+         VALUES (gen_random_uuid(), 'sentinel@test.local', 'hash', 'admin', true, now(), now())
+         RETURNING id",
+    ).fetch_one(&mut *conn).await.unwrap();
+    let vm: Uuid = sqlx::query_scalar(
+        "INSERT INTO vms(id, name, platform, cluster, status, criticality, cpu_cores, memory_mb,
+           environment, pmp_enabled, monitoring_enabled, backup_enabled, ha_enabled, tags,
+           created_by_id, updated_by_id, created_at, updated_at)
+         VALUES (gen_random_uuid(), 'legacy-vm', 'vmware', 'cluster1', 'running', 'medium', 2, 2048,
+           'production', false, false, false, false, '[]', $1, $1, now(), now())
+         RETURNING id",
+    ).bind(actor).fetch_one(&mut *conn).await.unwrap();
+    let history_id: Uuid = sqlx::query_scalar(
+        "INSERT INTO audit_log (id, vm_id, user_id, field_name, old_value, new_value, changed_at)
+         VALUES (gen_random_uuid(), $1, $2, 'notes', 'old', 'new', now()) RETURNING id",
+    ).bind(vm).bind(actor).fetch_one(&mut *conn).await.unwrap();
+    drop(conn);
+
+    crate::db::migrate(&pool).await.unwrap();
+    sqlx::query("DELETE FROM vms WHERE id = $1").bind(vm).execute(&pool).await.unwrap();
+    let audit: (Uuid, Uuid, String, String, String) = sqlx::query_as(
+        "SELECT vm_id, user_id, field_name, old_value, new_value FROM audit_log WHERE id = $1",
+    ).bind(history_id).fetch_one(&pool).await.unwrap();
+    assert_eq!(audit, (vm, actor, "notes".into(), "old".into(), "new".into()));
+}
+
+#[tokio::test]
+async fn migration_0026_to_0027_handles_preexisting_leftover_receipts_table_safely() {
+    let (_db, pool, _url) = Database::start_raw().await;
+    let mut conn = pool.acquire().await.unwrap();
+    load_historical_schema(&mut conn, "0026").await;
+    // Simulate dirty manual restore on top of 0027:
+    // audit_log_vm_id_fkey was already dropped, and vm_deletion_receipts exists with leftover rows.
+    sqlx::query("ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_vm_id_fkey")
+        .execute(&mut *conn).await.unwrap();
+    sqlx::query(
+        "CREATE TABLE vm_deletion_receipts (
+            operation_id UUID PRIMARY KEY,
+            actor_id UUID NOT NULL,
+            vm_ids UUID[] NOT NULL,
+            deleted_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+         )"
+    ).execute(&mut *conn).await.unwrap();
+    sqlx::query(
+        "INSERT INTO vm_deletion_receipts (operation_id, actor_id, vm_ids)
+         VALUES ($1, $2, $3)"
+    ).bind(Uuid::new_v4()).bind(Uuid::new_v4()).bind(&[Uuid::new_v4()][..])
+    .execute(&mut *conn).await.unwrap();
+    drop(conn);
+
+    // Migration to 0027 must succeed without failure and safely purge leftover receipts.
+    crate::db::migrate(&pool).await.unwrap();
+
+    let revision: String = sqlx::query_scalar("SELECT version_num FROM alembic_version")
+        .fetch_one(&pool).await.unwrap();
+    assert_eq!(revision, "0027");
+
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM vm_deletion_receipts")
+        .fetch_one(&pool).await.unwrap();
+    assert_eq!(count, 0, "Stale receipts from before the restore must be purged");
 }
 
 #[tokio::test]

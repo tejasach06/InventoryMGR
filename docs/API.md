@@ -35,18 +35,60 @@ CRUD for accounts. Admin-only for create/update/delete; role assignment is
 | POST | `/api/vms/bulk-delete` | Delete multiple VM inventory entries in one transaction. |
 
 `POST /api/vms/bulk-delete` requires an admin session and a valid
-`X-CSRF-Token` header. The JSON body must contain an `ids` array of 1 to 200
-distinct VM UUIDs. The request deletes inventory entries stored in InventoryMGR.
+`X-CSRF-Token` header. The JSON body contains an `ids` array of 1 to 200
+distinct VM UUIDs and an optional `request_id` (UUID idempotency key). If
+omitted, the server assigns a random UUID operation ID. The request deletes
+inventory entries stored in InventoryMGR atomically.
+
+### Idempotency, replay, restore epoch, and timeout semantics
+
+- **Replay**: If a network interruption or lost response causes a client to
+  retry deletion with the same `request_id`, the server verifies that the
+  request originates from the same authenticated administrator, carries a
+  matching inventory/restore epoch `version`, and targets the identical set of
+  VM UUIDs. If it matches, the server returns `204 No Content` without
+  mutating database rows or generating duplicate audit events. If the
+  `request_id` was previously recorded for a different user or a different set
+  of VM UUIDs, the server rejects the request with `422 Unprocessable Entity`
+  (`{"detail": "Deletion request could not be applied"}`).
+- **Restore epoch binding**: Bulk deletion requests with a `request_id` capture
+  and pair the current `version` token returned by `GET /api/vms`. If a
+  database restore occurs between selection and deletion (or during delayed
+  retry), the rotated session generation invalidates the stale epoch token and
+  the server returns `409 Conflict` (`{"detail": "The selection is stale; please refresh and try again"}`),
+  preventing accidental deletion of restored VMs. Legacy calls without
+  `request_id` retain backward compatibility.
+- **Timeouts and transient concurrency**: Row locks are acquired in sorted UUID
+  order (`SELECT ... FOR UPDATE`) under a 5-second `lock_timeout`. If concurrent
+  transactions trigger a lock timeout (`55P03`), deadlock (`40P01`), or
+  serialization failure (`40001`), the server aborts cleanly and returns
+  `503 Service Unavailable` (`{"detail": "VM deletion is busy. Try again."}`).
+- **All-or-nothing rollback**: If any target VM does not exist or fails validation,
+  the transaction rolls back completely; no VMs are deleted and no deletion receipt is saved.
 
 | Status | Result |
 |---|---|
-| `204 No Content` | All requested entries were deleted. |
-| `422 Unprocessable Entity` | The payload is invalid. All entries are preserved. |
-| `409 Conflict` | At least one requested UUID does not exist. All entries are preserved. |
+| `204 No Content` | All requested entries were deleted, or the request was an idempotent replay of a previously completed deletion with matching `request_id`, actor, `version`, and `ids`. |
+| `409 Conflict` | The selection is stale (e.g. following a database restore), or at least one requested UUID no longer exists. All entries are preserved. |
+| `422 Unprocessable Entity` | The payload is invalid or `request_id` conflicts with a different actor or different VM selection. All entries are preserved. |
+| `503 Service Unavailable` | Row lock acquisition timed out (5s lock_timeout), deadlocked, or encountered a serialization conflict due to concurrent operations. Retryable. |
 
 Child resources nest under a VM: `/api/vms/{parent_id}/disks`,
 `/api/vms/{parent_id}/networks`, `/api/vms/{parent_id}/applications`,
 `/api/vms/{vm_id}/audit` (change history, read-only).
+
+### Audit access and restore boundary
+
+- **Access boundary**: `GET /api/vms/{vm_id}/audit` requires the VM record to exist in
+  the database. Querying audit history for a deleted VM returns `404 Not Found`. Remaining
+  historical access for deleted records is operator-side via direct SQL queries.
+- **Retention and restore boundary**: Starting in schema revision `0027`, the foreign
+  key constraint `audit_log_vm_id_fkey` (`ON DELETE CASCADE`) is dropped. When a VM
+  is deleted, its historical rows in `audit_log` are preserved in the database. Restoring
+  a database snapshot brings both `audit_log` and `vm_deletion_receipts` back to that snapshot's
+  state; any audit events and deletion receipts recorded after the snapshot survive only in the
+  automatic `pre_restore` backup archive. Note that audit rows for VMs deleted under revision
+  `0026` or earlier were cascaded upon deletion.
 
 ### IP mappings
 
