@@ -1325,6 +1325,42 @@
     },
     {
       "column_default": null,
+      "column_name": "operation_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "ordinal_position": 1,
+      "table_name": "vm_deletion_receipts",
+      "udt_name": "uuid"
+    },
+    {
+      "column_default": null,
+      "column_name": "actor_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "ordinal_position": 2,
+      "table_name": "vm_deletion_receipts",
+      "udt_name": "uuid"
+    },
+    {
+      "column_default": null,
+      "column_name": "vm_ids",
+      "data_type": "ARRAY",
+      "is_nullable": "NO",
+      "ordinal_position": 3,
+      "table_name": "vm_deletion_receipts",
+      "udt_name": "_uuid"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "ordinal_position": 4,
+      "table_name": "vm_deletion_receipts",
+      "udt_name": "timestamptz"
+    },
+    {
+      "column_default": null,
       "column_name": "id",
       "data_type": "uuid",
       "is_nullable": "NO",
@@ -1850,11 +1886,6 @@
       "table_name": "audit_log"
     },
     {
-      "conname": "audit_log_vm_id_fkey",
-      "definition": "FOREIGN KEY (vm_id) REFERENCES vms(id) ON DELETE CASCADE",
-      "table_name": "audit_log"
-    },
-    {
       "conname": "backup_jobs_pkey",
       "definition": "PRIMARY KEY (id)",
       "table_name": "backup_jobs"
@@ -2073,6 +2104,11 @@
       "conname": "vm_applications_vm_id_fkey",
       "definition": "FOREIGN KEY (vm_id) REFERENCES vms(id) ON DELETE CASCADE",
       "table_name": "vm_applications"
+    },
+    {
+      "conname": "vm_deletion_receipts_pkey",
+      "definition": "PRIMARY KEY (operation_id)",
+      "table_name": "vm_deletion_receipts"
     },
     {
       "conname": "vm_disks_pkey",
@@ -2522,6 +2558,11 @@
       "indexdef": "CREATE UNIQUE INDEX vm_applications_pkey ON public.vm_applications USING btree (id)",
       "indexname": "vm_applications_pkey",
       "tablename": "vm_applications"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX vm_deletion_receipts_pkey ON public.vm_deletion_receipts USING btree (operation_id)",
+      "indexname": "vm_deletion_receipts_pkey",
+      "tablename": "vm_deletion_receipts"
     },
     {
       "indexdef": "CREATE INDEX ix_vm_disks_vm_id ON public.vm_disks USING btree (vm_id)",

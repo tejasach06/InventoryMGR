@@ -730,5 +730,18 @@ CREATE INDEX ix_vm_ip_mappings_private_ip_id ON vm_ip_mappings (private_ip_id);
 
 UPDATE alembic_version SET version_num='0026' WHERE alembic_version.version_num = '0025';
 
+-- Running upgrade 0026 -> 0027
+
+ALTER TABLE audit_log DROP CONSTRAINT audit_log_vm_id_fkey;
+
+CREATE TABLE vm_deletion_receipts (
+    operation_id UUID PRIMARY KEY,
+    actor_id UUID NOT NULL,
+    vm_ids UUID[] NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+
+UPDATE alembic_version SET version_num='0027' WHERE alembic_version.version_num = '0026';
+
 COMMIT;
 

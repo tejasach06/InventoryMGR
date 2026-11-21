@@ -15,7 +15,7 @@ use axum::{Router,extract::{State,Path,Extension,RawQuery},http::StatusCode,rout
 use serde_json::{json,Value};
 use sqlx::QueryBuilder;
 use uuid::Uuid;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 struct InventoryId(Uuid);
 impl axum::extract::FromRequestParts<AppState> for InventoryId {
  type Rejection=ApiError;
@@ -87,39 +87,66 @@ async fn list_vms(State(s):State<AppState>,_:Viewer,RawQuery(raw):RawQuery)->Res
 async fn create_vm(State(s):State<AppState>,u:Editor,_csrf:Csrf,ValidatedJson(v):ValidatedJson<Value>)->Result<(StatusCode,Json<Value>),ApiError>{Ok((StatusCode::CREATED,Json(mutate_vm(&s.pool,None,v,u.0.id).await?)))}
 async fn patch_vm(State(s):State<AppState>,u:Editor,_csrf:Csrf,InventoryId(id):InventoryId,ValidatedJson(v):ValidatedJson<Value>)->Result<Json<Value>,ApiError>{Ok(Json(mutate_vm(&s.pool,Some(id),v,u.0.id).await?))}
 async fn get_vm(State(s):State<AppState>,_:Viewer,InventoryId(id):InventoryId)->Result<Json<Value>,ApiError>{let mut c=s.pool.acquire().await.map_err(db_error)?;Ok(Json(vm_detail(&mut c,id).await?))}
-async fn delete_vm(State(s):State<AppState>,_:Admin,_csrf:Csrf,InventoryId(id):InventoryId)->Result<(StatusCode,[(axum::http::HeaderName,&'static str);1]),ApiError>{let mut tx=s.pool.begin().await.map_err(db_error)?;delete(&mut tx,VM,id,None).await?;tx.commit().await.map_err(db_error)?;Ok((StatusCode::NO_CONTENT,[(axum::http::header::CONTENT_TYPE,"application/json")]))}
+
+struct DeletionAdmin(Uuid);
+
+impl axum::extract::FromRequestParts<AppState> for DeletionAdmin {
+    type Rejection = ApiError;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &AppState,
+    ) -> Result<Self, ApiError> {
+        match Admin::from_request_parts(parts, state).await {
+            Ok(admin) => Ok(Self(admin.0.id)),
+            Err(error) if error.status == StatusCode::INTERNAL_SERVER_ERROR => {
+                tracing::error!(?error, "VM deletion authorization failed");
+                Err(ApiError::internal(VM_DELETION_FAILED))
+            }
+            Err(error) => Err(error),
+        }
+    }
+}
+
+async fn delete_vm(
+    State(state): State<AppState>,
+    DeletionAdmin(actor_id): DeletionAdmin,
+    _: Csrf,
+    InventoryId(id): InventoryId,
+) -> Result<(StatusCode, [(axum::http::HeaderName, &'static str); 1]), ApiError> {
+    if !delete_vms(&state.pool, Uuid::new_v4(), actor_id, &[id]).await? {
+        return Err(ApiError::not_found(VM.missing));
+    }
+    Ok((StatusCode::NO_CONTENT, [(axum::http::header::CONTENT_TYPE, "application/json")]))
+}
 
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BulkDeleteVms {
     ids: Vec<Uuid>,
+    request_id: Option<Uuid>,
 }
 
 impl JsonSchema for BulkDeleteVms {
-    const FIELDS: &'static [(&'static str, bool, FieldKind)] = &[("ids", true, FieldKind::Array)];
+    const FIELDS: &'static [(&'static str, bool, FieldKind)] = &[
+        ("ids", true, FieldKind::Array),
+        ("request_id", false, FieldKind::String),
+    ];
 }
 
 async fn bulk_delete_vms(
     State(state): State<AppState>,
-    _: Admin,
+    DeletionAdmin(actor_id): DeletionAdmin,
     _: Csrf,
-    ValidatedJson(BulkDeleteVms { ids }): ValidatedJson<BulkDeleteVms>,
+    ValidatedJson(BulkDeleteVms { mut ids, request_id }): ValidatedJson<BulkDeleteVms>,
 ) -> Result<StatusCode, ApiError> {
-    if !(1..=200).contains(&ids.len()) || ids.iter().collect::<HashSet<_>>().len() != ids.len() {
+    ids.sort_unstable();
+    if !(1..=200).contains(&ids.len()) || ids.windows(2).any(|pair| pair[0] == pair[1]) {
         return Err(ApiError::invalid("ids must contain 1 to 200 distinct UUIDs"));
     }
-
-    let mut tx = state.pool.begin().await.map_err(db_error)?;
-    let deleted = sqlx::query("DELETE FROM vms WHERE id = ANY($1)")
-        .bind(ids.as_slice())
-        .execute(&mut *tx)
-        .await
-        .map_err(db_error)?;
-    if deleted.rows_affected() != ids.len() as u64 {
-        tx.rollback().await.map_err(db_error)?;
-        return Err(ApiError::new(StatusCode::CONFLICT, "One or more VMs no longer exist"));
+    if !delete_vms(&state.pool, request_id.unwrap_or_else(Uuid::new_v4), actor_id, &ids).await? {
+        return Err(ApiError::conflict("One or more VMs no longer exist"));
     }
-    tx.commit().await.map_err(db_error)?;
     Ok(StatusCode::NO_CONTENT)
 }
 async fn choices(State(s):State<AppState>,_:Viewer,Extension(kind):Extension<Choice>)->Result<Json<Value>,ApiError>{let(keep_empty,sql)=match kind{Choice::Tags=>(false,"SELECT DISTINCT jsonb_array_elements_text(tags) AS value FROM vms ORDER BY value".to_owned()),Choice::Applications=>(false,"SELECT DISTINCT app_name AS value FROM vm_applications ORDER BY value".to_owned()),Choice::Owners=>(false,"SELECT DISTINCT owner AS value FROM vms WHERE owner IS NOT NULL ORDER BY value".to_owned()),Choice::Nodes=>(false,"SELECT DISTINCT node AS value FROM vms WHERE node IS NOT NULL ORDER BY value".to_owned()),Choice::Clusters=>(true,"SELECT DISTINCT cluster AS value FROM vms WHERE cluster IS NOT NULL ORDER BY value".to_owned())};let mut vals:Vec<String>=sqlx::query_scalar(sqlx::AssertSqlSafe(sql)).fetch_all(&s.pool).await.map_err(db_error)?;if !keep_empty{vals.retain(|v|!v.is_empty());}Ok(Json(json!(vals)))}
