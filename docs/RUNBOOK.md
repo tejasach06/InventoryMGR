@@ -65,11 +65,21 @@ If invalidation cannot be persisted, `BACKUP_DIR/.restore-auth-blocked` keeps au
 Take a fresh backup before manually restoring live data.
 For recovery outside the API, use `pg_restore --single-transaction --exit-on-error --clean --if-exists -d <database> <archive>` and invalidate sessions before reopening access.
 
+### VM deletion and audit preservation
+
+When a VM is deleted via `DELETE /api/vms/{id}` or `POST /api/vms/bulk-delete`, the transaction records an atomic receipt in `vm_deletion_receipts` (`operation_id`, `actor_id`, `vm_ids`, `deleted_at`).
+Starting with schema revision `0027`, the foreign key constraint `audit_log_vm_id_fkey` (`ON DELETE CASCADE`) is dropped so that historical audit events in `audit_log` are preserved indefinitely when VMs are deleted.
+
+- **Audit access boundary**: Direct access via `GET /api/vms/{id}/audit` is gated on the VM record existing in `vms`. Querying audit history for a deleted VM returns `404 Not Found`.
+- **Restore boundary**: Restoring database dumps (or re-creating a VM with the same UUID) re-links the historical audit records, making them accessible once again. Backup archives from older snapshots upgrade cleanly to revision `0027` without loss of audit history.
+- **Replay and timeout semantics**: Bulk deletion supports client-provided `request_id` idempotency keys. Retrying a lost response with the same `request_id` succeeds idempotently (`204 No Content`) for the same actor and VM targets without re-executing deletion or generating duplicate receipts. Mismatched replayed requests return `422 Unprocessable Entity`. Row locks are ordered by UUID with a 5-second lock timeout; timeouts abort cleanly returning `503 Service Unavailable`.
+
 ## Database migrations
 
 The native migrator in `backend-rust/src/db/mod.rs` executes the embedded revision chain in `backend-rust/migrations/0001_inventory_schema.sql` through SQLx.
 Startup uses a PostgreSQL advisory lock. Empty databases receive the full chain.
-Recognized historical Alembic revisions receive the remaining upgrades through head `0025`.
+Recognized historical Alembic revisions receive the remaining upgrades through head `0027`.
+Schema revision `0027` drops `audit_log_vm_id_fkey` to preserve audit records on VM deletion, and adds the `vm_deletion_receipts` table for idempotent retry tracking.
 
 `alembic_version.version_num` remains the revision ledger.
 There is no `_sqlx_migrations` ledger.
@@ -104,7 +114,7 @@ Both `template` and `backup` tags exclude VMs from alert predicates, regardless 
 | Frontend returns 502 | Confirm backend health and the `INVENTORYMGR_API_URL` network address. |
 | LDAP login fails | Inspect the admin-only LDAP settings and confirm that the bind credential decrypts with the configured `JWT_SECRET`. |
 | Settings endpoint returns 403 | These endpoints require an administrator. |
-| Migration drift | Compare `alembic_version` with head `0025`. Test repair on an isolated copy before touching live data. |
+| Migration drift | Compare `alembic_version` with head `0027`. Test repair on an isolated copy before touching live data. |
 | Backup filename rejected | Keep the generated archive name. Only the documented timestamp, label, optional UUID suffix, and `.dump` extension are allowed. |
 | Access blocked after restore failure | Check restore and invalidation errors before restarting. Confirm database integrity and session-generation persistence before reopening access. |
 
@@ -168,7 +178,7 @@ and HTTP requests have five-second limits. Diagnostic commands have 15-second
 limits and retain at most 100 lines / 5 MiB per stream. Build logs are retained
 separately. Secrets are generated per run and redacted from diagnostic output.
 
-Checks include PostgreSQL revision `0025`, PostgreSQL 17 clients, application UID
+Checks include PostgreSQL revision `0027`, PostgreSQL 17 clients, application UID
 1000, actual running image IDs, direct health, frontend availability, API routing
 through the frontend, and 60 seconds of healthy service state without unexpected
 restarts. Compose also restarts against the same database volume. Quadlet starts
