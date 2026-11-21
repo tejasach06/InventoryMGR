@@ -123,3 +123,59 @@ test('bulk edits the selected rows', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Edit 32 VMs' })).toBeHidden();
   await expect(page.locator('[data-testid="cell-criticality"]').first()).toHaveText(/high/i);
 });
+
+test('bulk deletes selected VM inventory entries after a two-second hold', async ({ page }) => {
+  const prefix = `e2e-bulk-delete-${Date.now()}`;
+  const selectedNames = [`${prefix}-first`, `${prefix}-second`];
+  const retainedName = `${prefix}-retained`;
+  const names = [...selectedNames, retainedName];
+
+  await loginAsAdmin(page);
+  await page.goto('/imports/new');
+  const csv = ['name,platform,cluster,status', ...names.map((name) => `${name},proxmox,pve-bulk-delete,running`)];
+  await page.getByLabel('CSV file', { exact: true }).setInputFiles({
+    name: `${prefix}.csv`,
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv.join('\n')),
+  });
+  await page.getByRole('button', { name: 'Preview partial import' }).click();
+  await page.getByRole('button', { name: 'Commit persisted batch' }).click();
+  await expect(page.getByText('Import committed. Inventory has been updated from persisted preview rows.')).toBeVisible();
+
+  await page.goto('/inventory');
+  await page.getByLabel('Search VMs').fill(prefix);
+  for (const name of names) {
+    await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
+  }
+  for (const name of selectedNames) {
+    await page.getByRole('checkbox', { name: `Select ${name}`, exact: true }).check();
+  }
+
+  await page.getByRole('button', { name: 'Delete selected' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText(/\b2\b/);
+  for (const name of selectedNames) {
+    await expect(dialog.getByText(name, { exact: true })).toBeVisible();
+  }
+  await expect(dialog.getByText(retainedName, { exact: true })).toHaveCount(0);
+
+  const holdButton = dialog.getByRole('button', { name: 'Hold to delete' });
+  await holdButton.click({ delay: 100 });
+  await expect(dialog).toBeVisible();
+  for (const name of selectedNames) {
+    await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
+  }
+
+  const [response] = await Promise.all([
+    page.waitForResponse((res) =>
+      res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/vms/bulk-delete',
+    ),
+    holdButton.click({ delay: 2_100 }),
+  ]);
+  expect(response.status()).toBe(204);
+  await expect(dialog).toBeHidden();
+  for (const name of selectedNames) {
+    await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0);
+  }
+  await expect(page.getByRole('link', { name: retainedName, exact: true })).toBeVisible();
+});

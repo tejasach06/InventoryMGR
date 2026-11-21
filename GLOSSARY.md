@@ -2,6 +2,10 @@
 
 Canonical domain terminology for InventoryMGR.
 
+## VM inventory entry
+
+The InventoryMGR record of a virtual machine (VM).
+
 ## Virtual Host (Virtual Hosts)
 
 A website name, domain, or host label mapped to one or more virtual machines (VMs).

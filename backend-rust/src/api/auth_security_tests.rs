@@ -74,6 +74,95 @@ impl Browser {
 
 #[tokio::test]
 #[ignore = "requires Podman; creates and removes its own PostgreSQL 17 container"]
+async fn bulk_delete_vms_requires_admin_and_csrf_and_deletes_atomically() {
+    let (_database, state) = Database::start().await;
+    let mut admin = Browser::default();
+    let (status, _) = admin.request(&state, "POST", "/auth/setup", Some(json!({
+        "email": "admin@example.com", "password": "admin-password",
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED);
+
+    let mut ids = Vec::new();
+    for name in ["first", "second", "untouched"] {
+        let (status, vm) = admin.request(&state, "POST", "/vms", Some(json!({
+            "name": name, "platform": "vmware", "cluster": "test", "status": "running",
+            "criticality": "medium", "cpu_cores": 1, "memory_mb": 1024,
+            "disks": [{"disk_name": "root"}],
+        }))).await;
+        assert_eq!(status, StatusCode::CREATED, "{vm}");
+        ids.push(Uuid::parse_str(vm["id"].as_str().unwrap()).unwrap());
+    }
+    let targets = &ids[..2];
+    let path = "/vms/bulk-delete";
+    let payload = json!({"ids": targets});
+    let mut anonymous = Browser::default();
+    assert_eq!(anonymous.request(&state, "POST", path, Some(payload.clone())).await.0, StatusCode::UNAUTHORIZED);
+    for role in ["viewer", "editor"] {
+        let email = format!("{role}@example.com");
+        let (status, _) = admin.request(&state, "POST", "/users", Some(json!({
+            "email": email, "password": "user-password", "role": role,
+        }))).await;
+        assert_eq!(status, StatusCode::CREATED);
+        let mut user = Browser::default();
+        assert_eq!(user.login(&state, &email, "user-password").await, StatusCode::OK);
+        assert_eq!(user.request(&state, "POST", path, Some(payload.clone())).await.0, StatusCode::FORBIDDEN);
+    }
+    let mut without_csrf = admin.clone();
+    without_csrf.csrf.clear();
+    assert_eq!(without_csrf.request(&state, "POST", path, Some(payload.clone())).await.0, StatusCode::FORBIDDEN);
+
+    let missing: Vec<_> = (0..201).map(Uuid::from_u128).collect();
+    for invalid in [
+        None,
+        Some(json!({})),
+        Some(json!([[ids[0]]])),
+        Some(json!({"ids": null})),
+        Some(json!({"ids": ids[0]})),
+        Some(json!({"ids": []})),
+        Some(json!({"ids": ["not-a-uuid"]})),
+        Some(json!({"ids": [123]})),
+        Some(json!({"ids": [ids[0], ids[0].simple().to_string().to_uppercase()]})),
+        Some(json!({"ids": [ids[0]], "all": true})),
+        Some(json!({"ids": missing})),
+    ] {
+        let (status, body) = admin.request(&state, "POST", path, invalid.clone()).await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{invalid:?}: {body}");
+    }
+    let upper_bound = json!({"ids": &missing[..200]});
+    assert_eq!(admin.request(&state, "POST", path, Some(upper_bound)).await.0, StatusCode::CONFLICT);
+
+    let stale = json!({"ids": [ids[0], missing[0], ids[1]]});
+    assert_eq!(admin.request(&state, "POST", path, Some(stale)).await.0, StatusCode::CONFLICT);
+    for id in &ids {
+        let (status, vm) = admin.request(&state, "GET", &format!("/vms/{id}"), None).await;
+        assert_eq!(status, StatusCode::OK, "{id}");
+        assert_eq!(vm["disks"].as_array().unwrap().len(), 1, "{id}");
+    }
+
+    sqlx::query("CREATE TABLE delete_blocker (vm_id uuid REFERENCES vms(id))")
+        .execute(&state.pool).await.unwrap();
+    sqlx::query("INSERT INTO delete_blocker (vm_id) VALUES ($1)")
+        .bind(ids[1]).execute(&state.pool).await.unwrap();
+    assert_eq!(
+        admin.request(&state, "POST", path, Some(payload.clone())).await.0,
+        StatusCode::INTERNAL_SERVER_ERROR,
+    );
+    let disk_count: i64 = sqlx::query_scalar("SELECT count(*) FROM vm_disks")
+        .fetch_one(&state.pool).await.unwrap();
+    assert_eq!(disk_count, 3);
+    sqlx::query("DROP TABLE delete_blocker").execute(&state.pool).await.unwrap();
+
+    assert_eq!(admin.request(&state, "POST", path, Some(payload)).await.0, StatusCode::NO_CONTENT);
+    let remaining_vms: Vec<Uuid> = sqlx::query_scalar("SELECT id FROM vms")
+        .fetch_all(&state.pool).await.unwrap();
+    let remaining_disks: Vec<Uuid> = sqlx::query_scalar("SELECT vm_id FROM vm_disks")
+        .fetch_all(&state.pool).await.unwrap();
+    assert_eq!(remaining_vms, [ids[2]]);
+    assert_eq!(remaining_disks, [ids[2]]);
+}
+
+#[tokio::test]
+#[ignore = "requires Podman; creates and removes its own PostgreSQL 17 container"]
 async fn duplicate_ip_alerts_only_include_running_vms_with_exact_addresses() {
     let (_database, state) = Database::start().await;
     let mut admin = Browser::default();

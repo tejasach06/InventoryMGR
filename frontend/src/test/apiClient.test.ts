@@ -47,6 +47,16 @@ afterEach(() => {
 });
 
 describe('apiRequest', () => {
+  it('posts only explicit IDs for bulk deletion and accepts a 204 response', async () => {
+    fetchMock.mockResolvedValue(fakeResponse({ status: 204 }));
+
+    await expect(vmsApi.bulkDeleteVms(['v1', 'v2'])).resolves.toBeNull();
+    const [url, init] = lastFetchCall();
+    expect(url).toBe('/api/vms/bulk-delete');
+    expect(init.method).toBe('POST');
+    expect(init.body).toBe(JSON.stringify({ ids: ['v1', 'v2'] }));
+  });
+
   it('issues a GET without a body, Content-Type, or CSRF header and includes credentials', async () => {
     fetchMock.mockResolvedValue(fakeResponse({ status: 200, body: '{"ok":true}' }));
 
