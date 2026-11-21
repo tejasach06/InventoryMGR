@@ -10,12 +10,12 @@ mod bulk;
 use resource::*;
 use service::*;
 use filters::Params;
-use crate::api::deps::{AppState,ApiError,Viewer,Editor,Admin,Csrf,ValidatedJson};
+use crate::api::deps::{AppState,ApiError,Viewer,Editor,Admin,Csrf,FieldKind,JsonSchema,ValidatedJson};
 use axum::{Router,extract::{State,Path,Extension,RawQuery},http::StatusCode,routing::{get,post},Json};
 use serde_json::{json,Value};
 use sqlx::QueryBuilder;
 use uuid::Uuid;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 struct InventoryId(Uuid);
 impl axum::extract::FromRequestParts<AppState> for InventoryId {
  type Rejection=ApiError;
@@ -33,6 +33,7 @@ enum Order { Name, Requested }
 enum Selection { Ids(Vec<Uuid>), All, Filtered(Order) }
 pub fn router()->Router<AppState>{
  let mut router=Router::new().route("/vms",get(list_vms).post(create_vm)).route("/vms/export",get(export::export)).route("/vms/bulk",post(bulk)).route("/vms/suggestions",get(suggestions)).route("/vms/{id}/clone",post(clone_vm).layer(Extension(VM))).route("/vms/{id}",get(get_vm).patch(patch_vm).delete(delete_vm).layer(Extension(VM))).route("/vms/{id}/audit",get(audit_vm).layer(Extension(VM)));
+ router = router.route("/vms/bulk-delete", post(bulk_delete_vms));
  for(path,kind)in[("/vms/owners",Choice::Owners),("/vms/clusters",Choice::Clusters),("/vms/nodes",Choice::Nodes),("/vms/applications",Choice::Applications),("/vms/tags",Choice::Tags)]{router=router.route(path,get(choices).layer(Extension(kind)));}
  for(path,r)in[("/clusters",CLUSTER),("/storage/arrays",ARRAY)]{router=router.route(path,get(list_parents).post(create_parent).layer(Extension(r)));router=router.route(&format!("{path}/{{id}}"),get(get_parent).patch(patch_parent).delete(delete_parent).layer(Extension(r)));}
  for(path,r)in[("/vms/{parent}/disks",DISK),("/vms/{parent}/networks",NETWORK),("/vms/{parent}/applications",APPLICATION),("/clusters/{parent}/nodes",NODE),("/storage/arrays/{parent}/volumes",VOLUME),("/storage/volumes/{parent}/luns",LUN),("/storage/volumes/{parent}/shares",SHARE)]{router=router.route(path,get(list_children).post(create_child).layer(Extension(r)));router=router.route(&format!("{path}/{{id}}"),axum::routing::patch(patch_child).delete(delete_child).layer(Extension(r)));}router
@@ -87,6 +88,40 @@ async fn create_vm(State(s):State<AppState>,u:Editor,_csrf:Csrf,ValidatedJson(v)
 async fn patch_vm(State(s):State<AppState>,u:Editor,_csrf:Csrf,InventoryId(id):InventoryId,ValidatedJson(v):ValidatedJson<Value>)->Result<Json<Value>,ApiError>{Ok(Json(mutate_vm(&s.pool,Some(id),v,u.0.id).await?))}
 async fn get_vm(State(s):State<AppState>,_:Viewer,InventoryId(id):InventoryId)->Result<Json<Value>,ApiError>{let mut c=s.pool.acquire().await.map_err(db_error)?;Ok(Json(vm_detail(&mut c,id).await?))}
 async fn delete_vm(State(s):State<AppState>,_:Admin,_csrf:Csrf,InventoryId(id):InventoryId)->Result<(StatusCode,[(axum::http::HeaderName,&'static str);1]),ApiError>{let mut tx=s.pool.begin().await.map_err(db_error)?;delete(&mut tx,VM,id,None).await?;tx.commit().await.map_err(db_error)?;Ok((StatusCode::NO_CONTENT,[(axum::http::header::CONTENT_TYPE,"application/json")]))}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BulkDeleteVms {
+    ids: Vec<Uuid>,
+}
+
+impl JsonSchema for BulkDeleteVms {
+    const FIELDS: &'static [(&'static str, bool, FieldKind)] = &[("ids", true, FieldKind::Array)];
+}
+
+async fn bulk_delete_vms(
+    State(state): State<AppState>,
+    _: Admin,
+    _: Csrf,
+    ValidatedJson(BulkDeleteVms { ids }): ValidatedJson<BulkDeleteVms>,
+) -> Result<StatusCode, ApiError> {
+    if !(1..=200).contains(&ids.len()) || ids.iter().collect::<HashSet<_>>().len() != ids.len() {
+        return Err(ApiError::invalid("ids must contain 1 to 200 distinct UUIDs"));
+    }
+
+    let mut tx = state.pool.begin().await.map_err(db_error)?;
+    let deleted = sqlx::query("DELETE FROM vms WHERE id = ANY($1)")
+        .bind(ids.as_slice())
+        .execute(&mut *tx)
+        .await
+        .map_err(db_error)?;
+    if deleted.rows_affected() != ids.len() as u64 {
+        tx.rollback().await.map_err(db_error)?;
+        return Err(ApiError::new(StatusCode::CONFLICT, "One or more VMs no longer exist"));
+    }
+    tx.commit().await.map_err(db_error)?;
+    Ok(StatusCode::NO_CONTENT)
+}
 async fn choices(State(s):State<AppState>,_:Viewer,Extension(kind):Extension<Choice>)->Result<Json<Value>,ApiError>{let(keep_empty,sql)=match kind{Choice::Tags=>(false,"SELECT DISTINCT jsonb_array_elements_text(tags) AS value FROM vms ORDER BY value".to_owned()),Choice::Applications=>(false,"SELECT DISTINCT app_name AS value FROM vm_applications ORDER BY value".to_owned()),Choice::Owners=>(false,"SELECT DISTINCT owner AS value FROM vms WHERE owner IS NOT NULL ORDER BY value".to_owned()),Choice::Nodes=>(false,"SELECT DISTINCT node AS value FROM vms WHERE node IS NOT NULL ORDER BY value".to_owned()),Choice::Clusters=>(true,"SELECT DISTINCT cluster AS value FROM vms WHERE cluster IS NOT NULL ORDER BY value".to_owned())};let mut vals:Vec<String>=sqlx::query_scalar(sqlx::AssertSqlSafe(sql)).fetch_all(&s.pool).await.map_err(db_error)?;if !keep_empty{vals.retain(|v|!v.is_empty());}Ok(Json(json!(vals)))}
 async fn suggestions(State(s):State<AppState>,_:Viewer)->Result<Json<Value>,ApiError>{let mut v=json!({});for col in ["datacenter","os_distribution","os_version","business_owner","technical_owner","backup_location"]{let vals:Vec<String>=sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT DISTINCT {col} FROM vms WHERE {col} IS NOT NULL AND {col}<>'' ORDER BY {col}"))).fetch_all(&s.pool).await.map_err(db_error)?;v[col]=json!(vals);}Ok(Json(v))}
 async fn list_parents(State(s):State<AppState>,_:Viewer,Extension(r):Extension<Resource>)->Result<Json<Value>,ApiError>{let mut c=s.pool.acquire().await.map_err(db_error)?;Ok(Json(json!(parent_list(&mut c,r).await?)))}
