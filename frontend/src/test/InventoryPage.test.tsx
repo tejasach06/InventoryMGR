@@ -26,7 +26,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 function makeVmList(overrides: Partial<VmList> = {}): VmList {
-  return { items: [makeVm()], total: 1, limit: 50, offset: 0, ...overrides };
+  return { items: [makeVm()], total: 1, limit: 50, offset: 0, version: '00000000-0000-0000-0000-000000000001', ...overrides };
 }
 
 beforeEach(() => {
@@ -108,7 +108,7 @@ describe('InventoryPage bulk deletion', () => {
     await act(() => vi.advanceTimersByTimeAsync(1999));
     expect(deletion).not.toHaveBeenCalled();
     await act(() => vi.advanceTimersByTimeAsync(1));
-    expect(deletion).toHaveBeenCalledExactlyOnceWith({ ids: ['vm-1'], request_id: expect.any(String) });
+    expect(deletion).toHaveBeenCalledExactlyOnceWith({ ids: ['vm-1'], request_id: expect.any(String), version: expect.any(String) });
 
     fireEvent.keyDown(hold, { key: 'Enter', repeat: true });
     fireEvent.keyDown(hold, { key: 'Escape' });
@@ -188,7 +188,12 @@ describe('InventoryPage bulk deletion', () => {
     expect(deletion).not.toHaveBeenCalled();
   });
 
-  it.each([new DOMException('Aborted', 'AbortError'), new TypeError('Failed to fetch')])(
+  it.each([
+    new DOMException('Aborted', 'AbortError'),
+    new TypeError('Failed to fetch'),
+    new ApiError(502, 'Bad Gateway'),
+    new ApiError(504, 'Gateway Timeout'),
+  ])(
     'retries the original snapshot after $name only after a fresh hold', async (error) => {
       vi.spyOn(crypto, 'randomUUID').mockImplementation(() => { throw new Error('Secure-context API unavailable'); });
       const deletion = vi.spyOn(vmsApi, 'bulkDeleteVms')
@@ -204,6 +209,7 @@ describe('InventoryPage bulk deletion', () => {
       expect(deletion).toHaveBeenCalledExactlyOnceWith({
         ids: ['vm-1'],
         request_id: expect.stringMatching(/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/),
+        version: expect.any(String),
       });
 
       act(() => {
@@ -235,7 +241,7 @@ describe('InventoryPage bulk deletion', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: 'Hold to delete' }), { key: 'Enter' });
     await act(() => vi.advanceTimersByTimeAsync(2000));
     expect(deletion).toHaveBeenCalledTimes(2);
-    expect(deletion.mock.calls[1][0]).toEqual({ ids: ['vm-1'], request_id: expect.any(String) });
+    expect(deletion.mock.calls[1][0]).toEqual({ ids: ['vm-1'], request_id: expect.any(String), version: expect.any(String) });
     expect(deletion.mock.calls[1][0].request_id).not.toBe(deletion.mock.calls[0][0].request_id);
   });
 });

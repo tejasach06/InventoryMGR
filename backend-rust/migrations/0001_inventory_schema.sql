@@ -732,7 +732,9 @@ UPDATE alembic_version SET version_num='0026' WHERE alembic_version.version_num 
 
 -- Running upgrade 0026 -> 0027
 
-ALTER TABLE audit_log DROP CONSTRAINT audit_log_vm_id_fkey;
+ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_vm_id_fkey;
+
+DROP TABLE IF EXISTS vm_deletion_receipts;
 
 CREATE TABLE vm_deletion_receipts (
     operation_id UUID PRIMARY KEY,

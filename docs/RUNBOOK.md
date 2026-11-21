@@ -63,16 +63,16 @@ Session invalidation does not depend on recording the job or retaining the reque
 If invalidation cannot be persisted, `BACKUP_DIR/.restore-auth-blocked` keeps authentication blocked across process restarts. Repair the schema, rotate the persisted session generation and epoch cutoff, remove this marker, and restart only after confirming that the repair succeeded. Removing the marker alone does not repair invalidation.
 
 Take a fresh backup before manually restoring live data.
-For recovery outside the API, use `pg_restore --single-transaction --exit-on-error --clean --if-exists -d <database> <archive>` and invalidate sessions before reopening access.
+For recovery outside the API, use `pg_restore --single-transaction --exit-on-error --clean --if-exists -d <database> <archive>` and invalidate sessions before reopening access. Note that when restoring raw pre-0027 dumps onto an existing 0027 database, `--clean` will not drop tables introduced in later revisions (such as `vm_deletion_receipts`); migration `0026 -> 0027` safely drops and recreates `vm_deletion_receipts` to purge leftover un-versioned receipts. For fully isolated recovery, restore into a fresh database or execute `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` prior to running `pg_restore`.
 
 ### VM deletion and audit preservation
 
 When a VM is deleted via `DELETE /api/vms/{id}` or `POST /api/vms/bulk-delete`, the transaction records an atomic receipt in `vm_deletion_receipts` (`operation_id`, `actor_id`, `vm_ids`, `deleted_at`).
-Starting with schema revision `0027`, the foreign key constraint `audit_log_vm_id_fkey` (`ON DELETE CASCADE`) is dropped so that historical audit events in `audit_log` are preserved indefinitely when VMs are deleted.
+Starting with schema revision `0027`, the foreign key constraint `audit_log_vm_id_fkey` (`ON DELETE CASCADE`) is dropped so that historical audit events in `audit_log` are preserved in the database when VMs are deleted.
 
-- **Audit access boundary**: Direct access via `GET /api/vms/{id}/audit` is gated on the VM record existing in `vms`. Querying audit history for a deleted VM returns `404 Not Found`.
-- **Restore boundary**: Restoring database dumps (or re-creating a VM with the same UUID) re-links the historical audit records, making them accessible once again. Backup archives from older snapshots upgrade cleanly to revision `0027` without loss of audit history.
-- **Replay and timeout semantics**: Bulk deletion supports client-provided `request_id` idempotency keys. Retrying a lost response with the same `request_id` succeeds idempotently (`204 No Content`) for the same actor and VM targets without re-executing deletion or generating duplicate receipts. Mismatched replayed requests return `422 Unprocessable Entity`. Row locks are ordered by UUID with a 5-second lock timeout; timeouts abort cleanly returning `503 Service Unavailable`.
+- **Audit access boundary**: Direct access via `GET /api/vms/{id}/audit` is gated on the VM record existing in `vms`. Querying audit history for a deleted VM returns `404 Not Found`. Remaining historical access for deleted records is operator-side via direct SQL queries.
+- **Restore boundary**: Restoring a database snapshot brings both `audit_log` and `vm_deletion_receipts` back to that snapshot's state. Events and deletion receipts written after the snapshot are replaced and survive only in the automatic `pre_restore` backup archive. Older snapshots upgrade cleanly to revision `0027`, though audit rows for VMs deleted prior to `0027` were already cascaded at deletion time.
+- **Replay and timeout semantics**: Bulk deletion supports client-provided `request_id` idempotency keys bound to the selection/restore epoch (`version`). Retrying a lost response with the same `request_id` within the same epoch succeeds idempotently (`204 No Content`) for the same actor and VM targets without re-executing deletion or generating duplicate receipts. Retrying a request from before a database restore returns `409 Conflict` (stale selection) to prevent deleting restored VMs. Mismatched replayed requests return `422 Unprocessable Entity`. Row locks are ordered by UUID with a 5-second lock timeout; lock timeouts (`55P03`), deadlocks (`40P01`), and serialization conflicts (`40001`) abort cleanly returning `503 Service Unavailable`.
 
 ## Database migrations
 

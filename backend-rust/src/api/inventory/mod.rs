@@ -82,7 +82,8 @@ async fn list_vms(State(s):State<AppState>,_:Viewer,RawQuery(raw):RawQuery)->Res
  let mut count=QueryBuilder::new("SELECT count(*) FROM vms v WHERE true");filters::apply(&mut count,&p)?;let total:i64=count.build_query_scalar().fetch_one(&s.pool).await.map_err(db_error)?;
  let mut b=QueryBuilder::new("SELECT v.id FROM vms v WHERE true");filters::apply(&mut b,&p)?;b.push(" ORDER BY ").push(filters::ordering(&p)?).push(" LIMIT ").push_bind(limit).push(" OFFSET ").push_bind(offset);
  let ids:Vec<Uuid>=b.build_query_scalar().fetch_all(&s.pool).await.map_err(db_error)?;let mut conn=s.pool.acquire().await.map_err(db_error)?;let items=vm_details(&mut conn,&ids).await?;
- Ok(Json(json!({"items":items,"total":total,"limit":limit,"offset":offset})))
+ let version = crate::api::deps::session_generation(&s).await?;
+ Ok(Json(json!({"items":items,"total":total,"limit":limit,"offset":offset,"version":version})))
 }
 async fn create_vm(State(s):State<AppState>,u:Editor,_csrf:Csrf,ValidatedJson(v):ValidatedJson<Value>)->Result<(StatusCode,Json<Value>),ApiError>{Ok((StatusCode::CREATED,Json(mutate_vm(&s.pool,None,v,u.0.id).await?)))}
 async fn patch_vm(State(s):State<AppState>,u:Editor,_csrf:Csrf,InventoryId(id):InventoryId,ValidatedJson(v):ValidatedJson<Value>)->Result<Json<Value>,ApiError>{Ok(Json(mutate_vm(&s.pool,Some(id),v,u.0.id).await?))}
@@ -125,12 +126,14 @@ async fn delete_vm(
 struct BulkDeleteVms {
     ids: Vec<Uuid>,
     request_id: Option<Uuid>,
+    version: Option<String>,
 }
 
 impl JsonSchema for BulkDeleteVms {
     const FIELDS: &'static [(&'static str, bool, FieldKind)] = &[
         ("ids", true, FieldKind::Array),
         ("request_id", false, FieldKind::String),
+        ("version", false, FieldKind::String),
     ];
 }
 
@@ -138,14 +141,24 @@ async fn bulk_delete_vms(
     State(state): State<AppState>,
     DeletionAdmin(actor_id): DeletionAdmin,
     _: Csrf,
-    ValidatedJson(BulkDeleteVms { mut ids, request_id }): ValidatedJson<BulkDeleteVms>,
+    ValidatedJson(BulkDeleteVms { mut ids, request_id, version }): ValidatedJson<BulkDeleteVms>,
 ) -> Result<StatusCode, ApiError> {
     ids.sort_unstable();
     if !(1..=200).contains(&ids.len()) || ids.windows(2).any(|pair| pair[0] == pair[1]) {
         return Err(ApiError::invalid("ids must contain 1 to 200 distinct UUIDs"));
     }
-    if !delete_vms(&state.pool, request_id.unwrap_or_else(Uuid::new_v4), actor_id, &ids).await? {
-        return Err(ApiError::conflict("One or more VMs no longer exist"));
+    if let Some(req_id) = request_id {
+        let current_version = crate::api::deps::session_generation(&state).await?;
+        if version.as_deref() != Some(&current_version) {
+            return Err(ApiError::conflict("The selection is stale; please refresh and try again"));
+        }
+        if !delete_vms(&state.pool, req_id, actor_id, &ids).await? {
+            return Err(ApiError::conflict("One or more VMs no longer exist"));
+        }
+    } else {
+        if !delete_vms(&state.pool, Uuid::new_v4(), actor_id, &ids).await? {
+            return Err(ApiError::conflict("One or more VMs no longer exist"));
+        }
     }
     Ok(StatusCode::NO_CONTENT)
 }

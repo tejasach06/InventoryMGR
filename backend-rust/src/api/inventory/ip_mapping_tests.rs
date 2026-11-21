@@ -257,6 +257,42 @@ async fn migration_from_0026_retains_audit_history_after_vm_removal() {
 }
 
 #[tokio::test]
+async fn migration_0026_to_0027_handles_preexisting_leftover_receipts_table_safely() {
+    let (_db, pool, _url) = Database::start_raw().await;
+    let mut conn = pool.acquire().await.unwrap();
+    load_historical_schema(&mut conn, "0026").await;
+    // Simulate dirty manual restore on top of 0027:
+    // audit_log_vm_id_fkey was already dropped, and vm_deletion_receipts exists with leftover rows.
+    sqlx::query("ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_vm_id_fkey")
+        .execute(&mut *conn).await.unwrap();
+    sqlx::query(
+        "CREATE TABLE vm_deletion_receipts (
+            operation_id UUID PRIMARY KEY,
+            actor_id UUID NOT NULL,
+            vm_ids UUID[] NOT NULL,
+            deleted_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+         )"
+    ).execute(&mut *conn).await.unwrap();
+    sqlx::query(
+        "INSERT INTO vm_deletion_receipts (operation_id, actor_id, vm_ids)
+         VALUES ($1, $2, $3)"
+    ).bind(Uuid::new_v4()).bind(Uuid::new_v4()).bind(&[Uuid::new_v4()][..])
+    .execute(&mut *conn).await.unwrap();
+    drop(conn);
+
+    // Migration to 0027 must succeed without failure and safely purge leftover receipts.
+    crate::db::migrate(&pool).await.unwrap();
+
+    let revision: String = sqlx::query_scalar("SELECT version_num FROM alembic_version")
+        .fetch_one(&pool).await.unwrap();
+    assert_eq!(revision, "0027");
+
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM vm_deletion_receipts")
+        .fetch_one(&pool).await.unwrap();
+    assert_eq!(count, 0, "Stale receipts from before the restore must be purged");
+}
+
+#[tokio::test]
 async fn api_one_to_many_shared_private_targets_and_deduplication() {
     let (_db, state) = Database::start().await;
     let mut client = Browser::default();

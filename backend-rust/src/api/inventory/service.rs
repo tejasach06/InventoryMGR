@@ -469,7 +469,7 @@ pub(super) async fn delete_vms(
         .fetch_one(&mut *tx)
         .await
         .map_err(vm_deletion_db_error)?;
-        tx.rollback().await.map_err(vm_deletion_db_error)?;
+        let _ = tx.rollback().await;
         return if matches {
             Ok(true)
         } else {
@@ -503,10 +503,10 @@ pub(super) async fn delete_vms(
     Ok(true)
 }
 
-fn vm_deletion_db_error(error: sqlx::Error) -> ApiError {
+pub(super) fn vm_deletion_db_error(error: sqlx::Error) -> ApiError {
     let code = error.as_database_error().and_then(|db| db.code());
-    if code.as_deref() == Some("55P03") {
-        tracing::warn!(?error, "VM deletion lock timeout");
+    if matches!(code.as_deref(), Some("55P03") | Some("40P01") | Some("40001")) {
+        tracing::warn!(?error, code = ?code.as_deref(), "VM deletion lock timeout or serialization failure");
         return ApiError::new(StatusCode::SERVICE_UNAVAILABLE, "VM deletion is busy. Try again.");
     }
     tracing::error!(?error, "VM deletion transaction failed");
@@ -529,4 +529,29 @@ pub async fn detail(conn:&mut PgConnection,r:Resource,id:Uuid)->Result<Value,Api
 #[cfg(test)]mod projection_tests{use super::*;
  #[test]fn children_stay_with_their_parent_and_preserve_order(){let mut rows=vec![json!({"id":"b"}),json!({"id":"a"}),json!({"id":"empty"})];attach(&mut rows,"disks","vm_id",vec![json!({"vm_id":"a","sort_order":0}),json!({"vm_id":"b","sort_order":1}),json!({"vm_id":"a","sort_order":2})]);assert_eq!(rows[0]["disks"],json!([{"vm_id":"b","sort_order":1}]));assert_eq!(rows[1]["disks"],json!([{"vm_id":"a","sort_order":0},{"vm_id":"a","sort_order":2}]));assert_eq!(rows[2]["disks"],json!([]));}
  #[test]fn node_response_filters_nested_fields(){let mut node=json!({"id":"a","created_at":"hidden","ip_addresses":[{"label":"management","address":"10.0.0.1","secret":"hidden"}]});project_child(NODE,&mut node);assert_eq!(node,json!({"id":"a","ip_addresses":[{"label":"management","address":"10.0.0.1"}]}));}
+ #[derive(Debug)]
+ struct MockDbError(&'static str);
+ impl std::fmt::Display for MockDbError { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "mock") } }
+ impl std::error::Error for MockDbError {}
+ impl sqlx::error::DatabaseError for MockDbError {
+  fn message(&self) -> &str { "mock" }
+  fn code(&self) -> Option<std::borrow::Cow<'_, str>> { Some(self.0.into()) }
+  fn as_error(&self) -> &(dyn std::error::Error + Send + Sync + 'static) { self }
+  fn as_error_mut(&mut self) -> &mut (dyn std::error::Error + Send + Sync + 'static) { self }
+  fn into_error(self: Box<Self>) -> Box<dyn std::error::Error + Send + Sync + 'static> { self }
+  fn kind(&self) -> sqlx::error::ErrorKind { sqlx::error::ErrorKind::Other }
+ }
+
+ #[test]fn vm_deletion_db_error_maps_transient_codes_to_503(){
+  for code in ["55P03", "40P01", "40001"] {
+   let err = sqlx::Error::Database(Box::new(MockDbError(code)));
+   let api_err = vm_deletion_db_error(err);
+   assert_eq!(api_err.status, StatusCode::SERVICE_UNAVAILABLE, "Code {code} should map to 503");
+   assert_eq!(api_err.message, "VM deletion is busy. Try again.");
+  }
+  let other_err = sqlx::Error::RowNotFound;
+  let api_err = vm_deletion_db_error(other_err);
+  assert_eq!(api_err.status, StatusCode::INTERNAL_SERVER_ERROR);
+  assert_eq!(api_err.message, VM_DELETION_FAILED);
+ }
 }

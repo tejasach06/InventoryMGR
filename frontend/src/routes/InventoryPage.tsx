@@ -75,6 +75,7 @@ export function InventoryPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     targets: Pick<Vm, 'id' | 'name'>[];
     requestId: string;
+    version?: string;
   } | null>(null);
   const [deleteError, setDeleteError] = useState<string>();
   const queryClient = useQueryClient();
@@ -230,7 +231,8 @@ export function InventoryPage() {
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
     const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
     const requestId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-    setDeleteConfirmation({ targets, requestId });
+    const version = vms.data?.version;
+    setDeleteConfirmation({ targets, requestId, version });
     setDeleteError(undefined);
     setBulkError(undefined);
     setBulkSuccess(undefined);
@@ -245,12 +247,16 @@ export function InventoryPage() {
     const ids = deleteConfirmation.targets.map(({ id }) => id);
     setDeleteError(undefined);
     try {
-      await vmsApi.bulkDeleteVms({ ids, request_id: deleteConfirmation.requestId });
+      await vmsApi.bulkDeleteVms({
+        ids,
+        request_id: deleteConfirmation.requestId,
+        version: deleteConfirmation.version,
+      });
       setBulkSuccess(`Deleted ${ids.length} VM record${ids.length === 1 ? '' : 's'}.`);
       for (const id of ids) void queryClient.invalidateQueries({ queryKey: ['vm', id] });
       void queryClient.invalidateQueries({ queryKey: ['vm-export-preview'] });
     } catch (error) {
-      if (!(error instanceof ApiError)) {
+      if (!(error instanceof ApiError) || error.status === 502 || error.status === 504) {
         setDeleteError('Deletion may have completed. Press and hold for 2 seconds to retry.');
         return;
       }
