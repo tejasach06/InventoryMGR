@@ -32,6 +32,17 @@ CRUD for accounts. Admin-only for create/update/delete; role assignment is
 | POST | `/api/vms` | Create. |
 | GET/PATCH/DELETE | `/api/vms/{id}` | Single VM. |
 | POST | `/api/vms/bulk` | Bulk edit (see `backend-rust/src/api/inventory/bulk.rs`). |
+| POST | `/api/vms/bulk-delete` | Delete multiple VM inventory entries in one transaction. |
+
+`POST /api/vms/bulk-delete` requires an admin session and a valid
+`X-CSRF-Token` header. The JSON body must contain an `ids` array of 1 to 200
+distinct VM UUIDs. The request deletes inventory entries stored in InventoryMGR.
+
+| Status | Result |
+|---|---|
+| `204 No Content` | All requested entries were deleted. |
+| `422 Unprocessable Entity` | The payload is invalid. All entries are preserved. |
+| `409 Conflict` | At least one requested UUID does not exist. All entries are preserved. |
 
 Child resources nest under a VM: `/api/vms/{parent_id}/disks`,
 `/api/vms/{parent_id}/networks`, `/api/vms/{parent_id}/applications`,
