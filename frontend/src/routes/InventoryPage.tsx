@@ -454,7 +454,7 @@ export function InventoryPage() {
               </button>
             )}
             {canDeleteSelected && (
-              <button type="button" onClick={openBulkDelete} className="text-sm font-medium text-[var(--color-text-inverse)]/90 hover:text-[var(--color-text-inverse)] transition-colors">
+              <button type="button" onClick={openBulkDelete} className="rounded-lg bg-[var(--color-criticality-critical)] px-3 py-1.5 text-sm font-semibold text-[var(--color-on-danger)] hover:opacity-90 transition-opacity">
                 Delete selected
               </button>
             )}
