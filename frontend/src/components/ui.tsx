@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { cn } from '../lib/classNames';
 import { useModalOverlay } from '../hooks/useModalOverlay';
 
@@ -289,9 +289,95 @@ export function Drawer({
 }
 
 
+const HOLD_CONFIRM_MS = 2000;
+type HoldInput = number | 'Enter' | ' ';
+
+function HoldConfirmButton({ label, className, pending, onConfirm }: {
+  label: string;
+  className: string;
+  pending: boolean;
+  onConfirm: () => void;
+}) {
+  const [holding, setHolding] = useState(false);
+  const press = useRef<{ input: HoldInput; timer: ReturnType<typeof setTimeout> } | null>(null);
+
+  const reset = useCallback(() => {
+    if (!press.current) return;
+    clearTimeout(press.current.timer);
+    press.current = null;
+    setHolding(false);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('blur', reset);
+    document.addEventListener('visibilitychange', reset);
+    return () => {
+      if (press.current) clearTimeout(press.current.timer);
+      window.removeEventListener('blur', reset);
+      document.removeEventListener('visibilitychange', reset);
+    };
+  }, [reset]);
+
+  function start(input: HoldInput) {
+    if (pending || press.current) return;
+    setHolding(true);
+    press.current = {
+      input,
+      timer: setTimeout(() => {
+        onConfirm();
+        setHolding(false);
+      }, HOLD_CONFIRM_MS),
+    };
+  }
+
+  function release(input: HoldInput) {
+    if (press.current?.input === input) reset();
+  }
+
+  return (
+    <button
+      type="button"
+      aria-disabled={pending}
+      className={cn(className, 'relative isolate touch-none select-none overflow-hidden aria-disabled:opacity-60')}
+      onPointerDown={(event) => {
+        if (event.button !== 0 || !event.isPrimary) return;
+        const button = event.currentTarget;
+        // Implicit touch capture masks pointer exit during a hold.
+        if (button.hasPointerCapture?.(event.pointerId)) button.releasePointerCapture(event.pointerId);
+        start(event.pointerId);
+      }}
+      onPointerUp={(event) => release(event.pointerId)}
+      onPointerLeave={(event) => release(event.pointerId)}
+      onPointerCancel={(event) => release(event.pointerId)}
+      onContextMenu={(event) => event.preventDefault()}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        if (!event.repeat) start(event.key);
+      }}
+      onKeyUp={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        release(event.key);
+      }}
+      onBlur={reset}
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 origin-left bg-current/25"
+        style={{
+          transform: holding || pending ? 'scaleX(1)' : 'scaleX(0)',
+          transition: holding ? `transform ${HOLD_CONFIRM_MS}ms linear` : undefined,
+        }}
+      />
+      {pending ? <Spinner /> : null}{label}
+    </button>
+  );
+}
+
 /* ConfirmDialog — styled replacement for native confirm() on destructive actions */
 export function ConfirmDialog({
-  open, title, body, children, confirmLabel = 'Delete', tone = 'danger', pending = false, onConfirm, onCancel,
+  open, title, body, children, confirmLabel = 'Delete', tone = 'danger', pending = false, onConfirm, onHoldConfirm, onCancel,
 }: {
   open: boolean;
   title: string;
@@ -300,27 +386,50 @@ export function ConfirmDialog({
   confirmLabel?: string;
   tone?: 'danger' | 'primary';
   pending?: boolean;
-  onConfirm: () => void;
   onCancel: () => void;
-}) {
+} & ({ onConfirm: () => void; onHoldConfirm?: never } | { onConfirm?: never; onHoldConfirm: () => Promise<void> })) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const bodyId = useId();
+  const holdInFlight = useRef(false);
+  const [holdPending, setHoldPending] = useState(false);
+  const cancel = useCallback(() => {
+    if (!holdInFlight.current) onCancel();
+  }, [onCancel]);
 
-  useModalOverlay({ open, onClose: onCancel, containerRef, initialFocusRef: cancelRef });
+  useModalOverlay({ open, onClose: cancel, containerRef, initialFocusRef: cancelRef });
+
+  async function confirmHold() {
+    if (!onHoldConfirm || holdInFlight.current) return;
+    holdInFlight.current = true;
+    setHoldPending(true);
+    try {
+      await onHoldConfirm();
+    } finally {
+      holdInFlight.current = false;
+      setHoldPending(false);
+    }
+  }
 
   if (!open) return null;
+  const confirmClass = tone === 'primary' ? primaryButtonClass : dangerButtonClass;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div className="absolute inset-0 bg-[var(--color-scrim)] backdrop-blur-sm animate-fade-in" onClick={onCancel} aria-hidden="true" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={bodyId}>
+      <div className="absolute inset-0 bg-[var(--color-scrim)] backdrop-blur-sm animate-fade-in" onClick={cancel} aria-hidden="true" />
       <div ref={containerRef} className="relative w-full max-w-sm rounded-2xl bg-[var(--color-surface)] p-5 shadow-[var(--shadow-overlay)] animate-rise">
-        <h2 id="confirm-title" className="font-display text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
-        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{body}</p>
+        <h2 id={titleId} className="font-display text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
+        <p id={bodyId} className="mt-2 text-sm text-[var(--color-text-secondary)]">{body}</p>
         {children}
         <div className="mt-5 flex justify-end gap-2">
-          <button ref={cancelRef} type="button" className={secondaryButtonClass} onClick={onCancel} disabled={pending}>Cancel</button>
-          <button type="button" className={tone === 'primary' ? primaryButtonClass : dangerButtonClass} onClick={onConfirm} disabled={pending}>
-            {pending ? <Spinner /> : null}{confirmLabel}
-          </button>
+          <button ref={cancelRef} type="button" className={secondaryButtonClass} onClick={cancel} disabled={pending || holdPending}>Cancel</button>
+          {onHoldConfirm ? (
+            <HoldConfirmButton label={confirmLabel} className={confirmClass} pending={holdPending} onConfirm={confirmHold} />
+          ) : (
+            <button type="button" className={confirmClass} onClick={onConfirm} disabled={pending}>
+              {pending ? <Spinner /> : null}{confirmLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>

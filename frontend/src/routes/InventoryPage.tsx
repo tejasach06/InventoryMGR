@@ -1,13 +1,13 @@
 'use client';
 
 import { canEditInventory } from '../lib/permissions';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { vms as vmsApi } from '../api/vms';
-import { detailMessage } from '../api/core';
-import type { BulkResult, VmPayload } from '../api/types';
+import { ApiError, detailMessage } from '../api/core';
+import type { BulkResult, Vm, VmPayload } from '../api/types';
 import { BulkEditDrawer } from '../components/BulkEditDrawer';
 import type { BulkPatch } from '../api/types';
 import { useCurrentUser } from '../components/AuthContext';
@@ -72,6 +72,8 @@ export function InventoryPage() {
   const [bulkFailureDetails, setBulkFailureDetails] = useState<BulkResult | null>(null);
   const [pendingPatch, setPendingPatch] = useState<BulkPatch | null>(null);
   const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
+  const [deleteTargets, setDeleteTargets] = useState<Pick<Vm, 'id' | 'name'>[]>([]);
+  const [deleteError, setDeleteError] = useState<string>();
   const queryClient = useQueryClient();
   const [exportOpen, setExportOpen] = useState(false);
   const { columns: colPrefs, visibleColumns, toggleColumn, reorderColumns, resetToDefault } = useColumnPreferences('inventory-list');
@@ -192,6 +194,7 @@ export function InventoryPage() {
   }
 
   const items = vms.data?.items ?? [];
+  const canDeleteSelected = user.role === 'admin' && !selectAllMatching && items.some((vm) => selectedIds.has(vm.id));
   const total = vms.data?.total ?? items.length;
   const pageFullySelected = items.length > 0 && selectedIds.size === items.length;
   const targetCount = selectAllMatching ? total : selectedIds.size;
@@ -209,18 +212,51 @@ export function InventoryPage() {
     return payload;
   }
 
+  function invalidateInventory() {
+    for (const key of ['vms', 'vm-owners', 'vm-suggestions', 'vm-clusters', 'vm-nodes', 'vm-tags']) {
+      void queryClient.invalidateQueries({ queryKey: [key] });
+    }
+  }
+
+  function openBulkDelete() {
+    if (!canDeleteSelected) return;
+    setDeleteTargets(items.filter(({ id }) => selectedIds.has(id)).map(({ id, name }) => ({ id, name })));
+    setDeleteError(undefined);
+    setBulkError(undefined);
+    setBulkSuccess(undefined);
+    setBulkFailureDetails(null);
+  }
+
+  const closeBulkDelete = useCallback(() => setDeleteTargets([]), []);
+
+  async function deleteSelected() {
+    const ids = deleteTargets.map(({ id }) => id);
+    setDeleteError(undefined);
+    try {
+      await vmsApi.bulkDeleteVms(ids);
+      setBulkSuccess(`Deleted ${ids.length} VM record${ids.length === 1 ? '' : 's'}.`);
+      for (const id of ids) void queryClient.invalidateQueries({ queryKey: ['vm', id] });
+      void queryClient.invalidateQueries({ queryKey: ['vm-export-preview'] });
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 409)) {
+        setDeleteError(detailMessage(error));
+        return;
+      }
+      setBulkError('The selection is stale. The inventory is being refreshed. Select the VM records again.');
+    }
+    closeBulkDelete();
+    setSelectedIds(new Set());
+    setSelectAllMatching(false);
+    invalidateInventory();
+  }
+
   const bulkMutation = useMutation({
     mutationFn: (patch: BulkPatch) =>
       vmsApi.bulkUpdateVms(
         selectAllMatching ? { filters: bulkFilters(), patch } : { ids: [...selectedIds], patch },
       ),
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['vms'] });
-      queryClient.invalidateQueries({ queryKey: ['vm-owners'] });
-      queryClient.invalidateQueries({ queryKey: ['vm-suggestions'] });
-      queryClient.invalidateQueries({ queryKey: ['vm-clusters'] });
-      queryClient.invalidateQueries({ queryKey: ['vm-nodes'] });
-      queryClient.invalidateQueries({ queryKey: ['vm-tags'] });
+      invalidateInventory();
       setBulkOpen(false);
       setConfirmBulkOpen(false);
       setPendingPatch(null);
@@ -395,6 +431,11 @@ export function InventoryPage() {
                 Edit
               </button>
             )}
+            {canDeleteSelected && (
+              <button type="button" onClick={openBulkDelete} className="text-sm font-medium text-[var(--color-text-inverse)]/90 hover:text-[var(--color-text-inverse)] transition-colors">
+                Delete selected
+              </button>
+            )}
             <div className="h-4 w-px bg-[var(--color-text-inverse)]/20" aria-hidden="true" />
             <button type="button" onClick={() => setExportOpen(true)} className="text-sm font-medium text-[var(--color-text-inverse)]/90 hover:text-[var(--color-text-inverse)] transition-colors">
               Export
@@ -454,6 +495,19 @@ export function InventoryPage() {
             </div>
           </div>
         )}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={deleteTargets.length > 0}
+        title={`Delete ${deleteTargets.length} selected VM${deleteTargets.length === 1 ? '' : 's'}?`}
+        body="This permanently deletes these records from InventoryMGR only. Press and hold for 2 seconds to confirm."
+        confirmLabel="Hold to delete"
+        onHoldConfirm={deleteSelected}
+        onCancel={closeBulkDelete}
+      >
+        <ul aria-label="VMs to delete" tabIndex={0} className="mt-3 max-h-36 space-y-1 overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 py-2 text-sm break-all">
+          {deleteTargets.map(({ id, name }) => <li key={id}>{name}</li>)}
+        </ul>
+        {deleteError ? <div className="mt-3"><Alert tone="error">{deleteError}</Alert></div> : null}
       </ConfirmDialog>
     </PageTransition>
   );
