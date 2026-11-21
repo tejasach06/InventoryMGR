@@ -39,7 +39,11 @@ fn coerce_int(v:&Value)->Option<i64>{
 }
 const INTEGERS:&str="cpu_cores memory_mb cpu_threads ram_total_gb ram_used_gb storage_usable_gb size_gb capacity_gb used_gb total_capacity_gb used_capacity_gb sort_order";
 fn date_value(v:&Value)->Option<chrono::NaiveDate>{
- if let Some(s)=v.as_str(){if let Ok(date)=chrono::NaiveDate::parse_from_str(s,"%Y-%m-%d"){return Some(date);}if let Ok(dt)=chrono::DateTime::parse_from_rfc3339(s){return (dt.time()==chrono::NaiveTime::MIN).then_some(dt.date_naive());}if let Ok(dt)=chrono::NaiveDateTime::parse_from_str(s,"%Y-%m-%dT%H:%M:%S%.f"){return (dt.time()==chrono::NaiveTime::MIN).then_some(dt.date());}}
+ if let Some(s)=v.as_str(){
+  if let Ok(date)=chrono::NaiveDate::parse_from_str(s,"%Y-%m-%d"){return Some(date);}
+  if let Ok(dt)=chrono::DateTime::parse_from_rfc3339(s){return (dt.time()==chrono::NaiveTime::MIN).then_some(dt.date_naive());}
+  if let Ok(dt)=chrono::NaiveDateTime::parse_from_str(s,"%Y-%m-%dT%H:%M:%S%.f"){return (dt.time()==chrono::NaiveTime::MIN).then_some(dt.date());}
+ }
  let n=if v.is_boolean(){return None}else{v.as_f64().or_else(||v.as_str()?.parse::<f64>().ok())?};
  let seconds=if n.abs()>20_000_000_000.0{n/1000.0}else{n};
  if !seconds.is_finite()||seconds.fract()!=0.0{return None;}
@@ -114,7 +118,10 @@ fn validate_field(r:Resource,field:&str,v:&mut Value,create:bool)->Result<(),Api
   if !choices.split_whitespace().any(|c|c==s){let mut e=field_error(field,"enum",format!("Input should be {expected}"),&json!(s));e.detail.as_mut().unwrap()[0]["ctx"]=json!({"expected":expected});return Err(e);}*v=json!(s);return Ok(());
  }
  let max=match field{"name" if r.table!="vms"=>Some(255),"export_path"=>Some(500),"sr_id"=>Some(50),"ip_address"=>Some(64),_=>None};
- if let Some(max)=max{if s.chars().count()>max{let mut e=error("string_too_long",format!("String should have at most {max} characters"));e.detail.as_mut().unwrap()[0]["ctx"]=json!({"max_length":max});return Err(e);}if ["name","export_path"].contains(&field)&&s.is_empty(){let mut e=error("string_too_short","String should have at least 1 character".into());e.detail.as_mut().unwrap()[0]["ctx"]=json!({"min_length":1});return Err(e);}}
+ if let Some(max)=max{
+  if s.chars().count()>max{let mut e=error("string_too_long",format!("String should have at most {max} characters"));e.detail.as_mut().unwrap()[0]["ctx"]=json!({"max_length":max});return Err(e);}
+  if ["name","export_path"].contains(&field)&&s.is_empty(){let mut e=error("string_too_short","String should have at least 1 character".into());e.detail.as_mut().unwrap()[0]["ctx"]=json!({"min_length":1});return Err(e);}
+ }
  if field=="ip_address"{*v=json!(crate::core::ip_utils::normalize_ip(s));}
  Ok(())
 }

@@ -55,7 +55,12 @@ fn applications(raw: &Value,errors: &mut Vec<Value>) -> Vec<(String,Option<Strin
 }
 fn ips(raw: &Value,key: &str,errors: &mut Vec<Value>) -> Vec<String> {
     let mut result=Vec::new();
-    for part in parts(text(raw,key)){let ip=part.split('/').next().unwrap_or("").trim();if ip.is_empty(){continue;}if ip.contains(':'){errors.push(error(key,"must be IP addresses separated by ;"));return Vec::new();}result.push(ip.into());}
+    for part in parts(text(raw,key)){
+        let ip=part.split('/').next().unwrap_or("").trim();
+        if ip.is_empty(){continue;}
+        if ip.contains(':'){errors.push(error(key,"must be IP addresses separated by ;"));return Vec::new();}
+        result.push(ip.into());
+    }
     result
 }
 fn parse_ip_mappings(raw: &Value, errors: &mut Vec<Value>) -> Option<Vec<(String, String)>> {
@@ -162,10 +167,18 @@ fn normalize(raw: &Value) -> (Option<Value>,Vec<Value>) {
     let platform=text(raw,"platform").to_lowercase();
     if !platform.is_empty(){let value=match platform.as_str(){"pve"|"proxmox"=>Some("proxmox"),"vmware"|"vcenter"|"vsphere"=>Some("vmware"),_=>None};if let Some(value)=value{normalized.insert("platform".into(),json!(value));}else{errors.push(error("platform","must be one of proxmox, pve, vmware, vsphere, vcenter"));}}
     let enums:[(&str,&[&str]);5]=[("status",&["decommissioned","powered_off","running"]),("environment",&["development","dr","production","sandbox","staging","testing","uat"]),("criticality",&["critical","high","low","medium"]),("os_family",&["linux","windows"]),("vm_type",&["permanent","temporary"])];
-    for (key,allowed) in enums {let value=text(raw,key).trim().to_lowercase();if value.is_empty(){continue;}if allowed.contains(&value.as_str()){normalized.insert(key.into(),json!(value));}else{errors.push(error(key,format!("must be one of {}",allowed.join(", "))));}}
+    for (key,allowed) in enums {
+        let value=text(raw,key).trim().to_lowercase();
+        if value.is_empty(){continue;}
+        if allowed.contains(&value.as_str()){normalized.insert(key.into(),json!(value));}else{errors.push(error(key,format!("must be one of {}",allowed.join(", "))));}
+    }
     for key in ["cpu_cores","memory_mb"]{let value=text(raw,key);if value.is_empty(){continue;}match value.parse::<i64>(){Ok(n) if n>=0=>{normalized.insert(key.into(),json!(n));},_=>errors.push(error(key,"must be an integer >= 0"))}}
     for key in BOOLS{let value=text(raw,key).to_lowercase();if value.is_empty(){continue;}match value.as_str(){"true"|"yes"|"1"=>{normalized.insert((*key).into(),json!(true));},"false"|"no"|"0"=>{normalized.insert((*key).into(),json!(false));},_=>errors.push(error(key,"must be one of true, false, yes, no, 1, 0"))}}
-    for key in DATES{let value=text(raw,key);if value.is_empty(){continue;}if let Some(date)=parse_date(value){normalized.insert((*key).into(),json!(date.to_string()));}else{errors.push(error(key,"must be ISO date YYYY-MM-DD"));}}
+    for key in DATES{
+        let value=text(raw,key);
+        if value.is_empty(){continue;}
+        if let Some(date)=parse_date(value){normalized.insert((*key).into(),json!(date.to_string()));}else{errors.push(error(key,"must be ISO date YYYY-MM-DD"));}
+    }
     for key in COLUMNS {if ["name","platform","cluster","status","environment","criticality","os_family","vm_type","cpu_cores","memory_mb","tags","virtual_hosts"].contains(key) || BOOLS.contains(key)||DATES.contains(key){continue;}let value=text(raw,key);if !value.is_empty(){normalized.insert((*key).into(),json!(value));}}
     let vh_raw=if !text(raw,"virtual_hosts").is_empty(){text(raw,"virtual_hosts")}else{text(raw,"fqdn")};
     if !vh_raw.trim().is_empty(){
@@ -490,12 +503,39 @@ pub async fn preview(State(state):State<AppState>,user:Editor,_:Csrf,mut multipa
         }
         if !errors.is_empty(){action="invalid";}
         summary[action]=json!(summary[action].as_i64().unwrap()+1);
-        insert_row(&mut tx,id,index as i32+2,raw,normalized.as_ref(),action,target,&json!(errors),&json!(warnings),&changes).await?;
+        let errors_val = json!(errors);
+        let warnings_val = json!(warnings);
+        insert_row(&mut tx, ImportRow {
+            batch: id,
+            number: index as i32 + 2,
+            raw,
+            normalized: normalized.as_ref(),
+            action,
+            target,
+            errors: &errors_val,
+            warnings: &warnings_val,
+            changes: &changes,
+        }).await?;
     }
     if full_inventory {
         let mut candidates:Vec<_>=inventory.iter().filter(|vm|text(vm,"status")!="decommissioned" && Uuid::parse_str(text(vm,"id")).is_ok_and(|id|!matched.contains(&id)) && scopes.contains(&(text(vm,"cluster").trim().to_lowercase(),text(vm,"platform").to_owned()))).collect();
         candidates.sort_by(|a,b|text(a,"name").cmp(text(b,"name")));
-        for (offset,vm) in candidates.iter().enumerate(){let raw=json!({"name":vm["name"],"cluster":vm["cluster"],"platform":vm["platform"]});insert_row(&mut tx,id,(raw_rows.len()+offset+2) as i32,&raw,None,"decommission",Some(Uuid::parse_str(text(vm,"id")).unwrap()),&json!([]),&json!([]),&json!({"status":[vm["status"],"decommissioned"]})).await?;}
+        for (offset,vm) in candidates.iter().enumerate(){
+            let raw=json!({"name":vm["name"],"cluster":vm["cluster"],"platform":vm["platform"]});
+            let empty=json!([]);
+            let status_changes=json!({"status":[vm["status"],"decommissioned"]});
+            insert_row(&mut tx, ImportRow {
+                batch: id,
+                number: (raw_rows.len()+offset+2) as i32,
+                raw: &raw,
+                normalized: None,
+                action: "decommission",
+                target: Some(Uuid::parse_str(text(vm,"id")).unwrap()),
+                errors: &empty,
+                warnings: &empty,
+                changes: &status_changes,
+            }).await?;
+        }
         summary["decommission"]=json!(candidates.len());summary["decommission_candidate_total"]=json!(candidates.len()+matched.len());
     }
     sqlx::query("UPDATE csv_import_batches SET summary=$2,field_changes=$3 WHERE id=$1").bind(id).bind(summary).bind(Value::Object(field_changes)).execute(&mut *tx).await.map_err(db_error)?;
@@ -503,9 +543,21 @@ pub async fn preview(State(state):State<AppState>,user:Editor,_:Csrf,mut multipa
     tx.commit().await.map_err(db_error)?;
     Ok((StatusCode::CREATED,Json(batch)))
 }
-async fn insert_row(connection:&mut PgConnection,batch:Uuid,number:i32,raw:&Value,normalized:Option<&Value>,action:&str,target:Option<Uuid>,errors:&Value,warnings:&Value,changes:&Value)->Result<(),ApiError>{
+struct ImportRow<'a> {
+    batch: Uuid,
+    number: i32,
+    raw: &'a Value,
+    normalized: Option<&'a Value>,
+    action: &'a str,
+    target: Option<Uuid>,
+    errors: &'a Value,
+    warnings: &'a Value,
+    changes: &'a Value,
+}
+
+async fn insert_row(connection:&mut PgConnection,row:ImportRow<'_>)->Result<(),ApiError>{
     sqlx::query("INSERT INTO csv_import_rows(id,batch_id,row_number,raw,normalized,action,target_vm_id,errors,warnings,changes,created_at) VALUES($1,$2,$3,$4,$5,$6::import_action,$7,$8,$9,$10,now())")
-        .bind(Uuid::new_v4()).bind(batch).bind(number).bind(raw).bind(normalized).bind(action).bind(target).bind(errors).bind(warnings).bind(changes).execute(connection).await.map_err(db_error)?;Ok(())
+        .bind(Uuid::new_v4()).bind(row.batch).bind(row.number).bind(row.raw).bind(row.normalized).bind(row.action).bind(row.target).bind(row.errors).bind(row.warnings).bind(row.changes).execute(connection).await.map_err(db_error)?;Ok(())
 }
 
 fn python_value(value:&Value,in_list:bool)->Option<String>{match value{Value::Null=>None,Value::String(s)=>Some(if in_list{format!("'{}'",s.replace('\\',"\\\\").replace('\'',"\\'"))}else{s.clone()}),Value::Bool(b)=>Some(if *b{"True".into()}else{"False".into()}),Value::Array(items)=>Some(format!("[{}]",items.iter().map(|item|python_value(item,true).unwrap_or_else(||"None".into())).collect::<Vec<_>>().join(", "))),_=>Some(value.to_string())}}
