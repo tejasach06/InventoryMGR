@@ -5,12 +5,24 @@ use serde_json::{json,Value};
 use sqlx::{PgConnection,PgPool};
 use uuid::Uuid;
 
-pub fn db_error(e:sqlx::Error)->ApiError {if let Some(db)=e.as_database_error(){if db.code().as_deref()==Some("23505"){return ApiError::new(StatusCode::CONFLICT,if db.constraint()==Some("uq_vm_applications_vm_app"){"Application already linked to this VM"}else{"VM identity already exists"});}if [Some("23502"),Some("23514"),Some("22P02"),Some("22001")].contains(&db.code().as_deref()){return ApiError::invalid(db.message());}}ApiError::internal(e.to_string())}
+pub fn db_error(e:sqlx::Error)->ApiError {
+    if let Some(db)=e.as_database_error(){
+        if db.code().as_deref()==Some("23505"){return ApiError::new(StatusCode::CONFLICT,if db.constraint()==Some("uq_vm_applications_vm_app"){"Application already linked to this VM"}else{"VM identity already exists"});}
+        if [Some("23502"),Some("23514"),Some("22P02"),Some("22001")].contains(&db.code().as_deref()){return ApiError::invalid(db.message());}
+    }
+    ApiError::internal(e.to_string())
+}
 pub async fn row(conn:&mut PgConnection,r:Resource,id:Uuid,parent:Option<Uuid>)->Result<Value,ApiError>{let sql=if let Some((_,fk))=r.parent{format!("SELECT to_jsonb(t) FROM {} t WHERE id=$1 AND {fk}=$2",r.table)}else{format!("SELECT to_jsonb(t) FROM {} t WHERE id=$1",r.table)};let mut q=sqlx::query_scalar::<_,Value>(sqlx::AssertSqlSafe(sql)).bind(id);if r.parent.is_some(){q=q.bind(parent);}q.fetch_optional(conn).await.map_err(db_error)?.ok_or_else(||ApiError::not_found(r.missing))}
 pub fn project_child(r:Resource,v:&mut Value){if r.table=="physical_nodes"{for key in ["created_at","updated_at","created_by_id","updated_by_id"]{v.as_object_mut().unwrap().remove(key);}if let Some(ips)=v["ip_addresses"].as_array_mut(){for ip in ips{if let Some(obj)=ip.as_object_mut(){obj.retain(|k,_|k=="label"||k=="address");}}}}}
 pub async fn children(conn:&mut PgConnection,r:Resource,parent:Uuid)->Result<Vec<Value>,ApiError>{let (_,fk)=r.parent.unwrap();let order=if r.table=="vm_applications"{"app_name"}else{"sort_order"};let mut rows:Vec<Value>=sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT to_jsonb(t) FROM {} t WHERE {fk}=$1 ORDER BY {order}",r.table))).bind(parent).fetch_all(conn).await.map_err(db_error)?;for v in &mut rows{project_child(r,v);}Ok(rows)}
 pub async fn require_parent(conn:&mut PgConnection,r:Resource,parent:Uuid)->Result<(),ApiError>{let(table,_)=r.parent.unwrap();let found:bool=sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT EXISTS(SELECT 1 FROM {table} WHERE id=$1)"))).bind(parent).fetch_one(conn).await.map_err(db_error)?;if !found{return Err(ApiError::not_found(match table{"vms"=>VM.missing,"physical_clusters"=>CLUSTER.missing,"storage_arrays"=>ARRAY.missing,_=>VOLUME.missing}));}Ok(())}
-pub async fn write(conn:&mut PgConnection,r:Resource,id:Option<Uuid>,parent:Option<Uuid>,payload:Value,user:Uuid)->Result<Value,ApiError>{let mut values=validate(r,payload,id.is_none())?;let obj=values.as_object_mut().unwrap();let id_value=id.unwrap_or_else(Uuid::new_v4);if id.is_none(){obj.insert("id".into(),json!(id_value));if let Some((_,fk))=r.parent{obj.insert(fk.into(),json!(parent.unwrap()));}if r.stamped{obj.insert("created_by_id".into(),json!(user));obj.insert("created_at".into(),json!(chrono::Utc::now()));}}if r.stamped{obj.insert("updated_by_id".into(),json!(user));obj.insert("updated_at".into(),json!(chrono::Utc::now()));}
+pub async fn write(conn:&mut PgConnection,r:Resource,id:Option<Uuid>,parent:Option<Uuid>,payload:Value,user:Uuid)->Result<Value,ApiError>{let mut values=validate(r,payload,id.is_none())?;let obj=values.as_object_mut().unwrap();let id_value=id.unwrap_or_else(Uuid::new_v4);
+    if id.is_none(){
+        obj.insert("id".into(),json!(id_value));
+        if let Some((_,fk))=r.parent{obj.insert(fk.into(),json!(parent.unwrap()));}
+        if r.stamped{obj.insert("created_by_id".into(),json!(user));obj.insert("created_at".into(),json!(chrono::Utc::now()));}
+    }
+    if r.stamped{obj.insert("updated_by_id".into(),json!(user));obj.insert("updated_at".into(),json!(chrono::Utc::now()));}
  let keys:Vec<_>=obj.keys().cloned().collect();let sql=if id.is_none(){format!("INSERT INTO {} ({}) SELECT {} FROM jsonb_populate_record(NULL::{},$1) RETURNING to_jsonb({}.*)",r.table,keys.join(","),keys.join(","),r.table,r.table)}else{let assignments=keys.iter().map(|k|format!("{k}=p.{k}")).collect::<Vec<_>>().join(",");if keys.is_empty(){return row(conn,r,id_value,parent).await;}format!("UPDATE {} t SET {} FROM jsonb_populate_record(NULL::{},$1) p WHERE t.id=$2 RETURNING to_jsonb(t)",r.table,assignments,r.table)};
  let mut q=sqlx::query_scalar(sqlx::AssertSqlSafe(sql)).bind(values);if id.is_some(){q=q.bind(id_value);}q.fetch_one(conn).await.map_err(db_error)
 }

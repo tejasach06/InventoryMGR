@@ -131,7 +131,7 @@ async fn migration_empty_database_and_schema_verification() {
         .fetch_one(&state.pool)
         .await
         .unwrap();
-    assert_eq!(version, "0027");
+    assert_eq!(version, "0028");
 
     let exists: bool = sqlx::query_scalar("SELECT to_regclass('public.vm_ip_mappings') IS NOT NULL")
         .fetch_one(&state.pool)
@@ -198,7 +198,7 @@ async fn migration_from_0025_preserves_rows_and_zero_inferred_pairs() {
         .fetch_one(&mut *conn)
         .await
         .unwrap();
-    assert_eq!(version, "0027");
+    assert_eq!(version, "0028");
 
     // Existing rows preserved
     let net_count: i64 = sqlx::query_scalar("SELECT count(*) FROM vm_networks WHERE vm_id=$1")
@@ -219,8 +219,12 @@ async fn migration_from_0025_preserves_rows_and_zero_inferred_pairs() {
 async fn load_historical_schema(conn: &mut sqlx::PgConnection, version: &str) {
     const SCHEMA: &str = include_str!("../../../migrations/0001_inventory_schema.sql");
     let marker = format!("-- Running upgrade {version} -> ");
-    let offset = SCHEMA.find(&marker).expect("historical migration boundary");
-    let schema = format!("{}\nCOMMIT;", &SCHEMA[..offset]).leak();
+    let schema = if version == "0027" {
+        SCHEMA
+    } else {
+        let offset = SCHEMA.find(&marker).expect("historical migration boundary");
+        format!("{}\nCOMMIT;", &SCHEMA[..offset]).leak()
+    };
     crate::db::execute_migration(conn, schema).await.unwrap();
 }
 
@@ -285,11 +289,33 @@ async fn migration_0026_to_0027_handles_preexisting_leftover_receipts_table_safe
 
     let revision: String = sqlx::query_scalar("SELECT version_num FROM alembic_version")
         .fetch_one(&pool).await.unwrap();
-    assert_eq!(revision, "0027");
+    assert_eq!(revision, "0028");
 
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM vm_deletion_receipts")
         .fetch_one(&pool).await.unwrap();
     assert_eq!(count, 0, "Stale receipts from before the restore must be purged");
+}
+
+#[tokio::test]
+async fn migration_from_0027_adds_duplicate_ip_index() {
+    let (_db, pool, _url) = Database::start_raw().await;
+    let mut conn = pool.acquire().await.unwrap();
+    load_historical_schema(&mut conn, "0027").await;
+    drop(conn);
+
+    crate::db::migrate(&pool).await.unwrap();
+    crate::db::migrate(&pool).await.unwrap();
+
+    let revision: String = sqlx::query_scalar("SELECT version_num FROM alembic_version")
+        .fetch_one(&pool).await.unwrap();
+    assert_eq!(revision, "0028");
+    let definition: String = sqlx::query_scalar(
+        "SELECT indexdef FROM pg_indexes WHERE schemaname='public' AND indexname='ix_vm_networks_ip_address_role'",
+    ).fetch_one(&pool).await.unwrap();
+    assert_eq!(
+        definition,
+        "CREATE INDEX ix_vm_networks_ip_address_role ON public.vm_networks USING btree (ip_address, role)"
+    );
 }
 
 #[tokio::test]

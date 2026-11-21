@@ -5,8 +5,7 @@ use uuid::Uuid;
 use crate::api::deps::{AppState, ApiError, Viewer, Csrf};
 use super::{db_error, setting};
 use crate::api::inventory::export::csv_text;
-
-const INVENTORY: &str = "NOT jsonb_path_exists(v.tags, '$[*] ? (@ like_regex \"^(template|backup)$\" flag \"i\")')";
+use crate::api::inventory_alerts::{INVENTORY, RUNNING, duplicate_ip_networks, duplicate_ip_predicate};
 const REPORTS: &[(&str, &str)] = &[
     ("linux", "v.os_family='linux'"), ("windows", "v.os_family='windows'"),
     ("production", "v.environment='production'"), ("monitoring", "v.monitoring_enabled"),
@@ -100,11 +99,13 @@ pub async fn dashboard(State(state): State<AppState>, _: Viewer) -> Result<Json<
         result[format!("by_{field}")] = grouped;
     }
     let since="COALESCE((SELECT max(a.changed_at) FROM audit_log a WHERE a.vm_id=v.id AND a.field_name='status' AND a.new_value='powered_off'),v.created_at)";
+    let duplicate_networks = duplicate_ip_networks();
     let alerts = [
         ("shutdown_stale", format!("v.status='powered_off' AND {since}<=now()-interval '90 days'"), format!("floor(extract(epoch FROM(now()-{since}))/86400)"), since.to_owned(),"NULL::text".to_owned()),
         ("decommission_overdue", "v.decommission_date<=CURRENT_DATE AND v.status<>'decommissioned'".into(), "CURRENT_DATE-v.decommission_date".into(),"v.decommission_date".into(),"NULL::text".into()),
         ("missing_ip", "NOT EXISTS(SELECT 1 FROM vm_networks n WHERE n.vm_id=v.id)".into(),"0".into(),"v.name".into(),"NULL::text".into()),
-        ("duplicate_ip", "v.status='running' AND EXISTS(SELECT 1 FROM vm_networks n JOIN vm_networks n2 ON n2.ip_address=n.ip_address AND n2.role=n.role AND n2.vm_id<>n.vm_id JOIN vms other ON other.id=n2.vm_id WHERE n.vm_id=v.id AND other.status='running' AND NOT jsonb_path_exists(other.tags,'$[*] ? (@ like_regex \"^(template|backup)$\" flag \"i\")'))".into(), "0".into(),"v.name".into(), "(SELECT n.ip_address FROM vm_networks n WHERE n.vm_id=v.id AND EXISTS(SELECT 1 FROM vm_networks n2 JOIN vms v ON v.id=n2.vm_id WHERE n2.ip_address=n.ip_address AND n2.role=n.role AND n2.vm_id<>n.vm_id AND v.status='running' AND NOT jsonb_path_exists(v.tags,'$[*] ? (@ like_regex \"^(template|backup)$\" flag \"i\")')) ORDER BY n.sort_order,n.id LIMIT 1)".into()),
+        ("duplicate_ip", duplicate_ip_predicate(&duplicate_networks), "0".into(), "v.name".into(),
+         format!("({duplicate_networks} ORDER BY n.sort_order,n.id LIMIT 1)")),
     ];
     for (key,condition,days,order,detail) in alerts {
         result[key]=json!(values(&state.pool,format!("SELECT jsonb_build_object('id',v.id,'name',v.name,'environment',v.environment,'days',({days})::int,'detail',{detail}) FROM vms v WHERE {INVENTORY} AND {condition} ORDER BY {order} LIMIT 50")).await?);
@@ -132,7 +133,22 @@ pub async fn ack(State(state): State<AppState>, user: Viewer, _: Csrf, Json(payl
     Ok((StatusCode::NO_CONTENT, [(header::CONTENT_TYPE, "application/json")]).into_response())
 }
 pub async fn duplicate_ips(State(state): State<AppState>, _: Viewer) -> Result<Json<Value>,ApiError> {
-    let rows=values(&state.pool,format!("WITH active AS(SELECT n.ip_address,v.id,v.name FROM vm_networks n JOIN vms v ON v.id=n.vm_id WHERE v.status='running' AND {INVENTORY}), duplicates AS(SELECT ip_address,count(*) occurrences FROM active GROUP BY ip_address HAVING count(*)>1) SELECT jsonb_build_object('ip_address',d.ip_address,'occurrences',d.occurrences,'vms',(SELECT jsonb_agg(jsonb_build_object('vm_id',a.id,'name',a.name) ORDER BY a.name) FROM (SELECT DISTINCT id,name FROM active WHERE ip_address=d.ip_address) a)) FROM duplicates d ORDER BY d.ip_address")).await?;
+    let rows = values(&state.pool, format!(
+        "WITH active AS (
+             SELECT n.ip_address,n.role,v.id,v.name FROM vm_networks n
+             JOIN vms v ON v.id=n.vm_id WHERE {RUNNING} AND {INVENTORY}
+         ), duplicate_roles AS (
+             SELECT ip_address,role FROM active
+             GROUP BY ip_address,role HAVING count(DISTINCT id)>1
+         ), duplicate_vms AS (
+             SELECT DISTINCT ip_address,id,name FROM active
+             JOIN duplicate_roles USING (ip_address,role)
+         )
+         SELECT jsonb_build_object(
+             'ip_address',ip_address,'occurrences',count(DISTINCT id),
+             'vms',jsonb_agg(jsonb_build_object('vm_id',id,'name',name) ORDER BY name,id)
+         ) FROM duplicate_vms GROUP BY ip_address ORDER BY ip_address"
+    )).await?;
     Ok(Json(json!(rows)))
 }
 

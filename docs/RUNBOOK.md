@@ -114,7 +114,7 @@ Both `template` and `backup` tags exclude VMs from alert predicates, regardless 
 | Frontend returns 502 | Confirm backend health and the `INVENTORYMGR_API_URL` network address. |
 | LDAP login fails | Inspect the admin-only LDAP settings and confirm that the bind credential decrypts with the configured `JWT_SECRET`. |
 | Settings endpoint returns 403 | These endpoints require an administrator. |
-| Migration drift | Compare `alembic_version` with head `0027`. Test repair on an isolated copy before touching live data. |
+| Migration drift | Compare `alembic_version` with head `0028`. Test repair on an isolated copy before touching live data. |
 | Backup filename rejected | Keep the generated archive name. Only the documented timestamp, label, optional UUID suffix, and `.dump` extension are allowed. |
 | Access blocked after restore failure | Check restore and invalidation errors before restarting. Confirm database integrity and session-generation persistence before reopening access. |
 
@@ -178,7 +178,7 @@ and HTTP requests have five-second limits. Diagnostic commands have 15-second
 limits and retain at most 100 lines / 5 MiB per stream. Build logs are retained
 separately. Secrets are generated per run and redacted from diagnostic output.
 
-Checks include PostgreSQL revision `0027`, PostgreSQL 17 clients, application UID
+Checks include PostgreSQL revision `0028`, PostgreSQL 17 clients, application UID
 1000, actual running image IDs, direct health, frontend availability, API routing
 through the frontend, and 60 seconds of healthy service state without unexpected
 restarts. Compose also restarts against the same database volume. Quadlet starts

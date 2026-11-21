@@ -19,10 +19,11 @@ pub fn validate_bulk(payload:&Value)->Result<BulkRequest,ApiError>{
   let loc=vec![json!("body"),json!("filters"),json!(k)];
   let lists="platform cluster status environment criticality node os_family owner tag application ip_role";
   let bools="monitoring_enabled pmp_enabled shutdown_stale decommission_overdue missing_ip duplicate_ip";
-  if !lists.split_whitespace().chain(bools.split_whitespace()).chain(["q","health"]).any(|a|a==k){collect(ApiError::validation(vec![issue(loc,"extra_forbidden","Extra inputs are not permitted",v)]));continue;}if v.is_null(){continue;}
+  if !lists.split_whitespace().chain(bools.split_whitespace()).chain(["q","health"]).any(|a|a==k){collect(ApiError::validation(vec![issue(loc,"extra_forbidden","Extra inputs are not permitted",v)]));continue;}
+  if v.is_null(){continue;}
   if lists.split_whitespace().any(|a|a==k){match strings(v,loc){Ok(values)=>{
    if ["platform","status","environment","criticality","os_family","ip_role"].contains(&k.as_str()){for(i,value)in values.iter().enumerate(){
-    if let Err(mut e)=filters::check_filter_enum(k,&value){if let Some(Value::Array(errors))=&mut e.detail{for error in errors{error["loc"]=json!(["body","filters",k,i]);}}collect(e);}
+    if let Err(mut e)=filters::check_filter_enum(k,value){if let Some(Value::Array(errors))=&mut e.detail{for error in errors{error["loc"]=json!(["body","filters",k,i]);}}collect(e);}
    }}
    params.insert(k.clone(),values);
   },Err(e)=>collect(e)}}else if bools.split_whitespace().any(|a|a==k){match coerce_bool(v){Some(b)=>{params.insert(k.clone(),vec![b.to_string()]);},None=>collect(prefix_error(field_error(k,"bool_parsing","Input should be a valid boolean",v),&[json!("filters")]))}}else if let Some(s)=v.as_str(){params.insert(k.clone(),vec![s.into()]);}else{collect(ApiError::validation(vec![issue(loc,"string_type","Input should be a valid string",v)]));}
@@ -34,7 +35,6 @@ pub fn validate_bulk(payload:&Value)->Result<BulkRequest,ApiError>{
   if ["applications_add","applications_remove"].contains(&k.as_str()){match strings(v,vec![json!("body"),json!("patch"),json!(k)]){Ok(names)=>{let mut clean=Vec::new();for(i,n)in names.iter().enumerate(){let n=n.trim();if n.chars().count()>255{collect(ApiError::validation(vec![issue(vec![json!("body"),json!("patch"),json!(k),json!(i)],"string_too_long","String should have at most 255 characters",&json!(n))]));}else if !n.is_empty(){clean.push(n.to_owned());}}if k=="applications_add"{app_adds=clean}else{app_removes=clean}},Err(e)=>collect(e)}continue;}
   let r=Resource{table:"bulk",..VM};match validate(r,json!({k:v}),false){Ok(value)=>patch[k]=value[k].clone(),Err(e)=>collect(prefix_error(e,&[json!("patch")]))}
  }}else{collect(field_error("patch","model_attributes_type","Input should be a valid dictionary",v));}}else{collect(field_error("patch","missing","Field required",payload));}
- drop(collect);
  if !errors.is_empty(){return Err(ApiError::validation(errors));}
  if explicit_ids==filter.is_some(){return Err(ApiError::validation(vec![issue(vec![json!("body")],"value_error","Value error, supply exactly one of ids or filters",payload)]));}
  if explicit_ids&&params.get("ids").is_none_or(Vec::is_empty){return Err(ApiError::validation(vec![issue(vec![json!("body")],"value_error","Value error, ids must not be empty",payload)]));}

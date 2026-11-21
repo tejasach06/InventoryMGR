@@ -2,6 +2,7 @@ use serde_json::{json,Value};
 use sqlx::{Postgres,QueryBuilder};
 use super::resource::{validate,VM,Resource,issue,coerce_bool};
 use crate::api::deps::ApiError;
+use crate::api::inventory_alerts::{INVENTORY, duplicate_ip_networks, duplicate_ip_predicate};
 use std::collections::BTreeMap;
 pub type Params=BTreeMap<String,Vec<String>>;
 pub fn query(raw:Option<String>)->Params {let mut p=Params::new();if let Some(raw)=raw{for pair in raw.split('&'){let(k,v)=pair.split_once('=').unwrap_or((pair,""));p.entry(decode(k)).or_default().push(decode(v));}}p}
@@ -13,7 +14,14 @@ pub fn bounded(p:&Params,key:&str,default:i64,min:i64,max:Option<i64>)->Result<i
  let n=s.parse::<i64>().map_err(|_|ApiError::validation(vec![issue(vec![json!("query"),json!(key)],"int_parsing","Input should be a valid integer, unable to parse string as an integer",&json!(s))]))?;
  if n<min||max.is_some_and(|m|n>m){let high=n>=min;let bound=if high{max.unwrap()}else{min};let mut e=issue(vec![json!("query"),json!(key)],if high{"less_than_equal"}else{"greater_than_equal"},format!("Input should be {} than or equal to {bound}",if high{"less"}else{"greater"}),&json!(s));e["ctx"]=if high{json!({"le":bound})}else{json!({"ge":bound})};return Err(ApiError::validation(vec![e]));}Ok(n)
 }
-pub fn check_filter_enum(key:&str,value:&str)->Result<(),ApiError>{if key=="status"&&value=="unknown"{return Ok(());}if key=="os_family"{if ["linux","windows","undefined"].contains(&value){return Ok(());}let expected="'linux', 'windows' or 'undefined'";let mut e=issue(vec![json!("body"),json!(key)],"enum",format!("Input should be {expected}"),&json!(value));e["ctx"]=json!({"expected":expected});return Err(ApiError::validation(vec![e]));}let field=if key=="ip_role"{"role"}else{key};let r=Resource{table:"bulk",fields:if key=="ip_role"{"role"}else{VM.fields},..VM};validate(r,json!({field:value}),false)?;Ok(())}
+pub fn check_filter_enum(key:&str,value:&str)->Result<(),ApiError>{
+    if key=="status"&&value=="unknown"{return Ok(());}
+    if key=="os_family"{
+        if ["linux","windows","undefined"].contains(&value){return Ok(());}
+        let expected="'linux', 'windows' or 'undefined'";let mut e=issue(vec![json!("body"),json!(key)],"enum",format!("Input should be {expected}"),&json!(value));e["ctx"]=json!({"expected":expected});return Err(ApiError::validation(vec![e]));
+    }
+    let field=if key=="ip_role"{"role"}else{key};let r=Resource{table:"bulk",fields:if key=="ip_role"{"role"}else{VM.fields},..VM};validate(r,json!({field:value}),false)?;Ok(())
+}
 pub fn validate_query(p:&Params)->Result<(),ApiError>{
  let mut errors=Vec::new();
  for key in ["platform","status","environment","criticality","os_family","ip_role"]{if let Some(values)=p.get(key){for(i,s)in values.iter().enumerate(){
@@ -31,8 +39,13 @@ pub fn apply(b:&mut QueryBuilder<Postgres>,p:&Params)->Result<(),ApiError>{
  for key in ["owner","tag","application"]{if let Some(values)=p.get(key).filter(|v|!v.is_empty()){let op=first(p,&format!("{key}_op")).unwrap_or(if key=="application"{"contains"}else{"eq"});check_op(op)?;b.push(" AND ");if op=="neq"{b.push("NOT ");}b.push("(");for(i,value)in values.iter().enumerate(){if i>0{b.push(" OR ");}match key{"owner"=>{b.push("(");for(j,col)in["owner","business_owner","technical_owner"].iter().enumerate(){if j>0{b.push(" OR ");}b.push(format!("lower(coalesce(v.{col},'')) = ")).push_bind(value.trim().to_lowercase());}b.push(")");},"tag"=>{b.push("v.tags @> ").push_bind(json!([value.trim()]));},_=>{b.push("EXISTS(SELECT 1 FROM vm_applications a WHERE a.vm_id=v.id AND lower(a.app_name) ");b.push(if op=="contains"{"LIKE "}else{"= "});b.push_bind(if op=="contains"{format!("%{}%",value.trim().to_lowercase())}else{value.trim().to_lowercase()}).push(")");}}}b.push(")");}}
  if let Some(roles)=p.get("ip_role").filter(|v|!v.is_empty()){b.push(" AND EXISTS(SELECT 1 FROM vm_networks n WHERE n.vm_id=v.id AND n.role::text IN (");let mut s=b.separated(",");for role in roles{if !["private","public","backup"].contains(&role.as_str()){return Err(ApiError::invalid("Invalid ip_role"));}s.push_bind(role.clone());}s.push_unseparated("))");}
  if let Some(health)=first(p,"health"){let cond=match health{"below_50"=>"v.health_score<50","below_75"=>"v.health_score<75","complete"=>"v.health_score>=100",_=>return Err(ApiError::invalid("Invalid health"))};b.push(format!(" AND {cond} AND NOT jsonb_path_exists(v.tags,'$[*] ? (@ like_regex \"^(template|backup)$\" flag \"i\")')"));}
- for(key,expr)in[("shutdown_stale","v.status='powered_off' AND coalesce((SELECT max(changed_at) FROM audit_log WHERE vm_id=v.id AND field_name='status' AND new_value='powered_off'),v.created_at)<=now()-interval '90 days'"),("decommission_overdue","v.decommission_date IS NOT NULL AND v.decommission_date<=(now() AT TIME ZONE 'UTC')::date AND v.status<>'decommissioned'"),("missing_ip","NOT EXISTS(SELECT 1 FROM vm_networks WHERE vm_id=v.id)"),("duplicate_ip","v.status='running' AND EXISTS(SELECT 1 FROM vm_networks mine WHERE mine.vm_id=v.id AND EXISTS(SELECT 1 FROM vm_networks other JOIN vms ov ON ov.id=other.vm_id WHERE other.ip_address=mine.ip_address AND other.role=mine.role AND other.vm_id<>mine.vm_id AND ov.status='running' AND NOT jsonb_path_exists(ov.tags,'$[*] ? (@ like_regex \"^(template|backup)$\" flag \"i\")')))" )]{if let Some(value)=boolean(p,key)?{b.push(" AND ");if !value{b.push("NOT ");}b.push(format!("({expr})"));}}
- if ["shutdown_stale","decommission_overdue","missing_ip","duplicate_ip"].iter().any(|key|first(p,key).is_some()){b.push(" AND NOT jsonb_path_exists(v.tags,'$[*] ? (@ like_regex \"^(template|backup)$\" flag \"i\")')");}
+ for(key,expr)in[("shutdown_stale","v.status='powered_off' AND coalesce((SELECT max(changed_at) FROM audit_log WHERE vm_id=v.id AND field_name='status' AND new_value='powered_off'),v.created_at)<=now()-interval '90 days'"),("decommission_overdue","v.decommission_date IS NOT NULL AND v.decommission_date<=(now() AT TIME ZONE 'UTC')::date AND v.status<>'decommissioned'"),("missing_ip","NOT EXISTS(SELECT 1 FROM vm_networks WHERE vm_id=v.id)")]{if let Some(value)=boolean(p,key)?{b.push(" AND ");if !value{b.push("NOT ");}b.push(format!("({expr})"));}}
+ if let Some(value) = boolean(p, "duplicate_ip")? {
+     let predicate = duplicate_ip_predicate(&duplicate_ip_networks());
+     let negation = if value { "" } else { "NOT " };
+     b.push(format!(" AND {negation}({predicate})"));
+ }
+ if ["shutdown_stale","decommission_overdue","missing_ip","duplicate_ip"].iter().any(|key|first(p,key).is_some()){b.push(format!(" AND {INVENTORY}"));}
  Ok(())}
 fn check_op(op:&str)->Result<(),ApiError>{if ["eq","neq","contains"].contains(&op){Ok(())}else{Err(ApiError::invalid("Invalid filter operator"))}}
 pub fn ordering(p:&Params)->Result<String,ApiError>{let dir=first(p,"dir").unwrap_or("asc");if !["asc","desc"].contains(&dir){return Err(ApiError::invalid("Invalid sort direction"));}let key=first(p,"sort");let col=match key{None=>return Ok("v.updated_at DESC,v.name ASC".into()),Some("status")=>"CASE v.status WHEN 'running' THEN 0 WHEN 'powered_off' THEN 1 WHEN 'unknown' THEN 2 ELSE 3 END",Some("criticality")=>"CASE v.criticality WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END",Some("health")=>"v.health_score",Some(k)if["name","updated_at","cluster","platform","environment","cpu_cores","memory_mb","owner"].contains(&k)=>return Ok(format!("v.{k} {dir},v.name ASC")),_=>return Err(ApiError::invalid("Invalid sort"))};Ok(format!("{col} {dir},v.name ASC"))}
