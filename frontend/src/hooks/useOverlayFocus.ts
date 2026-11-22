@@ -13,6 +13,11 @@ export interface OverlayFocusOptions {
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// Open overlays, innermost last. Only the top one handles keys; the body scroll lock is
+// taken by the first and released by the last, whatever order they close in.
+const overlayStack: symbol[] = [];
+let bodyOverflowBeforeLock = '';
+
 export function useOverlayFocus({
   open,
   onClose,
@@ -29,7 +34,9 @@ export function useOverlayFocus({
     if (!open) return;
 
     previousActiveElementRef.current = document.activeElement as HTMLElement | null;
-    const oldOverflow = document.body.style.overflow;
+    const token = Symbol('overlay');
+    if (overlayStack.length === 0) bodyOverflowBeforeLock = document.body.style.overflow;
+    overlayStack.push(token);
     document.body.style.overflow = 'hidden';
 
     const getFocusables = (): HTMLElement[] => {
@@ -51,6 +58,7 @@ export function useOverlayFocus({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (overlayStack[overlayStack.length - 1] !== token) return;
       if (event.key === 'Escape') {
         if (!closeOnEscape) return;
         event.preventDefault();
@@ -91,7 +99,8 @@ export function useOverlayFocus({
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = oldOverflow;
+      overlayStack.splice(overlayStack.indexOf(token), 1);
+      if (overlayStack.length === 0) document.body.style.overflow = bodyOverflowBeforeLock;
       const prev = previousActiveElementRef.current;
       if (prev && typeof prev.focus === 'function') {
         prev.focus();

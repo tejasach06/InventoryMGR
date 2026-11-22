@@ -175,3 +175,41 @@ describe('useOverlayFocus', () => {
     expect(screen.getByTestId('third-btn')).toHaveFocus();
   });
 });
+
+describe('stacked overlays', () => {
+  function Stack({ onOuter, onInner }: { onOuter: () => void; onInner: () => void }) {
+    const outerRef = useRef<HTMLDivElement>(null);
+    const innerRef = useRef<HTMLDivElement>(null);
+    const [outerOpen, setOuterOpen] = useState(true);
+    const [innerOpen, setInnerOpen] = useState(true);
+    useOverlayFocus({ open: outerOpen, onClose: () => { setOuterOpen(false); onOuter(); }, containerRef: outerRef });
+    useOverlayFocus({ open: innerOpen, onClose: () => { setInnerOpen(false); onInner(); }, containerRef: innerRef });
+    return (
+      <>
+        <button onClick={() => setOuterOpen(false)}>close-outer</button>
+        <button onClick={() => setInnerOpen(false)}>close-inner</button>
+        {outerOpen && <div ref={outerRef}><button>outer</button></div>}
+        {innerOpen && <div ref={innerRef}><button>inner</button></div>}
+      </>
+    );
+  }
+
+  it('Escape closes only the innermost overlay', () => {
+    const onOuter = vi.fn();
+    const onInner = vi.fn();
+    render(<Stack onOuter={onOuter} onInner={onInner} />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onInner).toHaveBeenCalledTimes(1);
+    expect(onOuter).not.toHaveBeenCalled();
+  });
+
+  it('keeps scroll locked until the last overlay closes, in any close order', () => {
+    document.body.style.overflow = '';
+    render(<Stack onOuter={() => {}} onInner={() => {}} />);
+    expect(document.body.style.overflow).toBe('hidden');
+    fireEvent.click(screen.getByText('close-outer'));
+    expect(document.body.style.overflow).toBe('hidden');
+    fireEvent.click(screen.getByText('close-inner'));
+    expect(document.body.style.overflow).toBe('');
+  });
+});
