@@ -325,11 +325,50 @@ html.dark ::-webkit-scrollbar-thumb { background: var(--color-scrollbar); border
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* Disable transform/scale/slide keyframe animations */
   *, *::before, *::after {
-    animation-duration: 0.001ms !important;
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+  }
+
+  /* Keep short opacity/color transitions (<=100ms) while stripping transform/scale animations */
+  *, *::before, *::after {
+    transition-duration: 100ms !important;
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow !important;
+  }
+
+  /* Disable transform/scale/slide animations and auth gradient */
+  .auth-gradient {
+    animation: none !important;
+    background-position: 30% 50% !important;
+  }
+
+  .row-actions {
+    transform: none !important;
+    transition: opacity 100ms var(--ease-out-expo) !important;
+  }
+
+  .bulk-bar {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .bento-tile {
+    transition: box-shadow 100ms ease, border-color 100ms ease !important;
+  }
+
+  .bento-tile:hover {
+    transform: none !important;
+  }
+
+  [class*="active:scale-"]:active,
+  [class*="hover:scale-"]:hover,
+  [class*="hover:-translate-"]:hover {
+    transform: none !important;
   }
 }
 

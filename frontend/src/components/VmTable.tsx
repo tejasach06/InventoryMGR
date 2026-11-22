@@ -95,6 +95,8 @@ export function VmTable({
     if (selectAllRef.current) selectAllRef.current.indeterminate = selectedIds.size > 0 && selectedIds.size < vms.length;
   }, [selectedIds, vms.length]);
 
+  const hasStatusColumn = columns.some((c) => c.key === 'status');
+  const hasNameColumn = columns.some((c) => c.key === 'name');
 
   return (
     <div className={cn(tableWrapClass, 'max-h-[calc(100vh-18rem)] overflow-y-auto')}>
@@ -102,14 +104,16 @@ export function VmTable({
         <thead className={tableHeadClass}>
           <tr>
             <th scope="col" className="px-4 py-3 w-10">
-              <input
-                ref={selectAllRef}
-                type="checkbox"
-                className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
-                checked={selectedIds.size === vms.length && vms.length > 0}
-                onChange={() => onToggleAll(vms.map((v) => v.id))}
-                aria-label="Select all"
-              />
+              <label className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center p-1 -m-1">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
+                  checked={selectedIds.size === vms.length && vms.length > 0}
+                  onChange={() => onToggleAll(vms.map((v) => v.id))}
+                  aria-label="Select all"
+                />
+              </label>
             </th>
             {columns.map((col) => {
               const sortable = SORTABLE_COLUMNS.has(col.key);
@@ -142,16 +146,22 @@ export function VmTable({
               <tr
                 key={vm.id}
                 className={cn(tableRowClass, isSelected && 'bg-[var(--color-accent)]/10')}
-                style={{ borderLeft: `3px solid var(--color-status-${vm.status.toLowerCase().replace(/\s+/g, '_')})` }}
               >
                 <td className="py-3 pl-3 pr-4">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
-                    checked={isSelected}
-                    onChange={() => onToggle(vm.id)}
-                    aria-label={`Select ${vm.name}`}
-                  />
+                  <div className="inline-flex items-center gap-2">
+                    <label className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center p-1 -m-1">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
+                        checked={isSelected}
+                        onChange={() => onToggle(vm.id)}
+                        aria-label={`Select ${vm.name}`}
+                      />
+                    </label>
+                    {!hasStatusColumn && !hasNameColumn && (
+                      <Badge value={vm.status} type="status" />
+                    )}
+                  </div>
                 </td>
                 {columns.map((col) => {
                   const isEditing = editingCell?.vmId === vm.id && editingCell?.field === col.key;
@@ -160,15 +170,25 @@ export function VmTable({
                     <td
                       key={col.key}
                       data-testid={`cell-${col.key}`}
+                      tabIndex={isEditable && !isEditing ? 0 : undefined}
+                      role={isEditable && !isEditing ? 'button' : undefined}
+                      aria-label={isEditable && !isEditing ? `Edit ${COLUMN_LABELS[col.key as keyof typeof COLUMN_LABELS] || col.key} for ${vm.name}` : undefined}
                       className={cn(
                         tableCellClass,
                         col.key === 'name' && 'font-medium',
-                        isEditable && !isEditing && 'group/cell cursor-pointer hover:bg-[var(--color-accent)]/10 transition-colors'
+                        isEditable && !isEditing && 'group/cell cursor-pointer hover:bg-[var(--color-accent)]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]'
                       )}
-                      title={isEditable && !isEditing ? 'Click to edit inline' : undefined}
+                      title={isEditable && !isEditing ? 'Click or press Enter to edit' : undefined}
                       style={isEditing ? { width: editWidth ?? undefined } : undefined}
                       onClick={(e) => {
                         if (isEditable && !isEditing) {
+                          const currentVal = String(vm[col.key as EditableField] ?? '');
+                          startEdit(vm.id, col.key as EditableField, currentVal, (e.currentTarget as HTMLTableCellElement).offsetWidth);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (isEditable && !isEditing && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault();
                           const currentVal = String(vm[col.key as EditableField] ?? '');
                           startEdit(vm.id, col.key as EditableField, currentVal, (e.currentTarget as HTMLTableCellElement).offsetWidth);
                         }
@@ -238,9 +258,12 @@ export function VmTable({
                       ) : (
                         <>
                           {col.key === 'name' && (
-                            <Link href={`/inventory/${vm.id}`} className={cn(monoClass, "font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent-text)]")}>
-                              {vm.name}
-                            </Link>
+                            <div className="inline-flex items-center gap-2">
+                              <Link href={`/inventory/${vm.id}`} className={cn(monoClass, "font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent-text)]")}>
+                                {vm.name}
+                              </Link>
+                              {!hasStatusColumn && <Badge value={vm.status} type="status" />}
+                            </div>
                           )}
                           {col.key === 'platform' && <Badge value={vm.platform} type="platform" />}
                           {col.key === 'cluster' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.cluster}</span>}

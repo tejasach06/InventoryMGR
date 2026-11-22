@@ -131,7 +131,7 @@ export function TagInput({
                 e.stopPropagation();
                 removeTag(tag);
               }}
-              className="hover:text-[var(--color-text-primary)] focus:outline-none"
+              className="inline-flex h-6 w-6 cursor-pointer items-center justify-center -my-1 -mr-1.5 rounded hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-accent)]"
             >
               ×
             </button>
