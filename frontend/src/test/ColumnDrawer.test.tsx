@@ -39,6 +39,10 @@ describe('ColumnDrawer', () => {
     expect(screen.getByLabelText('Name')).toBeChecked();
     expect(screen.getByLabelText('Cluster')).toBeChecked();
     expect(screen.getByLabelText('Virtual hosts')).not.toBeChecked();
+
+    const nameCheckbox = screen.getByLabelText('Name');
+    const wrapperLabel = nameCheckbox.closest('label');
+    expect(wrapperLabel).toHaveClass('min-h-6', 'min-w-6');
   });
 
   it('reports the column key when a checkbox is toggled', async () => {

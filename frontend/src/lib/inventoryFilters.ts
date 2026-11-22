@@ -1,3 +1,5 @@
+import { DEFAULT_COLUMNS } from './columns';
+
 export const PAGE_SIZES = [25, 50, 100, 200] as const;
 
 export const coreFilterNames = ['q', 'platform', 'status', 'criticality'] as const;
@@ -36,12 +38,17 @@ export const PAGE_SIZE_STORAGE_KEY = 'inventory-page-size';
 
 export type ViewState = { page: number; size: number; sort: string | null; dir: 'asc' | 'desc' };
 
-// Keys the API accepts (services/vms.py::SORT_COLUMNS). 'health' maps to
-// health_score server-side; keeping one list here stops the two from drifting.
+export function toApiSortKey(key: string): string {
+  return key === 'health_score' ? 'health' : key;
+}
+
+// Derived from DEFAULT_COLUMNS so future columns cannot drift.
+// Also includes 'health' (API/URL key for health_score) and legacy 'cpu_cores', 'memory_mb'.
 export const SORTABLE_COLUMNS = new Set([
-  'name', 'status', 'criticality', 'health', 'updated_at',
-  'cluster', 'platform', 'environment',
-  'cpu_cores', 'memory_mb', 'owner',
+  ...DEFAULT_COLUMNS.map((c) => c.key),
+  'health',
+  'cpu_cores',
+  'memory_mb',
 ]);
 
 function storedPageSize(): number {
@@ -54,7 +61,8 @@ export function viewFromParams(params: URLSearchParams): ViewState {
   const page = Math.max(1, Number(params.get('page')) || 1);
   const rawSize = Number(params.get('size'));
   const size = PAGE_SIZES.includes(rawSize as (typeof PAGE_SIZES)[number]) ? rawSize : storedPageSize();
-  const sort = params.get('sort');
+  const rawSort = params.get('sort');
+  const sort = rawSort ? toApiSortKey(rawSort) : null;
   const dir = params.get('dir') === 'desc' ? 'desc' : 'asc';
   return { page, size, sort: sort && SORTABLE_COLUMNS.has(sort) ? sort : null, dir };
 }

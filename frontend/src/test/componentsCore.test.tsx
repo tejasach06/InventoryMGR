@@ -99,12 +99,30 @@ describe('AppLayout', () => {
     renderWithProviders(<AppLayout user={makeUser()}>body</AppLayout>);
     expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
   });
-  it('renders the collapse toggle outside the navigation landmark', () => {
+  it('renders the collapse toggle outside the navigation landmark with enlarged hit area', () => {
     renderWithProviders(<AppLayout user={makeUser()}>body</AppLayout>);
     const toggle = screen.getByRole('button', { name: 'Collapse sidebar' });
     expect(screen.getByLabelText('Primary navigation')).not.toContainElement(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(toggle).toHaveAttribute('aria-controls', 'primary-nav');
+    expect(toggle).toHaveClass('h-7');
+    expect(toggle).toHaveClass('w-7');
+    expect(toggle).toHaveClass('before:absolute');
+    expect(toggle).toHaveClass('before:-inset-2');
+  });
+
+  it('manages mobile navigation dialog focus and closes on Escape', () => {
+    renderWithProviders(<AppLayout user={makeUser()}>body</AppLayout>);
+    const openBtn = screen.getByRole('button', { name: 'Open navigation' });
+    openBtn.focus();
+    fireEvent.click(openBtn);
+
+    const closeBtn = screen.getByRole('button', { name: 'Close navigation' });
+    expect(closeBtn).toHaveFocus();
+
+    fireEvent.keyDown(closeBtn, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull();
+    expect(openBtn).toHaveFocus();
   });
 
   it('keeps the sidebar footer grouped and visually quiet', () => {

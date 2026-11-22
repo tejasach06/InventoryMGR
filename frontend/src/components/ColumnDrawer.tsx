@@ -94,13 +94,18 @@ export function ColumnDrawer({
               <circle cx="2.5" cy="8" r="1.25" /><circle cx="7.5" cy="8" r="1.25" />
               <circle cx="2.5" cy="13.5" r="1.25" /><circle cx="7.5" cy="13.5" r="1.25" />
             </svg>
-            <input
-              id={`column-${col.key}`}
-              type="checkbox"
-              checked={col.visible}
-              onChange={() => onToggle(col.key)}
-              className="h-3.5 w-3.5 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
-            />
+            <label
+              htmlFor={`column-${col.key}`}
+              className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center p-1.5 -m-1.5"
+            >
+              <input
+                id={`column-${col.key}`}
+                type="checkbox"
+                checked={col.visible}
+                onChange={() => onToggle(col.key)}
+                className="h-3.5 w-3.5 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
+              />
+            </label>
             <label
               htmlFor={`column-${col.key}`}
               className="flex-1 cursor-pointer text-[var(--color-text-primary)]"

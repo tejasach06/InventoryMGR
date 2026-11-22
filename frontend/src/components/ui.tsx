@@ -2,7 +2,7 @@
 
 import { ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { cn } from '../lib/classNames';
-import { useModalOverlay } from '../hooks/useModalOverlay';
+import { useOverlayFocus } from '../hooks/useOverlayFocus';
 
 export const primaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-on-accent)] transition-all duration-150 hover:bg-[var(--color-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]';
 export const secondaryButtonClass = 'inline-flex items-center gap-2 justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-all duration-150 hover:bg-[var(--color-surface-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]';
@@ -269,7 +269,7 @@ export function Drawer({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  useModalOverlay({ open, onClose, containerRef: panelRef, initialFocusRef: closeRef });
+  useOverlayFocus({ open, onClose, containerRef: panelRef, initialFocusRef: closeRef });
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
@@ -398,7 +398,7 @@ export function ConfirmDialog({
     if (!holdInFlight.current) onCancel();
   }, [onCancel]);
 
-  useModalOverlay({ open, onClose: cancel, containerRef, initialFocusRef: cancelRef });
+  useOverlayFocus({ open, onClose: cancel, containerRef, initialFocusRef: cancelRef });
 
   async function confirmHold() {
     if (!onHoldConfirm || holdInFlight.current) return;

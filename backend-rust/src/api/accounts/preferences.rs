@@ -39,6 +39,13 @@ const COLUMNS: &[(&str, bool, i64)] = &[
     ("public_ip", false, 25),
     ("backup_ip", false, 26),
 ];
+// The list page splits the legacy `resources` column into these two keys.
+const SPLIT_RESOURCE_KEYS: [&str; 2] = ["cpu_cores", "memory_mb"];
+fn is_known_key(key: &str) -> bool {
+    COLUMNS.iter().any(|(k, _, _)| *k == key)
+        || SPLIT_RESOURCE_KEYS.contains(&key)
+        || matches!(key, "ip_address" | "os" | "fqdn")
+}
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/user/accent", get(accent).put(set_accent))
@@ -114,6 +121,10 @@ async fn columns(
         };
         seen.insert(c.key.clone())
     });
+    // Once the user has saved the split columns, don't re-append the legacy combined one.
+    if SPLIT_RESOURCE_KEYS.iter().any(|k| seen.contains(*k)) {
+        seen.insert("resources".to_string());
+    }
     let mut order = cols.iter().map(|c| c.order).max().unwrap_or(-1) + 1;
     for (k, _, _) in COLUMNS {
         if !seen.contains(*k) {
@@ -136,9 +147,7 @@ async fn set_columns(
 ) -> Result<Json<Columns>, ApiError> {
     let mut seen = HashSet::new();
     for c in &p.columns {
-        if !COLUMNS.iter().any(|(k, _, _)| *k == c.key)
-            && !matches!(c.key.as_str(), "ip_address" | "os" | "fqdn")
-        {
+        if !is_known_key(&c.key) {
             return Err(ApiError::invalid(format!("Unknown column key: {}", c.key)));
         }
         if !seen.insert(&c.key) {
@@ -174,5 +183,18 @@ impl crate::api::deps::JsonSchema for Columns {
             ));
         }
         errors
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::is_known_key;
+    #[test]
+    fn accepts_split_resource_keys_and_still_rejects_unknown() {
+        for k in ["cpu_cores", "memory_mb", "resources", "fqdn", "name"] {
+            assert!(is_known_key(k), "{k}");
+        }
+        for k in ["", "__proto__", "disks", "cpu"] {
+            assert!(!is_known_key(k), "{k}");
+        }
     }
 }
