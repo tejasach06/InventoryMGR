@@ -22,6 +22,16 @@ import { formatMemory } from '../lib/units';
 import { cn } from '../lib/classNames';
 
 export type EditableField = 'status' | 'environment' | 'criticality' | 'owner';
+// Native button gives Enter/Space for free; its click bubbles to the td's onClick, which starts the edit.
+function CellTrigger({ editable, label, children }: { editable: boolean; label: string; children: React.ReactNode }) {
+  if (!editable) return <>{children}</>;
+  return (
+    <button type="button" aria-label={label} className="-m-1 rounded p-1 text-left focus-visible:outline-none">
+      {children}
+    </button>
+  );
+}
+
 const EDITABLE_FIELDS: readonly EditableField[] = ['status', 'environment', 'criticality', 'owner'];
 
 function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
@@ -170,25 +180,15 @@ export function VmTable({
                     <td
                       key={col.key}
                       data-testid={`cell-${col.key}`}
-                      tabIndex={isEditable && !isEditing ? 0 : undefined}
-                      role={isEditable && !isEditing ? 'button' : undefined}
-                      aria-label={isEditable && !isEditing ? `Edit ${COLUMN_LABELS[col.key as keyof typeof COLUMN_LABELS] || col.key} for ${vm.name}` : undefined}
                       className={cn(
                         tableCellClass,
                         col.key === 'name' && 'font-medium',
-                        isEditable && !isEditing && 'group/cell cursor-pointer hover:bg-[var(--color-accent)]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]'
+                        isEditable && !isEditing && 'group/cell cursor-pointer hover:bg-[var(--color-accent)]/10 transition-colors focus-within:ring-2 focus-within:ring-inset focus-within:ring-[var(--color-accent)]'
                       )}
                       title={isEditable && !isEditing ? 'Click or press Enter to edit' : undefined}
                       style={isEditing ? { width: editWidth ?? undefined } : undefined}
                       onClick={(e) => {
                         if (isEditable && !isEditing) {
-                          const currentVal = String(vm[col.key as EditableField] ?? '');
-                          startEdit(vm.id, col.key as EditableField, currentVal, (e.currentTarget as HTMLTableCellElement).offsetWidth);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (isEditable && !isEditing && (e.key === 'Enter' || e.key === ' ')) {
-                          e.preventDefault();
                           const currentVal = String(vm[col.key as EditableField] ?? '');
                           startEdit(vm.id, col.key as EditableField, currentVal, (e.currentTarget as HTMLTableCellElement).offsetWidth);
                         }
@@ -256,7 +256,7 @@ export function VmTable({
                           {isSaving ? <Spinner /> : null}
                         </div>
                       ) : (
-                        <>
+                        <CellTrigger editable={isEditable} label={`Edit ${COLUMN_LABELS[col.key as keyof typeof COLUMN_LABELS] || col.key} for ${vm.name}`}>
                           {col.key === 'name' && (
                             <div className="inline-flex items-center gap-2">
                               <Link href={`/inventory/${vm.id}`} className={cn(monoClass, "font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent-text)]")}>
@@ -297,7 +297,7 @@ export function VmTable({
                               {vm.tags.length > 3 && <span className="text-xs text-[var(--color-text-tertiary)]">+{vm.tags.length - 3}</span>}
                             </span>
                           )}
-                        </>
+                        </CellTrigger>
                       )}
                     </td>
                   );

@@ -29,22 +29,19 @@ describe('VmTable inline edits', () => {
     renderWithProviders(<VmTable vms={[vm]} columns={[{ key: 'status' }, { key: 'owner' }]} selectedIds={new Set()} onToggle={() => {}} onToggleAll={() => {}} sortKey={null} sortDir="asc" onSort={() => {}} canEdit onUpdateCell={update} />);
 
     const statusCell = screen.getByTestId('cell-status');
-    expect(statusCell).toHaveAttribute('tabIndex', '0');
-    expect(statusCell).toHaveAttribute('role', 'button');
-    expect(statusCell).toHaveAttribute('aria-label', 'Edit Status for test-vm');
+    expect(statusCell).not.toHaveAttribute('role');
+    const statusBtn = screen.getByRole('button', { name: 'Edit Status for test-vm' });
+    expect(statusCell).toContainElement(statusBtn);
 
-    // Press Enter to start editing status
-    fireEvent.keyDown(statusCell, { key: 'Enter' });
+    // A native button turns Enter/Space into a click
+    fireEvent.click(statusBtn);
     const select = screen.getByDisplayValue('running');
     expect(select).toBeInTheDocument();
     fireEvent.keyDown(select, { key: 'Escape' });
     expect(screen.queryByDisplayValue('running')).not.toBeInTheDocument();
 
     // Press Space to start editing owner
-    const ownerCell = screen.getByTestId('cell-owner');
-    expect(ownerCell).toHaveAttribute('tabIndex', '0');
-    expect(ownerCell).toHaveAttribute('role', 'button');
-    fireEvent.keyDown(ownerCell, { key: ' ' });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Owner for test-vm' }));
     const input = screen.getByDisplayValue('alice');
     expect(input).toBeInTheDocument();
     fireEvent.keyDown(input, { key: 'Escape' });
