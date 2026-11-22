@@ -1,94 +1,69 @@
-# InventoryMGR Blueprint
+# InventoryMGR
 
-## System Overview
-Manual VM, storage, and hardware inventory tracker. Postgres-backed, no hypervisor connection — all data is user-entered or CSV-imported (Proxmox/VMware exports).
+A self-hosted inventory tracker for virtual machines, storage, and hardware.
 
-## Subdirectories & System Boundaries
-- [tools/parity](tools/parity): Rust regression harness (HTTP contracts, migrations, restore concurrency) and pg-bridge
-- [backend-rust](backend-rust/README.md): Core Axum 0.8 / SQLx 0.9 / PostgreSQL 17 high-performance production API service and domain logic
-- [frontend](frontend/README.md): Next.js 16 / React 19 / TanStack Query web interface and operator dashboard
-- [tools](tools/README.md): E2E test runners, parity verifiers, and risk-acceptance validation scripts
+InventoryMGR keeps one trustworthy list of what you run: which VMs exist, what
+they are for, who owns them, where their disks live, and which IP addresses they
+use. It has **no hypervisor connection**. Everything is entered by hand or
+imported from a CSV (including Proxmox and VMware exports), so it works the same
+whatever your virtualisation stack looks like.
 
-## Global Invariants
-- Authentication: JWT session-cookie auth with role-based access control (`admin`/`editor`/`viewer`); admin-only settings.
-- Data Integrity: Synchronous SQL predicates flag inventory issues, excluding template and backup tagged VMs.
-- Operational Decoupling: Zero hypervisor runtime dependencies; strictly manual entry or CSV-driven import reconciliation.
+## What it does
 
-## Global Side Effects
-- Storage: PostgreSQL 17 transactional database updates, Alembic/SQLx migrations, and pg_dump backups.
-- Network: Local HTTP REST API (:8000), frontend Next.js server (:3000), and optional LDAP bind connections.
-
-## System Verification
-- Run: `just verify`
-
----
-## Features
-
-- **VM inventory** — CRUD for VMs with disks, networks, applications; bulk edit;
-  CSV import with preview/commit and conflict resolution.
-- **Storage & clusters** — track storage arrays (Synology, NetApp, …) and
-  cluster groupings independently of VMs.
-- **Alerts** — synchronous SQL predicates flag inventory issues (e.g. stale
-  environments), case-insensitively excluding `template`/`backup`-tagged VMs.
-- **Reports** — CSV/XLSX export of inventory fields.
-- **Users & auth** — JWT session-cookie auth, role-based access
-  (`admin`/`editor`/`viewer`), optional LDAP bind (credentials encrypted at rest).
-- **Settings** — app-wide settings and LDAP configuration, admin-only.
-- **Backups** — scheduled Postgres backups to a mounted volume via native pg_dump.
-
-## Stack
-
-| Layer | Tech |
-|---|---|
-| Backend | Rust 1.98.1, Axum 0.8, SQLx 0.9, PostgreSQL 17 |
-| Frontend | Next.js 16, React 19, TanStack Query, Tailwind 4, pnpm 12.14.0, Node.js 24.22.3 LTS |
-| Parity harness | Rust (`tools/parity/`); frozen HTTP/migration baselines |
-| Deploy | Podman rootless Compose or Quadlet units (`quadlet/`) |
-
-## Layout
-
-```
-backend-rust/src/{core,db,models,schemas,api}    # Axum handlers and SQLx queries
-backend-rust/migrations/                                # Native Alembic-compatible SQL revision chain
-tools/parity/                                           # Rust parity harness + frozen baselines
-frontend/src/{app,routes,components,hooks,lib,api}
-frontend/src/test/                                      # vitest unit tests
-frontend/e2e/                                           # Playwright
-quadlet/                                                # Podman Quadlet unit files
-docs/                                                   # runbook, API reference, alerts, quadlet deploy
-```
+- **VM inventory.** Create, edit, clone, and delete VMs with their disks,
+  networks, and applications. Bulk edit, and a guarded bulk delete (explicit row
+  selection, a confirmation listing the VM names, and a two-second hold).
+  Deletions are audited.
+- **Public-to-private IP mappings.** Record which private address a public
+  address maps to on the same VM, and carry that through import and export.
+- **CSV import and export.** Preview before commit, with conflict resolution.
+  CSV is the only VM importer. Export picks the fields you want in XLSX or CSV.
+- **Storage and clusters.** Track storage arrays (Synology, NetApp, and so on)
+  and cluster groupings independently of VMs.
+- **Alerts.** Plain SQL predicates, evaluated when the dashboard loads, flag
+  stale shutdowns, overdue decommissions, missing IPs, and duplicate IPs.
+  VMs tagged `template` or `backup` are always excluded, case-insensitively.
+  A duplicate IP means two running VMs share an address in the same role
+  (`private`, `public`, or `backup`). The dashboard, the bell, and the
+  `/vms?duplicate_ip=` filter all use one predicate.
+- **Users and access.** Session-cookie sign-in with `admin`, `editor`, and
+  `viewer` roles, plus optional LDAP bind (credentials are encrypted at rest).
+  App-wide and LDAP settings are admin-only.
+- **Backups.** Scheduled Postgres backups to a mounted volume using native
+  `pg_dump`.
 
 ## Quickstart
 
-Install Rust 1.98.1, Node.js 24.22.3, pnpm 12.14.0, OpenSSL, Podman with Compose,
-and `just` before running setup. The repository pins Rust, pnpm, and
-container build runtimes; `just setup` checks for the host tools and installs
-dependencies from frozen lockfiles and Playwright's Chromium payload. Linux hosts
-also need Playwright's Chromium system libraries; provision these before browser
-tests (`pnpm exec playwright install-deps chromium` installs them with the
-required host privileges). Install cargo-audit 0.22.2 for `just audit`, for example
-with `cargo install cargo-audit --version 0.22.2 --locked`. No shell environment
-manager is required. For native `just up-local`, install PostgreSQL 17 `pg_dump`
-and `pg_restore` clients. `just up` instead builds containers with matching
-PostgreSQL clients. OpenSSL generates secrets; Node.js runs the e2e port picker and deployment verifier.
-
-Native Rust builds also require a system C linker (`cc`); setup checks it before installing dependencies.
+The fastest way to try it is the containerised stack. You need Podman with
+Compose and [`just`](https://github.com/casey/just).
 
 ```
-just setup          # frozen frontend, parity harness, and Rust dependencies
-just env            # generate .env from .env.example (JWT_SECRET)
-just up-local       # requires PostgreSQL 17 clients; local backend and frontend
-just api-dev        # cargo run on :8000
-just web-dev        # Next.js development server on :3000
+just up      # generates .env (with a JWT_SECRET) if needed, then podman compose up -d --build
 ```
 
-Or run the full stack in containers:
+Then open:
+
+- Web app: http://127.0.0.1:3000
+- API health: http://127.0.0.1:8000/api/health
+
+### Local development
 
 ```
-just up             # podman compose up -d --build
+just setup      # frozen frontend, parity harness, and Rust dependencies
+just env        # generate .env
+just up-local   # local backend and frontend (needs PostgreSQL 17 clients)
+just api-dev    # API on :8000
+just web-dev    # web app on :3000
 ```
 
-Frontend: http://127.0.0.1:3000 · API: http://127.0.0.1:8000/api/health
+Toolchain: Rust 1.98.1, Node.js 24.22.3 LTS, pnpm 12.14.0, OpenSSL, Podman with
+Compose, and `just`. A system C linker (`cc`) is required for native Rust builds.
+`just up-local` also needs PostgreSQL 17 `pg_dump` and `pg_restore`; `just up`
+builds containers that already include them. On Linux, install Playwright's
+Chromium system libraries before browser tests
+(`pnpm exec playwright install-deps chromium`). `just audit` needs
+`cargo-audit` 0.22.2 (`cargo install cargo-audit --version 0.22.2 --locked`).
+No Python and no shell environment manager are required.
 
 ## Common commands
 
@@ -96,40 +71,75 @@ Frontend: http://127.0.0.1:3000 · API: http://127.0.0.1:8000/api/health
 |---|---|
 | Backend tests | `just api-test` |
 | Frontend unit tests | `just web-test` |
-| Frontend lint/typecheck | `cd frontend && pnpm run lint` |
-| E2E | `just e2e` |
+| Frontend lint and typecheck | `cd frontend && pnpm run lint` |
+| End-to-end tests | `just e2e` |
 | Full gate before calling anything done | `just verify` |
 | Security audit | `just audit` |
-| Compose image deployment on Aspire | `just test-deploy-compose` |
-| Quadlet image deployment on Aspire | `just test-deploy-quadlet` |
-| Both deployment modes, sequentially | `just test-deploy` |
+| Deployment check, Compose | `just test-deploy-compose` |
+| Deployment check, Quadlet | `just test-deploy-quadlet` |
+| Deployment check, both | `just test-deploy` |
 
-`just setup` builds the Rust parity harness (`tools/parity`) and the backend. No Python is required anywhere.
-`just verify` runs all Cargo tests, including the Podman-backed LDAP/authentication regressions, frontend checks, the HTTP parity suite, three migration startup scenarios with a historical-row preservation assertion, restore concurrency, and the isolated Playwright runner.
-`just e2e` creates a disposable Postgres container and starts freshly built backend and frontend processes on allocated ports. It ignores application database URLs, sets a non-default CSRF cookie name after building to exercise runtime configuration, and cleans up only resources it owns. Direct Playwright invocation without the runner is rejected.
+`just verify` runs all Cargo tests (including the Podman-backed LDAP and
+authentication regressions), the frontend checks, the HTTP parity suite, three
+migration startup scenarios with a historical-row preservation assertion,
+restore concurrency, and the isolated Playwright runner.
 
-Deployment verification builds in the VM101 checkout and transfers the exact
-images to `tejas@192.168.0.21` (Aspire). It refuses existing InventoryMGR resources
-instead of stopping or replacing them. See the
-[deployment verification runbook](docs/RUNBOOK.md#deployment-verification) for
-SSH and host prerequisites, private evidence, and cleanup behavior.
-
-
-## Documentation
-
-- [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — operating the deployed stack: startup,
-  backups, restore, troubleshooting, and migration log.
-- [`docs/API.md`](docs/API.md) — REST API reference.
-- [`docs/ALERTS.md`](docs/ALERTS.md) — alert predicate reference.
-- [`docs/PODMAN_QUADLET.md`](docs/PODMAN_QUADLET.md) — Quadlet-based deployment.
-- [`AGENTS.md`](AGENTS.md) — conventions for agents/contributors working in this repo.
+`just e2e` starts a disposable Postgres container and freshly built backend and
+frontend processes on allocated ports. It ignores application database URLs,
+sets a non-default CSRF cookie name to exercise runtime configuration, and
+cleans up only resources it owns. Running Playwright directly, without the
+runner, is rejected.
 
 ## Deployment
 
-`./deploy.sh` deploys `main` via Podman rootless Compose (service-local build
-contexts, `target`/`node_modules` excluded, healthchecks against `127.0.0.1`).
-See `docs/RUNBOOK.md` and `docs/PODMAN_QUADLET.md` for details.
+`./deploy.sh` deploys `main` with Podman rootless Compose. Build contexts are
+service-local, `target` and `node_modules` are excluded, and healthchecks use
+`127.0.0.1`. Quadlet unit files are in `quadlet/`.
+
+`just test-deploy` builds the images on a Linux build host, transfers the exact
+images to the Aspire test host, and verifies both Compose and Quadlet there. It
+refuses to run if InventoryMGR resources already exist, rather than stopping or
+replacing them. For SSH and host prerequisites, private evidence, and cleanup
+behaviour, see the
+[deployment verification runbook](docs/RUNBOOK.md#deployment-verification).
+
+## How it is built
+
+| Layer | Tech |
+|---|---|
+| Backend | Rust, Axum 0.8, SQLx 0.9, PostgreSQL 17 |
+| Frontend | Next.js 16, React 19, TanStack Query, Tailwind 4 |
+| Regression harness | Rust (`tools/parity/`), with frozen HTTP and migration baselines |
+| Deploy | Podman rootless Compose, or Quadlet units |
+
+Database migrations are a native SQL chain that stays compatible with the old
+Alembic history. The `alembic_version` table is the ledger, and the current head
+is `0028`.
+
+## Repository layout
+
+```
+backend-rust/       Axum API: src/{core,db,models,schemas,api}, migrations/
+frontend/           Next.js app: src/{app,routes,components,hooks,lib,api}
+tools/parity/       Rust parity harness and frozen baselines
+tools/              e2e runners, deployment verifier, risk-acceptance checks
+quadlet/            Podman Quadlet unit files
+docs/               Runbook, API reference, alerts, Quadlet deploy
+```
+
+Per-area guides: [backend-rust](backend-rust/AGENTS.md),
+[frontend](frontend/AGENTS.md), [postgres](postgres/AGENTS.md),
+[tools/parity](tools/parity/AGENTS.md).
+
+## Documentation
+
+- [`docs/RUNBOOK.md`](docs/RUNBOOK.md): operating the deployed stack (startup,
+  backups, restore, troubleshooting, migration log).
+- [`docs/API.md`](docs/API.md): REST API reference.
+- [`docs/ALERTS.md`](docs/ALERTS.md): alert predicate reference.
+- [`docs/PODMAN_QUADLET.md`](docs/PODMAN_QUADLET.md): Quadlet-based deployment.
+- [`AGENTS.md`](AGENTS.md): conventions for agents and contributors.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT. See [`LICENSE`](LICENSE).
