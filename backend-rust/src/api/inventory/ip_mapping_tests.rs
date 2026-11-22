@@ -75,11 +75,41 @@ impl Database {
         };
         (database, state)
     }
+
+    async fn start_with_pool(max_connections: u32, acquire_timeout: Duration) -> (Self, AppState) {
+        let (database, setup_pool, url) = Self::start_raw().await;
+        crate::db::migrate(&setup_pool).await.unwrap();
+        setup_pool.close().await;
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(max_connections)
+            .acquire_timeout(acquire_timeout)
+            .connect(&url)
+            .await
+            .unwrap();
+        let state = AppState {
+            pool,
+            settings: Arc::new(Settings {
+                app_env: "test".into(),
+                database_url: url,
+                jwt_secret: "ipmap-regression-fixture-key-not-production".into(),
+                session_cookie_name: "session".into(),
+                csrf_cookie_name: "csrf".into(),
+                secure_cookies: false,
+                cors_origins: Vec::new(),
+                backup_dir: format!("/tmp/{}", database.0),
+                pg_bin_dir: String::new(),
+                host: "127.0.0.1".into(),
+                port: 0,
+            }),
+            database_access: Arc::new(tokio::sync::RwLock::new(())),
+        };
+        (database, state)
+    }
 }
 
 impl Drop for Database {
     fn drop(&mut self) {
-        Self::command(&["rm", "--force", &self.0]);
+        let _ = Command::new("podman").args(["rm", "--force", &self.0]).output();
     }
 }
 
@@ -1086,3 +1116,52 @@ async fn api_malformed_ipv4_rejected_and_cidr_normalized() {
     assert_eq!(vm["networks"][1]["ip_address"], "10.0.0.60");
     assert_eq!(vm["ip_mappings"], json!([{"public_ip": "203.0.113.60", "private_ip": "10.0.0.60"}]));
 }
+
+#[tokio::test]
+async fn list_vms_pool_exhaustion_regression() {
+    let (_db, state) = Database::start_with_pool(3, Duration::from_secs(2)).await;
+    let mut client = Browser::default();
+    assert_eq!(
+        client.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await.0,
+        StatusCode::CREATED
+    );
+
+    let (status, _) = client.request(&state, "POST", "/vms", Some(json!({
+        "name": "pool-test-vm",
+        "platform": "vmware",
+        "cluster": "prod",
+        "status": "running",
+        "criticality": "high",
+        "cpu_cores": 2,
+        "memory_mb": 4096
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED);
+
+    let app = crate::api::auth::router()
+        .merge(crate::api::accounts::router())
+        .merge(crate::api::inventory::router())
+        .merge(crate::api::auxiliary::router())
+        .with_state(state.clone());
+
+    let mut handles = Vec::new();
+    for _ in 0..30 {
+        let app = app.clone();
+        let cookie = client.cookie.clone();
+        let csrf = client.csrf.clone();
+        handles.push(tokio::spawn(async move {
+            let req = Request::builder()
+                .method("GET")
+                .uri("/vms?limit=50")
+                .header(header::COOKIE, &cookie)
+                .header("x-csrf-token", &csrf)
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            resp.status()
+        }));
+    }
+    for handle in handles {
+        assert_eq!(handle.await.unwrap(), StatusCode::OK);
+    }
+}
+

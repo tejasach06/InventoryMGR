@@ -6,7 +6,7 @@ use crate::api::inventory_alerts::{INVENTORY, duplicate_ip_networks, duplicate_i
 use std::collections::BTreeMap;
 pub type Params=BTreeMap<String,Vec<String>>;
 pub fn query(raw:Option<String>)->Params {let mut p=Params::new();if let Some(raw)=raw{for pair in raw.split('&'){let(k,v)=pair.split_once('=').unwrap_or((pair,""));p.entry(decode(k)).or_default().push(decode(v));}}p}
-fn decode(s:&str)->String{let mut bytes=Vec::new();let b=s.as_bytes();let mut i=0;while i<b.len(){if b[i]==b'%'&&i+2<b.len(){if let Ok(n)=u8::from_str_radix(&s[i+1..i+3],16){bytes.push(n);i+=3;continue;}}bytes.push(if b[i]==b'+'{b' '}else{b[i]});i+=1;}String::from_utf8_lossy(&bytes).into_owned()}
+fn decode(s:&str)->String{let mut bytes=Vec::new();let b=s.as_bytes();let mut i=0;while i<b.len(){if b[i]==b'%'&&i+2<b.len(){if let Some(sub)=b.get(i+1..i+3){if let Ok(hex_str)=std::str::from_utf8(sub){if sub[0].is_ascii_hexdigit()&&sub[1].is_ascii_hexdigit(){if let Ok(n)=u8::from_str_radix(hex_str,16){bytes.push(n);i+=3;continue;}}}}}bytes.push(if b[i]==b'+'{b' '}else{b[i]});i+=1;}String::from_utf8_lossy(&bytes).into_owned()}
 pub fn first<'a>(p:&'a Params,k:&str)->Option<&'a str>{p.get(k).and_then(|v|v.last()).map(String::as_str)}
 pub fn boolean(p:&Params,k:&str)->Result<Option<bool>,ApiError>{first(p,k).map(|s|coerce_bool(&json!(s)).ok_or_else(||ApiError::validation(vec![issue(vec![json!("query"),json!(k)],"bool_parsing","Input should be a valid boolean, unable to interpret input",&json!(s))]))).transpose()}
 pub fn bounded(p:&Params,key:&str,default:i64,min:i64,max:Option<i64>)->Result<i64,ApiError>{
@@ -152,6 +152,23 @@ pub fn ordering(p:&Params)->Result<String,ApiError>{
          assert!(ordering(&q).is_err());
          assert!(validate_query(&q).is_err());
      }
+ }
+ #[test]fn decode_unit_tests(){
+  assert_eq!(decode("%20"), " ");
+  assert_eq!(decode("%2F"), "/");
+  assert_eq!(decode("%2f"), "/");
+  assert_eq!(decode("%C3%A9"), "é");
+  assert_eq!(decode("hello%20world"), "hello world");
+  assert_eq!(decode("%"), "%");
+  assert_eq!(decode("%a"), "%a");
+  assert_eq!(decode("%zz"), "%zz");
+  assert_eq!(decode("%aé"), "%aé");
+  assert_eq!(decode("%éa"), "%éa");
+  assert_eq!(decode("%é"), "%é");
+  assert_eq!(decode("test%4"), "test%4");
+  assert_eq!(decode("+"), " ");
+  assert_eq!(decode("foo+bar"), "foo bar");
+  assert_eq!(decode("sort=%a\u{e9}"), "sort=%a\u{e9}");
  }
 }
 
