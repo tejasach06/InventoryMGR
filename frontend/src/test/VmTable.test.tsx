@@ -104,7 +104,7 @@ it('renders selectable sortable rows and all optional value columns', () => {
   });
   const columns = [
     'name', 'platform', 'cluster', 'node', 'status', 'environment', 'criticality', 'os_family', 'owner',
-    'monitoring_enabled', 'pmp_enabled', 'health', 'resources', 'virtual_hosts', 'private_ip', 'public_ip', 'backup_ip', 'tags', 'unknown_col',
+    'monitoring_enabled', 'pmp_enabled', 'health', 'cpu_cores', 'memory_mb', 'virtual_hosts', 'private_ip', 'public_ip', 'backup_ip', 'tags', 'unknown_col',
   ].map((key) => ({ key }));
 
   renderWithProviders(<VmTable vms={[vm]} columns={columns} selectedIds={new Set([vm.id])} onToggle={onToggle} onToggleAll={onToggleAll} sortKey="name" sortDir="desc" onSort={onSort} />);

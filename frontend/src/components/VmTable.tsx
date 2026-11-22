@@ -276,9 +276,8 @@ export function VmTable({
                           {col.key === 'monitoring_enabled' && <span>{vm.monitoring_enabled ? 'Enabled' : 'Disabled'}</span>}
                           {col.key === 'pmp_enabled' && <span>{vm.pmp_enabled ? 'Enabled' : 'Disabled'}</span>}
                           {col.key === 'health' && <span className={monoClass}>{vm.health_score}</span>}
-                          {col.key === 'resources' && (
-                            <span className={cn(monoClass, "truncate max-w-[200px]")}>{vm.cpu_cores} vCPU · {formatMemory(vm.memory_mb)}</span>
-                          )}
+                          {col.key === 'cpu_cores' && <span className={monoClass}>{vm.cpu_cores} vCPU</span>}
+                          {col.key === 'memory_mb' && <span className={monoClass}>{formatMemory(vm.memory_mb)}</span>}
                           {col.key === 'virtual_hosts' && (
                             <span className="flex flex-wrap gap-1 max-w-xs">
                               {(vm.virtual_hosts ?? []).map((host) => (

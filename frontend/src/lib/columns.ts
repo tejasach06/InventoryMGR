@@ -9,12 +9,13 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'platform', visible: true, order: 1 },
   { key: 'cluster', visible: true, order: 2 },
   { key: 'status', visible: true, order: 3 },
-  { key: 'resources', visible: true, order: 4 },
-  { key: 'criticality', visible: true, order: 5 },
-  { key: 'private_ip', visible: true, order: 6 },
-  { key: 'updated_at', visible: true, order: 7 },
-  { key: 'virtual_hosts', visible: false, order: 8 },
-  { key: 'environment', visible: false, order: 9 },
+  { key: 'cpu_cores', visible: true, order: 4 },
+  { key: 'memory_mb', visible: true, order: 5 },
+  { key: 'criticality', visible: true, order: 6 },
+  { key: 'private_ip', visible: true, order: 7 },
+  { key: 'updated_at', visible: true, order: 8 },
+  { key: 'virtual_hosts', visible: false, order: 9 },
+  { key: 'environment', visible: false, order: 10 },
   { key: 'vm_type', visible: false, order: 11 },
   { key: 'datacenter', visible: false, order: 12 },
   { key: 'node', visible: false, order: 13 },
@@ -38,7 +39,8 @@ export const COLUMN_LABELS: Record<string, string> = {
   platform: 'Platform',
   cluster: 'Cluster',
   status: 'Status',
-  resources: 'Resources',
+  cpu_cores: 'CPU',
+  memory_mb: 'RAM',
   criticality: 'Criticality',
   private_ip: 'Private IP',
   public_ip: 'Public IP',
@@ -62,9 +64,22 @@ export const COLUMN_LABELS: Record<string, string> = {
   created_at: 'Created',
 };
 
+function renumber(columns: ColumnConfig[]): ColumnConfig[] {
+  return [...columns].sort((a, b) => a.order - b.order).map((c, i) => (c.order === i ? c : { ...c, order: i }));
+}
+
 // Merge in columns added after the user saved their preferences.
 export function mergeWithDefaults(saved: ColumnConfig[]): ColumnConfig[] {
-  const normalized = saved.map((c) => (c.key === 'fqdn' ? { ...c, key: 'virtual_hosts' } : c));
+  // `fqdn` became `virtual_hosts`; the combined `resources` column split into `cpu_cores` + `memory_mb`.
+  const split = saved.some((c) => c.key === 'resources');
+  const expanded = saved
+    .flatMap((c) =>
+      c.key === 'resources'
+        ? [{ ...c, key: 'cpu_cores' }, { ...c, key: 'memory_mb', order: c.order + 0.5 }]
+        : [c.key === 'fqdn' ? { ...c, key: 'virtual_hosts' } : c],
+    )
+    .filter((c, i, all) => all.findIndex((o) => o.key === c.key) === i);
+  const normalized = split ? renumber(expanded) : expanded;
   const savedKeys = new Set(normalized.map((c) => c.key));
   let nextOrder = normalized.reduce((max, c) => Math.max(max, c.order), -1) + 1;
   const merged = [...normalized];
