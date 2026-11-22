@@ -193,3 +193,52 @@ test('retries bulk VM deletion with the same request after a lost response', asy
   }
   await expect(page.getByRole('link', { name: retainedName, exact: true })).toBeVisible();
 });
+
+test('enables a hidden column in the drawer, sorts asc then desc', async ({ page }) => {
+  await loginAsAdmin(page);
+
+  const runId = Date.now();
+  const vmAlpha = `e2e-sort-a-${runId}`;
+  const vmZeta = `e2e-sort-z-${runId}`;
+
+  await page.goto('/imports/new');
+  const csv = [
+    'name,platform,cluster,status,datacenter',
+    `${vmAlpha},vmware,vc-cluster,running,dc-alpha`,
+    `${vmZeta},vmware,vc-cluster,running,dc-zeta`,
+  ].join('\n');
+  await page.getByLabel('CSV file', { exact: true }).setInputFiles({
+    name: `sort-seed-${runId}.csv`,
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv),
+  });
+  await page.getByRole('button', { name: 'Preview partial import' }).click();
+  await page.getByRole('button', { name: 'Commit persisted batch' }).click();
+  await expect(page.getByText('Import committed. Inventory has been updated from persisted preview rows.')).toBeVisible();
+
+  await page.goto('/inventory');
+  await page.getByLabel('Search VMs').fill(`e2e-sort-`);
+
+  await page.getByRole('button', { name: 'Columns' }).click();
+  await expect(page.getByRole('dialog', { name: 'Columns' })).toBeVisible();
+  const dcCheckbox = page.locator('#column-datacenter');
+  if (!(await dcCheckbox.isChecked())) {
+    await dcCheckbox.check();
+  }
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('dialog', { name: 'Columns' })).toBeHidden();
+
+  const dcHeaderButton = page.getByRole('button', { name: /Datacenter/i });
+  await expect(dcHeaderButton).toBeVisible();
+
+  await dcHeaderButton.click();
+  await expect(page).toHaveURL(/sort=datacenter/);
+  await expect(page).toHaveURL(/dir=asc/);
+  let firstRowName = await page.locator('[data-testid="cell-name"]').first().innerText();
+  expect(firstRowName).toContain(vmAlpha);
+
+  await dcHeaderButton.click();
+  await expect(page).toHaveURL(/dir=desc/);
+  firstRowName = await page.locator('[data-testid="cell-name"]').first().innerText();
+  expect(firstRowName).toContain(vmZeta);
+});

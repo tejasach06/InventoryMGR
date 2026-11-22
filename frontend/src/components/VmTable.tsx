@@ -127,7 +127,7 @@ export function VmTable({
             </th>
             {columns.map((col) => {
               const sortable = SORTABLE_COLUMNS.has(col.key);
-              const active = sortKey === col.key;
+              const active = sortKey === col.key || (col.key === 'health_score' && sortKey === 'health') || (col.key === 'health' && sortKey === 'health_score');
               const ariaSort = sortable ? (active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined;
               return (
                 <th key={col.key} scope="col" className="px-4 py-3" aria-sort={ariaSort}>
@@ -275,7 +275,7 @@ export function VmTable({
                           {col.key === 'owner' && <span className="truncate max-w-xs">{vm.owner ?? ''}</span>}
                           {col.key === 'monitoring_enabled' && <span>{vm.monitoring_enabled ? 'Enabled' : 'Disabled'}</span>}
                           {col.key === 'pmp_enabled' && <span>{vm.pmp_enabled ? 'Enabled' : 'Disabled'}</span>}
-                          {col.key === 'health' && <span className={monoClass}>{vm.health_score}</span>}
+                          {(col.key === 'health' || col.key === 'health_score') && <span className={monoClass}>{vm.health_score}</span>}
                           {col.key === 'cpu_cores' && <span className={monoClass}>{vm.cpu_cores} vCPU</span>}
                           {col.key === 'memory_mb' && <span className={monoClass}>{formatMemory(vm.memory_mb)}</span>}
                           {col.key === 'virtual_hosts' && (

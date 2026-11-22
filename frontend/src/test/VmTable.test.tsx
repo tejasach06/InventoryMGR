@@ -185,3 +185,69 @@ it('commits environment and criticality inline select edits', async () => {
   fireEvent.blur(screen.getByDisplayValue('critical'));
   await waitFor(() => expect(update).toHaveBeenCalledWith(vm.id, 'criticality', 'critical'));
 });
+
+it('renders sort buttons and aria-sort for late-enabled columns and health_score mapping', () => {
+  const onSort = vi.fn();
+  const vm = makeVm({ datacenter: 'dc-1', tags: ['web'] });
+  const columns = [
+    { key: 'datacenter' },
+    { key: 'private_ip' },
+    { key: 'tags' },
+    { key: 'health_score' },
+  ];
+
+  renderWithProviders(
+    <VmTable
+      vms={[vm]}
+      columns={columns}
+      selectedIds={new Set()}
+      onToggle={() => {}}
+      onToggleAll={() => {}}
+      sortKey="datacenter"
+      sortDir="asc"
+      onSort={onSort}
+    />,
+  );
+
+  const dcHeader = screen.getByRole('columnheader', { name: /Datacenter/i });
+  expect(dcHeader).toHaveAttribute('aria-sort', 'ascending');
+  const dcButton = screen.getByRole('button', { name: /Datacenter/i });
+  fireEvent.click(dcButton);
+  expect(onSort).toHaveBeenCalledWith('datacenter');
+
+  const ipHeader = screen.getByRole('columnheader', { name: /Private IP/i });
+  expect(ipHeader).toHaveAttribute('aria-sort', 'none');
+  const ipButton = screen.getByRole('button', { name: /Private IP/i });
+  fireEvent.click(ipButton);
+  expect(onSort).toHaveBeenCalledWith('private_ip');
+
+  const tagsHeader = screen.getByRole('columnheader', { name: /Tags/i });
+  expect(tagsHeader).toHaveAttribute('aria-sort', 'none');
+  const tagsButton = screen.getByRole('button', { name: /Tags/i });
+  fireEvent.click(tagsButton);
+  expect(onSort).toHaveBeenCalledWith('tags');
+});
+
+it('correctly associates health_score column with health sortKey', () => {
+  const onSort = vi.fn();
+  const vm = makeVm({ health_score: 85 });
+
+  renderWithProviders(
+    <VmTable
+      vms={[vm]}
+      columns={[{ key: 'health_score' }]}
+      selectedIds={new Set()}
+      onToggle={() => {}}
+      onToggleAll={() => {}}
+      sortKey="health"
+      sortDir="desc"
+      onSort={onSort}
+    />,
+  );
+
+  const healthHeader = screen.getByRole('columnheader', { name: /Health/i });
+  expect(healthHeader).toHaveAttribute('aria-sort', 'descending');
+  const healthButton = screen.getByRole('button', { name: /Health/i });
+  fireEvent.click(healthButton);
+  expect(onSort).toHaveBeenCalledWith('health_score');
+});
