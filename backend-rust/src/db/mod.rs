@@ -1,8 +1,12 @@
 use sqlx::postgres::{PgConnection, PgPool, PgPoolOptions};
 use sqlx::Executor;
 use std::time::Duration;
-const SCHEMA: &str = include_str!("../../migrations/0001_inventory_schema.sql");
-const HEAD: &str = "0027";
+const SCHEMA: &str = concat!(
+    include_str!("../../migrations/0001_inventory_schema.sql"),
+    "\n",
+    include_str!("../../migrations/0028_vm_networks_ip_address_role.sql"),
+);
+const HEAD: &str = "0028";
 pub async fn create_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
     PgPoolOptions::new()
         .max_connections(20)

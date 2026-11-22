@@ -436,27 +436,33 @@ async fn duplicate_ip_alerts_only_include_running_vms_with_exact_addresses() {
     let mut admin = Browser::default();
     assert_eq!(admin.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await.0, StatusCode::CREATED);
     let mut ids = Vec::new();
-    for (name, status, ip) in [
-        ("running-short", "running", "10.0.21.11"),
-        ("running-long", "running", "10.0.21.111"),
-        ("shutdown", "powered_off", "10.0.21.11"),
+    for (name, status, ip, role, copies, tags) in [
+        ("running-short", "running", "10.0.21.11", "private", 2, vec![]),
+        ("running-long", "running", "10.0.21.111", "private", 1, vec![]),
+        ("shutdown", "powered_off", "10.0.21.11", "private", 1, vec![]),
+        ("different-role", "running", "10.0.21.11", "public", 1, vec![]),
+        ("template", "running", "10.0.21.11", "private", 1, vec!["TeMpLaTe"]),
+        ("backup", "running", "10.0.21.11", "private", 1, vec!["BaCkUp"]),
     ] {
         let (status_code, vm) = admin.request(&state, "POST", "/vms", Some(json!({
             "name":name,"platform":"vmware","cluster":"test","status":status,
             "criticality":"medium","cpu_cores":1,"memory_mb":1024,
-            "networks":[{"ip_address":ip,"role":"private"}],
+            "networks":vec![json!({"ip_address":ip,"role":role}); copies],
+            "tags":tags,
         }))).await;
         assert_eq!(status_code, StatusCode::CREATED, "{vm}");
         ids.push(vm["id"].as_str().unwrap().to_owned());
     }
-    for (path, field) in [("/dashboard", "duplicate_ip"), ("/vms?duplicate_ip=true", "items")] {
+    for (path, field) in [
+        ("/dashboard", Some("duplicate_ip")),
+        ("/vms?duplicate_ip=true", Some("items")),
+        ("/notifications/duplicate-ips", None),
+    ] {
         let (status, body) = admin.request(&state, "GET", path, None).await;
         assert_eq!(status, StatusCode::OK, "{body}");
-        assert_eq!(body[field], json!([]), "{path} must ignore shutdown VMs and match full IPs");
+        let alerts = field.map_or(&body, |field| &body[field]);
+        assert_eq!(alerts, &json!([]), "{path} must require another eligible VM with the same IP and role");
     }
-    let (status, body) = admin.request(&state, "GET", "/notifications/duplicate-ips", None).await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, json!([]));
     let (status, body) = admin.request(&state, "PATCH", &format!("/vms/{}", ids[1]), Some(json!({"networks":[{"ip_address":"10.0.21.11","role":"private"}]}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     for (path, field) in [("/dashboard", "duplicate_ip"), ("/vms?duplicate_ip=true", "items")] {
@@ -473,13 +479,30 @@ async fn duplicate_ip_alerts_only_include_running_vms_with_exact_addresses() {
     }
     let (status, body) = admin.request(&state, "GET", "/vms?duplicate_ip=false", None).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["items"].as_array().unwrap().len(), 1);
-    assert_eq!(body["items"][0]["id"], ids[2]);
+    let mut non_duplicates: Vec<_> = body["items"].as_array().unwrap().iter()
+        .map(|vm| vm["id"].as_str().unwrap()).collect();
+    non_duplicates.sort_unstable();
+    let mut expected = [ids[2].as_str(), ids[3].as_str()];
+    expected.sort_unstable();
+    assert_eq!(non_duplicates, expected);
     let (status, body) = admin.request(&state, "GET", "/notifications/duplicate-ips", None).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body.as_array().unwrap().len(), 1);
-    assert_eq!(body[0]["ip_address"], "10.0.21.11");
-    assert_eq!(body[0]["occurrences"], 2);
+    assert_eq!(body, json!([{
+        "ip_address":"10.0.21.11", "occurrences":2,
+        "vms":[{"vm_id":ids[1],"name":"running-long"}, {"vm_id":ids[0],"name":"running-short"}],
+    }]));
+
+    let (status, body) = admin.request(&state, "PATCH", &format!("/vms/{}", ids[0]), Some(json!({
+        "networks":[{"ip_address":"10.0.21.11","role":"private"}, {"ip_address":"10.0.21.11","role":"public"}],
+    }))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (status, body) = admin.request(&state, "GET", "/notifications/duplicate-ips", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, json!([{
+        "ip_address":"10.0.21.11", "occurrences":3,
+        "vms":[{"vm_id":ids[3],"name":"different-role"}, {"vm_id":ids[1],"name":"running-long"},
+               {"vm_id":ids[0],"name":"running-short"}],
+    }]));
 }
 // Minimal external LDAP adapter: exercise ldap3's real search and password binds.
 struct Directory {
