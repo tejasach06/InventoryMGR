@@ -22,6 +22,67 @@ describe('VmTable inline edits', () => {
     fireEvent.keyDown(screen.getByDisplayValue('running'), { key: 'Enter' });
     await waitFor(() => expect(update).toHaveBeenCalledWith(vm.id, 'status', 'running'));
   });
+
+  it('starts editing via keyboard using Enter and Space', async () => {
+    const update = vi.fn().mockResolvedValue(undefined);
+    const vm = makeVm({ name: 'test-vm', status: 'running', owner: 'alice' });
+    renderWithProviders(<VmTable vms={[vm]} columns={[{ key: 'status' }, { key: 'owner' }]} selectedIds={new Set()} onToggle={() => {}} onToggleAll={() => {}} sortKey={null} sortDir="asc" onSort={() => {}} canEdit onUpdateCell={update} />);
+
+    const statusCell = screen.getByTestId('cell-status');
+    expect(statusCell).toHaveAttribute('tabIndex', '0');
+    expect(statusCell).toHaveAttribute('role', 'button');
+    expect(statusCell).toHaveAttribute('aria-label', 'Edit Status for test-vm');
+
+    // Press Enter to start editing status
+    fireEvent.keyDown(statusCell, { key: 'Enter' });
+    const select = screen.getByDisplayValue('running');
+    expect(select).toBeInTheDocument();
+    fireEvent.keyDown(select, { key: 'Escape' });
+    expect(screen.queryByDisplayValue('running')).not.toBeInTheDocument();
+
+    // Press Space to start editing owner
+    const ownerCell = screen.getByTestId('cell-owner');
+    expect(ownerCell).toHaveAttribute('tabIndex', '0');
+    expect(ownerCell).toHaveAttribute('role', 'button');
+    fireEvent.keyDown(ownerCell, { key: ' ' });
+    const input = screen.getByDisplayValue('alice');
+    expect(input).toBeInTheDocument();
+    fireEvent.keyDown(input, { key: 'Escape' });
+  });
+
+  it('removes 3px borderLeft side-tab and displays fallback non-color-only status badge when status column is hidden', () => {
+    const vm = makeVm({ name: 'web-prod', status: 'running' });
+    const { container, rerender } = renderWithProviders(
+      <VmTable vms={[vm]} columns={[{ key: 'name' }]} selectedIds={new Set()} onToggle={() => {}} onToggleAll={() => {}} sortKey={null} sortDir="asc" onSort={() => {}} />
+    );
+
+    const row = container.querySelector('tbody tr');
+    expect(row).not.toHaveAttribute('style');
+
+    // When status column is hidden but name is shown, status Badge appears in name cell
+    const nameCell = screen.getByTestId('cell-name');
+    expect(nameCell).toHaveTextContent('web-prod');
+    expect(nameCell).toHaveTextContent('running');
+
+    // When both name and status columns are hidden, status Badge appears in checkbox cell
+    rerender(
+      <VmTable vms={[vm]} columns={[{ key: 'cluster' }]} selectedIds={new Set()} onToggle={() => {}} onToggleAll={() => {}} sortKey={null} sortDir="asc" onSort={() => {}} />
+    );
+    expect(screen.getByText('running')).toBeInTheDocument();
+  });
+
+  it('provides >=24px hit area wrapper for row and select-all checkboxes', () => {
+    const vm = makeVm({ id: 'vm-1', name: 'vm-one' });
+    renderWithProviders(
+      <VmTable vms={[vm]} columns={[{ key: 'name' }]} selectedIds={new Set()} onToggle={() => {}} onToggleAll={() => {}} sortKey={null} sortDir="asc" onSort={() => {}} />
+    );
+
+    const selectAllWrapper = screen.getByLabelText('Select all').closest('label');
+    expect(selectAllWrapper).toHaveClass('min-h-6', 'min-w-6');
+
+    const rowCheckboxWrapper = screen.getByLabelText('Select vm-one').closest('label');
+    expect(rowCheckboxWrapper).toHaveClass('min-h-6', 'min-w-6');
+  });
 });
 
 
