@@ -81,8 +81,12 @@ async fn list_vms(State(s):State<AppState>,_:Viewer,RawQuery(raw):RawQuery)->Res
  let limit=filters::bounded(&p,"limit",50,1,Some(200))?;let offset=filters::bounded(&p,"offset",0,0,None)?;
  let mut count=QueryBuilder::new("SELECT count(*) FROM vms v WHERE true");filters::apply(&mut count,&p)?;let total:i64=count.build_query_scalar().fetch_one(&s.pool).await.map_err(db_error)?;
  let mut b=QueryBuilder::new("SELECT v.id FROM vms v WHERE true");filters::apply(&mut b,&p)?;b.push(" ORDER BY ").push(filters::ordering(&p)?).push(" LIMIT ").push_bind(limit).push(" OFFSET ").push_bind(offset);
- let ids:Vec<Uuid>=b.build_query_scalar().fetch_all(&s.pool).await.map_err(db_error)?;let mut conn=s.pool.acquire().await.map_err(db_error)?;let items=vm_details(&mut conn,&ids).await?;
+ let ids:Vec<Uuid>=b.build_query_scalar().fetch_all(&s.pool).await.map_err(db_error)?;
  let version = crate::api::deps::session_generation(&s).await?;
+ let items = {
+  let mut conn = s.pool.acquire().await.map_err(db_error)?;
+  vm_details(&mut conn, &ids).await?
+ };
  Ok(Json(json!({"items":items,"total":total,"limit":limit,"offset":offset,"version":version})))
 }
 async fn create_vm(State(s):State<AppState>,u:Editor,_csrf:Csrf,ValidatedJson(v):ValidatedJson<Value>)->Result<(StatusCode,Json<Value>),ApiError>{Ok((StatusCode::CREATED,Json(mutate_vm(&s.pool,None,v,u.0.id).await?)))}

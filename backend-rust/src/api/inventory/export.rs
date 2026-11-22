@@ -50,6 +50,7 @@ pub async fn export(State(s):State<AppState>,_:Viewer,RawQuery(raw):RawQuery)->R
   let per_disk=match filters::first(&p,"disk_layout").unwrap_or("joined"){"joined"=>false,"rows"=>true,_=>return Err(ApiError::invalid("Invalid disk layout"))};
   let mut ids=selected_ids(&s,&p,export_selection(&p)?).await?;let total=ids.len();if format=="json"{ids.truncate(PREVIEW_ROWS);}
   let mut c=s.pool.acquire().await.map_err(db_error)?;let vms=vm_details(&mut c,&ids).await?;
+  drop(c);
   let rows=table(&vms,&cols,per_disk);
   if format=="json"{return Ok(Json(json!({"total":total,"columns":cols,"rows":rows.into_iter().map(|(_,r)|r).collect::<Vec<_>>()})).into_response());}
   let(bytes,media,filename)=if format=="csv"{
