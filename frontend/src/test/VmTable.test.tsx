@@ -251,3 +251,17 @@ it('correctly associates health_score column with health sortKey', () => {
   fireEvent.click(healthButton);
   expect(onSort).toHaveBeenCalledWith('health_score');
 });
+
+it('renders a value for every column the drawer can enable', () => {
+  const vm = makeVm({
+    vm_type: 'temporary', datacenter: 'dc-east', business_owner: 'Biz Owner', technical_owner: 'Tech Owner',
+    backup_enabled: true, ha_enabled: false, updated_at: '2026-03-05T10:00:00Z', created_at: '2026-01-02T10:00:00Z',
+  });
+  const keys = ['vm_type', 'datacenter', 'business_owner', 'technical_owner', 'backup_enabled', 'ha_enabled', 'updated_at', 'created_at'];
+  renderWithProviders(<VmTable vms={[vm]} columns={keys.map((key) => ({ key }))} selectedIds={new Set()} onToggle={() => {}} onToggleAll={() => {}} sortKey={null} sortDir="asc" onSort={() => {}} />);
+  for (const key of keys) expect(screen.getByTestId(`cell-${key}`).textContent?.trim()).not.toBe('');
+  expect(screen.getByTestId('cell-datacenter')).toHaveTextContent('dc-east');
+  expect(screen.getByTestId('cell-backup_enabled')).toHaveTextContent('Enabled');
+  expect(screen.getByTestId('cell-ha_enabled')).toHaveTextContent('Disabled');
+  expect(screen.getByTestId('cell-updated_at')).toHaveTextContent('2026');
+});
