@@ -76,6 +76,9 @@ mod selection_tests {
 #[cfg(test)]
 #[path = "ip_mapping_tests.rs"]
 mod ip_mapping_tests;
+#[cfg(test)]
+#[path = "sorting_tests.rs"]
+mod sorting_tests;
 async fn list_vms(State(s):State<AppState>,_:Viewer,RawQuery(raw):RawQuery)->Result<Json<Value>,ApiError>{
  let p=filters::query(raw);filters::validate_query(&p)?;
  let limit=filters::bounded(&p,"limit",50,1,Some(200))?;let offset=filters::bounded(&p,"offset",0,0,None)?;

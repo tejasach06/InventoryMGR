@@ -185,3 +185,83 @@ it('commits environment and criticality inline select edits', async () => {
   fireEvent.blur(screen.getByDisplayValue('critical'));
   await waitFor(() => expect(update).toHaveBeenCalledWith(vm.id, 'criticality', 'critical'));
 });
+
+it('renders sort buttons and aria-sort for late-enabled columns and health_score mapping', () => {
+  const onSort = vi.fn();
+  const vm = makeVm({ datacenter: 'dc-1', tags: ['web'] });
+  const columns = [
+    { key: 'datacenter' },
+    { key: 'private_ip' },
+    { key: 'tags' },
+    { key: 'health_score' },
+  ];
+
+  renderWithProviders(
+    <VmTable
+      vms={[vm]}
+      columns={columns}
+      selectedIds={new Set()}
+      onToggle={() => {}}
+      onToggleAll={() => {}}
+      sortKey="datacenter"
+      sortDir="asc"
+      onSort={onSort}
+    />,
+  );
+
+  const dcHeader = screen.getByRole('columnheader', { name: /Datacenter/i });
+  expect(dcHeader).toHaveAttribute('aria-sort', 'ascending');
+  const dcButton = screen.getByRole('button', { name: /Datacenter/i });
+  fireEvent.click(dcButton);
+  expect(onSort).toHaveBeenCalledWith('datacenter');
+
+  const ipHeader = screen.getByRole('columnheader', { name: /Private IP/i });
+  expect(ipHeader).toHaveAttribute('aria-sort', 'none');
+  const ipButton = screen.getByRole('button', { name: /Private IP/i });
+  fireEvent.click(ipButton);
+  expect(onSort).toHaveBeenCalledWith('private_ip');
+
+  const tagsHeader = screen.getByRole('columnheader', { name: /Tags/i });
+  expect(tagsHeader).toHaveAttribute('aria-sort', 'none');
+  const tagsButton = screen.getByRole('button', { name: /Tags/i });
+  fireEvent.click(tagsButton);
+  expect(onSort).toHaveBeenCalledWith('tags');
+});
+
+it('correctly associates health_score column with health sortKey', () => {
+  const onSort = vi.fn();
+  const vm = makeVm({ health_score: 85 });
+
+  renderWithProviders(
+    <VmTable
+      vms={[vm]}
+      columns={[{ key: 'health_score' }]}
+      selectedIds={new Set()}
+      onToggle={() => {}}
+      onToggleAll={() => {}}
+      sortKey="health"
+      sortDir="desc"
+      onSort={onSort}
+    />,
+  );
+
+  const healthHeader = screen.getByRole('columnheader', { name: /Health/i });
+  expect(healthHeader).toHaveAttribute('aria-sort', 'descending');
+  const healthButton = screen.getByRole('button', { name: /Health/i });
+  fireEvent.click(healthButton);
+  expect(onSort).toHaveBeenCalledWith('health_score');
+});
+
+it('renders a value for every column the drawer can enable', () => {
+  const vm = makeVm({
+    vm_type: 'temporary', datacenter: 'dc-east', business_owner: 'Biz Owner', technical_owner: 'Tech Owner',
+    backup_enabled: true, ha_enabled: false, updated_at: '2026-03-05T10:00:00Z', created_at: '2026-01-02T10:00:00Z',
+  });
+  const keys = ['vm_type', 'datacenter', 'business_owner', 'technical_owner', 'backup_enabled', 'ha_enabled', 'updated_at', 'created_at'];
+  renderWithProviders(<VmTable vms={[vm]} columns={keys.map((key) => ({ key }))} selectedIds={new Set()} onToggle={() => {}} onToggleAll={() => {}} sortKey={null} sortDir="asc" onSort={() => {}} />);
+  for (const key of keys) expect(screen.getByTestId(`cell-${key}`).textContent?.trim()).not.toBe('');
+  expect(screen.getByTestId('cell-datacenter')).toHaveTextContent('dc-east');
+  expect(screen.getByTestId('cell-backup_enabled')).toHaveTextContent('Enabled');
+  expect(screen.getByTestId('cell-ha_enabled')).toHaveTextContent('Disabled');
+  expect(screen.getByTestId('cell-updated_at')).toHaveTextContent('2026');
+});

@@ -34,6 +34,11 @@ function CellTrigger({ editable, label, children }: { editable: boolean; label: 
 
 const EDITABLE_FIELDS: readonly EditableField[] = ['status', 'environment', 'criticality', 'owner'];
 
+function formatDate(iso?: string): string {
+  const d = iso ? new Date(iso) : null;
+  return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+}
+
 function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
   return (
     <svg className={cn('h-3 w-3 transition-opacity', direction ? 'opacity-100 text-[var(--color-accent)]' : 'opacity-30')} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
@@ -127,7 +132,7 @@ export function VmTable({
             </th>
             {columns.map((col) => {
               const sortable = SORTABLE_COLUMNS.has(col.key);
-              const active = sortKey === col.key;
+              const active = sortKey === col.key || (col.key === 'health_score' && sortKey === 'health') || (col.key === 'health' && sortKey === 'health_score');
               const ariaSort = sortable ? (active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined;
               return (
                 <th key={col.key} scope="col" className="px-4 py-3" aria-sort={ariaSort}>
@@ -275,7 +280,15 @@ export function VmTable({
                           {col.key === 'owner' && <span className="truncate max-w-xs">{vm.owner ?? ''}</span>}
                           {col.key === 'monitoring_enabled' && <span>{vm.monitoring_enabled ? 'Enabled' : 'Disabled'}</span>}
                           {col.key === 'pmp_enabled' && <span>{vm.pmp_enabled ? 'Enabled' : 'Disabled'}</span>}
-                          {col.key === 'health' && <span className={monoClass}>{vm.health_score}</span>}
+                          {col.key === 'backup_enabled' && <span>{vm.backup_enabled ? 'Enabled' : 'Disabled'}</span>}
+                          {col.key === 'ha_enabled' && <span>{vm.ha_enabled ? 'Enabled' : 'Disabled'}</span>}
+                          {col.key === 'vm_type' && <span className="capitalize">{vm.vm_type}</span>}
+                          {col.key === 'datacenter' && <span className="truncate max-w-[180px]">{vm.datacenter ?? '—'}</span>}
+                          {col.key === 'business_owner' && <span className="truncate max-w-xs">{vm.business_owner ?? '—'}</span>}
+                          {col.key === 'technical_owner' && <span className="truncate max-w-xs">{vm.technical_owner ?? '—'}</span>}
+                          {col.key === 'updated_at' && <span className={monoClass}>{formatDate(vm.updated_at)}</span>}
+                          {col.key === 'created_at' && <span className={monoClass}>{formatDate(vm.created_at)}</span>}
+                          {(col.key === 'health' || col.key === 'health_score') && <span className={monoClass}>{vm.health_score}</span>}
                           {col.key === 'cpu_cores' && <span className={monoClass}>{vm.cpu_cores} vCPU</span>}
                           {col.key === 'memory_mb' && <span className={monoClass}>{formatMemory(vm.memory_mb)}</span>}
                           {col.key === 'virtual_hosts' && (
