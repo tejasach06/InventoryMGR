@@ -54,7 +54,7 @@ describe('Drawer', () => {
 });
 
 describe('ConfirmDialog', () => {
-  it('traps focus, closes on Escape, and restores opener focus via useModalOverlay', () => {
+  it('traps focus, closes on Escape, and restores opener focus via useOverlayFocus', () => {
     renderWithProviders(<ConfirmHarness />);
     const opener = screen.getByRole('button', { name: 'Open confirm' });
     opener.focus();
@@ -79,5 +79,16 @@ describe('ConfirmDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open confirm' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(onConfirm).toHaveBeenCalled();
+  });
+
+  it('cancels without confirming when Escape is pressed', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    renderWithProviders(<ConfirmHarness onConfirm={onConfirm} onCancel={onCancel} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open confirm' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Cancel' }), { key: 'Escape' });
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalled();
   });
 });
