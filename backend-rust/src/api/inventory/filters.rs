@@ -29,7 +29,16 @@ pub fn validate_query(p:&Params)->Result<(),ApiError>{
  }}}
  for key in ["monitoring_enabled","pmp_enabled","shutdown_stale","decommission_overdue","missing_ip","duplicate_ip","all"]{if let Err(e)=boolean(p,key){errors.extend(e.detail.unwrap().as_array().unwrap().iter().cloned());}}
  for(key,values)in p{if key.ends_with("_op"){let s=values.last().unwrap();if !["eq","neq","contains"].contains(&s.as_str()){let mut e=issue(vec![json!("query"),json!(key)],"enum","Input should be 'eq', 'neq' or 'contains'",&json!(s));e["ctx"]=json!({"expected":"'eq', 'neq' or 'contains'"});errors.push(e);}}}
- for(key,valid,pattern)in[("health",vec!["below_50","below_75","complete"],"^(below_50|below_75|complete)$"),("dir",vec!["asc","desc"],"^(asc|desc)$"),("sort",vec!["name","updated_at","cluster","platform","status","environment","criticality","cpu_cores","memory_mb","owner","health"],"^(name|updated_at|cluster|platform|status|environment|criticality|cpu_cores|memory_mb|owner|health)$")]{if let Some(s)=first(p,key){if !valid.contains(&s){let mut e=issue(vec![json!("query"),json!(key)],"string_pattern_mismatch",format!("String should match pattern '{pattern}'"),&json!(s));e["ctx"]=json!({"pattern":pattern});errors.push(e);}}}
+ const VALID_SORT: &[&str] = &[
+  "name", "platform", "cluster", "status", "resources", "criticality",
+  "private_ip", "public_ip", "backup_ip", "updated_at", "created_at",
+  "virtual_hosts", "environment", "vm_type", "datacenter", "node",
+  "os_family", "owner", "business_owner", "technical_owner",
+  "pmp_enabled", "monitoring_enabled", "backup_enabled", "ha_enabled",
+  "health_score", "health", "tags", "cpu_cores", "memory_mb",
+ ];
+ const SORT_PATTERN: &str = "^(name|platform|cluster|status|resources|criticality|private_ip|public_ip|backup_ip|updated_at|created_at|virtual_hosts|environment|vm_type|datacenter|node|os_family|owner|business_owner|technical_owner|pmp_enabled|monitoring_enabled|backup_enabled|ha_enabled|health_score|health|tags|cpu_cores|memory_mb)$";
+ for(key,valid,pattern)in[("health",vec!["below_50","below_75","complete"],"^(below_50|below_75|complete)$"),("dir",vec!["asc","desc"],"^(asc|desc)$"),("sort",VALID_SORT.to_vec(),SORT_PATTERN)]{if let Some(s)=first(p,key){if !valid.contains(&s){let mut e=issue(vec![json!("query"),json!(key)],"string_pattern_mismatch",format!("String should match pattern '{pattern}'"),&json!(s));e["ctx"]=json!({"pattern":pattern});errors.push(e);}}}
  if errors.is_empty(){Ok(())}else{Err(ApiError::validation(errors))}
 }
 pub fn apply(b:&mut QueryBuilder<Postgres>,p:&Params)->Result<(),ApiError>{
@@ -48,7 +57,54 @@ pub fn apply(b:&mut QueryBuilder<Postgres>,p:&Params)->Result<(),ApiError>{
  if ["shutdown_stale","decommission_overdue","missing_ip","duplicate_ip"].iter().any(|key|first(p,key).is_some()){b.push(format!(" AND {INVENTORY}"));}
  Ok(())}
 fn check_op(op:&str)->Result<(),ApiError>{if ["eq","neq","contains"].contains(&op){Ok(())}else{Err(ApiError::invalid("Invalid filter operator"))}}
-pub fn ordering(p:&Params)->Result<String,ApiError>{let dir=first(p,"dir").unwrap_or("asc");if !["asc","desc"].contains(&dir){return Err(ApiError::invalid("Invalid sort direction"));}let key=first(p,"sort");let col=match key{None=>return Ok("v.updated_at DESC,v.name ASC".into()),Some("status")=>"CASE v.status WHEN 'running' THEN 0 WHEN 'powered_off' THEN 1 WHEN 'unknown' THEN 2 ELSE 3 END",Some("criticality")=>"CASE v.criticality WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END",Some("health")=>"v.health_score",Some(k)if["name","updated_at","cluster","platform","environment","cpu_cores","memory_mb","owner"].contains(&k)=>return Ok(format!("v.{k} {dir},v.name ASC")),_=>return Err(ApiError::invalid("Invalid sort"))};Ok(format!("{col} {dir},v.name ASC"))}
+pub fn ordering(p:&Params)->Result<String,ApiError>{
+    let dir=first(p,"dir").unwrap_or("asc");
+    if !["asc","desc"].contains(&dir){return Err(ApiError::invalid("Invalid sort direction"));}
+    let key=match first(p,"sort"){
+        None=>return Ok("v.updated_at DESC,v.name ASC,v.id ASC".into()),
+        Some(k)=>k,
+    };
+    let order_sql=match key{
+        "name"=>format!("lower(v.name) {dir},v.name ASC,v.id ASC"),
+        "status"=>format!("CASE v.status WHEN 'running' THEN 0 WHEN 'powered_off' THEN 1 WHEN 'unknown' THEN 2 ELSE 3 END {dir},v.name ASC,v.id ASC"),
+        "criticality"=>format!("CASE v.criticality WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END {dir},v.name ASC,v.id ASC"),
+        "health"|"health_score"=>format!("v.health_score {dir},v.name ASC,v.id ASC"),
+        "cpu_cores"=>format!("v.cpu_cores {dir},v.name ASC,v.id ASC"),
+        "memory_mb"=>format!("v.memory_mb {dir},v.name ASC,v.id ASC"),
+        "resources"=>format!("v.cpu_cores {dir},v.memory_mb {dir},v.name ASC,v.id ASC"),
+        "updated_at"=>format!("v.updated_at {dir},v.name ASC,v.id ASC"),
+        "created_at"=>format!("v.created_at {dir},v.name ASC,v.id ASC"),
+        "platform"=>format!("v.platform {dir},v.name ASC,v.id ASC"),
+        "environment"=>format!("v.environment {dir},v.name ASC,v.id ASC"),
+        "cluster"=>format!("lower(v.cluster) {dir},v.name ASC,v.id ASC"),
+        "owner"=>format!("lower(v.owner) {dir},v.name ASC,v.id ASC"),
+        "business_owner"=>format!("lower(v.business_owner) {dir},v.name ASC,v.id ASC"),
+        "technical_owner"=>format!("lower(v.technical_owner) {dir},v.name ASC,v.id ASC"),
+        "datacenter"=>format!("lower(v.datacenter) {dir},v.name ASC,v.id ASC"),
+        "node"=>format!("lower(v.node) {dir},v.name ASC,v.id ASC"),
+        "vm_type"=>format!("lower(v.vm_type::text) {dir},v.name ASC,v.id ASC"),
+        "os_family"=>format!("lower(coalesce(v.os_family::text,'undefined')) {dir},v.name ASC,v.id ASC"),
+        "pmp_enabled"=>format!("v.pmp_enabled {dir},v.name ASC,v.id ASC"),
+        "monitoring_enabled"=>format!("v.monitoring_enabled {dir},v.name ASC,v.id ASC"),
+        "backup_enabled"=>format!("v.backup_enabled {dir},v.name ASC,v.id ASC"),
+        "ha_enabled"=>format!("v.ha_enabled {dir},v.name ASC,v.id ASC"),
+        "virtual_hosts"=>format!("(SELECT lower(vh) FROM unnest(v.virtual_hosts) AS vh ORDER BY lower(vh) ASC LIMIT 1) {dir},v.name ASC,v.id ASC"),
+        "tags"=>format!("(CASE WHEN jsonb_typeof(v.tags)='array' THEN (SELECT lower(elem) FROM jsonb_array_elements_text(v.tags) AS elem ORDER BY lower(elem) ASC LIMIT 1) END) {dir},v.name ASC,v.id ASC"),
+        "private_ip"|"public_ip"|"backup_ip"=>{
+            let role=match key{
+                "private_ip"=>"private",
+                "public_ip"=>"public",
+                "backup_ip"=>"backup",
+                _=>unreachable!(),
+            };
+            format!(
+                "(SELECT CASE WHEN n.ip_address ~ '^((25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])\\.){{3}}(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])$' THEN n.ip_address::inet END FROM vm_networks n WHERE n.vm_id=v.id AND n.role='{role}' ORDER BY n.sort_order, n.id LIMIT 1) {dir}, (SELECT n.ip_address FROM vm_networks n WHERE n.vm_id=v.id AND n.role='{role}' ORDER BY n.sort_order, n.id LIMIT 1) {dir},v.name ASC,v.id ASC"
+            )
+        }
+        _=>return Err(ApiError::invalid("Invalid sort")),
+    };
+    Ok(order_sql)
+}
 #[cfg(test)]mod validation_tests{use super::*;
  #[test]fn repeated_enum_error_has_query_index(){let p=query(Some("status=running&status=stopped&platform=invalid".into()));let e=validate_query(&p).unwrap_err();let d=e.detail.unwrap();assert!(d.as_array().unwrap().iter().any(|e|e["loc"]==json!(["query","status",1])));assert!(d.as_array().unwrap().iter().any(|e|e["loc"]==json!(["query","platform",0])));}
  #[test]fn negative_limit_is_a_bound_error(){let p=query(Some("limit=-1".into()));let e=bounded(&p,"limit",50,1,Some(200)).unwrap_err();assert_eq!(e.detail.unwrap(),json!([{"type":"greater_than_equal","loc":["query","limit"],"msg":"Input should be greater than or equal to 1","input":"-1","ctx":{"ge":1}}]));}
@@ -59,7 +115,44 @@ pub fn ordering(p:&Params)->Result<String,ApiError>{let dir=first(p,"dir").unwra
  #[test]fn os_family_mixed_with_undefined(){let p=query(Some("os_family=linux&os_family=undefined".into()));let mut b=QueryBuilder::new("SELECT 1 FROM vms v WHERE true");apply(&mut b,&p).unwrap();let sql=b.sql();assert!(sql.as_str().contains("coalesce(v.os_family"));}
  #[test]fn other_enum_neq_still_has_null_fallback(){let p=query(Some("status=running&status_op=neq".into()));let mut b=QueryBuilder::new("SELECT 1 FROM vms v WHERE true");apply(&mut b,&p).unwrap();let sql=b.sql();assert!(sql.as_str().contains("IS NULL"));}
  #[test]fn vm_payload_undefined_os_family_rejected(){assert!(validate(VM,json!({"os_family":"undefined"}),false).is_err());}
-  #[test]fn legacy_unknown_status_is_readable(){let p=query(Some("status=unknown".into()));assert!(validate_query(&p).is_ok());let mut b=QueryBuilder::new("SELECT 1 FROM vms v WHERE true");assert!(apply(&mut b,&p).is_ok());assert!(validate(VM,json!({"status":"unknown"}),false).is_err());}
+ #[test]fn legacy_unknown_status_is_readable(){let p=query(Some("status=unknown".into()));assert!(validate_query(&p).is_ok());let mut b=QueryBuilder::new("SELECT 1 FROM vms v WHERE true");assert!(apply(&mut b,&p).is_ok());assert!(validate(VM,json!({"status":"unknown"}),false).is_err());}
+ #[test]fn ordering_accepts_all_columns_in_both_directions(){
+     let keys = [
+         "name", "platform", "cluster", "status", "resources", "criticality",
+         "private_ip", "public_ip", "backup_ip", "updated_at", "created_at",
+         "virtual_hosts", "environment", "vm_type", "datacenter", "node",
+         "os_family", "owner", "business_owner", "technical_owner",
+         "pmp_enabled", "monitoring_enabled", "backup_enabled", "ha_enabled",
+         "health_score", "health", "tags", "cpu_cores", "memory_mb",
+     ];
+     for key in keys {
+         for dir in ["asc", "desc"] {
+             let q = query(Some(format!("sort={key}&dir={dir}")));
+             assert!(validate_query(&q).is_ok(), "validate_query should accept sort={key}");
+             let sql = ordering(&q).unwrap();
+             assert!(sql.contains(dir), "sql for {key} {dir} must contain {dir}");
+             assert!(sql.ends_with(",v.name ASC,v.id ASC"), "sql for {key} {dir} must end with tie-breaker");
+         }
+     }
+ }
+ #[test]fn ordering_default_when_no_sort(){
+     let q = query(None);
+     assert_eq!(ordering(&q).unwrap(), "v.updated_at DESC,v.name ASC,v.id ASC");
+ }
+ #[test]fn ordering_rejects_unknown_column_and_injection(){
+     for invalid in ["not_a_column", "name; DROP TABLE vms;", "' OR '1'='1", "unknown_key"] {
+         let q = query(Some(format!("sort={invalid}")));
+         assert!(ordering(&q).is_err());
+         assert!(validate_query(&q).is_err());
+     }
+ }
+ #[test]fn ordering_rejects_invalid_direction(){
+     for invalid_dir in ["up", "down", "asc; DROP TABLE vms;", "ASC"] {
+         let q = query(Some(format!("sort=name&dir={invalid_dir}")));
+         assert!(ordering(&q).is_err());
+         assert!(validate_query(&q).is_err());
+     }
+ }
  #[test]fn decode_unit_tests(){
   assert_eq!(decode("%20"), " ");
   assert_eq!(decode("%2F"), "/");

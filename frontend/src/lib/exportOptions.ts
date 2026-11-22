@@ -69,13 +69,13 @@ export function exportColumnLabel(key: string): string {
   return key;
 }
 
-// List columns -> export columns, in list order. `resources` is two export fields.
+// List columns -> export columns, in list order.
 export function columnsFromList(prefs: ColumnConfig[]): string[] {
   const known = new Set<string>(EXPORT_COLUMNS);
   const keys = [...prefs]
     .filter((c) => c.visible)
     .sort((a, b) => a.order - b.order)
-    .flatMap((c) => (c.key === 'resources' ? ['cpu_cores', 'memory_mb'] : [c.key]));
+    .map((c) => c.key);
   return keys.filter((k, i) => known.has(k) && keys.indexOf(k) === i);
 }
 

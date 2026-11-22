@@ -22,7 +22,22 @@ import { formatMemory } from '../lib/units';
 import { cn } from '../lib/classNames';
 
 export type EditableField = 'status' | 'environment' | 'criticality' | 'owner';
+// Native button gives Enter/Space for free; its click bubbles to the td's onClick, which starts the edit.
+function CellTrigger({ editable, label, children }: { editable: boolean; label: string; children: React.ReactNode }) {
+  if (!editable) return <>{children}</>;
+  return (
+    <button type="button" aria-label={label} className="-m-1 rounded p-1 text-left focus-visible:outline-none">
+      {children}
+    </button>
+  );
+}
+
 const EDITABLE_FIELDS: readonly EditableField[] = ['status', 'environment', 'criticality', 'owner'];
+
+function formatDate(iso?: string): string {
+  const d = iso ? new Date(iso) : null;
+  return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+}
 
 function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
   return (
@@ -95,6 +110,8 @@ export function VmTable({
     if (selectAllRef.current) selectAllRef.current.indeterminate = selectedIds.size > 0 && selectedIds.size < vms.length;
   }, [selectedIds, vms.length]);
 
+  const hasStatusColumn = columns.some((c) => c.key === 'status');
+  const hasNameColumn = columns.some((c) => c.key === 'name');
 
   return (
     <div className={cn(tableWrapClass, 'max-h-[calc(100vh-18rem)] overflow-y-auto')}>
@@ -102,18 +119,20 @@ export function VmTable({
         <thead className={tableHeadClass}>
           <tr>
             <th scope="col" className="px-4 py-3 w-10">
-              <input
-                ref={selectAllRef}
-                type="checkbox"
-                className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
-                checked={selectedIds.size === vms.length && vms.length > 0}
-                onChange={() => onToggleAll(vms.map((v) => v.id))}
-                aria-label="Select all"
-              />
+              <label className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center p-1 -m-1">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
+                  checked={selectedIds.size === vms.length && vms.length > 0}
+                  onChange={() => onToggleAll(vms.map((v) => v.id))}
+                  aria-label="Select all"
+                />
+              </label>
             </th>
             {columns.map((col) => {
               const sortable = SORTABLE_COLUMNS.has(col.key);
-              const active = sortKey === col.key;
+              const active = sortKey === col.key || (col.key === 'health_score' && sortKey === 'health') || (col.key === 'health' && sortKey === 'health_score');
               const ariaSort = sortable ? (active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined;
               return (
                 <th key={col.key} scope="col" className="px-4 py-3" aria-sort={ariaSort}>
@@ -142,16 +161,22 @@ export function VmTable({
               <tr
                 key={vm.id}
                 className={cn(tableRowClass, isSelected && 'bg-[var(--color-accent)]/10')}
-                style={{ borderLeft: `3px solid var(--color-status-${vm.status.toLowerCase().replace(/\s+/g, '_')})` }}
               >
                 <td className="py-3 pl-3 pr-4">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
-                    checked={isSelected}
-                    onChange={() => onToggle(vm.id)}
-                    aria-label={`Select ${vm.name}`}
-                  />
+                  <div className="inline-flex items-center gap-2">
+                    <label className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center p-1 -m-1">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
+                        checked={isSelected}
+                        onChange={() => onToggle(vm.id)}
+                        aria-label={`Select ${vm.name}`}
+                      />
+                    </label>
+                    {!hasStatusColumn && !hasNameColumn && (
+                      <Badge value={vm.status} type="status" />
+                    )}
+                  </div>
                 </td>
                 {columns.map((col) => {
                   const isEditing = editingCell?.vmId === vm.id && editingCell?.field === col.key;
@@ -163,9 +188,9 @@ export function VmTable({
                       className={cn(
                         tableCellClass,
                         col.key === 'name' && 'font-medium',
-                        isEditable && !isEditing && 'group/cell cursor-pointer hover:bg-[var(--color-accent)]/10 transition-colors'
+                        isEditable && !isEditing && 'group/cell cursor-pointer hover:bg-[var(--color-accent)]/10 transition-colors focus-within:ring-2 focus-within:ring-inset focus-within:ring-[var(--color-accent)]'
                       )}
-                      title={isEditable && !isEditing ? 'Click to edit inline' : undefined}
+                      title={isEditable && !isEditing ? 'Click or press Enter to edit' : undefined}
                       style={isEditing ? { width: editWidth ?? undefined } : undefined}
                       onClick={(e) => {
                         if (isEditable && !isEditing) {
@@ -236,11 +261,14 @@ export function VmTable({
                           {isSaving ? <Spinner /> : null}
                         </div>
                       ) : (
-                        <>
+                        <CellTrigger editable={isEditable} label={`Edit ${COLUMN_LABELS[col.key as keyof typeof COLUMN_LABELS] || col.key} for ${vm.name}`}>
                           {col.key === 'name' && (
-                            <Link href={`/inventory/${vm.id}`} className={cn(monoClass, "font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent-text)]")}>
-                              {vm.name}
-                            </Link>
+                            <div className="inline-flex items-center gap-2">
+                              <Link href={`/inventory/${vm.id}`} className={cn(monoClass, "font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent-text)]")}>
+                                {vm.name}
+                              </Link>
+                              {!hasStatusColumn && <Badge value={vm.status} type="status" />}
+                            </div>
                           )}
                           {col.key === 'platform' && <Badge value={vm.platform} type="platform" />}
                           {col.key === 'cluster' && <span className={cn(monoClass, "truncate max-w-[180px]")}>{vm.cluster}</span>}
@@ -252,10 +280,17 @@ export function VmTable({
                           {col.key === 'owner' && <span className="truncate max-w-xs">{vm.owner ?? ''}</span>}
                           {col.key === 'monitoring_enabled' && <span>{vm.monitoring_enabled ? 'Enabled' : 'Disabled'}</span>}
                           {col.key === 'pmp_enabled' && <span>{vm.pmp_enabled ? 'Enabled' : 'Disabled'}</span>}
-                          {col.key === 'health' && <span className={monoClass}>{vm.health_score}</span>}
-                          {col.key === 'resources' && (
-                            <span className={cn(monoClass, "truncate max-w-[200px]")}>{vm.cpu_cores} vCPU · {formatMemory(vm.memory_mb)}</span>
-                          )}
+                          {col.key === 'backup_enabled' && <span>{vm.backup_enabled ? 'Enabled' : 'Disabled'}</span>}
+                          {col.key === 'ha_enabled' && <span>{vm.ha_enabled ? 'Enabled' : 'Disabled'}</span>}
+                          {col.key === 'vm_type' && <span className="capitalize">{vm.vm_type}</span>}
+                          {col.key === 'datacenter' && <span className="truncate max-w-[180px]">{vm.datacenter ?? '—'}</span>}
+                          {col.key === 'business_owner' && <span className="truncate max-w-xs">{vm.business_owner ?? '—'}</span>}
+                          {col.key === 'technical_owner' && <span className="truncate max-w-xs">{vm.technical_owner ?? '—'}</span>}
+                          {col.key === 'updated_at' && <span className={monoClass}>{formatDate(vm.updated_at)}</span>}
+                          {col.key === 'created_at' && <span className={monoClass}>{formatDate(vm.created_at)}</span>}
+                          {(col.key === 'health' || col.key === 'health_score') && <span className={monoClass}>{vm.health_score}</span>}
+                          {col.key === 'cpu_cores' && <span className={monoClass}>{vm.cpu_cores} vCPU</span>}
+                          {col.key === 'memory_mb' && <span className={monoClass}>{formatMemory(vm.memory_mb)}</span>}
                           {col.key === 'virtual_hosts' && (
                             <span className="flex flex-wrap gap-1 max-w-xs">
                               {(vm.virtual_hosts ?? []).map((host) => (
@@ -274,7 +309,7 @@ export function VmTable({
                               {vm.tags.length > 3 && <span className="text-xs text-[var(--color-text-tertiary)]">+{vm.tags.length - 3}</span>}
                             </span>
                           )}
-                        </>
+                        </CellTrigger>
                       )}
                     </td>
                   );

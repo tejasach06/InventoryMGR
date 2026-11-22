@@ -10,7 +10,7 @@ import { AppNav } from './AppNav';
 import { ThemeSelect, ThemeSegmented } from './ThemeProvider';
 import { useAccentSync } from './AccentProvider';
 import { NotificationBell } from './NotificationBell';
-import { useModalOverlay } from '../hooks/useModalOverlay';
+import { useOverlayFocus } from '../hooks/useOverlayFocus';
 
 interface LayoutProps {
   user: User;
@@ -50,7 +50,7 @@ export function AppLayout({ user, children }: LayoutProps) {
   const mobilePanelRef = useRef<HTMLDivElement>(null);
   const mobileCloseRef = useRef<HTMLButtonElement>(null);
   const closeMobile = useCallback(() => setMobileOpen(false), []);
-  useModalOverlay({ open: mobileOpen, onClose: closeMobile, containerRef: mobilePanelRef, initialFocusRef: mobileCloseRef });
+  useOverlayFocus({ open: mobileOpen, onClose: closeMobile, containerRef: mobilePanelRef, initialFocusRef: mobileCloseRef });
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
@@ -185,7 +185,7 @@ export function AppLayout({ user, children }: LayoutProps) {
         aria-expanded={!collapsed}
         aria-controls="primary-nav"
         title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        className={`fixed top-1/2 z-30 hidden h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-tertiary)] shadow-[var(--shadow-raised)] transition-colors duration-150 hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-secondary)] lg:inline-flex ${collapsed ? 'lg:left-16' : 'lg:left-60'}`}
+        className={`fixed top-1/2 z-30 hidden h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-tertiary)] shadow-[var(--shadow-raised)] transition-colors duration-150 hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-secondary)] lg:inline-flex before:absolute before:-inset-2 before:content-[''] ${collapsed ? 'lg:left-16' : 'lg:left-60'}`}
       >
         <svg className={`h-3.5 w-3.5 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M10 4L6 8l4 4" />

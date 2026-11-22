@@ -37,6 +37,22 @@ describe('mergeWithDefaults', () => {
     expect(merged.find((c) => c.key === 'fqdn')).toBeUndefined();
   });
 
+  it('splits the legacy resources column into cpu_cores and memory_mb in place', () => {
+    const saved = [
+      { key: 'name', visible: true, order: 0 },
+      { key: 'resources', visible: false, order: 1 },
+      { key: 'status', visible: true, order: 2 },
+    ];
+    const merged = mergeWithDefaults(saved).sort((a, b) => a.order - b.order);
+    expect(merged.slice(0, 4)).toEqual([
+      { key: 'name', visible: true, order: 0 },
+      { key: 'cpu_cores', visible: false, order: 1 },
+      { key: 'memory_mb', visible: false, order: 2 },
+      { key: 'status', visible: true, order: 3 },
+    ]);
+    expect(merged.find((c) => c.key === 'resources')).toBeUndefined();
+  });
+
   it('is a no-op when everything is already present', () => {
     const merged = mergeWithDefaults(DEFAULT_COLUMNS);
     expect(merged).toHaveLength(DEFAULT_COLUMNS.length);

@@ -36,6 +36,7 @@ import {
   hasActiveFilters,
   paramsFromFilters,
   queryParamsFor,
+  toApiSortKey,
   viewFromParams,
 } from '../lib/inventoryFilters';
 import type { Filters, ViewState } from '../lib/inventoryFilters';
@@ -46,6 +47,7 @@ export {
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_STORAGE_KEY,
   SORTABLE_COLUMNS,
+  toApiSortKey,
   advancedFilterNames,
   coreFilterNames,
   filterNames,
@@ -118,8 +120,9 @@ export function InventoryPage() {
   }
 
   function handleSort(key: string) {
+    const apiSortKey = toApiSortKey(key);
     // asc -> desc -> unsorted, the existing three-state cycle.
-    if (view.sort !== key) pushView({ ...view, sort: key, dir: 'asc', page: 1 });
+    if (view.sort !== apiSortKey) pushView({ ...view, sort: apiSortKey, dir: 'asc', page: 1 });
     else if (view.dir === 'asc') pushView({ ...view, dir: 'desc', page: 1 });
     else pushView({ ...view, sort: null, dir: 'asc', page: 1 });
   }

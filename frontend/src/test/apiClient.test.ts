@@ -417,7 +417,8 @@ describe('api client methods', () => {
   });
   it('maps list columns to export columns in list order', () => {
     const prefs = [
-      { key: 'resources', visible: true, order: 1 },
+      { key: 'cpu_cores', visible: true, order: 1 },
+      { key: 'memory_mb', visible: true, order: 1.5 },
       { key: 'name', visible: true, order: 0 },
       { key: 'virtual_hosts', visible: false, order: 2 },
     ];
