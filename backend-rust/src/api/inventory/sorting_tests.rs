@@ -268,3 +268,69 @@ async fn test_db_sorting_booleans_text_case_and_null_placement() {
     let names: Vec<&str> = res["items"].as_array().unwrap().iter().map(|i| i["name"].as_str().unwrap()).collect();
     assert_eq!(names, vec!["vm-2", "vm-1"]);
 }
+
+#[tokio::test]
+async fn test_db_sorting_deterministic_pagination_with_duplicate_names() {
+    let (_db, state) = Database::start().await;
+    let mut client = Browser::default();
+    assert_eq!(
+        client.request(&state, "POST", "/auth/setup", Some(json!({"email":"admin@example.com","password":"admin-password"}))).await.0,
+        StatusCode::CREATED
+    );
+
+    let count = 30;
+    let mut expected_ids = std::collections::HashSet::new();
+
+    for i in 0..count {
+        let (status, res) = client.request(&state, "POST", "/vms", Some(json!({
+            "name": "tie-dup",
+            "external_id": format!("ext-{i:03}"),
+            "platform": "vmware",
+            "cluster": "c1",
+            "status": "running",
+            "criticality": "medium",
+            "cpu_cores": 2,
+            "memory_mb": 2048,
+            "pmp_enabled": true,
+            "ha_enabled": true,
+            "vm_type": "permanent"
+        }))).await;
+        assert_eq!(status, StatusCode::CREATED);
+        let id = res["id"].as_str().unwrap().to_owned();
+        expected_ids.insert(id);
+    }
+    assert_eq!(expected_ids.len(), count);
+
+    for query_params in [
+        "sort=pmp_enabled&dir=asc",
+        "sort=ha_enabled&dir=asc",
+        "sort=vm_type&dir=asc",
+        "",
+    ] {
+        let mut seen_ids = Vec::new();
+        let mut offset = 0;
+        let limit = 10;
+        loop {
+            let path = if query_params.is_empty() {
+                format!("/vms?limit={limit}&offset={offset}")
+            } else {
+                format!("/vms?{query_params}&limit={limit}&offset={offset}")
+            };
+            let (status, res) = client.request(&state, "GET", &path, None).await;
+            assert_eq!(status, StatusCode::OK);
+            let items = res["items"].as_array().unwrap();
+            if items.is_empty() {
+                break;
+            }
+            for item in items {
+                seen_ids.push(item["id"].as_str().unwrap().to_owned());
+            }
+            offset += limit;
+        }
+
+        assert_eq!(seen_ids.len(), count, "Total returned count mismatch for '{query_params}'");
+        let distinct_ids: std::collections::HashSet<_> = seen_ids.iter().cloned().collect();
+        assert_eq!(distinct_ids.len(), count, "Duplicate items found across pages for '{query_params}'");
+        assert_eq!(distinct_ids, expected_ids, "Not all created IDs returned for '{query_params}'");
+    }
+}

@@ -61,35 +61,35 @@ pub fn ordering(p:&Params)->Result<String,ApiError>{
     let dir=first(p,"dir").unwrap_or("asc");
     if !["asc","desc"].contains(&dir){return Err(ApiError::invalid("Invalid sort direction"));}
     let key=match first(p,"sort"){
-        None=>return Ok("v.updated_at DESC,v.name ASC".into()),
+        None=>return Ok("v.updated_at DESC,v.name ASC,v.id ASC".into()),
         Some(k)=>k,
     };
     let order_sql=match key{
-        "name"=>format!("lower(v.name) {dir},v.name ASC"),
-        "status"=>format!("CASE v.status WHEN 'running' THEN 0 WHEN 'powered_off' THEN 1 WHEN 'unknown' THEN 2 ELSE 3 END {dir},v.name ASC"),
-        "criticality"=>format!("CASE v.criticality WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END {dir},v.name ASC"),
-        "health"|"health_score"=>format!("v.health_score {dir},v.name ASC"),
-        "cpu_cores"=>format!("v.cpu_cores {dir},v.name ASC"),
-        "memory_mb"=>format!("v.memory_mb {dir},v.name ASC"),
-        "resources"=>format!("v.cpu_cores {dir},v.memory_mb {dir},v.name ASC"),
-        "updated_at"=>format!("v.updated_at {dir},v.name ASC"),
-        "created_at"=>format!("v.created_at {dir},v.name ASC"),
-        "platform"=>format!("v.platform {dir},v.name ASC"),
-        "environment"=>format!("v.environment {dir},v.name ASC"),
-        "cluster"=>format!("lower(v.cluster) {dir},v.name ASC"),
-        "owner"=>format!("lower(v.owner) {dir},v.name ASC"),
-        "business_owner"=>format!("lower(v.business_owner) {dir},v.name ASC"),
-        "technical_owner"=>format!("lower(v.technical_owner) {dir},v.name ASC"),
-        "datacenter"=>format!("lower(v.datacenter) {dir},v.name ASC"),
-        "node"=>format!("lower(v.node) {dir},v.name ASC"),
-        "vm_type"=>format!("lower(v.vm_type::text) {dir},v.name ASC"),
-        "os_family"=>format!("lower(coalesce(v.os_family::text,'undefined')) {dir},v.name ASC"),
-        "pmp_enabled"=>format!("v.pmp_enabled {dir},v.name ASC"),
-        "monitoring_enabled"=>format!("v.monitoring_enabled {dir},v.name ASC"),
-        "backup_enabled"=>format!("v.backup_enabled {dir},v.name ASC"),
-        "ha_enabled"=>format!("v.ha_enabled {dir},v.name ASC"),
-        "virtual_hosts"=>format!("(SELECT lower(vh) FROM unnest(v.virtual_hosts) AS vh ORDER BY lower(vh) ASC LIMIT 1) {dir},v.name ASC"),
-        "tags"=>format!("(CASE WHEN jsonb_typeof(v.tags)='array' THEN (SELECT lower(elem) FROM jsonb_array_elements_text(v.tags) AS elem ORDER BY lower(elem) ASC LIMIT 1) END) {dir},v.name ASC"),
+        "name"=>format!("lower(v.name) {dir},v.name ASC,v.id ASC"),
+        "status"=>format!("CASE v.status WHEN 'running' THEN 0 WHEN 'powered_off' THEN 1 WHEN 'unknown' THEN 2 ELSE 3 END {dir},v.name ASC,v.id ASC"),
+        "criticality"=>format!("CASE v.criticality WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END {dir},v.name ASC,v.id ASC"),
+        "health"|"health_score"=>format!("v.health_score {dir},v.name ASC,v.id ASC"),
+        "cpu_cores"=>format!("v.cpu_cores {dir},v.name ASC,v.id ASC"),
+        "memory_mb"=>format!("v.memory_mb {dir},v.name ASC,v.id ASC"),
+        "resources"=>format!("v.cpu_cores {dir},v.memory_mb {dir},v.name ASC,v.id ASC"),
+        "updated_at"=>format!("v.updated_at {dir},v.name ASC,v.id ASC"),
+        "created_at"=>format!("v.created_at {dir},v.name ASC,v.id ASC"),
+        "platform"=>format!("v.platform {dir},v.name ASC,v.id ASC"),
+        "environment"=>format!("v.environment {dir},v.name ASC,v.id ASC"),
+        "cluster"=>format!("lower(v.cluster) {dir},v.name ASC,v.id ASC"),
+        "owner"=>format!("lower(v.owner) {dir},v.name ASC,v.id ASC"),
+        "business_owner"=>format!("lower(v.business_owner) {dir},v.name ASC,v.id ASC"),
+        "technical_owner"=>format!("lower(v.technical_owner) {dir},v.name ASC,v.id ASC"),
+        "datacenter"=>format!("lower(v.datacenter) {dir},v.name ASC,v.id ASC"),
+        "node"=>format!("lower(v.node) {dir},v.name ASC,v.id ASC"),
+        "vm_type"=>format!("lower(v.vm_type::text) {dir},v.name ASC,v.id ASC"),
+        "os_family"=>format!("lower(coalesce(v.os_family::text,'undefined')) {dir},v.name ASC,v.id ASC"),
+        "pmp_enabled"=>format!("v.pmp_enabled {dir},v.name ASC,v.id ASC"),
+        "monitoring_enabled"=>format!("v.monitoring_enabled {dir},v.name ASC,v.id ASC"),
+        "backup_enabled"=>format!("v.backup_enabled {dir},v.name ASC,v.id ASC"),
+        "ha_enabled"=>format!("v.ha_enabled {dir},v.name ASC,v.id ASC"),
+        "virtual_hosts"=>format!("(SELECT lower(vh) FROM unnest(v.virtual_hosts) AS vh ORDER BY lower(vh) ASC LIMIT 1) {dir},v.name ASC,v.id ASC"),
+        "tags"=>format!("(CASE WHEN jsonb_typeof(v.tags)='array' THEN (SELECT lower(elem) FROM jsonb_array_elements_text(v.tags) AS elem ORDER BY lower(elem) ASC LIMIT 1) END) {dir},v.name ASC,v.id ASC"),
         "private_ip"|"public_ip"|"backup_ip"=>{
             let role=match key{
                 "private_ip"=>"private",
@@ -98,7 +98,7 @@ pub fn ordering(p:&Params)->Result<String,ApiError>{
                 _=>unreachable!(),
             };
             format!(
-                "(SELECT CASE WHEN n.ip_address ~ '^((25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])\\.){{3}}(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])$' THEN n.ip_address::inet END FROM vm_networks n WHERE n.vm_id=v.id AND n.role='{role}' ORDER BY n.sort_order, n.id LIMIT 1) {dir}, (SELECT n.ip_address FROM vm_networks n WHERE n.vm_id=v.id AND n.role='{role}' ORDER BY n.sort_order, n.id LIMIT 1) {dir},v.name ASC"
+                "(SELECT CASE WHEN n.ip_address ~ '^((25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])\\.){{3}}(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])$' THEN n.ip_address::inet END FROM vm_networks n WHERE n.vm_id=v.id AND n.role='{role}' ORDER BY n.sort_order, n.id LIMIT 1) {dir}, (SELECT n.ip_address FROM vm_networks n WHERE n.vm_id=v.id AND n.role='{role}' ORDER BY n.sort_order, n.id LIMIT 1) {dir},v.name ASC,v.id ASC"
             )
         }
         _=>return Err(ApiError::invalid("Invalid sort")),
@@ -131,13 +131,13 @@ pub fn ordering(p:&Params)->Result<String,ApiError>{
              assert!(validate_query(&q).is_ok(), "validate_query should accept sort={key}");
              let sql = ordering(&q).unwrap();
              assert!(sql.contains(dir), "sql for {key} {dir} must contain {dir}");
-             assert!(sql.ends_with(",v.name ASC"), "sql for {key} {dir} must end with tie-breaker");
+             assert!(sql.ends_with(",v.name ASC,v.id ASC"), "sql for {key} {dir} must end with tie-breaker");
          }
      }
  }
  #[test]fn ordering_default_when_no_sort(){
      let q = query(None);
-     assert_eq!(ordering(&q).unwrap(), "v.updated_at DESC,v.name ASC");
+     assert_eq!(ordering(&q).unwrap(), "v.updated_at DESC,v.name ASC,v.id ASC");
  }
  #[test]fn ordering_rejects_unknown_column_and_injection(){
      for invalid in ["not_a_column", "name; DROP TABLE vms;", "' OR '1'='1", "unknown_key"] {
