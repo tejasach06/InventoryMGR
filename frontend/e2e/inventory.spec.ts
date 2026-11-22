@@ -115,8 +115,8 @@ test('bulk edits the selected rows', async ({ page }) => {
   await tableWrap.evaluate((el) => { el.scrollTop = el.scrollHeight; });
   await expect(page.getByRole('columnheader', { name: /Name/ })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Edit' }).click();
-  await page.getByLabel('Criticality').selectOption('high');
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByLabel('Criticality', { exact: true }).selectOption('high');
   await page.getByRole('button', { name: /^Apply to/ }).click();
   await page.getByRole('button', { name: 'Confirm Bulk Edit' }).click();
 
