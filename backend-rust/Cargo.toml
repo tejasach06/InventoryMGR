@@ -37,7 +37,7 @@ parking_lot = "~0.12.5"
 [dev-dependencies]
 tower = { version = "~0.5.3", features = ["util"] }
 http-body-util = "~0.1.5"
-zip = { version = "~9.5.1", default-features = false, features = ["deflate"] }
+zip = { version = "~9.7.3", default-features = false, features = ["deflate"] }
 
 # sqlx-sqlite is lock-only (no sqlite feature is enabled) but pins libsqlite3-sys <0.38, which carries RUSTSEC-2026-0459.
 # shortcut: widened pin in a vendored copy; drop this patch once a released sqlx-sqlite allows libsqlite3-sys >=0.39.
